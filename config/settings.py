@@ -104,6 +104,55 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Logging
+
+LOGS_PATH = os.path.join(BASE_DIR, os.getenv("LOGS_PATH", "logs"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default_formatter": {
+            "format": "{asctime} - [{levelname}] - {filename}:{funcName}:{lineno} - {message}",
+            "style": "{",
+        },
+        "uncatched_errors_formatter": {
+            "format": "{asctime} - [{levelname}] - {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+        "default_file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(LOGS_PATH, "info.log"),
+            "formatter": "default_formatter",
+        },
+        "uncatched_errors_file": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(LOGS_PATH, "uncatched_errors.log"),
+            "formatter": "uncatched_errors_formatter",
+        },
+    },
+    "loggers": {
+        "default_logger": {
+            "handlers": ["default_file"],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        "uncatched_errors_logger": {
+            "handlers": ["uncatched_errors_file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
 
