@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "ckeditor",
+    "ckeditor_uploader",
     "articles",
     "users",
 ]
@@ -178,3 +180,10 @@ STATIC_DIRS = ["static"]
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# CKEditor
+
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_IMAGE_BACKEND = "pillow"
+CKEDITOR_BROWSE_SHOW_DIRS = True
