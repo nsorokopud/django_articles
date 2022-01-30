@@ -20,6 +20,7 @@ class Article(models.Model):
 
     class Meta:
         verbose_name_plural = "Articles"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.title} - {self.author} - [{self.created_at}]"
