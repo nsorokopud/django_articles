@@ -1,4 +1,4 @@
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
 
 from .models import Article
 from .services import find_published_articles
@@ -13,3 +13,10 @@ class HomePageView(CategoriesMixin, ListView):
 
     def get_queryset(self):
         return find_published_articles()
+
+
+class ArticleDetailView(CategoriesMixin, DetailView):
+    model = Article
+    slug_url_kwarg = "article_slug"
+    context_object_name = "article"
+    template_name = "articles/article.html"

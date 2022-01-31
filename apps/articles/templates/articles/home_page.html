@@ -31,7 +31,9 @@
                         <hr>
 
                         <div class="article-preview-main">
-                            <h3 class="article-title mb-4">{{ article.title }}</h3>
+                            <h3 class="article-title mb-4">
+                                <a href="{% url 'article-details' article.slug %}">{{ article.title }}</a>
+                            </h3>
 
                             <div class="article-preview-content">
                                 {% if article.preview_image %}
