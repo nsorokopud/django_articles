@@ -1,0 +1,10 @@
+<aside class="sidebar">
+    <div class="sidebar__inner p-3 bg-dark text-white">
+        <h3 class="mb-4">Categories</h3>
+        <ul class="categories-list">
+            {% for category in categories %}
+            <li><a href="#">{{ category.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</aside>

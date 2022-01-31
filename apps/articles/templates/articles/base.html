@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<main class="bg-light">
+    {% block content-main %}
+    <div class="container main-container d-flex mx-auto">
+
+        {% include "inclusion/sidebar.html" %}
+
+        <section class="main-content">
+
+            <div class="row">
+                <div class="col-sm-12 col-lg-10 mx-auto">
+                    <form class="article-search d-flex">
+                        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" />
+                        <button class="btn btn-outline-success" type="submit">Search</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="articles-container col-lg-10 col-md-12 mx-auto">
+
+                    {% for article in articles %}
+                    <article class="article p-3">
+                        <div class="article-preview-author d-flex align-items-end mb-3">
+                            <img class="article-author-avatar rounded-circle"
+                                src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp" alt="Article author's image" />
+                            <a href="#" class="article-author-name mx-2">{{ article.author }}</a>
+                            <span class="article-preview-date mx-3">{{ article.created_at }}</span>
+                        </div>
+
+                        <hr>
+
+                        <div class="article-preview-main">
+                            <h3 class="article-title mb-4">{{ article.title }}</h3>
+
+                            <div class="article-preview-content">
+                                {% if article.preview_image %}
+                                <img class="img-fluid mx-auto d-block" src="{{ article.preview_image.url }}"
+                                    alt="Article preview image">
+                                {% else %}
+                                2
+                                {% endif %}
+                                <p class="article-preview-text mt-3">
+                                    {{ article.preview_text }}
+                                </p>
+
+                                <hr>
+
+                                <div class="article-preview-bottom d-flex justify-content-between align-items-center">
+                                    <a href="#" class="btn btn-success">Read full</a>
+
+                                    <span class="article-preview-icons">
+                                        <span class="mx-2 article-preview-icons__item">
+                                            <i style="color: #198754;" class="far fa-eye m-1"></i>
+                                            <span style="font-size: 14px; font-weight: 500;">1602139</span>
+                                        </span>
+                                        <span class="mx-2 article-preview-icons__item">
+                                            <i style="color: #198754;" class="far fa-thumbs-up m-1"></i>
+                                            <span style="font-size: 14px; font-weight: 500;">1250643</span>
+                                        </span>
+                                        <span class="mx-2 article-preview-icons__item">
+                                            <i style="color: #198754; " class="far fa-thumbs-down m-1"></i>
+                                            <span style="font-size: 14px; font-weight: 500;">89795</span>
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if paginator.num_pages > 1 %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1" aria-disabled="true">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for p in paginator.page_range %}
+                    {% if p == page_obj.number %}
+                    <li class="page-item active"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>
+                    {% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %} <li class="page-item"><a
+                            class="page-link" href="?page={{ p }}">{{ p }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}">Last</a></li>
+                        {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </section>
+
+    </div> <!-- End of container -->
+    {% endblock content-main %}
+
+    {% block content-bottom %}{% endblock content-bottom %}
+</main>
+{% endblock content %}
