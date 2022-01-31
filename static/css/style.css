@@ -93,7 +93,7 @@ aside.sidebar {
 }
 
 h3.article-title {
-    font-size: 35px !important;
+    font-size: 35px;
 }
 
 a.article-author-name {
@@ -113,6 +113,15 @@ a.article-author-name:hover {
 
 .article-preview-date {
     color: grey;
+}
+
+.article .article-title a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.article .article-title a:hover {
+    color: #198754;
 }
 
 .article-preview-text {
