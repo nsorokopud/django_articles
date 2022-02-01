@@ -22,6 +22,11 @@
                     </div>
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
+                        <ul class="article-tags-list">
+                            {% for tag in article.tags.all %}
+                            <li><a class="article-tag-link" href="#">#{{ tag }}</a></li>
+                            {% endfor %}
+                        </ul>
                         <div class="article-preview-content">
                             <img class="img-fluid"
                                 src="https://linustechtips.com/uploads/gallery/album_2009/gallery_34301_2009_808098.jpg"

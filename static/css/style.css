@@ -43,6 +43,16 @@ header i {
     }
 }
 
+/* User */
+
+.user-form div.form-group {
+    margin-bottom: 20px;
+}
+
+.logout-block {
+    margin: 80px 0;
+}
+
 /* Main */
 
 main {
@@ -209,6 +219,13 @@ article.article-single {
     margin-bottom: 40px;
 }
 
+.article-tags-list {
+    display: flex;
+    list-style: none;
+    margin-top: -15px;
+    padding: 0;
+}
+
 .article-icon {
     display: inline-block;
     color: #198754;
@@ -260,12 +277,16 @@ a i.fa-thumbs-down.active:hover, a i.fa-thumbs-up.active:hover {
     margin-right: 20px;
 }
 
-/* User */
+.article-tag-link {
+    text-decoration: none;
+    margin-right: 12px;
+    color: #00B74A;
+};
 
-.user-form div.form-group {
-    margin-bottom: 20px;
+.article-tag-link:hover {
+    color: #198754;
 }
 
-.logout-block {
-    margin: 80px 0;
+.article-tag-link:hover {
+    color: #198754;
 }
