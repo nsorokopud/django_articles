@@ -259,3 +259,13 @@ a i.fa-thumbs-down.active:hover, a i.fa-thumbs-up.active:hover {
 .article-comments-container .comment-like-count {
     margin-right: 20px;
 }
+
+/* User */
+
+.user-form div.form-group {
+    margin-bottom: 20px;
+}
+
+.logout-block {
+    margin: 80px 0;
+}
