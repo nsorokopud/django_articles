@@ -36,10 +36,10 @@
                         <a class="header-user-link" href="">
                             <i class="fas fa-user"></i> {{ request.user.username|truncatechars:30 }}
                         </a>
-                        <a href="">Log out</a>
+                        <a href="{% url 'logout' %}">Log out</a>
                         {% else %}
-                        <a href="">Log in</a>
-                        <a href="">Register</a>
+                        <a href="{% url 'login' %}">Log in</a>
+                        <a href="{% url 'registration' %}">Register</a>
                         {% endif  %}
                     </div>
                     <!--<form class="d-flex">
