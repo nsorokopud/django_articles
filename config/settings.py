@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "ckeditor",
     "ckeditor_uploader",
+    "crispy_forms",
     "taggit",
     "articles",
     "users",
@@ -184,6 +185,10 @@ MEDIA_URL = "/media/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
+# Chrispy forms
+
+CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 # CKEditor
 
