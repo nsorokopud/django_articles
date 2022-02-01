@@ -18,8 +18,8 @@
                     <div class="article-preview-author d-flex align-items-end mb-3">
                         <img src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp" class="rounded-circle"
                             style="width: 35px;" alt="Avatar" />
-                        <a style="text-decoration: none; color: black; " href="#" class="article-author-name mx-2">{{ article.author.username }}</a>
-                        <span style="color: grey; font-size:14px;" class="article-preview-date mx-3">{{ article.created_at }}</span>
+                        <a href="#" class="article-author-name mx-2">{{ article.author.username }}</a>
+                        <span class="article-preview-date mx-3">{{ article.created_at }}</span>
                     </div>
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
@@ -27,7 +27,7 @@
                             <img class="img-fluid"
                                 src="https://linustechtips.com/uploads/gallery/album_2009/gallery_34301_2009_808098.jpg"
                                 alt="Article preview image">
-                            <p style="text-align: justify;" class="article-preview-text mt-3">{{ article.content|safe }}</p>
+                            <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
                             <hr>
                             <span class="article-preview-icons">
                                 <span class="mx-2 article-preview-icons__item">
