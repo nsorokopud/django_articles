@@ -44,3 +44,19 @@ class TestViews(TestCase):
         self.assertRedirects(response, reverse("home"), status_code=302, target_status_code=200)
         self.assertEquals(response.wsgi_request.user.is_authenticated, True)
         self.assertEquals(response.wsgi_request.user, self.test_user)
+
+    def test_user_logout_view_get(self):
+        response = self.client.get(reverse("logout"))
+        self.assertEquals(response.status_code, 200)
+        self.assertTemplateUsed("users/logout.html")
+
+    def test_user_logout_view_post(self):
+        self.client.login(username="test_user", password="12345")
+
+        response = self.client.get(reverse("registration"))
+        self.assertEquals(response.wsgi_request.user.is_authenticated, True)
+        response = self.client.post(reverse("logout"))
+        self.assertEquals(response.wsgi_request.user.is_authenticated, False)
+
+        self.assertEquals(response.status_code, 200)
+        self.assertTemplateUsed("users/logout.html")
