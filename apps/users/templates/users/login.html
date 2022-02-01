@@ -1,0 +1,28 @@
+{% extends "users/form_base.html" %}
+{% load crispy_forms_tags %}
+
+{% block form %}
+<form class="user-form" method="POST">
+    {% csrf_token %}
+    <fieldset>
+        <div class="form-group">
+            <legend class="botder-bottom mb-4">Log In</legend>
+            {{ form|crispy }}
+        </div>
+    </fieldset>
+    <div class="form-group">
+        <button class="btn btn-success" type="submit">Log In</button>
+        <small class="text-muted">
+            <a href="#" class="text-muted text-decoration-none mx-2">Forgot Password?</a>
+        </small>
+    </div>
+</form>
+{% endblock form %}
+
+{% block form-after %}
+<div class="border-top mt-3">
+    <small class="text-muted">
+        Need an account? <a href="{% url 'registration' %}" class="text-decoration-none mx-2">Sign Up</a>
+    </small>
+</div>
+{% endblock form-after %}
