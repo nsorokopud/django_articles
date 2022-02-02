@@ -49,6 +49,10 @@ header i {
     margin-bottom: 20px;
 }
 
+.django-ckeditor-widget {
+    width: 100%;
+}
+
 .logout-block {
     margin: 80px 0;
 }
@@ -123,6 +127,8 @@ a.article-author-name:hover {
 
 .article-preview-date {
     color: grey;
+    font-size: 12px;
+    margin-bottom: 3px;
 }
 
 .article .article-title a {
