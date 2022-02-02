@@ -10,6 +10,7 @@
                 <h2 class="mb-5">Write new article:</h2>
                 <form class="user-form" method="POST" action="{% url 'article-create' %}" enctype="multipart/form-data">
                     {% csrf_token %}
+                    {{ form.media }}
                     {{ form|crispy }}
                     <button class="btn btn-outline-success" type="submit">Create</button>
                 </form>
