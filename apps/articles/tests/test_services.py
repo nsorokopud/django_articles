@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 
 from articles.models import Article, ArticleCategory
-from articles.services import find_published_articles, get_all_categories
+from articles.services import find_published_articles, get_all_categories, create_article
 
 
 class TestServices(TestCase):
@@ -47,3 +47,23 @@ class TestServices(TestCase):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
         cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
         self.assertCountEqual(get_all_categories(), [cat1, cat2, self.test_category])
+
+    def test_create_article(self):
+        a1 = create_article(
+            title="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            tags=["tag1", "tag2"],
+        )
+
+        last_article = Article.objects.last()
+
+        self.assertEquals(last_article.pk, a1.pk)
+        self.assertEquals(last_article.slug, "a1")
+        self.assertEquals(last_article.author.username, "test_user")
+
+        expected_tags = ["tag1", "tag2"]
+        actual_tags = [tag.name for tag in last_article.tags.all()]
+        self.assertCountEqual(actual_tags, expected_tags)
