@@ -32,7 +32,7 @@
 
                         <div class="article-preview-main">
                             <h3 class="article-title mb-4">
-                                <a href="{% url 'article-details' article.slug %}">{{ article.title }}</a>
+                                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                             </h3>
 
                             <div class="article-preview-content">
