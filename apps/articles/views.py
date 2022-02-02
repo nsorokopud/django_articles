@@ -1,6 +1,8 @@
+from django.http import Http404
 from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.template.defaultfilters import slugify
 
 from .models import Article
 from .forms import ArticleCreateForm
@@ -35,3 +37,22 @@ class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
         kwargs = super(ArticleCreateView, self).get_form_kwargs()
         kwargs["request"] = self.request
         return kwargs
+
+
+class ArticleUpdateView(UpdateView):
+    model = Article
+    fields = ["title", "category", "tags", "preview_text", "preview_image", "content"]
+    slug_url_kwarg = "article_slug"
+    login_url = reverse_lazy("login")
+    template_name = "articles/article_update.html"
+
+    def dispatch(self, *args, **kwargs):
+        if self.get_object().author != self.request.user:
+            raise Http404()
+        else:
+            return super().dispatch(*args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        form.instance.slug = slugify(form.instance.title)
+        return super().form_valid(form)
