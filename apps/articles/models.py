@@ -7,7 +7,7 @@ from taggit.managers import TaggableManager
 
 
 class Article(models.Model):
-    title = models.CharField(max_length=256)
+    title = models.CharField(max_length=256, unique=True)
     slug = models.SlugField(max_length=256, unique=True)
     category = models.ForeignKey("ArticleCategory", null=True, on_delete=models.SET_NULL)
     tags = TaggableManager(blank=True)
