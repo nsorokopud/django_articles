@@ -1,0 +1,25 @@
+{% extends 'articles/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content-main %}
+
+<div class="container main-container d-flex justify-content-center mx-auto">
+    <div class="row">
+        <div class="user-form col-sm-12 col-md-10 mx-auto">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <fieldset>
+                    <div class="form-group">
+                        <legend class="botder-bottom mb-4">Update article</legend>
+                        {{ form.media }}
+                        {{ form|crispy }}
+                    </div>
+                </fieldset>
+                <div class="form-group">
+                    <button class="btn btn-success" type="submit">Confirm update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content-main %}
