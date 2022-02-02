@@ -35,3 +35,20 @@ class TestViews(TestCase):
 
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("articles/article.html")
+
+    def test_article_creation_page_view_unauthorized(self):
+        url = reverse("article-create")
+        response = self.client.get(url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={url}",
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertTemplateUsed("articles/article.html")
+
+    def test_article_creation_page_view_authorized(self):
+        self.client.login(username="test_user", password="12345")
+        response = self.client.get(reverse("article-create"))
+        self.assertEquals(response.status_code, 200)
+        self.assertTemplateUsed("articles/article.html")
