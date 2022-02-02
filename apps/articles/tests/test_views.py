@@ -1,3 +1,4 @@
+from django.http import Http404
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -52,3 +53,47 @@ class TestViews(TestCase):
         response = self.client.get(reverse("article-create"))
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("articles/article.html")
+
+    def test_article_update_view_unauthorized(self):
+        url = reverse("article-update", args=[self.test_article.slug])
+        self.client.get(url)
+        self.assertRaises(Http404)
+
+    def test_article_update_view_authorized(self):
+        updated_data = {
+            "title": "new title",
+            "preview_text": "new preview text",
+            "content": "new content",
+            "tags": "tag1,tag2",
+            "is_published": True,
+            "author": self.test_user,
+        }
+
+        a = Article.objects.create(
+            title="title",
+            slug="slug",
+            category=self.test_category,
+            preview_text="text",
+            content="content",
+            author=self.test_user,
+        )
+
+        self.client.login(username="test_user", password="12345")
+        response = self.client.post(reverse("article-update", args=[a.slug]), updated_data)
+
+        a.refresh_from_db()
+        self.assertRedirects(
+            response,
+            reverse("article-details", args=[a.slug]),
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertTemplateUsed("articles/article_update.html")
+
+        self.assertEquals(a.author.username, "test_user")
+        self.assertEquals(a.title, "new title")
+        self.assertEquals(a.slug, "new-title")
+        self.assertEquals(a.preview_text, "new preview text")
+        self.assertEquals(a.content, "new content")
+        new_tags = [tag.name for tag in a.tags.all()]
+        self.assertCountEqual(new_tags, ["tag1", "tag2"])
