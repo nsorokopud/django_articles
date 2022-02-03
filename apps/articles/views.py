@@ -1,6 +1,6 @@
 from django.http import Http404
 from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.defaultfilters import slugify
 
@@ -56,3 +56,16 @@ class ArticleUpdateView(UpdateView):
         form.instance.author = self.request.user
         form.instance.slug = slugify(form.instance.title)
         return super().form_valid(form)
+
+
+class ArticleDeleteView(DeleteView):
+    model = Article
+    context_object_name = "article"
+    slug_url_kwarg = "article_slug"
+    success_url = reverse_lazy("home")
+
+    def dispatch(self, *args, **kwargs):
+        if self.get_object().author != self.request.user:
+            raise Http404()
+        else:
+            return super().dispatch(*args, **kwargs)

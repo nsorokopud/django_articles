@@ -12,6 +12,11 @@ urlpatterns = [
         name="article-update",
     ),
     path(
+        "articles/<slug:article_slug>/delete",
+        views.ArticleDeleteView.as_view(),
+        name="article-delete",
+    ),
+    path(
         "articles/<slug:article_slug>", views.ArticleDetailView.as_view(), name="article-details"
     ),
 ]
