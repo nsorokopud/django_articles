@@ -1,4 +1,3 @@
-from django.http import Http404
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -7,7 +6,7 @@ from django.template.defaultfilters import slugify
 from .models import Article
 from .forms import ArticleCreateForm
 from .services import find_published_articles
-from .utils import CategoriesMixin
+from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
 
 class HomePageView(CategoriesMixin, ListView):
@@ -39,18 +38,12 @@ class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
         return kwargs
 
 
-class ArticleUpdateView(UpdateView):
+class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     model = Article
     fields = ["title", "category", "tags", "preview_text", "preview_image", "content"]
     slug_url_kwarg = "article_slug"
     login_url = reverse_lazy("login")
     template_name = "articles/article_update.html"
-
-    def dispatch(self, *args, **kwargs):
-        if self.get_object().author != self.request.user:
-            raise Http404()
-        else:
-            return super().dispatch(*args, **kwargs)
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -58,14 +51,8 @@ class ArticleUpdateView(UpdateView):
         return super().form_valid(form)
 
 
-class ArticleDeleteView(DeleteView):
+class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
     model = Article
     context_object_name = "article"
     slug_url_kwarg = "article_slug"
     success_url = reverse_lazy("home")
-
-    def dispatch(self, *args, **kwargs):
-        if self.get_object().author != self.request.user:
-            raise Http404()
-        else:
-            return super().dispatch(*args, **kwargs)
