@@ -16,9 +16,9 @@
             <div class="articles-container col-lg-10 col-md-12 mx-auto nopadding">
                 <article class="article article-single p-3">
                     <div class="article-preview-author d-flex align-items-end mb-3">
-                        <img src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp" class="article-author-avatar rounded-circle" alt="Avatar" />
-                        <a href="#" class="article-author-name mx-2">{{ article.author.username }}</a>
-                        <span class="article-preview-date mx-3">{{ article.created_at }}</span>
+                            <img src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp" class="article-author-avatar rounded-circle" alt="Avatar" />
+                            <a href="#" class="article-author-name mx-2">{{ article.author.username|truncatechars:9 }}</a>
+                            <span class="article-preview-date mx-3">{{ article.created_at|date:'d/m/Y h:m' }}</span>
                     </div>
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
@@ -28,9 +28,9 @@
                             {% endfor %}
                         </ul>
                         <div class="article-preview-content">
-                            <img class="img-fluid"
-                                src="https://linustechtips.com/uploads/gallery/album_2009/gallery_34301_2009_808098.jpg"
-                                alt="Article preview image">
+                            {% if article.preview_image %}
+                            <img class="img-fluid mx-auto d-block" src="{{ article.preview_image.url }}" alt="Article preview image">
+                            {% endif %}
                             <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
                             <hr>
                             <span class="article-preview-icons">
@@ -51,6 +51,12 @@
                                     <span class="article-icon-counter">89795</span>
                                 </span>
                             </span>
+                            {% if article.author == request.user %}
+                            <div class="mt-4">
+                                <a class="btn btn-secondary btn-sm mx-2" href="{% url 'article-update' article.slug %}">Update</a>
+                                <a class="btn btn-danger btn-sm" href="{% url 'article-delete' article.slug %}">Delete</a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </article>
