@@ -2,7 +2,9 @@ from django.test import TestCase
 from django.urls import reverse, resolve
 from django.contrib.auth.models import User
 
-from articles.views import HomePageView, ArticleDetailView, ArticleCreateView, ArticleUpdateView
+from articles.views import (
+    HomePageView, ArticleDetailView, ArticleCreateView, ArticleUpdateView, ArticleDeleteView
+)
 from articles.models import Article, ArticleCategory
 
 
@@ -38,3 +40,7 @@ class TestViews(TestCase):
     def test_article_update_page_url_is_resolved(self):
         url = reverse("article-update", args=[self.test_article.slug])
         self.assertEquals(resolve(url).func.view_class, ArticleUpdateView)
+
+    def test_article_delete_page_url_is_resolved(self):
+        url = reverse("article-delete", args=[self.test_article.slug])
+        self.assertEquals(resolve(url).func.view_class, ArticleDeleteView)
