@@ -8,7 +8,7 @@ from articles.views import (
 from articles.models import Article, ArticleCategory
 
 
-class TestViews(TestCase):
+class TestURLs(TestCase):
     def setUp(self):
         self.test_user = User(username="test_user", email="test@test.com")
         self.test_user.set_password("12345")
