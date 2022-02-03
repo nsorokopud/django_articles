@@ -97,3 +97,27 @@ class TestViews(TestCase):
         self.assertEquals(a.content, "new content")
         new_tags = [tag.name for tag in a.tags.all()]
         self.assertCountEqual(new_tags, ["tag1", "tag2"])
+
+    def test_article_delete_view_unauthorized(self):
+        url = reverse("article-delete", args=[self.test_article.slug])
+        self.client.get(url)
+        self.assertRaises(Http404)
+
+    def test_article_delete_view_authorized(self):
+        a = Article.objects.create(
+            title="title",
+            slug="slug",
+            category=self.test_category,
+            preview_text="text",
+            content="content",
+            author=self.test_user,
+        )
+
+        self.client.login(username="test_user", password="12345")
+        response = self.client.post(reverse("article-delete", args=[a.slug]))
+
+        with self.assertRaises(Article.DoesNotExist):
+            Article.objects.get(pk=a.pk)
+
+        self.assertRedirects(response, reverse("home"), status_code=302, target_status_code=200)
+        self.assertTemplateUsed("articles/home_page.html")
