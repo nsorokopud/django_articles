@@ -19,4 +19,9 @@ urlpatterns = [
     path(
         "articles/<slug:article_slug>", views.ArticleDetailView.as_view(), name="article-details"
     ),
+    path(
+        "articles/<slug:article_slug>/comment",
+        views.ArticleCommentView.as_view(),
+        name="article-comment",
+    ),
 ]

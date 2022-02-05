@@ -1,10 +1,12 @@
-from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
+from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.defaultfilters import slugify
 
-from .models import Article
-from .forms import ArticleCreateForm
+from .models import Article, ArticleComment
+from .forms import ArticleCreateForm, ArticleCommentForm
 from .services import find_published_articles
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
@@ -24,6 +26,14 @@ class ArticleDetailView(CategoriesMixin, DetailView):
     slug_url_kwarg = "article_slug"
     context_object_name = "article"
     template_name = "articles/article.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = ArticleCommentForm()
+        context["comments"] = ArticleComment.objects.filter(
+            article__slug=self.kwargs["article_slug"]
+        )
+        return context
 
 
 class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
@@ -56,3 +66,16 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
     context_object_name = "article"
     slug_url_kwarg = "article_slug"
     success_url = reverse_lazy("home")
+
+
+class ArticleCommentView(LoginRequiredMixin, View):
+    login_url = reverse_lazy("login")
+
+    def post(self, request, article_slug):
+        form = ArticleCommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.article = get_object_or_404(Article, slug=article_slug)
+            comment.author = request.user
+            comment.save()
+            return redirect(reverse("article-details", args=[article_slug]))
