@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Article
+from .models import Article, ArticleComment
 from .services import create_article
 
 
@@ -28,3 +28,9 @@ class ArticleCreateForm(forms.ModelForm):
             self.cleaned_data["preview_image"],
         )
         return article
+
+
+class ArticleCommentForm(forms.ModelForm):
+    class Meta:
+        model = ArticleComment
+        fields = ["text"]
