@@ -1,4 +1,5 @@
 {% extends "articles/base.html" %}
+{% load crispy_forms_tags %}
 
 {% block content-main %}
 <div class="container main-container d-flex mx-auto">
@@ -16,9 +17,10 @@
             <div class="articles-container col-lg-10 col-md-12 mx-auto nopadding">
                 <article class="article article-single p-3">
                     <div class="article-preview-author d-flex align-items-end mb-3">
-                            <img src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp" class="article-author-avatar rounded-circle" alt="Avatar" />
-                            <a href="#" class="article-author-name mx-2">{{ article.author.username|truncatechars:9 }}</a>
-                            <span class="article-preview-date mx-3">{{ article.created_at|date:'d/m/Y h:m' }}</span>
+                        <img src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp"
+                            class="article-author-avatar rounded-circle" alt="Avatar" />
+                        <a href="#" class="article-author-name mx-2">{{ article.author.username|truncatechars:9 }}</a>
+                        <span class="article-preview-date mx-3">{{ article.created_at|date:'d/m/Y h:m' }}</span>
                     </div>
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
@@ -29,7 +31,8 @@
                         </ul>
                         <div class="article-preview-content">
                             {% if article.preview_image %}
-                            <img class="img-fluid mx-auto d-block" src="{{ article.preview_image.url }}" alt="Article preview image">
+                            <img class="img-fluid mx-auto d-block" src="{{ article.preview_image.url }}"
+                                alt="Article preview image">
                             {% endif %}
                             <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
                             <hr>
@@ -53,8 +56,10 @@
                             </span>
                             {% if article.author == request.user %}
                             <div class="mt-4">
-                                <a class="btn btn-secondary btn-sm mx-2" href="{% url 'article-update' article.slug %}">Update</a>
-                                <a class="btn btn-danger btn-sm" href="{% url 'article-delete' article.slug %}">Delete</a>
+                                <a class="btn btn-secondary btn-sm mx-2"
+                                    href="{% url 'article-update' article.slug %}">Update</a>
+                                <a class="btn btn-danger btn-sm"
+                                    href="{% url 'article-delete' article.slug %}">Delete</a>
                             </div>
                             {% endif %}
                         </div>
@@ -72,26 +77,35 @@
     <section class="article-comment-section">
         <div class="row">
             <div class="col-lg-8 col-md-12 mx-auto nopadding">
-                <h2 class="article-comments-title">Comments to this article (2):</h2>
+                {% if comments.count > 0 %}
+                <h2 class="article-comments-title">Comments to this article ({{ comments.count }}):</h2>
+                {% else %}
+                <h2 class="article-comments-title">There are no comments yet</h2>
+                {% endif %}
+                {% if request.user.is_authenticated %}
                 <div class="card">
                     <div class="card-body p-4">
                         <div class="w-100">
                             <h5>Add a comment</h5>
-                            <div class="form-outline">
-                                <textarea class="form-control" id="textAreaExample" rows="4"></textarea>
-                                <label class="form-label" for="textAreaExample">Write your comment
-                                    above</label>
-                            </div>
-                            <div class="d-flex justify-content-between mt-3">
-                                <button type="button" class="btn btn-success">
+                            <form class="form-outline" method="POST" action="{% url 'article-comment' article.slug %}">
+                                {% csrf_token %}
+                                {{ form|crispy }}
+                                <button type="submit" class="btn btn-success mt-3">
                                     Send <i class="fas fa-long-arrow-alt-right ms-1"></i>
                                 </button>
+                            </form>
+                            <div class="d-flex justify-content-between mt-3">
+
                             </div>
                         </div>
                     </div>
                 </div>
+                {% else %}
+                <a class="link-green" href="{% url 'login' %}?next={% url 'article-details' article.slug %}">Log in to leave comments</a>
+                {% endif %}
                 <div class="article-comments-container row d-flex justify-content-center my-5">
                     <div class="col-12">
+                        {% for comment in comments %}
                         <div class="d-flex flex-start mb-4">
                             <img class="rounded-circle shadow-1-strong me-3"
                                 src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/img%20(32).webp" alt="avatar"
@@ -99,20 +113,9 @@
                             <div class="card w-100">
                                 <div class="card-body p-4">
                                     <div class="">
-                                        <h5>Johny Cash</h5>
+                                        <h5>{{ comment.author.username }}</h5>
                                         <p class="small">3 hours ago</p>
-                                        <p>
-                                            Cras sit amet nibh libero, in gravida nulla. Nulla vel
-                                            metus
-                                            scelerisque
-                                            ante sollicitudin. Cras purus odio, vestibulum in
-                                            vulputate at,
-                                            tempus
-                                            viverra turpis. Fusce condimentum nunc ac nisi vulputate
-                                            fringilla.
-                                            Donec lacinia congue felis in faucibus ras purus odio,
-                                            vestibulum in
-                                            vulputate at, tempus viverra turpis.
+                                        <p>{{ comment.text }}
                                         </p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="d-flex align-items-center">
@@ -130,44 +133,9 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="d-flex flex-start">
-                            <img class="rounded-circle shadow-1-strong me-3"
-                                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/img%20(31).webp" alt="avatar"
-                                width="65" height="65" />
-                            <div class="card w-100">
-                                <div class="card-body p-4">
-                                    <div class="">
-                                        <h5>Mindy Campbell</h5>
-                                        <p class="small">5 hours ago</p>
-                                        <p>
-                                            Lorem ipsum dolor sit, amet consectetur adipisicing
-                                            elit. Delectus
-                                            cumque doloribus dolorum dolor repellat nemo animi at
-                                            iure autem
-                                            fuga
-                                            cupiditate architecto ut quam provident neque, inventore
-                                            nisi eos
-                                            quas?
-                                        </p>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div class="d-flex align-items-center">
-                                                <a href="#!" class="link-muted me-2"><i
-                                                        class="fas fa-thumbs-up me-1"></i><span
-                                                        class="comment-like-count">158</span></a>
-                                                <a href="#!" class="link-muted"><i
-                                                        class="fas fa-thumbs-down me-1"></i><span
-                                                        class="comment-like-count">13</span></a>
-                                            </div>
-                                            <a href="#!" class="link-muted d-none"><i class="fas fa-reply me-1"></i>
-                                                Reply</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
                 </div>
-
             </div>
         </div>
     </section>
