@@ -1,3 +1,14 @@
+/* Common */
+
+.link-green {
+    text-decoration: none;
+    color: #00B74A;
+}
+
+.link-green:hover {
+    color: #198754;
+}
+
 /* Header */
 
 header {
