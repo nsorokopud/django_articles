@@ -42,3 +42,21 @@ class ArticleCategory(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ArticleComment(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "Comments"
+
+    def __str__(self):
+        displayed_comment_length = 25
+        if len(self.text) > displayed_comment_length:
+            displayed_text = self.text[:displayed_comment_length] + "..."
+        else:
+            displayed_text = self.text
+        return f"{self.article} - {self.author} - {displayed_text}"
