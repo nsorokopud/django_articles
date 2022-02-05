@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleComment
 
 
 class TestViews(TestCase):
@@ -121,3 +121,35 @@ class TestViews(TestCase):
 
         self.assertRedirects(response, reverse("home"), status_code=302, target_status_code=200)
         self.assertTemplateUsed("articles/home_page.html")
+
+    def test_article_comment_view_unauthorized(self):
+        url = reverse("article-comment", args=[self.test_article.slug])
+        response = self.client.get(url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={url}",
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertTemplateUsed("articles/article.html")
+
+    def test_article_comment_view_authorized(self):
+        url = reverse("article-comment", args=[self.test_article.slug])
+        comment_data = {"text": "text"}
+
+        self.client.login(username="test_user", password="12345")
+        response = self.client.post(url, comment_data)
+        self.assertRedirects(
+            response,
+            reverse("article-details", args=[self.test_article.slug]),
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertTemplateUsed("articles/article.html")
+
+        article_comments = ArticleComment.objects.filter(article=self.test_article)
+        self.assertEquals(len(article_comments), 1)
+        last_comment = article_comments.last()
+        self.assertEquals(last_comment.text, comment_data["text"])
+        self.assertEquals(last_comment.article, self.test_article)
+        self.assertEquals(last_comment.author, self.test_user)
