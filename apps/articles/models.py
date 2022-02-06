@@ -47,6 +47,9 @@ class ArticleCategory(models.Model):
     def __str__(self):
         return self.title
 
+    def get_articles_count(self):
+        return Article.objects.filter(category=self).count()
+
 
 class ArticleComment(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE)
