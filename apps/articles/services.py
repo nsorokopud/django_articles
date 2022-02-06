@@ -1,9 +1,13 @@
 from typing import Iterable, List, Optional
+import logging
 
 from django.contrib.auth.models import User
 from django.template.defaultfilters import slugify
 
 from .models import Article, ArticleCategory
+
+
+logger = logging.getLogger("default_logger")
 
 
 def find_published_articles() -> Iterable[Article]:
@@ -14,6 +18,17 @@ def get_all_categories() -> Iterable[ArticleCategory]:
     return ArticleCategory.objects.all()
 
 
+def get_all_users_that_liked_article(article_slug: str) -> Iterable[User]:
+    try:
+        article = Article.objects.get(slug=article_slug)
+        return article.users_that_liked.all()
+    except Article.DoesNotExist:
+        logger.error(
+            f"Tried to get users that liked a non-existent article with slug={article_slug}"
+        )
+        return list()
+
+
 def create_article(
     title: str,
     category: ArticleCategory,
@@ -22,7 +37,7 @@ def create_article(
     content: str,
     tags: Optional[List] = None,
     preview_image: Optional[str] = None,
-):
+) -> Article:
     article = Article.objects.create(
         title=title,
         category=category,
