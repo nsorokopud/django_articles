@@ -245,27 +245,11 @@ article.article-single {
 
 .article-icon {
     display: inline-block;
-    color: #198754;
-}
-
-a i.fa-thumbs-down:hover {
-    color: #f11212;
-}
-
-a i.fa-thumbs-up:hover {
-    color: #1266f1;
-}
-
-a i.fa-thumbs-down.active {
-    color: #f11212;
+    color: grey;
 }
 
 a i.fa-thumbs-up.active {
-    color: #1266f1;
-}
-
-a i.fa-thumbs-down.active:hover, a i.fa-thumbs-up.active:hover {
-    color: grey;
+    color: #198754;
 }
 
 .article-icon-counter {
@@ -280,10 +264,6 @@ a i.fa-thumbs-down.active:hover, a i.fa-thumbs-up.active:hover {
 
 .link-muted {
     color: #aaa;
-}
-
-.link-muted:hover {
-    color: #1266f1;
 }
 
 .article-comments-container a {
