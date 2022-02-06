@@ -1,4 +1,5 @@
 {% extends "articles/base.html" %}
+{% load static %}
 {% load crispy_forms_tags %}
 
 {% block content-main %}
@@ -42,16 +43,10 @@
                                     <span class="article-icon-counter">1602139</span>
                                 </span>
                                 <span class="mx-2 article-preview-icons__item">
-                                    <a class="article-icon" href="#">
-                                        <i class="article-icon fas fa-thumbs-up m-1 active"></i>
+                                    <a id="articleLikeLink"class="article-icon" href="{% url 'article-like' article.slug %}" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
+                                        <i id="articleLikeIcon" class="article-icon fas fa-thumbs-up m-1 {% if user_liked %}active{% endif %}"></i>
                                     </a>
-                                    <span class="article-icon-counter">1250643</span>
-                                </span>
-                                <span class="mx-2 article-preview-icons__item">
-                                    <a class="article-icon" href="#">
-                                        <i class="article-icon fas fa-thumbs-down m-1 active"></i>
-                                    </a>
-                                    <span class="article-icon-counter">89795</span>
+                                    <span id="articleLikesCounter" class="article-icon-counter">{{ article.get_likes_count }}</span>
                                 </span>
                             </span>
                             {% if article.author == request.user %}
@@ -140,4 +135,5 @@
         </div>
     </section>
 </div><!-- End of container 2 -->
+<script src="{% static 'js/like.js' %}"></script></script>
 {% endblock content-bottom %}
