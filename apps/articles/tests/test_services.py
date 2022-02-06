@@ -2,7 +2,13 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 
 from articles.models import Article, ArticleCategory
-from articles.services import find_published_articles, get_all_categories, create_article
+from articles.services import (
+    find_published_articles,
+    get_all_categories,
+    create_article,
+    toggle_article_like,
+    get_all_users_that_liked_article,
+)
 
 
 class TestServices(TestCase):
@@ -67,3 +73,17 @@ class TestServices(TestCase):
         expected_tags = ["tag1", "tag2"]
         actual_tags = [tag.name for tag in last_article.tags.all()]
         self.assertCountEqual(actual_tags, expected_tags)
+
+    def test_get_all_users_that_liked_article(self):
+        a = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        self.assertEquals(list(get_all_users_that_liked_article(a.slug)), [])
+        a.users_that_liked.add(self.test_user)
+        self.assertCountEqual(get_all_users_that_liked_article(a.slug), [self.test_user])
