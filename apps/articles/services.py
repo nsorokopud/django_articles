@@ -14,6 +14,10 @@ def find_published_articles() -> Iterable[Article]:
     return Article.objects.filter(is_published=True)
 
 
+def find_articles_of_category(category_slug: str) -> Iterable[Article]:
+    return Article.objects.filter(category__slug=category_slug)
+
+
 def get_all_categories() -> Iterable[ArticleCategory]:
     return ArticleCategory.objects.all()
 
