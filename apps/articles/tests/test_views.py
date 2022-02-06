@@ -153,3 +153,22 @@ class TestViews(TestCase):
         self.assertEquals(last_comment.text, comment_data["text"])
         self.assertEquals(last_comment.article, self.test_article)
         self.assertEquals(last_comment.author, self.test_user)
+
+    def test_article_like_view_get(self):
+        url = reverse("article-like", args=[self.test_article.slug])
+        response = self.client.get(url)
+        self.assertEquals(response.status_code, 405)
+
+    def test_article_like_view_post(self):
+        url = reverse("article-like", args=[self.test_article.slug])
+        self.client.login(username="test_user", password="12345")
+
+        response = self.client.post(url)
+        self.assertEquals(response.status_code, 200)
+        self.assertCountEqual(list(self.test_article.users_that_liked.all()), [self.test_user])
+        self.assertEquals(self.test_article.get_likes_count(), 1)
+
+        response = self.client.post(url)
+        self.assertEquals(response.status_code, 200)
+        self.assertCountEqual(list(self.test_article.users_that_liked.all()), [])
+        self.assertEquals(self.test_article.get_likes_count(), 0)
