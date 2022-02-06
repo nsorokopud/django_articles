@@ -30,3 +30,28 @@ class TestModels(TestCase):
         self.test_article.users_that_liked.remove(self.test_user)
         likes_count = self.test_article.get_likes_count()
         self.assertEquals(likes_count, 0)
+
+    def test_article_category__get_articles_count(self):
+        cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
+
+        Article.objects.create(
+            title="a2",
+            slug="a2",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        Article.objects.create(
+            title="a3",
+            slug="a3",
+            category=cat2,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+
+        self.assertEquals(self.test_category.get_articles_count(), 2)
+        self.assertEquals(cat2.get_articles_count(), 1)
