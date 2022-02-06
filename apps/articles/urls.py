@@ -5,6 +5,11 @@ from . import views
 
 urlpatterns = [
     path("", views.HomePageView.as_view(), name="home"),
+    path(
+        "category/<slug:category_slug>",
+        views.ArticleCategoryView.as_view(),
+        name="article-category",
+    ),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
         "articles/<slug:article_slug>/update",
@@ -24,5 +29,7 @@ urlpatterns = [
         views.ArticleCommentView.as_view(),
         name="article-comment",
     ),
-    path("articles/<slug:article_slug>/like", views.ArticleLikeView.as_view(), name="article-like")
+    path(
+        "articles/<slug:article_slug>/like", views.ArticleLikeView.as_view(), name="article-like"
+    ),
 ]

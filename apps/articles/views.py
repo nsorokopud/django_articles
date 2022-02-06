@@ -8,7 +8,7 @@ from django.template.defaultfilters import slugify
 
 from .models import Article, ArticleComment
 from .forms import ArticleCreateForm, ArticleCommentForm
-from .services import find_published_articles, toggle_article_like
+from .services import find_published_articles, find_articles_of_category, toggle_article_like
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
 
@@ -20,6 +20,24 @@ class HomePageView(CategoriesMixin, ListView):
 
     def get_queryset(self):
         return find_published_articles()
+
+
+class ArticleCategoryView(CategoriesMixin, ListView):
+    model = Article
+    context_object_name = "articles"
+    slug_url_kwarg = "category_slug"
+    paginate_by = 5
+    allow_empty = False
+    template_name = "articles/home_page.html"
+
+    def get_queryset(self):
+        category_slug = self.kwargs["category_slug"]
+        return find_articles_of_category(category_slug)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["selected_category_slug"] = self.kwargs["category_slug"]
+        return context
 
 
 class ArticleDetailView(CategoriesMixin, DetailView):
