@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
@@ -7,7 +8,7 @@ from django.template.defaultfilters import slugify
 
 from .models import Article, ArticleComment
 from .forms import ArticleCreateForm, ArticleCommentForm
-from .services import find_published_articles
+from .services import find_published_articles, toggle_article_like
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
 
@@ -30,9 +31,11 @@ class ArticleDetailView(CategoriesMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form"] = ArticleCommentForm()
-        context["comments"] = ArticleComment.objects.filter(
-            article__slug=self.kwargs["article_slug"]
-        )
+        article_slug = self.kwargs["article_slug"]
+        context["comments"] = ArticleComment.objects.filter(article__slug=article_slug)
+        article = context["article"]
+        if self.request.user in article.users_that_liked.all():
+            context["user_liked"] = True
         return context
 
 
@@ -79,3 +82,10 @@ class ArticleCommentView(LoginRequiredMixin, View):
             comment.author = request.user
             comment.save()
             return redirect(reverse("article-details", args=[article_slug]))
+
+
+class ArticleLikeView(View):
+    def post(self, request, article_slug):
+        user_id = request.user.id
+        likes_count = toggle_article_like(article_slug, user_id)
+        return JsonResponse({"likes_count": likes_count})
