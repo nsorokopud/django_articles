@@ -53,3 +53,18 @@ def create_article(
     article.tags.add(*tags)
     article.save()
     return article
+
+
+def toggle_article_like(article_slug: str, user_id: int) -> Optional[int]:
+    try:
+        article = Article.objects.get(slug=article_slug)
+        try:
+            user = article.users_that_liked.get(id=user_id)
+            article.users_that_liked.remove(user)
+        except User.DoesNotExist:
+            user = User.objects.get(id=user_id)
+            article.users_that_liked.add(user)
+        return article.get_likes_count()
+    except Article.DoesNotExist:
+        logger.error(f"Tried to get a non-existent article with slug={article_slug}")
+        return None
