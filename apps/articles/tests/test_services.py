@@ -87,3 +87,32 @@ class TestServices(TestCase):
         self.assertEquals(list(get_all_users_that_liked_article(a.slug)), [])
         a.users_that_liked.add(self.test_user)
         self.assertCountEqual(get_all_users_that_liked_article(a.slug), [self.test_user])
+
+    def test_toggle_article_like(self):
+        a = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+
+        user = User(username="user1", email="test@test.com")
+        user.set_password("12345")
+        user.save()
+
+        likes_count = toggle_article_like(a.slug, self.test_user.id)
+        self.assertEquals(likes_count, 1)
+        likes_count = toggle_article_like(a.slug, self.test_user.id)
+        self.assertEquals(likes_count, 0)
+
+        likes_count = toggle_article_like(a.slug, self.test_user.id)
+        self.assertEquals(likes_count, 1)
+        likes_count = toggle_article_like(a.slug, user.id)
+        self.assertEquals(likes_count, 2)
+        likes_count = toggle_article_like(a.slug, self.test_user.id)
+        self.assertEquals(likes_count, 1)
+        likes_count = toggle_article_like(a.slug, user.id)
+        self.assertEquals(likes_count, 0)
