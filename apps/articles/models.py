@@ -20,6 +20,7 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
+    users_that_liked = models.ManyToManyField(User, related_name="users_that_liked")
 
     class Meta:
         verbose_name_plural = "Articles"
@@ -30,6 +31,9 @@ class Article(models.Model):
 
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
+
+    def get_likes_count(self):
+        return self.users_that_liked.count()
 
 
 class ArticleCategory(models.Model):
