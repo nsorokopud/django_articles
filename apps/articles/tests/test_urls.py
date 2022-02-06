@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 
 from articles.views import (
     HomePageView,
+    ArticleCategoryView,
     ArticleDetailView,
     ArticleCreateView,
     ArticleUpdateView,
@@ -58,3 +59,7 @@ class TestURLs(TestCase):
     def test_article_like_url_is_resolved(self):
         url = reverse("article-like", args=[self.test_article.slug])
         self.assertEquals(resolve(url).func.view_class, ArticleLikeView)
+
+    def test_article_category_url_is_resolved(self):
+        url = reverse("article-category", args=[self.test_article.slug])
+        self.assertEquals(resolve(url).func.view_class, ArticleCategoryView)
