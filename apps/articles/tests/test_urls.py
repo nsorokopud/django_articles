@@ -11,6 +11,7 @@ from articles.views import (
     ArticleDeleteView,
     ArticleCommentView,
     ArticleLikeView,
+    ArticleSearchView,
 )
 from articles.models import Article, ArticleCategory
 
@@ -63,3 +64,7 @@ class TestURLs(TestCase):
     def test_article_category_url_is_resolved(self):
         url = reverse("article-category", args=[self.test_article.slug])
         self.assertEquals(resolve(url).func.view_class, ArticleCategoryView)
+
+    def test_article_search_url_is_resolved(self):
+        url = reverse("article-search")
+        self.assertEquals(resolve(url).func.view_class, ArticleSearchView)
