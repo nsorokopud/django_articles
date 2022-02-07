@@ -1,6 +1,8 @@
 from typing import Iterable, List, Optional
 import logging
 
+from django.db.models import Q
+from django.db.models.query import QuerySet
 from django.contrib.auth.models import User
 from django.template.defaultfilters import slugify
 
@@ -16,6 +18,15 @@ def find_published_articles() -> Iterable[Article]:
 
 def find_articles_of_category(category_slug: str) -> Iterable[Article]:
     return Article.objects.filter(category__slug=category_slug)
+
+
+def find_articles_by_query(q: str) -> QuerySet[Article]:
+    return find_published_articles().filter(
+        Q(title__icontains=q)
+        | Q(category__title__icontains=q)
+        | Q(tags__name__icontains=q)
+        | Q(content__icontains=q)
+    ).distinct()
 
 
 def get_all_categories() -> Iterable[ArticleCategory]:
