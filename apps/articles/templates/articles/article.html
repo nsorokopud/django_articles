@@ -25,7 +25,9 @@
                     </div>
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
+                        {% if article.category %}
                         <h5 class="article-category">Category: <a href="{% url 'article-category' article.category.slug %}">{{ article.category }}</a></h5>
+                        {% endif %}
                         <ul class="article-tags-list"><span class="tags-span">Tags: </span>
                             {% for tag in article.tags.all %}
                             <li><a class="article-tag-link" href="#">#{{ tag }}</a></li>
