@@ -12,12 +12,12 @@ from .models import Article, ArticleCategory
 logger = logging.getLogger("default_logger")
 
 
-def find_published_articles() -> Iterable[Article]:
+def find_published_articles() -> QuerySet[Article]:
     return Article.objects.filter(is_published=True)
 
 
-def find_articles_of_category(category_slug: str) -> Iterable[Article]:
-    return Article.objects.filter(category__slug=category_slug)
+def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
+    return find_published_articles().filter(category__slug=category_slug)
 
 
 def find_articles_by_query(q: str) -> QuerySet[Article]:
