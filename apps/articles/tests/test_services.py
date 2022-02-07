@@ -5,6 +5,7 @@ from articles.models import Article, ArticleCategory
 from articles.services import (
     find_published_articles,
     find_articles_of_category,
+    find_articles_by_query,
     get_all_categories,
     create_article,
     toggle_article_like,
@@ -60,7 +61,7 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
-        a2 = Article.objects.create(
+        Article.objects.create(
             title="a2",
             slug="a2",
             category=self.test_category,
@@ -81,9 +82,70 @@ class TestServices(TestCase):
             content="content3",
             is_published=True,
         )
-        self.assertCountEqual(
-            find_articles_of_category(self.test_category.slug), [a1, a2]
+        self.assertCountEqual(find_articles_of_category(self.test_category.slug), [a1])
+
+    def test_find_articles_by_query(self):
+        cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
+
+        a1 = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
         )
+        a1.tags.add("cat1", "tag1")
+        a2 = Article.objects.create(
+            title="a2",
+            slug="a2",
+            category=self.test_category,
+            tags="tag2,cat1",
+            author=self.test_user,
+            preview_text="text2",
+            content="content2",
+            is_published=True,
+        )
+        a3 = Article.objects.create(
+            title="a3",
+            slug="a3",
+            category=cat1,
+            author=self.test_user,
+            preview_text="text3",
+            content="content3",
+            is_published=True,
+        )
+        a4 = Article.objects.create(
+            title="a4",
+            slug="a4",
+            category=cat1,
+            author=self.test_user,
+            preview_text="text4",
+            content="content4",
+            is_published=True,
+        )
+        a4.tags.add("tag", "tag1", "tag2")
+        Article.objects.create(
+            title="a5",
+            slug="a5",
+            category=cat1,
+            author=self.test_user,
+            preview_text="text5",
+            content="content5",
+            is_published=False,
+        )
+
+        self.assertCountEqual(list(find_articles_by_query("a")), [a1, a2, a3, a4])  # By title
+        self.assertCountEqual(
+            list(find_articles_by_query("content")), [a1, a2, a3, a4]
+        )  # By content
+        self.assertCountEqual(list(find_articles_by_query("test_")), [a1, a2])  # By category
+        self.assertCountEqual(
+            list(find_articles_by_query("cat1")), [a1, a3, a4]
+        )  # By category + tag
+        self.assertCountEqual(list(find_articles_by_query("tag1")), [a1, a4])  # By tag
+        self.assertCountEqual(list(find_articles_by_query("agrj")), [])  # Not found
 
     def test_get_all_categories(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
