@@ -8,7 +8,12 @@ from django.template.defaultfilters import slugify
 
 from .models import Article, ArticleComment
 from .forms import ArticleCreateForm, ArticleCommentForm
-from .services import find_published_articles, find_articles_of_category, toggle_article_like
+from .services import (
+    find_published_articles,
+    find_articles_of_category,
+    toggle_article_like,
+    find_articles_by_query,
+)
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
 
@@ -107,3 +112,14 @@ class ArticleLikeView(View):
         user_id = request.user.id
         likes_count = toggle_article_like(article_slug, user_id)
         return JsonResponse({"likes_count": likes_count})
+
+
+class ArticleSearchView(CategoriesMixin, ListView):
+    model = Article
+    context_object_name = "articles"
+    paginate_by = 5
+    template_name = "articles/home_page.html"
+
+    def get_queryset(self):
+        query = self.request.GET.get("q", "")
+        return find_articles_by_query(query)
