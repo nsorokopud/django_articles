@@ -37,6 +37,11 @@ class TestViews(TestCase):
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
+    def test_article_search_view(self):
+        response = self.client.get(reverse("article-search"))
+        self.assertEquals(response.status_code, 200)
+        self.assertTemplateUsed("articles/home_page.html")
+
     def test_article_details_page_view(self):
         response = self.client.get(reverse("article-details", args=[self.test_article.slug]))
 
