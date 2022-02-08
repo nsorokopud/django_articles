@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
     find_published_articles,
     find_articles_of_category,
@@ -9,6 +9,7 @@ from articles.services import (
     get_all_categories,
     create_article,
     toggle_article_like,
+    toggle_comment_like,
     get_all_users_that_liked_article,
 )
 
@@ -213,4 +214,34 @@ class TestServices(TestCase):
         likes_count = toggle_article_like(a.slug, self.test_user.id)
         self.assertEquals(likes_count, 1)
         likes_count = toggle_article_like(a.slug, user.id)
+        self.assertEquals(likes_count, 0)
+
+    def test_toggle_comment_like(self):
+        a = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        comment = ArticleComment.objects.create(article=a, author=self.test_user, text="text")
+
+        user = User(username="user1", email="test@test.com")
+        user.set_password("12345")
+        user.save()
+
+        likes_count = toggle_comment_like(comment.id, self.test_user.id)
+        self.assertEquals(likes_count, 1)
+        likes_count = toggle_comment_like(comment.id, self.test_user.id)
+        self.assertEquals(likes_count, 0)
+
+        likes_count = toggle_comment_like(comment.id, self.test_user.id)
+        self.assertEquals(likes_count, 1)
+        likes_count = toggle_comment_like(comment.id, user.id)
+        self.assertEquals(likes_count, 2)
+        likes_count = toggle_comment_like(comment.id, self.test_user.id)
+        self.assertEquals(likes_count, 1)
+        likes_count = toggle_comment_like(comment.id, user.id)
         self.assertEquals(likes_count, 0)
