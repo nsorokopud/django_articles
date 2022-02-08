@@ -25,6 +25,19 @@ class TestViews(TestCase):
             is_published=True,
         )
 
+        self.test_article = Article.objects.create(
+            title="test_article",
+            slug="test-article",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        self.test_comment = ArticleComment.objects.create(
+            article=self.test_article, author=self.test_user, text="text"
+        )
+
     def test_homepage_view(self):
         response = self.client.get(reverse("home"))
 
@@ -159,7 +172,7 @@ class TestViews(TestCase):
         self.assertTemplateUsed("articles/article.html")
 
         article_comments = ArticleComment.objects.filter(article=self.test_article)
-        self.assertEquals(len(article_comments), 1)
+        self.assertEquals(len(article_comments), 2)
         last_comment = article_comments.last()
         self.assertEquals(last_comment.text, comment_data["text"])
         self.assertEquals(last_comment.article, self.test_article)
@@ -183,3 +196,22 @@ class TestViews(TestCase):
         self.assertEquals(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [])
         self.assertEquals(self.test_article.get_likes_count(), 0)
+
+    def test_comment_like_view_get(self):
+        url = reverse("comment-like", args=[self.test_comment.id])
+        response = self.client.get(url)
+        self.assertEquals(response.status_code, 405)
+
+    def test_comment_like_view_post(self):
+        url = reverse("comment-like", args=[self.test_comment.id])
+        self.client.login(username="test_user", password="12345")
+
+        response = self.client.post(url)
+        self.assertEquals(response.status_code, 200)
+        self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [self.test_user])
+        self.assertEquals(self.test_comment.get_likes_count(), 1)
+
+        response = self.client.post(url)
+        self.assertEquals(response.status_code, 200)
+        self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [])
+        self.assertEquals(self.test_comment.get_likes_count(), 0)
