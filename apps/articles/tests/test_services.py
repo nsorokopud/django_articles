@@ -6,6 +6,7 @@ from articles.services import (
     find_published_articles,
     find_articles_of_category,
     find_articles_by_query,
+    find_article_comments_liked_by_user,
     get_all_categories,
     create_article,
     toggle_article_like,
@@ -245,3 +246,26 @@ class TestServices(TestCase):
         self.assertEquals(likes_count, 1)
         likes_count = toggle_comment_like(comment.id, user.id)
         self.assertEquals(likes_count, 0)
+
+    def test_find_article_comments_liked_by_user(self):
+        a1 = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+
+        comment1 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment3 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+
+        comment1.users_that_liked.add(self.test_user)
+        comment3.users_that_liked.add(self.test_user)
+
+        self.assertCountEqual(
+            find_article_comments_liked_by_user(a1.slug, self.test_user.id),
+            [comment1.id, comment3.id],
+        )
