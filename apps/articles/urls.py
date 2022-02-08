@@ -33,4 +33,7 @@ urlpatterns = [
     path(
         "articles/<slug:article_slug>/like", views.ArticleLikeView.as_view(), name="article-like"
     ),
+    path(
+        "comments/<int:comment_id>/like", views.CommentLikeView.as_view(), name="comment-like"
+    ),
 ]

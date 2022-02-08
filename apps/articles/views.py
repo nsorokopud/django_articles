@@ -12,7 +12,9 @@ from .services import (
     find_published_articles,
     find_articles_of_category,
     toggle_article_like,
+    toggle_comment_like,
     find_articles_by_query,
+    find_article_comments_liked_by_user,
 )
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
@@ -59,6 +61,9 @@ class ArticleDetailView(CategoriesMixin, DetailView):
         article = context["article"]
         if self.request.user in article.users_that_liked.all():
             context["user_liked"] = True
+        context["liked_comments"] = find_article_comments_liked_by_user(
+            article_slug, self.request.user.id
+        )
         return context
 
 
@@ -112,6 +117,13 @@ class ArticleLikeView(View):
         user_id = request.user.id
         likes_count = toggle_article_like(article_slug, user_id)
         return JsonResponse({"likes_count": likes_count})
+
+
+class CommentLikeView(View):
+    def post(self, request, comment_id):
+        user_id = request.user.id
+        likes_count = toggle_comment_like(comment_id, user_id)
+        return JsonResponse({"comment_likes_count": likes_count})
 
 
 class ArticleSearchView(CategoriesMixin, ListView):
