@@ -113,16 +113,13 @@
                                     <div class="">
                                         <h5>{{ comment.author.username }}</h5>
                                         <p class="small">3 hours ago</p>
-                                        <p>{{ comment.text }}
-                                        </p>
+                                        <p>{{ comment.text }}</p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="d-flex align-items-center">
-                                                <a href="#!" class="link-muted me-2"><i
-                                                        class="fas fa-thumbs-up me-1"></i><span
-                                                        class="comment-like-count">132</span></a>
-                                                <a href="#!" class="link-muted"><i
-                                                        class="fas fa-thumbs-down me-1"></i><span
-                                                        class="comment-like-count">15</span></a>
+                                                <a id="commentLink{{ comment.id }}" href="{% url 'comment-like' comment.id %}" onClick="like_comment(event, {{ comment.id }})" class="comment-like-link link-muted me-2" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
+                                                    <i class="article-icon fas fa-thumbs-up m-1 {% if comment.id in liked_comments %}active{% endif %}"></i>
+                                                    <span class="comment-like-count">{{ comment.get_likes_count }}</span>
+                                                </a>
                                             </div>
                                             <a href="#!" class="link-muted d-none"><i class="fas fa-reply me-1"></i>
                                                 Reply</a>
@@ -138,5 +135,5 @@
         </div>
     </section>
 </div><!-- End of container 2 -->
-<script src="{% static 'js/like.js' %}"></script></script>
+<script src="{% static 'js/like.js' %}"></script>
 {% endblock content-bottom %}
