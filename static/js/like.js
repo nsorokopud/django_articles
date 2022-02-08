@@ -55,12 +55,12 @@ function like_article()
 function like_comment(e, comment_id)
 {
     e.preventDefault();
-    comment = document.getElementById("comment" + comment_id);
+    commentLink = document.getElementById("commentLink" + comment_id);
 
-    if (comment.hasAttribute("is_logged_in"))
+    if (commentLink.hasAttribute("is_logged_in"))
     {
         let xhr = new XMLHttpRequest();
-        let url = comment.href;
+        let url = commentLink.href;
         
         let csrftoken = getCookie("csrftoken");
 
@@ -72,15 +72,12 @@ function like_comment(e, comment_id)
         
         xhr.onload = function() {
             response = xhr.response;
-            comment.getElementsByTagName("i")[0].classList.toggle("active");
-            comment.getElementsByClassName("comment-like-count")[0]
+            commentLink.getElementsByTagName("i")[0].classList.toggle("active");
+            commentLink.getElementsByClassName("comment-like-count")[0]
                 .textContent = response["comment_likes_count"];
         };
     }
-    else
-    {
-        alert("Please, log in if you want to like a comment!");
-    }
+    else alert("Please, log in if you want to like a comment!");
 }
 
 
