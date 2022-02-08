@@ -52,6 +52,15 @@ class TestModels(TestCase):
             content="content1",
             is_published=True,
         )
+        Article.objects.create(
+            title="a4",
+            slug="a4",
+            category=cat2,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=False,
+        )
 
         self.assertEquals(self.test_category.get_articles_count(), 2)
         self.assertEquals(cat2.get_articles_count(), 1)

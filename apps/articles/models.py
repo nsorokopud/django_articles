@@ -48,7 +48,7 @@ class ArticleCategory(models.Model):
         return self.title
 
     def get_articles_count(self):
-        return Article.objects.filter(category=self).count()
+        return Article.objects.filter(is_published=True, category=self).count()
 
 
 class ArticleComment(models.Model):
