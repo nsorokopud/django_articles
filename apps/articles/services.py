@@ -102,3 +102,11 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
     except ArticleComment.DoesNotExist:
         logger.error(f"Tried to get a non-existent comment with id={comment_id}")
         return None
+
+
+def find_article_comments_liked_by_user(
+    article_slug: str, user_id: int
+) -> QuerySet[ArticleComment]:
+    user = User.objects.get(id=user_id)
+    comments = ArticleComment.objects.filter(article__slug=article_slug)
+    return [comment.id for comment in comments if user in comment.users_that_liked.all()]
