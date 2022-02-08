@@ -12,8 +12,9 @@ from articles.views import (
     ArticleCommentView,
     ArticleLikeView,
     ArticleSearchView,
+    CommentLikeView,
 )
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleComment
 
 
 class TestURLs(TestCase):
@@ -31,6 +32,10 @@ class TestURLs(TestCase):
             preview_text="text1",
             content="content1",
             is_published=True,
+        )
+
+        self.test_comment = ArticleComment.objects.create(
+            article=self.test_article, author=self.test_user, text="text"
         )
 
     def test_homepage_url_is_resolved(self):
@@ -60,6 +65,10 @@ class TestURLs(TestCase):
     def test_article_like_url_is_resolved(self):
         url = reverse("article-like", args=[self.test_article.slug])
         self.assertEquals(resolve(url).func.view_class, ArticleLikeView)
+
+    def test_comment_like_url_is_resolved(self):
+        url = reverse("comment-like", args=[self.test_comment.id])
+        self.assertEquals(resolve(url).func.view_class, CommentLikeView)
 
     def test_article_category_url_is_resolved(self):
         url = reverse("article-category", args=[self.test_article.slug])
