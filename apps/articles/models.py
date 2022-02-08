@@ -56,6 +56,7 @@ class ArticleComment(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    users_that_liked = models.ManyToManyField(User, related_name="users_that_liked_comment")
 
     class Meta:
         verbose_name_plural = "Comments"
@@ -67,3 +68,6 @@ class ArticleComment(models.Model):
         else:
             displayed_text = self.text
         return f"{self.article} - {self.author} - {displayed_text}"
+
+    def get_likes_count(self):
+        return self.users_that_liked.count()
