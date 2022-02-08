@@ -52,5 +52,36 @@ function like_article()
     
 }
 
+function like_comment(e, comment_id)
+{
+    e.preventDefault();
+    comment = document.getElementById("comment" + comment_id);
+
+    if (comment.hasAttribute("is_logged_in"))
+    {
+        let xhr = new XMLHttpRequest();
+        let url = comment.href;
+        
+        let csrftoken = getCookie("csrftoken");
+
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        xhr.dataType = "json";
+        xhr.responseType = "json"
+        xhr.send();
+        
+        xhr.onload = function() {
+            response = xhr.response;
+            comment.getElementsByTagName("i")[0].classList.toggle("active");
+            comment.getElementsByClassName("comment-like-count")[0]
+                .textContent = response["comment_likes_count"];
+        };
+    }
+    else
+    {
+        alert("Please, log in if you want to like a comment!");
+    }
+}
+
 
 like_article();
