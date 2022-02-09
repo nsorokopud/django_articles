@@ -1,0 +1,22 @@
+{% extends 'users/form_base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block form %}
+<img class="d-block rounded-circle profile-image mx-auto" src="{{ user.profile.image.url }}">
+<h2 class="text-center mb-5">{{ user.username }}</h2>
+
+<form class="user-form" method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <fieldset>
+        <div class="form-group">
+            <legend class="botder-bottom mb-4">Profile Info</legend>
+            {{ user_form|crispy }}
+            {{ profile_form|crispy }}
+        </div>
+    </fieldset>
+    <div class="form-group">
+        <button class="btn btn-success" type="submit">Update</button>
+    </div>
+</form>
+{% endblock form %}
