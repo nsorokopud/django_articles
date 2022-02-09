@@ -7,22 +7,16 @@
     {% include "inclusion/sidebar.html" %}
     <section class="main-content">
         <div class="row">
-            <div class="col-sm-12 col-lg-10 mx-auto">
-                <form class="article-search d-flex">
-                    <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search" />
-                    <button class="btn btn-outline-success" type="submit">Search</button>
-                </form>
-            </div>
-        </div>
-        <div class="row">
             <div class="articles-container col-lg-10 col-md-12 mx-auto nopadding">
                 <article class="article article-single p-3">
-                    <div class="article-preview-author d-flex align-items-end mb-3">
-                        <img src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp"
-                            class="article-author-avatar rounded-circle" alt="Avatar" />
-                        <a href="#" class="article-author-name mx-2">{{ article.author.username|truncatechars:9 }}</a>
-                        <span class="article-preview-date mx-3">{{ article.created_at|date:'d/m/Y h:m' }}</span>
+                    <div class="article-preview-author d-flex align-items-center mb-3">
+                        <img src="{{ article.author.profile.image.url }}" class="article-author-avatar rounded-circle" alt="Avatar" />
+                        <a href="#" class="article-author-name">{{ article.author.username|truncatechars:9 }}</a>
+                        <span class="article-preview-date mx-3">{{ article.created_at|date:'h:m d.m.Y' }}</span>
                     </div>
+
+                    <hr>
+
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
                         {% if article.category %}

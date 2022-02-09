@@ -25,11 +25,11 @@
 
                     {% for article in articles %}
                     <article class="article p-3">
-                        <div class="article-preview-author d-flex align-items-end mb-3">
+                        <div class="article-preview-author d-flex align-items-center mb-3">
                             <img class="article-author-avatar rounded-circle"
-                                src="https://mdbcdn.b-cdn.net/img/new/avatars/2.webp" alt="Article author's image" />
-                            <a href="#" class="article-author-name mx-2">{{ article.author }}</a>
-                            <span class="article-preview-date mx-3">{{ article.created_at }}</span>
+                                src="{{ article.author.profile.image.url }}" alt="Article author's image" />
+                            <a href="#" class="article-author-name">{{ article.author }}</a>
+                            <span class="article-preview-date mx-3">{{ article.created_at|date:'h:m d.m.Y' }}</span>
                         </div>
 
                         <hr>
@@ -46,7 +46,7 @@
                             </ul>
                             <div class="article-preview-content">
                                 {% if article.preview_image %}
-                                <img class="img-fluid mx-auto d-block" src="{{ article.preview_image.url }}"
+                                <img class="img-fluid mx-auto article-preview-image" src="{{ article.preview_image.url }}"
                                     alt="Article preview image">
                                 {% endif %}
                                 <p class="article-preview-text mt-3">
