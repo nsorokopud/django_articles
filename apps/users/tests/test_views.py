@@ -2,6 +2,8 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 
+from users.models import Profile
+
 
 class TestViews(TestCase):
     def setUp(self):
@@ -10,6 +12,7 @@ class TestViews(TestCase):
         self.test_user = User(username="test_user", email="test@test.com")
         self.test_user.set_password("12345")
         self.test_user.save()
+        self.test_user_profile = Profile.objects.create(user=self.test_user)
 
     def test_user_registration_view_get(self):
         response = self.client.get(reverse("registration"))
@@ -60,3 +63,13 @@ class TestViews(TestCase):
 
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("users/logout.html")
+
+    def test_user_profile_view(self):
+        response = self.client.get(reverse("user-profile"))
+        redirect_url = f'{reverse("login")}?next={reverse("user-profile")}'
+        self.assertRedirects(response, redirect_url, status_code=302, target_status_code=200)
+
+        self.client.login(username="test_user", password="12345")
+        response = self.client.get(reverse("user-profile"))
+        self.assertEquals(response.status_code, 200)
+        self.assertTemplateUsed("users/profile.html")
