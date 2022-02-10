@@ -12,6 +12,7 @@ from articles.services import (
     toggle_article_like,
     toggle_comment_like,
     get_all_users_that_liked_article,
+    increment_article_views_counter,
 )
 
 
@@ -269,3 +270,21 @@ class TestServices(TestCase):
             find_article_comments_liked_by_user(a1.slug, self.test_user.id),
             [comment1.id, comment3.id],
         )
+
+    def test_increment_article_views_count(self):
+        a1 = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        self.assertEquals(a1.views_count, 0)
+        increment_article_views_counter(a1.slug)
+        a1.refresh_from_db()
+        self.assertEquals(a1.views_count, 1)
+        increment_article_views_counter(a1.slug)
+        a1.refresh_from_db()
+        self.assertEquals(a1.views_count, 2)
