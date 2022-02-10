@@ -37,7 +37,13 @@
                             <span class="article-preview-icons">
                                 <span class="mx-2 article-preview-icons__item">
                                     <i class="article-icon far fa-eye m-1"></i>
-                                    <span class="article-icon-counter">1602139</span>
+                                    <span class="article-icon-counter">
+                                        {% if article.views_count > 0 %}
+                                        {{ article.views_count }}
+                                        {% else %}
+                                        No views
+                                        {% endif %}
+                                    </span>
                                 </span>
                                 <span class="mx-2 article-preview-icons__item">
                                     <a id="articleLikeLink"class="article-icon" href="{% url 'article-like' article.slug %}" {% if request.user.is_authenticated %}is_logged_in{% endif %}>

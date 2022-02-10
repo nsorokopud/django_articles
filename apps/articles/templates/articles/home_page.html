@@ -61,7 +61,13 @@
                                     <span class="article-preview-icons">
                                         <span class="mx-2 article-preview-icons__item">
                                             <i class="far fa-eye m-1"></i>
-                                            <span class="article-preview-icon-counter">1602139</span>
+                                            <span class="article-preview-icon-counter">
+                                                {% if article.views_count > 0 %}
+                                                {{ article.views_count }}
+                                                {% else %}
+                                                No views
+                                                {% endif %}
+                                            </span>
                                         </span>
                                         <span class="mx-2 article-preview-icons__item">
                                             <i class="far fa-thumbs-up m-1"></i>
