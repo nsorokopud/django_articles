@@ -12,6 +12,7 @@
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0"></ul>
                     <div class="header-user text-white">
                         {% if request.user.is_authenticated %}
+                        <a class="link-green" href="{% url 'article-create' %}">New article</a>
                         <a class="header-user-link" href="{% url 'user-profile' %}">
                             <i class="fas fa-user"></i> {{ request.user.username|truncatechars:30 }}
                         </a>
