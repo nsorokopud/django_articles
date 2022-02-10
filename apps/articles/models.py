@@ -21,6 +21,7 @@ class Article(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
     users_that_liked = models.ManyToManyField(User, related_name="users_that_liked")
+    views_count = models.IntegerField(default=0)
 
     class Meta:
         verbose_name_plural = "Articles"
