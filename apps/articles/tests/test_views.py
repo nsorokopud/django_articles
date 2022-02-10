@@ -61,6 +61,9 @@ class TestViews(TestCase):
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("articles/article.html")
 
+        self.test_article.refresh_from_db()
+        self.assertEquals(self.test_article.views_count, 1)
+
     def test_article_creation_page_view_unauthorized(self):
         url = reverse("article-create")
         response = self.client.get(url)

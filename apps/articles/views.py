@@ -15,6 +15,7 @@ from .services import (
     toggle_comment_like,
     find_articles_by_query,
     find_article_comments_liked_by_user,
+    increment_article_views_counter,
 )
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
@@ -52,6 +53,10 @@ class ArticleDetailView(CategoriesMixin, DetailView):
     slug_url_kwarg = "article_slug"
     context_object_name = "article"
     template_name = "articles/article.html"
+
+    def get_object(self):
+        article = super().get_object()
+        return increment_article_views_counter(article.slug)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
