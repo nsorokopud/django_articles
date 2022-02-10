@@ -1,7 +1,7 @@
 from typing import Iterable, List, Optional
 import logging
 
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.query import QuerySet
 from django.contrib.auth.models import User
 from django.template.defaultfilters import slugify
@@ -110,3 +110,11 @@ def find_article_comments_liked_by_user(
     user = User.objects.get(id=user_id)
     comments = ArticleComment.objects.filter(article__slug=article_slug)
     return [comment.id for comment in comments if user in comment.users_that_liked.all()]
+
+
+def increment_article_views_counter(article_slug: str) -> Article:
+    article = Article.objects.filter(slug=article_slug).first()
+    article.views_count = F("views_count") + 1
+    article.save(update_fields=("views_count",))
+    article.refresh_from_db()
+    return article
