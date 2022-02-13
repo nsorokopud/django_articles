@@ -202,6 +202,25 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 CKEDITOR_UPLOAD_PATH = "ckeditor_uploads/"
 CKEDITOR_IMAGE_BACKEND = "pillow"
 CKEDITOR_BROWSE_SHOW_DIRS = True
+CKEDITOR_RESTRICT_BY_USER = True
+
+CKEDITOR_CONFIGS = {
+    "default": {
+        "toolbar": [
+            ["Undo", "Redo", "Maximize"],
+            ["PasteFromWord"],
+            ["Find", "Replace", "SelectAll"],
+            ["Bold", "Italic", "Underline", "Strike", "Subscript", "Superscript"],
+            ["Font", "FontSize", "TextColor", "BGColor", "Styles", "Format", "RemoveFormat"],
+            ["JustifyLeft", "JustifyCenter", "JustifyRight", "JustifyBlock"],
+            ["NumberedList", "BulletedList", "Outdent", "Indent", "BidiLtr", "BidiRtl"],
+            ["Link", "Unlink", "Anchor"],
+            ["Image", "Iframe", "Table", "HorizontalRule", "Smiley", "SpecialChar", "Blockquote"],
+            ["Source", "Preview"],
+        ],
+        "width": "100%",
+    },
+}
 
 # AWS
 
