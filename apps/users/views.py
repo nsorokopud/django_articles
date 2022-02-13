@@ -8,7 +8,6 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from .forms import UserUpdateForm, ProfileUpdateForm
-from .services import delete_profile_image
 
 
 class UserRegistrationView(CreateView):
@@ -37,16 +36,12 @@ class UserProfileView(LoginRequiredMixin, View):
         return render(request, "users/profile.html", context)
 
     def post(self, request):
-        old_profile_image = request.user.profile.image.path
         user_form = UserUpdateForm(request.POST, instance=request.user)
         profile_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.profile
         )
 
         if user_form.is_valid() and profile_form.is_valid():
-            if request.user.profile.image.path != old_profile_image:
-                delete_profile_image(old_profile_image)
-
             user_form.save()
             profile_form.save()
             return redirect(reverse("user-profile"))

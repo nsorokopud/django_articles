@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "ckeditor_uploader",
     "crispy_forms",
     "taggit",
+    "storages",
     "articles",
     "users",
 ]
@@ -182,8 +183,9 @@ STATIC_URL = "/static/"
 STATIC_ROOT = "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
-MEDIA_ROOT = "media"
 MEDIA_URL = "/media/"
+MEDIA_ROOT = "media"
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
@@ -197,6 +199,19 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 # CKEditor
 
-CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_UPLOAD_PATH = "ckeditor_uploads/"
 CKEDITOR_IMAGE_BACKEND = "pillow"
 CKEDITOR_BROWSE_SHOW_DIRS = True
+
+# AWS
+
+USE_AWS_S3 = bool(int(os.environ["USE_AWS_S3"]))
+
+if USE_AWS_S3:
+    AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+    AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+    AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+    AWS_S3_FILE_OVERWRITE = False
+
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
