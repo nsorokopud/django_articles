@@ -5,12 +5,12 @@
 
 <div class="container main-container d-flex justify-content-center mx-auto">
     <div class="row">
-        <div class="user-form col-sm-12 col-md-10 mx-auto">
-            <form method="POST" enctype="multipart/form-data">
+        <div class="col-sm-12 col-md-8 mx-auto">
+            <form class="user-form" method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
                 <fieldset>
                     <div class="form-group">
-                        <legend class="botder-bottom mb-4">Update article</legend>
+                        <h2 class="mb-5">Update article</h2>
                         {{ form.media }}
                         {{ form|crispy }}
                     </div>
