@@ -5,6 +5,7 @@ from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
     find_published_articles,
     find_articles_of_category,
+    find_articles_with_tag,
     find_articles_by_query,
     find_article_comments_liked_by_user,
     get_all_categories,
@@ -86,6 +87,45 @@ class TestServices(TestCase):
             is_published=True,
         )
         self.assertCountEqual(find_articles_of_category(self.test_category.slug), [a1])
+
+    def test_find_articles_with_tag(self):
+        a1 = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text",
+            content="content",
+            is_published=True,
+        )
+        a1.tags.add("tag1", "tag2")
+        a1.save()
+
+        a2 = Article.objects.create(
+            title="a2",
+            slug="a2",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text",
+            content="content",
+            is_published=True,
+        )
+        a2.tags.add("tag3")
+        a2.save()
+
+        a3 = Article.objects.create(
+            title="a3",
+            slug="a3",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text",
+            content="content",
+            is_published=True,
+        )
+        a3.tags.add("tag2", "tag7")
+        a3.save()
+
+        self.assertCountEqual(find_articles_with_tag("tag2"), [a1, a3])
 
     def test_find_articles_by_query(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
