@@ -36,6 +36,9 @@ class Article(models.Model):
     def get_likes_count(self):
         return self.users_that_liked.count()
 
+    def get_comments_count(self):
+        return ArticleComment.objects.filter(article=self).count()
+
 
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
