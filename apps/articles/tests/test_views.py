@@ -15,15 +15,6 @@ class TestViews(TestCase):
         self.test_user.save()
 
         self.test_category = ArticleCategory.objects.create(title="cat1", slug="cat1")
-        self.test_article = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-            is_published=True,
-        )
 
         self.test_article = Article.objects.create(
             title="test_article",
@@ -34,6 +25,8 @@ class TestViews(TestCase):
             content="content1",
             is_published=True,
         )
+        self.test_article.tags.add("tag1")
+        self.test_article.save()
         self.test_comment = ArticleComment.objects.create(
             article=self.test_article, author=self.test_user, text="text"
         )
@@ -47,6 +40,16 @@ class TestViews(TestCase):
     def test_article_category_view(self):
         response = self.client.get(reverse("article-category", args=[self.test_category.slug]))
 
+        self.assertEquals(response.status_code, 200)
+        self.assertTemplateUsed("articles/home_page.html")
+
+    def test_article_tag_view(self):
+        response = self.client.get(reverse("article-tag", args=["tag"]))
+        self.assertEquals(response.status_code, 404)
+
+        response = self.client.get(
+            reverse("article-tag", args=[self.test_article.tags.all()[0].name])
+        )
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
