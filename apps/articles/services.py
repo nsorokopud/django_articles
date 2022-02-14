@@ -20,6 +20,10 @@ def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
     return find_published_articles().filter(category__slug=category_slug)
 
 
+def find_articles_with_tag(tag: str) -> QuerySet[Article]:
+    return find_published_articles().filter(tags__name__in=[tag])
+
+
 def find_articles_by_query(q: str) -> QuerySet[Article]:
     return (
         find_published_articles()
