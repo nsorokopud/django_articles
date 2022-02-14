@@ -9,6 +9,10 @@
     color: #198754;
 }
 
+.text-align-justify {
+    text-align: justify;
+}
+
 /* Header */
 
 header {
@@ -52,6 +56,12 @@ header i {
     .header-user a:last-child {
         margin-bottom: 0;
     }
+}
+
+/* Footer */
+
+.footer-bottom {
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 /* User */
