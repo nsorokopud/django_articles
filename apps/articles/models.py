@@ -20,7 +20,9 @@ class Article(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False)
-    users_that_liked = models.ManyToManyField(User, related_name="users_that_liked")
+    users_that_liked = models.ManyToManyField(
+        User, related_name="users_that_liked", null=True, blank=True
+    )
     views_count = models.IntegerField(default=0)
 
     class Meta:
