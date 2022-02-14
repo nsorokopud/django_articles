@@ -25,7 +25,7 @@
                         {% if article.tags.all %}
                             <ul class="article-tags-list"><span class="tags-span">Tags: </span>
                                 {% for tag in article.tags.all %}
-                                <li><a class="article-tag-link" href="#">#{{ tag }}</a></li>
+                                <li><a class="article-tag-link" href="{% url 'article-tag' tag %}">#{{ tag }}</a></li>
                                 {% endfor %}
                             </ul>
                             {% endif %}
