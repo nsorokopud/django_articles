@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleComment
 
 
 class TestModels(TestCase):
@@ -30,6 +30,15 @@ class TestModels(TestCase):
         self.test_article.users_that_liked.remove(self.test_user)
         likes_count = self.test_article.get_likes_count()
         self.assertEquals(likes_count, 0)
+
+    def test_article__get_comments_count(self):
+        self.assertEquals(self.test_article.get_comments_count(), 0)
+        ArticleComment.objects.create(article=self.test_article, author=self.test_user, text="txt")
+        self.assertEquals(self.test_article.get_comments_count(), 1)
+        ArticleComment.objects.create(article=self.test_article, author=self.test_user, text="txt")
+        self.assertEquals(self.test_article.get_comments_count(), 2)
+        ArticleComment.objects.filter(article=self.test_article).first().delete()
+        self.assertEquals(self.test_article.get_comments_count(), 1)
 
     def test_article_category__get_articles_count(self):
         cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
