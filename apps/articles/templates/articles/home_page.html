@@ -38,12 +38,16 @@
                             <h3 class="article-title mb-4">
                                 <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                             </h3>
-                            <h5 class="article-category">Category: <a href="{% url 'article-category' article.category.slug %}">{{ article.category }}</a></h5>
+                            {% if article.category %}
+                                <h5 class="article-category">Category: <a href="{% url 'article-category' article.category.slug %}">{{ article.category }}</a></h5>
+                            {% endif %}
+                            {% if article.tags.all %}
                             <ul class="article-tags-list"><span class="tags-span">Tags: </span>
                                 {% for tag in article.tags.all %}
                                 <li><a class="article-tag-link" href="#">#{{ tag }}</a></li>
                                 {% endfor %}
                             </ul>
+                            {% endif %}
                             <div class="article-preview-content">
                                 {% if article.preview_image %}
                                 <img class="img-fluid mx-auto article-preview-image" src="{{ article.preview_image.url }}"
