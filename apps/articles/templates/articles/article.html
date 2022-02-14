@@ -31,9 +31,9 @@
                             {% endif %}
                         <div class="article-preview-content">
                             {% if article.preview_image %}
-                            <img class="img-fluid mx-auto d-block" src="{{ article.preview_image.url }}"
-                                alt="Article preview image">
-                            {% endif %}
+                                <img class="img-fluid mx-auto article-preview-image" src="{{ article.preview_image.url }}"
+                                    alt="Article preview image">
+                                {% endif %}
                             <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
                             <hr>
                             <span class="article-preview-icons">
