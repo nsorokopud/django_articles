@@ -11,6 +11,7 @@ from .forms import ArticleCreateForm, ArticleCommentForm
 from .services import (
     find_published_articles,
     find_articles_of_category,
+    find_articles_with_tag,
     toggle_article_like,
     toggle_comment_like,
     find_articles_by_query,
@@ -46,6 +47,19 @@ class ArticleCategoryView(CategoriesMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["selected_category_slug"] = self.kwargs["category_slug"]
         return context
+
+
+class ArticleTagView(CategoriesMixin, ListView):
+    model = Article
+    context_object_name = "articles"
+    slug_url_kwarg = "category_slug"
+    paginate_by = 5
+    allow_empty = False
+    template_name = "articles/home_page.html"
+
+    def get_queryset(self):
+        tag = self.kwargs["tag"]
+        return find_articles_with_tag(tag)
 
 
 class ArticleDetailView(CategoriesMixin, DetailView):

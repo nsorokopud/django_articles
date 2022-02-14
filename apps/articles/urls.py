@@ -10,6 +10,7 @@ urlpatterns = [
         views.ArticleCategoryView.as_view(),
         name="article-category",
     ),
+    path("tag/<str:tag>", views.ArticleTagView.as_view(), name="article-tag"),
     path("articles/search", views.ArticleSearchView.as_view(), name="article-search"),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
@@ -33,7 +34,5 @@ urlpatterns = [
     path(
         "articles/<slug:article_slug>/like", views.ArticleLikeView.as_view(), name="article-like"
     ),
-    path(
-        "comments/<int:comment_id>/like", views.CommentLikeView.as_view(), name="comment-like"
-    ),
+    path("comments/<int:comment_id>/like", views.CommentLikeView.as_view(), name="comment-like"),
 ]
