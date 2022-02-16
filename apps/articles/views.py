@@ -85,9 +85,9 @@ class ArticleDetailView(CategoriesMixin, DetailView):
         article = context["article"]
         if self.request.user in article.users_that_liked.all():
             context["user_liked"] = True
-            context["liked_comments"] = find_article_comments_liked_by_user(
-                article_slug, self.request.user
-            )
+        context["liked_comments"] = find_article_comments_liked_by_user(
+            article_slug, self.request.user
+        )
         return context
 
 
