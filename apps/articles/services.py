@@ -1,17 +1,14 @@
-import logging
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 from sql_util.utils import SubqueryAggregate
 
 from django.contrib.auth.models import User
 from django.db.models import Count, F, OuterRef, Q, Subquery
 from django.db.models.query import QuerySet
+from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 
 from articles.models import Article, ArticleCategory, ArticleComment
-
-
-logger = logging.getLogger("default_logger")
 
 
 def find_published_articles() -> QuerySet[Article]:
@@ -70,7 +67,33 @@ def find_articles_by_query(q: str) -> QuerySet[Article]:
     )
 
 
-def get_all_categories() -> Iterable[ArticleCategory]:
+def find_article_comments_liked_by_user(article_slug: str, user: User) -> List[int]:
+    comments = ArticleComment.objects.filter(article__slug=article_slug).prefetch_related(
+        "users_that_liked"
+    )
+    return [comment.id for comment in comments if user in comment.users_that_liked.all()]
+
+
+def find_comments_to_article(article_slug: str) -> QuerySet[ArticleComment]:
+    return (
+        ArticleComment.objects.filter(article__slug=article_slug)
+        .select_related("author")
+        .select_related("author__profile")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+    )
+
+
+def get_article_by_slug(article_slug: str) -> Article:
+    return (
+        Article.objects.select_related("author")
+        .select_related("author__profile")
+        .prefetch_related("tags")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .get(slug=article_slug)
+    )
+
+
+def get_all_categories() -> QuerySet[ArticleCategory]:
     return ArticleCategory.objects.annotate(
         articles_count=SubqueryAggregate(
             "article__id", filter=Q(is_published=True), aggregate=Count
@@ -78,15 +101,9 @@ def get_all_categories() -> Iterable[ArticleCategory]:
     )
 
 
-def get_all_users_that_liked_article(article_slug: str) -> Iterable[User]:
-    try:
-        article = Article.objects.get(slug=article_slug)
-        return article.users_that_liked.all()
-    except Article.DoesNotExist:
-        logger.error(
-            f"Tried to get users that liked a non-existent article with slug={article_slug}"
-        )
-        return list()
+def get_all_users_that_liked_article(article_slug: str) -> QuerySet[User]:
+    article = get_object_or_404(Article, slug=article_slug)
+    return article.users_that_liked.all()
 
 
 def create_article(
@@ -115,78 +132,41 @@ def create_article(
     return article
 
 
-def toggle_article_like(article_slug: str, user_id: int) -> Optional[int]:
-    try:
-        article = Article.objects.filter(slug=article_slug).first()
-        try:
-            user = article.users_that_liked.get(id=user_id)
-            article.users_that_liked.remove(user)
-        except User.DoesNotExist:
-            user = User.objects.get(id=user_id)
-            article.users_that_liked.add(user)
-        likes_count = (
-            Article.objects.filter(slug=article_slug)
-            .annotate(likes_count=Count("users_that_liked", distinct=True))
-            .first()
-            .likes_count
-        )
-        return likes_count
-    except Article.DoesNotExist:
-        logger.error(f"Tried to get a non-existent article with slug={article_slug}")
-        return None
-
-
-def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
-    try:
-        comment = ArticleComment.objects.annotate(
-            likes_count=Count("users_that_liked", distinct=True)
-        ).get(id=comment_id)
-        try:
-            user = comment.users_that_liked.get(id=user_id)
-            comment.users_that_liked.remove(user)
-        except User.DoesNotExist:
-            user = User.objects.get(id=user_id)
-            comment.users_that_liked.add(user)
-        return (
-            ArticleComment.objects.annotate(likes_count=Count("users_that_liked", distinct=True))
-            .get(id=comment_id)
-            .likes_count
-        )
-    except ArticleComment.DoesNotExist:
-        logger.error(f"Tried to get a non-existent comment with id={comment_id}")
-        return None
-
-
-def find_article_comments_liked_by_user(article_slug: str, user: User) -> QuerySet[ArticleComment]:
-    comments = ArticleComment.objects.filter(article__slug=article_slug).prefetch_related(
-        "users_that_liked"
-    )
-    return [comment.id for comment in comments if user in comment.users_that_liked.all()]
-
-
 def increment_article_views_counter(article_slug: str) -> Article:
-    article = Article.objects.filter(slug=article_slug).first()
+    article = get_object_or_404(Article, slug=article_slug)
     article.views_count = F("views_count") + 1
     article.save(update_fields=("views_count",))
     article.refresh_from_db()
     return article
 
 
-def get_article_by_slug(article_slug):
-    return (
-        Article.objects.filter(slug=article_slug)
-        .select_related("author")
-        .select_related("author__profile")
-        .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
-        .first()
+def toggle_article_like(article_slug: str, user_id: int) -> int:
+    article = get_object_or_404(Article, slug=article_slug)
+    try:
+        user = article.users_that_liked.get(id=user_id)
+        article.users_that_liked.remove(user)
+    except User.DoesNotExist:
+        user = get_object_or_404(User, id=user_id)
+        article.users_that_liked.add(user)
+    likes_count = (
+        Article.objects.annotate(likes_count=Count("users_that_liked", distinct=True))
+        .get(slug=article_slug)
+        .likes_count
     )
+    return likes_count
 
 
-def find_comments_to_article(article_slug: str) -> QuerySet[ArticleComment]:
-    return (
-        ArticleComment.objects.filter(article__slug=article_slug)
-        .select_related("author")
-        .select_related("author__profile")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
+def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
+    comment = get_object_or_404(ArticleComment, id=comment_id)
+    try:
+        user = comment.users_that_liked.get(id=user_id)
+        comment.users_that_liked.remove(user)
+    except User.DoesNotExist:
+        user = User.objects.get(id=user_id)
+        comment.users_that_liked.add(user)
+    likes_count = (
+        ArticleComment.objects.annotate(likes_count=Count("users_that_liked", distinct=True))
+        .get(id=comment_id)
+        .likes_count
     )
+    return likes_count
