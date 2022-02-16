@@ -189,6 +189,7 @@ img.article-preview-image {
 
 .article-preview-text {
     text-align: justify;
+    word-wrap: break-word;
 }
 
 .article-preview-icons__item i.far {
