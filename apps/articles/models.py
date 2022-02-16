@@ -7,22 +7,20 @@ from taggit.managers import TaggableManager
 
 
 class Article(models.Model):
-    title = models.CharField(max_length=256, unique=True)
-    slug = models.SlugField(max_length=256, unique=True)
+    title = models.CharField(max_length=256, unique=True, db_index=True)
+    slug = models.SlugField(max_length=256, unique=True, db_index=True)
     category = models.ForeignKey(
         "ArticleCategory", null=True, blank=True, on_delete=models.SET_NULL
     )
     tags = TaggableManager(blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    preview_text = models.CharField(max_length=512)
+    preview_text = models.TextField(max_length=512)
     preview_image = models.ImageField(upload_to="articles/preview_images/", null=True, blank=True)
     content = RichTextUploadingField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     modified_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False)
-    users_that_liked = models.ManyToManyField(
-        User, related_name="users_that_liked", null=True, blank=True
-    )
+    is_published = models.BooleanField(default=False, db_index=True)
+    users_that_liked = models.ManyToManyField(User, related_name="users_that_liked", blank=True)
     views_count = models.IntegerField(default=0)
 
     class Meta:
@@ -38,7 +36,7 @@ class Article(models.Model):
 
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
-    slug = models.CharField(max_length=256, unique=True)
+    slug = models.CharField(max_length=256, unique=True, db_index=True)
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -52,7 +50,7 @@ class ArticleComment(models.Model):
     article = models.ForeignKey(Article, on_delete=models.CASCADE)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     text = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     users_that_liked = models.ManyToManyField(User, related_name="users_that_liked_comment")
 
     class Meta:
