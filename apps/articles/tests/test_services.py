@@ -8,6 +8,7 @@ from articles.services import (
     find_articles_with_tag,
     find_articles_by_query,
     find_article_comments_liked_by_user,
+    find_comments_to_article,
     get_all_categories,
     create_article,
     toggle_article_like,
@@ -189,6 +190,30 @@ class TestServices(TestCase):
         )  # By category + tag
         self.assertCountEqual(list(find_articles_by_query("tag1")), [a1, a4])  # By tag
         self.assertCountEqual(list(find_articles_by_query("agrj")), [])  # Not found
+
+    def test_find_comments_to_article(self):
+        a1 = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        a2 = Article.objects.create(
+            title="a2",
+            slug="a2",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            is_published=True,
+        )
+        comment1 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        ArticleComment.objects.create(article=a2, author=self.test_user, text="text")
+        comment3 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        self.assertCountEqual(find_comments_to_article(a1.slug), [comment1, comment3])
 
     def test_get_all_categories(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
