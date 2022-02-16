@@ -65,7 +65,8 @@ def find_articles_by_query(q: str) -> QuerySet[Article]:
             | Q(tags__name__icontains=q)
             | Q(content__icontains=q)
         )
-        .distinct().order_by("-created_at")
+        .distinct()
+        .order_by("-created_at")
     )
 
 
@@ -179,4 +180,13 @@ def get_article_by_slug(article_slug):
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
         .first()
+    )
+
+
+def find_comments_to_article(article_slug: str) -> QuerySet[ArticleComment]:
+    return (
+        ArticleComment.objects.filter(article__slug=article_slug)
+        .select_related("author")
+        .select_related("author__profile")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
     )
