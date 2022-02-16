@@ -1,26 +1,26 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.template.defaultfilters import slugify
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.template.defaultfilters import slugify
+from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from .models import Article
-from .forms import ArticleCreateForm, ArticleCommentForm
-from .services import (
-    find_published_articles,
+from articles.forms import ArticleCreateForm, ArticleCommentForm
+from articles.models import Article
+from articles.services import (
+    find_articles_by_query,
     find_articles_of_category,
     find_articles_with_tag,
-    toggle_article_like,
-    toggle_comment_like,
-    find_articles_by_query,
     find_comments_to_article,
     find_article_comments_liked_by_user,
-    increment_article_views_counter,
+    find_published_articles,
     get_article_by_slug,
+    increment_article_views_counter,
+    toggle_article_like,
+    toggle_comment_like,
 )
-from .utils import CategoriesMixin, AllowOnlyAuthorMixin
+from articles.utils import AllowOnlyAuthorMixin, CategoriesMixin
 
 
 class HomePageView(CategoriesMixin, ListView):

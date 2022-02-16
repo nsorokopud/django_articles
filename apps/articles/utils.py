@@ -1,6 +1,6 @@
 from django.http import Http404
 
-from .services import get_all_categories
+from articles.services import get_all_categories
 
 
 class CategoriesMixin:

@@ -1,20 +1,20 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse, resolve
-from django.contrib.auth.models import User
 
+from articles.models import Article, ArticleCategory, ArticleComment
 from articles.views import (
-    HomePageView,
     ArticleCategoryView,
-    ArticleDetailView,
-    ArticleCreateView,
-    ArticleUpdateView,
-    ArticleDeleteView,
     ArticleCommentView,
+    ArticleCreateView,
+    ArticleDeleteView,
+    ArticleDetailView,
     ArticleLikeView,
     ArticleSearchView,
+    ArticleUpdateView,
     CommentLikeView,
+    HomePageView,
 )
-from articles.models import Article, ArticleCategory, ArticleComment
 
 
 class TestURLs(TestCase):

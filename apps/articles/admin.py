@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment
 
 
 admin.site.register(Article)

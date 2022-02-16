@@ -1,14 +1,14 @@
-from typing import Iterable, List, Optional
 import logging
+from typing import Iterable, List, Optional
 
 from sql_util.utils import SubqueryAggregate
 
-from django.db.models import Count, F, OuterRef, Subquery, Q
-from django.db.models.query import QuerySet
 from django.contrib.auth.models import User
+from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.db.models.query import QuerySet
 from django.template.defaultfilters import slugify
 
-from .models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment
 
 
 logger = logging.getLogger("default_logger")

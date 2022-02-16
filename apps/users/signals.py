@@ -1,4 +1,4 @@
-from .services import create_user_profile
+from users.services import create_user_profile
 
 
 def create_profile(sender, instance, created, **kwargs):

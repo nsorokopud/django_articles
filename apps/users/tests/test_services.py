@@ -1,5 +1,5 @@
-from django.db.models import signals
 from django.contrib.auth.models import User
+from django.db.models import signals
 from django.test import TestCase
 
 from users.models import Profile

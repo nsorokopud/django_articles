@@ -1,5 +1,5 @@
-from django.test import TestCase
 from django.contrib.staticfiles import finders
+from django.test import TestCase
 
 
 class TestStatic(TestCase):

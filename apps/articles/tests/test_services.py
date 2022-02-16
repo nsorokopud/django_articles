@@ -1,20 +1,20 @@
-from django.test import TestCase
 from django.contrib.auth.models import User
+from django.test import TestCase
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
-    find_published_articles,
+    create_article,
+    find_articles_by_query,
     find_articles_of_category,
     find_articles_with_tag,
-    find_articles_by_query,
-    find_article_comments_liked_by_user,
     find_comments_to_article,
+    find_article_comments_liked_by_user,
+    find_published_articles,
     get_all_categories,
-    create_article,
-    toggle_article_like,
-    toggle_comment_like,
     get_all_users_that_liked_article,
     increment_article_views_counter,
+    toggle_article_like,
+    toggle_comment_like,
 )
 
 

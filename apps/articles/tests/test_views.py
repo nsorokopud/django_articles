@@ -1,8 +1,8 @@
-from django.http import Http404
-from django.test import TestCase, Client
-from django.urls import reverse
 from django.contrib.auth.models import User
 from django.db.models import Count
+from django.http import Http404
+from django.test import Client, TestCase
+from django.urls import reverse
 
 from articles.models import Article, ArticleCategory, ArticleComment
 
