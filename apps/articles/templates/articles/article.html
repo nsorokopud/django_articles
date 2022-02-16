@@ -51,7 +51,7 @@
                                     <a id="articleLikeLink"class="article-icon" href="{% url 'article-like' article.slug %}" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
                                         <i id="articleLikeIcon" class="article-icon fas fa-thumbs-up m-1 {% if user_liked %}active{% endif %}"></i>
                                     </a>
-                                    <span id="articleLikesCounter" class="article-icon-counter">{{ article.get_likes_count }}</span>
+                                    <span id="articleLikesCounter" class="article-icon-counter">{{ article.likes_count }}</span>
                                 </span>
                             </span>
                             {% if article.author == request.user %}
@@ -77,8 +77,8 @@
     <section class="article-comment-section">
         <div class="row">
             <div class="col-lg-8 col-md-12 mx-auto nopadding">
-                {% if comments.count > 0 %}
-                <h2 class="article-comments-title">Comments to this article ({{ comments.count }}):</h2>
+                {% if comments_count > 0 %}
+                <h2 class="article-comments-title">Comments to this article ({{ comments_count }}):</h2>
                 {% else %}
                 <h2 class="article-comments-title">There are no comments yet</h2>
                 {% endif %}
@@ -108,7 +108,7 @@
                         {% for comment in comments %}
                         <div class="d-flex flex-start mb-4">
                             <img class="rounded-circle shadow-1-strong me-3"
-                                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/img%20(32).webp" alt="avatar"
+                                src="{{ comment.author.profile.image.url }}" alt="avatar"
                                 width="65" height="65" />
                             <div class="card w-100">
                                 <div class="card-body p-4">
@@ -120,7 +120,7 @@
                                             <div class="d-flex align-items-center">
                                                 <a id="commentLink{{ comment.id }}" href="{% url 'comment-like' comment.id %}" onClick="like_comment(event, {{ comment.id }})" class="comment-like-link link-muted me-2" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
                                                     <i class="article-icon fas fa-thumbs-up m-1 {% if comment.id in liked_comments %}active{% endif %}"></i>
-                                                    <span class="comment-like-count">{{ comment.get_likes_count }}</span>
+                                                    <span class="comment-like-count">{{ comment.likes_count }}</span>
                                                 </a>
                                             </div>
                                             <a href="#!" class="link-muted d-none"><i class="fas fa-reply me-1"></i>

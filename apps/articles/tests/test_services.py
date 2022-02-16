@@ -307,7 +307,7 @@ class TestServices(TestCase):
         comment3.users_that_liked.add(self.test_user)
 
         self.assertCountEqual(
-            find_article_comments_liked_by_user(a1.slug, self.test_user.id),
+            find_article_comments_liked_by_user(a1.slug, self.test_user),
             [comment1.id, comment3.id],
         )
 

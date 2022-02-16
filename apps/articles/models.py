@@ -35,12 +35,6 @@ class Article(models.Model):
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
 
-    def get_likes_count(self):
-        return self.users_that_liked.count()
-
-    def get_comments_count(self):
-        return ArticleComment.objects.filter(article=self).count()
-
 
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
@@ -52,9 +46,6 @@ class ArticleCategory(models.Model):
 
     def __str__(self):
         return self.title
-
-    def get_articles_count(self):
-        return Article.objects.filter(is_published=True, category=self).count()
 
 
 class ArticleComment(models.Model):
@@ -74,6 +65,3 @@ class ArticleComment(models.Model):
         else:
             displayed_text = self.text
         return f"{self.article} - {self.author} - {displayed_text}"
-
-    def get_likes_count(self):
-        return self.users_that_liked.count()

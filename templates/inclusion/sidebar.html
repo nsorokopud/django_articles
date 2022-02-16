@@ -3,9 +3,9 @@
         <h3 class="mb-4">Categories</h3>
         <ul class="categories-list">
             {% for category in categories %}
-            {% if category.get_articles_count > 0 %}
+            {% if category.articles_count > 0 %}
             <li><a href="{% url 'article-category' category.slug %}" {% if selected_category_slug == category.slug %}class="category-selected"{% endif %}>
-                {{ category.title }} ({{ category.get_articles_count }})</a></li>
+                {{ category.title }} ({{ category.articles_count }})</a></li>
             {% endif %}
             {% endfor %}
         </ul>

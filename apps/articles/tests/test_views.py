@@ -2,6 +2,7 @@ from django.http import Http404
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.db.models import Count
 
 from articles.models import Article, ArticleCategory, ArticleComment
 
@@ -196,12 +197,24 @@ class TestViews(TestCase):
         response = self.client.post(url)
         self.assertEquals(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [self.test_user])
-        self.assertEquals(self.test_article.get_likes_count(), 1)
+        likes_count = (
+            Article.objects.filter(slug=self.test_article.slug)
+            .annotate(likes_count=Count("users_that_liked", distinct=True))
+            .first()
+            .likes_count
+        )
+        self.assertEquals(likes_count, 1)
 
         response = self.client.post(url)
         self.assertEquals(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [])
-        self.assertEquals(self.test_article.get_likes_count(), 0)
+        likes_count = (
+            Article.objects.filter(slug=self.test_article.slug)
+            .annotate(likes_count=Count("users_that_liked", distinct=True))
+            .first()
+            .likes_count
+        )
+        self.assertEquals(likes_count, 0)
 
     def test_comment_like_view_get(self):
         url = reverse("comment-like", args=[self.test_comment.id])
@@ -215,9 +228,21 @@ class TestViews(TestCase):
         response = self.client.post(url)
         self.assertEquals(response.status_code, 200)
         self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [self.test_user])
-        self.assertEquals(self.test_comment.get_likes_count(), 1)
+        likes_count = (
+            ArticleComment.objects.filter(id=self.test_comment.id)
+            .annotate(likes_count=Count("users_that_liked", distinct=True))
+            .first()
+            .likes_count
+        )
+        self.assertEquals(likes_count, 1)
 
         response = self.client.post(url)
         self.assertEquals(response.status_code, 200)
         self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [])
-        self.assertEquals(self.test_comment.get_likes_count(), 0)
+        likes_count = (
+            ArticleComment.objects.filter(id=self.test_comment.id)
+            .annotate(likes_count=Count("users_that_liked", distinct=True))
+            .first()
+            .likes_count
+        )
+        self.assertEquals(likes_count, 0)

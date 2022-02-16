@@ -5,6 +5,7 @@ from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.template.defaultfilters import slugify
+from django.db.models import Count
 
 from .models import Article, ArticleComment
 from .forms import ArticleCreateForm, ArticleCommentForm
@@ -17,6 +18,7 @@ from .services import (
     find_articles_by_query,
     find_article_comments_liked_by_user,
     increment_article_views_counter,
+    get_article_by_slug,
 )
 from .utils import CategoriesMixin, AllowOnlyAuthorMixin
 
@@ -70,18 +72,26 @@ class ArticleDetailView(CategoriesMixin, DetailView):
 
     def get_object(self):
         article = super().get_object()
-        return increment_article_views_counter(article.slug)
+        article = get_article_by_slug(article.slug)
+        increment_article_views_counter(article.slug)
+        return article
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form"] = ArticleCommentForm()
         article_slug = self.kwargs["article_slug"]
-        context["comments"] = ArticleComment.objects.filter(article__slug=article_slug)
+        context["comments"] = (
+            ArticleComment.objects.filter(article__slug=article_slug)
+            .select_related("author")
+            .select_related("author__profile")
+            .annotate(likes_count=Count("users_that_liked", distinct=True))
+        )
+        context["comments_count"] = len(context["comments"])
         article = context["article"]
         if self.request.user in article.users_that_liked.all():
             context["user_liked"] = True
             context["liked_comments"] = find_article_comments_liked_by_user(
-                article_slug, self.request.user.id
+                article_slug, self.request.user
             )
         return context
 
