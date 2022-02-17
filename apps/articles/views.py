@@ -6,44 +6,24 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from articles import services
 from articles.forms import ArticleCreateForm, ArticleCommentForm
 from articles.models import Article
-from articles.services import (
-    find_articles_by_query,
-    find_articles_of_category,
-    find_articles_with_tag,
-    find_comments_to_article,
-    find_article_comments_liked_by_user,
-    find_published_articles,
-    get_article_by_slug,
-    increment_article_views_counter,
-    toggle_article_like,
-    toggle_comment_like,
-)
-from articles.utils import AllowOnlyAuthorMixin, CategoriesMixin
+from articles.utils import AllowOnlyAuthorMixin, ArticlesListMixin, CategoriesMixin
 
 
-class HomePageView(CategoriesMixin, ListView):
-    model = Article
-    context_object_name = "articles"
-    paginate_by = 5
-    template_name = "articles/home_page.html"
-
+class HomePageView(CategoriesMixin, ArticlesListMixin, ListView):
     def get_queryset(self):
-        return find_published_articles()
+        return services.find_published_articles()
 
 
-class ArticleCategoryView(CategoriesMixin, ListView):
-    model = Article
-    context_object_name = "articles"
+class ArticleCategoryView(CategoriesMixin, ArticlesListMixin, ListView):
     slug_url_kwarg = "category_slug"
-    paginate_by = 5
     allow_empty = False
-    template_name = "articles/home_page.html"
 
     def get_queryset(self):
         category_slug = self.kwargs["category_slug"]
-        return find_articles_of_category(category_slug)
+        return services.find_articles_of_category(category_slug)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -51,17 +31,19 @@ class ArticleCategoryView(CategoriesMixin, ListView):
         return context
 
 
-class ArticleTagView(CategoriesMixin, ListView):
-    model = Article
-    context_object_name = "articles"
+class ArticleTagView(CategoriesMixin, ArticlesListMixin, ListView):
     slug_url_kwarg = "category_slug"
-    paginate_by = 5
     allow_empty = False
-    template_name = "articles/home_page.html"
 
     def get_queryset(self):
         tag = self.kwargs["tag"]
-        return find_articles_with_tag(tag)
+        return services.find_articles_with_tag(tag)
+
+
+class ArticleSearchView(CategoriesMixin, ArticlesListMixin, ListView):
+    def get_queryset(self):
+        query = self.request.GET.get("q", "")
+        return services.find_articles_by_query(query)
 
 
 class ArticleDetailView(CategoriesMixin, DetailView):
@@ -72,20 +54,20 @@ class ArticleDetailView(CategoriesMixin, DetailView):
 
     def get_object(self):
         article = super().get_object()
-        article = get_article_by_slug(article.slug)
-        increment_article_views_counter(article.slug)
+        article = services.get_article_by_slug(article.slug)
+        services.increment_article_views_counter(article.slug)
         return article
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form"] = ArticleCommentForm()
         article_slug = self.kwargs["article_slug"]
-        context["comments"] = find_comments_to_article(article_slug)
+        context["comments"] = services.find_comments_to_article(article_slug)
         context["comments_count"] = len(context["comments"])
         article = context["article"]
         if self.request.user in article.users_that_liked.all():
             context["user_liked"] = True
-        context["liked_comments"] = find_article_comments_liked_by_user(
+        context["liked_comments"] = services.find_article_comments_liked_by_user(
             article_slug, self.request.user
         )
         return context
@@ -139,23 +121,12 @@ class ArticleCommentView(LoginRequiredMixin, View):
 class ArticleLikeView(View):
     def post(self, request, article_slug):
         user_id = request.user.id
-        likes_count = toggle_article_like(article_slug, user_id)
+        likes_count = services.toggle_article_like(article_slug, user_id)
         return JsonResponse({"likes_count": likes_count})
 
 
 class CommentLikeView(View):
     def post(self, request, comment_id):
         user_id = request.user.id
-        likes_count = toggle_comment_like(comment_id, user_id)
+        likes_count = services.toggle_comment_like(comment_id, user_id)
         return JsonResponse({"comment_likes_count": likes_count})
-
-
-class ArticleSearchView(CategoriesMixin, ListView):
-    model = Article
-    context_object_name = "articles"
-    paginate_by = 5
-    template_name = "articles/home_page.html"
-
-    def get_queryset(self):
-        query = self.request.GET.get("q", "")
-        return find_articles_by_query(query)
