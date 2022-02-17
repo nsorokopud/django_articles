@@ -5,6 +5,8 @@ from django.urls import reverse
 from ckeditor_uploader.fields import RichTextUploadingField
 from taggit.managers import TaggableManager
 
+from articles.constants import DISPLAYED_COMMENT_LENGTH
+
 
 class Article(models.Model):
     title = models.CharField(max_length=256, unique=True, db_index=True)
@@ -57,9 +59,8 @@ class ArticleComment(models.Model):
         verbose_name_plural = "Comments"
 
     def __str__(self):
-        displayed_comment_length = 25
-        if len(self.text) > displayed_comment_length:
-            displayed_text = self.text[:displayed_comment_length] + "..."
+        if len(self.text) > DISPLAYED_COMMENT_LENGTH:
+            displayed_text = self.text[:DISPLAYED_COMMENT_LENGTH] + "..."
         else:
             displayed_text = self.text
         return f"{self.article} - {self.author} - {displayed_text}"
