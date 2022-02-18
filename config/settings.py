@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "awesome_django_timezones",
     "ckeditor",
@@ -52,6 +53,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "awesome_django_timezones.middleware.TimezonesMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -96,16 +98,9 @@ DATABASES = {
         "PORT": os.environ["DB_PORT"],
     }
 }
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "db",
-    }
-}
 
 
 # User
-
 LOGIN_REDIRECT_URL = "home"
 
 
@@ -194,6 +189,11 @@ AWESOME_TZ_DEFAULT_TZ = "Europe/Istanbul"
 STATIC_URL = "/static/"
 STATIC_ROOT = "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+
+# Whitenoise
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+WHITENOISE_USE_FINDERS = True
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = "media"
