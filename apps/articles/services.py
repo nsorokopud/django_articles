@@ -3,7 +3,7 @@ from typing import List, Optional
 from sql_util.utils import SubqueryAggregate
 
 from django.contrib.auth.models import User
-from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.db.models import Count, F, Q
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
@@ -19,38 +19,17 @@ def find_published_articles() -> QuerySet[Article]:
         .select_related("author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
-        .annotate(
-            comments_count=Subquery(
-                ArticleComment.objects.filter(article__slug=OuterRef("slug"))
-                .annotate(count=Count("id"))
-                .values("count")[:1]
-            )
-        )
+        .annotate(comments_count=Count("articlecomment", distinct=True))
         .order_by("-created_at")
     )
 
 
 def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
-    return (
-        Article.objects.filter(is_published=True, category__slug=category_slug)
-        .select_related("category")
-        .select_related("author")
-        .select_related("author__profile")
-        .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
-        .annotate(
-            comments_count=Subquery(
-                ArticleComment.objects.filter(article__slug=OuterRef("slug"))
-                .annotate(count=Count("id"))
-                .values("count")[:1]
-            )
-        )
-        .order_by("-created_at")
-    )
+    return find_published_articles().filter(category__slug=category_slug)
 
 
 def find_articles_with_tag(tag: str) -> QuerySet[Article]:
-    return find_published_articles().filter(tags__name__in=[tag]).order_by("-created_at")
+    return find_published_articles().filter(tags__name__in=[tag])
 
 
 def find_articles_by_query(q: str) -> QuerySet[Article]:
@@ -63,7 +42,6 @@ def find_articles_by_query(q: str) -> QuerySet[Article]:
             | Q(content__icontains=q)
         )
         .distinct()
-        .order_by("-created_at")
     )
 
 
