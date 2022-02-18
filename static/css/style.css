@@ -44,7 +44,7 @@ header i {
     margin-right: 0;
 }
 
-@media screen and (max-width: 767px) {
+@media screen and (max-width: 990px) {
     .header-user {
         flex-direction: column;
     }
