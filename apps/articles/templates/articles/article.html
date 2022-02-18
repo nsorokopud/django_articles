@@ -114,7 +114,7 @@
                                 <div class="card-body p-4">
                                     <div class="">
                                         <h5>{{ comment.author.username }}</h5>
-                                        <p class="small">3 hours ago</p>
+                                        <p class="small">{{ article.created_at|date:'h:m d.m.Y' }}</p>
                                         <p>{{ comment.text }}</p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="d-flex align-items-center">
