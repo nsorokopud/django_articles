@@ -38,10 +38,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "debug_toolbar",
+    "awesome_django_timezones",
     "ckeditor",
     "ckeditor_uploader",
     "crispy_forms",
+    "debug_toolbar",
     "taggit",
     "storages",
     "articles",
@@ -49,6 +50,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "awesome_django_timezones.middleware.TimezonesMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -92,6 +94,12 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
+    }
+}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "db",
     }
 }
 
@@ -173,12 +181,11 @@ LOGGING = {
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
+
+AWESOME_TZ_DEFAULT_TZ = "Europe/Istanbul"
 
 
 # Static files (CSS, JavaScript, Images)

@@ -1,6 +1,7 @@
 {% extends "articles/base.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
+{% load tz %}
 
 {% block content-main %}
 <div class="container main-container d-flex mx-auto">
@@ -12,7 +13,9 @@
                     <div class="article-preview-author d-flex align-items-center mb-3">
                         <img src="{{ article.author.profile.image.url }}" class="article-author-avatar rounded-circle" alt="Avatar" />
                         <a href="#" class="article-author-name">{{ article.author.username|truncatechars:9 }}</a>
-                        <span class="article-preview-date mx-3">{{ article.created_at|date:'h:m d.m.Y' }}</span>
+                        <span class="article-preview-date mx-3">
+                            {{ article.created_at|localtime|date:'H:i d.m.Y' }}
+                        </span>
                     </div>
 
                     <hr>
@@ -39,13 +42,7 @@
                             <span class="article-preview-icons">
                                 <span class="mx-2 article-preview-icons__item">
                                     <i class="article-icon far fa-eye m-1"></i>
-                                    <span class="article-icon-counter">
-                                        {% if article.views_count > 0 %}
-                                        {{ article.views_count }}
-                                        {% else %}
-                                        No views
-                                        {% endif %}
-                                    </span>
+                                    <span class="article-icon-counter">{{ article.views_count }}</span>
                                 </span>
                                 <span class="mx-2 article-preview-icons__item">
                                     <a id="articleLikeLink"class="article-icon" href="{% url 'article-like' article.slug %}" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
@@ -114,7 +111,7 @@
                                 <div class="card-body p-4">
                                     <div class="">
                                         <h5>{{ comment.author.username }}</h5>
-                                        <p class="small">{{ article.created_at|date:'h:m d.m.Y' }}</p>
+                                        <p class="small">{{ comment.created_at|localtime|date:'H:i d.m.Y' }}</p>
                                         <p>{{ comment.text }}</p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="d-flex align-items-center">

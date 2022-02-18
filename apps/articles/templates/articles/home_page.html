@@ -1,4 +1,5 @@
 {% extends "articles/base.html" %}
+{% load tz %}
 
 {% block content-main %}
     <div class="container main-container d-flex mx-auto">
@@ -29,7 +30,9 @@
                             <img class="article-author-avatar rounded-circle"
                                 src="{{ article.author.profile.image.url }}" alt="Article author's image" />
                             <a href="#" class="article-author-name">{{ article.author }}</a>
-                            <span class="article-preview-date mx-3">{{ article.created_at|date:'h:m d.m.Y' }}</span>
+                            <span class="article-preview-date mx-3">
+                                {{ article.created_at|localtime|date:'H:i d.m.Y' }}
+                            </span>
                         </div>
 
                         <hr>
