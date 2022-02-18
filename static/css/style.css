@@ -13,6 +13,15 @@
     text-align: justify;
 }
 
+/* Errors */
+
+.error-block {
+    margin: 200px auto;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 500;
+}
+
 /* Header */
 
 header {
