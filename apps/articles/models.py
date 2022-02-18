@@ -30,7 +30,7 @@ class Article(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.title} - {self.author} - [{self.created_at}]"
+        return self.title
 
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
@@ -53,7 +53,9 @@ class ArticleComment(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    users_that_liked = models.ManyToManyField(User, related_name="users_that_liked_comment")
+    users_that_liked = models.ManyToManyField(
+        User, related_name="users_that_liked_comment", blank=True
+    )
 
     class Meta:
         verbose_name_plural = "Comments"
