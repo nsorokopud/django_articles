@@ -39,14 +39,16 @@ class TestViews(TestCase):
         self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_category_view(self):
-        response = self.client.get(reverse("article-category", args=[self.test_category.slug]))
+        response = self.client.get(reverse("article-category", args=["gherngjre"]))
+        self.assertRaises(Http404)
 
+        response = self.client.get(reverse("article-category", args=[self.test_category.slug]))
         self.assertEquals(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_tag_view(self):
-        response = self.client.get(reverse("article-tag", args=["tag"]))
-        self.assertEquals(response.status_code, 404)
+        response = self.client.get(reverse("article-tag", args=["dadcsds"]))
+        self.assertRaises(Http404)
 
         response = self.client.get(
             reverse("article-tag", args=[self.test_article.tags.all()[0].name])

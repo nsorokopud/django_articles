@@ -126,6 +126,7 @@ class TestServices(TestCase):
         a3.tags.add("tag2", "tag7")
         a3.save()
 
+        self.assertCountEqual(find_articles_with_tag("ehjnrkhn"), [])
         self.assertCountEqual(find_articles_with_tag("tag2"), [a1, a3])
 
     def test_find_articles_by_query(self):
