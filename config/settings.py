@@ -246,3 +246,24 @@ if USE_AWS_S3:
     AWS_S3_FILE_OVERWRITE = False
 
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+
+# Heroku
+
+USE_HEROKU = bool(int(os.getenv("USE_HEROKU", False)))
+
+if USE_HEROKU:
+    if "test" in sys.argv:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql_psycopg2",
+                "NAME": os.environ["TEST_DB_NAME"],
+                "USER": os.environ["TEST_DB_USER"],
+                "PASSWORD": os.environ["TEST_DB_PASSWORD"],
+                "HOST": os.environ["TEST_DB_HOST"],
+                "PORT": os.environ["TEST_DB_PORT"],
+                "TEST": {
+                    "NAME": os.environ["TEST_DB_NAME"],
+                },
+            }
+        }
