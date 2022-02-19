@@ -194,9 +194,11 @@ STATIC_ROOT = "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
 # Whitenoise
+USE_WHITENOISE = bool(int(os.getenv("USE_WHITENOISE", 0)))
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-WHITENOISE_USE_FINDERS = True
+if USE_WHITENOISE:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    WHITENOISE_USE_FINDERS = True
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = "media"
