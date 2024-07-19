@@ -16,7 +16,10 @@
                         <a class="header-user-link" href="{% url 'user-profile' %}">
                             <i class="fas fa-user"></i> {{ request.user.username|truncatechars:30 }}
                         </a>
-                        <a href="{% url 'logout' %}">Log out</a>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit">Log out</button>
+                        </form>
                         {% else %}
                         <a href="{% url 'login' %}">Log in</a>
                         <a href="{% url 'registration' %}">Register</a>

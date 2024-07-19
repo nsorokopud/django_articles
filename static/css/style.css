@@ -28,13 +28,23 @@ header {
     font-weight: 500;
 }
 
-header a {
+header a, header button {
     text-decoration: none;
     color: white;
 }
 
-header a:hover, header a:hover > * {
+header a:hover, header a:hover > *, header button:hover {
     color: #198754 !important;
+}
+
+header form {
+    margin-right: 30px;
+}
+
+header button {
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 header i {
@@ -49,10 +59,6 @@ header i {
     margin-right: 30px;
 }
 
-.header-user a:last-child {
-    margin-right: 0;
-}
-
 @media screen and (max-width: 990px) {
     .header-user {
         flex-direction: column;
@@ -61,9 +67,9 @@ header i {
     .header-user a {
         margin: 0 0 15px;
     }
-    
-    .header-user a:last-child {
-        margin-bottom: 0;
+
+    .header-user button {
+        margin: 0 0 10px;
     }
 }
 
