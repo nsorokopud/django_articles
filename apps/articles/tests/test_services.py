@@ -233,9 +233,9 @@ class TestServices(TestCase):
 
         last_article = Article.objects.last()
 
-        self.assertEquals(last_article.pk, a1.pk)
-        self.assertEquals(last_article.slug, "a1")
-        self.assertEquals(last_article.author.username, "test_user")
+        self.assertEqual(last_article.pk, a1.pk)
+        self.assertEqual(last_article.slug, "a1")
+        self.assertEqual(last_article.author.username, "test_user")
 
         expected_tags = ["tag1", "tag2"]
         actual_tags = [tag.name for tag in last_article.tags.all()]
@@ -251,7 +251,7 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
-        self.assertEquals(list(get_all_users_that_liked_article(a.slug)), [])
+        self.assertEqual(list(get_all_users_that_liked_article(a.slug)), [])
         a.users_that_liked.add(self.test_user)
         self.assertCountEqual(get_all_users_that_liked_article(a.slug), [self.test_user])
 
@@ -271,18 +271,18 @@ class TestServices(TestCase):
         user.save()
 
         likes_count = toggle_article_like(a.slug, self.test_user.id)
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
         likes_count = toggle_article_like(a.slug, self.test_user.id)
-        self.assertEquals(likes_count, 0)
+        self.assertEqual(likes_count, 0)
 
         likes_count = toggle_article_like(a.slug, self.test_user.id)
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
         likes_count = toggle_article_like(a.slug, user.id)
-        self.assertEquals(likes_count, 2)
+        self.assertEqual(likes_count, 2)
         likes_count = toggle_article_like(a.slug, self.test_user.id)
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
         likes_count = toggle_article_like(a.slug, user.id)
-        self.assertEquals(likes_count, 0)
+        self.assertEqual(likes_count, 0)
 
     def test_toggle_comment_like(self):
         a = Article.objects.create(
@@ -301,18 +301,18 @@ class TestServices(TestCase):
         user.save()
 
         likes_count = toggle_comment_like(comment.id, self.test_user.id)
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
         likes_count = toggle_comment_like(comment.id, self.test_user.id)
-        self.assertEquals(likes_count, 0)
+        self.assertEqual(likes_count, 0)
 
         likes_count = toggle_comment_like(comment.id, self.test_user.id)
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
         likes_count = toggle_comment_like(comment.id, user.id)
-        self.assertEquals(likes_count, 2)
+        self.assertEqual(likes_count, 2)
         likes_count = toggle_comment_like(comment.id, self.test_user.id)
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
         likes_count = toggle_comment_like(comment.id, user.id)
-        self.assertEquals(likes_count, 0)
+        self.assertEqual(likes_count, 0)
 
     def test_find_article_comments_liked_by_user(self):
         a1 = Article.objects.create(
@@ -347,10 +347,10 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
-        self.assertEquals(a1.views_count, 0)
+        self.assertEqual(a1.views_count, 0)
         increment_article_views_counter(a1.slug)
         a1.refresh_from_db()
-        self.assertEquals(a1.views_count, 1)
+        self.assertEqual(a1.views_count, 1)
         increment_article_views_counter(a1.slug)
         a1.refresh_from_db()
-        self.assertEquals(a1.views_count, 2)
+        self.assertEqual(a1.views_count, 2)

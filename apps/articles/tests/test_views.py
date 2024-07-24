@@ -35,7 +35,7 @@ class TestViews(TestCase):
     def test_homepage_view(self):
         response = self.client.get(reverse("home"))
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_category_view(self):
@@ -43,7 +43,7 @@ class TestViews(TestCase):
         self.assertRaises(Http404)
 
         response = self.client.get(reverse("article-category", args=[self.test_category.slug]))
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_tag_view(self):
@@ -53,22 +53,22 @@ class TestViews(TestCase):
         response = self.client.get(
             reverse("article-tag", args=[self.test_article.tags.all()[0].name])
         )
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_search_view(self):
         response = self.client.get(reverse("article-search"))
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_details_page_view(self):
         response = self.client.get(reverse("article-details", args=[self.test_article.slug]))
 
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/article.html")
 
         self.test_article.refresh_from_db()
-        self.assertEquals(self.test_article.views_count, 1)
+        self.assertEqual(self.test_article.views_count, 1)
 
     def test_article_creation_page_view_unauthorized(self):
         url = reverse("article-create")
@@ -84,7 +84,7 @@ class TestViews(TestCase):
     def test_article_creation_page_view_authorized(self):
         self.client.login(username="test_user", password="12345")
         response = self.client.get(reverse("article-create"))
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/article.html")
 
     def test_article_update_view_unauthorized(self):
@@ -123,11 +123,11 @@ class TestViews(TestCase):
         )
         self.assertTemplateUsed("articles/article_update.html")
 
-        self.assertEquals(a.author.username, "test_user")
-        self.assertEquals(a.title, "new title")
-        self.assertEquals(a.slug, "new-title")
-        self.assertEquals(a.preview_text, "new preview text")
-        self.assertEquals(a.content, "new content")
+        self.assertEqual(a.author.username, "test_user")
+        self.assertEqual(a.title, "new title")
+        self.assertEqual(a.slug, "new-title")
+        self.assertEqual(a.preview_text, "new preview text")
+        self.assertEqual(a.content, "new content")
         new_tags = [tag.name for tag in a.tags.all()]
         self.assertCountEqual(new_tags, ["tag1", "tag2"])
 
@@ -181,23 +181,23 @@ class TestViews(TestCase):
         self.assertTemplateUsed("articles/article.html")
 
         article_comments = ArticleComment.objects.filter(article=self.test_article)
-        self.assertEquals(len(article_comments), 2)
+        self.assertEqual(len(article_comments), 2)
         last_comment = article_comments.last()
-        self.assertEquals(last_comment.text, comment_data["text"])
-        self.assertEquals(last_comment.article, self.test_article)
-        self.assertEquals(last_comment.author, self.test_user)
+        self.assertEqual(last_comment.text, comment_data["text"])
+        self.assertEqual(last_comment.article, self.test_article)
+        self.assertEqual(last_comment.author, self.test_user)
 
     def test_article_like_view_get(self):
         url = reverse("article-like", args=[self.test_article.slug])
         response = self.client.get(url)
-        self.assertEquals(response.status_code, 405)
+        self.assertEqual(response.status_code, 405)
 
     def test_article_like_view_post(self):
         url = reverse("article-like", args=[self.test_article.slug])
         self.client.login(username="test_user", password="12345")
 
         response = self.client.post(url)
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [self.test_user])
         likes_count = (
             Article.objects.filter(slug=self.test_article.slug)
@@ -205,10 +205,10 @@ class TestViews(TestCase):
             .first()
             .likes_count
         )
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
 
         response = self.client.post(url)
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [])
         likes_count = (
             Article.objects.filter(slug=self.test_article.slug)
@@ -216,19 +216,19 @@ class TestViews(TestCase):
             .first()
             .likes_count
         )
-        self.assertEquals(likes_count, 0)
+        self.assertEqual(likes_count, 0)
 
     def test_comment_like_view_get(self):
         url = reverse("comment-like", args=[self.test_comment.id])
         response = self.client.get(url)
-        self.assertEquals(response.status_code, 405)
+        self.assertEqual(response.status_code, 405)
 
     def test_comment_like_view_post(self):
         url = reverse("comment-like", args=[self.test_comment.id])
         self.client.login(username="test_user", password="12345")
 
         response = self.client.post(url)
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [self.test_user])
         likes_count = (
             ArticleComment.objects.filter(id=self.test_comment.id)
@@ -236,10 +236,10 @@ class TestViews(TestCase):
             .first()
             .likes_count
         )
-        self.assertEquals(likes_count, 1)
+        self.assertEqual(likes_count, 1)
 
         response = self.client.post(url)
-        self.assertEquals(response.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [])
         likes_count = (
             ArticleComment.objects.filter(id=self.test_comment.id)
@@ -247,4 +247,4 @@ class TestViews(TestCase):
             .first()
             .likes_count
         )
-        self.assertEquals(likes_count, 0)
+        self.assertEqual(likes_count, 0)

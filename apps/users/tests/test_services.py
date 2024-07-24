@@ -19,5 +19,5 @@ class TestServices(TestCase):
         with self.assertRaises(Profile.DoesNotExist):
             profile = Profile.objects.get(user=self.test_user)
         profile = create_user_profile(self.test_user)
-        self.assertEquals(profile.user, self.test_user)
-        self.assertEquals(Profile.objects.filter(user=self.test_user).first(), profile)
+        self.assertEqual(profile.user, self.test_user)
+        self.assertEqual(Profile.objects.filter(user=self.test_user).first(), profile)

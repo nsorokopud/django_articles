@@ -40,40 +40,40 @@ class TestURLs(TestCase):
 
     def test_homepage_url_is_resolved(self):
         url = reverse("home")
-        self.assertEquals(resolve(url).func.view_class, HomePageView)
+        self.assertEqual(resolve(url).func.view_class, HomePageView)
 
     def test_article_details_page_url_is_resolved(self):
         url = reverse("article-details", args=[self.test_article.slug])
-        self.assertEquals(resolve(url).func.view_class, ArticleDetailView)
+        self.assertEqual(resolve(url).func.view_class, ArticleDetailView)
 
     def test_article_creation_page_url_is_resolved(self):
         url = reverse("article-create")
-        self.assertEquals(resolve(url).func.view_class, ArticleCreateView)
+        self.assertEqual(resolve(url).func.view_class, ArticleCreateView)
 
     def test_article_update_page_url_is_resolved(self):
         url = reverse("article-update", args=[self.test_article.slug])
-        self.assertEquals(resolve(url).func.view_class, ArticleUpdateView)
+        self.assertEqual(resolve(url).func.view_class, ArticleUpdateView)
 
     def test_article_delete_page_url_is_resolved(self):
         url = reverse("article-delete", args=[self.test_article.slug])
-        self.assertEquals(resolve(url).func.view_class, ArticleDeleteView)
+        self.assertEqual(resolve(url).func.view_class, ArticleDeleteView)
 
     def test_article_comment_url_is_resolved(self):
         url = reverse("article-comment", args=[self.test_article.slug])
-        self.assertEquals(resolve(url).func.view_class, ArticleCommentView)
+        self.assertEqual(resolve(url).func.view_class, ArticleCommentView)
 
     def test_article_like_url_is_resolved(self):
         url = reverse("article-like", args=[self.test_article.slug])
-        self.assertEquals(resolve(url).func.view_class, ArticleLikeView)
+        self.assertEqual(resolve(url).func.view_class, ArticleLikeView)
 
     def test_comment_like_url_is_resolved(self):
         url = reverse("comment-like", args=[self.test_comment.id])
-        self.assertEquals(resolve(url).func.view_class, CommentLikeView)
+        self.assertEqual(resolve(url).func.view_class, CommentLikeView)
 
     def test_article_category_url_is_resolved(self):
         url = reverse("article-category", args=[self.test_article.slug])
-        self.assertEquals(resolve(url).func.view_class, ArticleCategoryView)
+        self.assertEqual(resolve(url).func.view_class, ArticleCategoryView)
 
     def test_article_search_url_is_resolved(self):
         url = reverse("article-search")
-        self.assertEquals(resolve(url).func.view_class, ArticleSearchView)
+        self.assertEqual(resolve(url).func.view_class, ArticleSearchView)
