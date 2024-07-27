@@ -30,14 +30,16 @@ def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
 
 
 def find_articles_with_tag(tag: str) -> QuerySet[Article]:
-    articles_with_tag__ids = TaggedItem.objects.filter(tag__name=tag).values_list("object_id", flat=True)
+    articles_with_tag__ids = TaggedItem.objects.filter(tag__name=tag).values_list(
+        "object_id", flat=True
+    )
     return find_published_articles().filter(id__in=articles_with_tag__ids)
 
 
 def find_articles_by_query(q: str) -> QuerySet[Article]:
-    articles_with_tags_containing_q__ids = TaggedItem.objects.filter(tag__name__icontains=q).values_list(
-        "object_id", flat=True
-    )
+    articles_with_tags_containing_q__ids = TaggedItem.objects.filter(
+        tag__name__icontains=q
+    ).values_list("object_id", flat=True)
     return (
         find_published_articles()
         .filter(
