@@ -5,7 +5,7 @@ from users.models import Profile
 
 
 @admin.register(Profile)
-class ArticleCommentAdmin(admin.ModelAdmin):
+class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "get_profile_image")
     search_fields = ("user__username",)
     readonly_fields = ("user",)
