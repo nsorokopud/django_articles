@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from sql_util.utils import SubqueryAggregate
+from taggit.models import TaggedItem
 
 from django.contrib.auth.models import User
 from django.db.models import Count, F, Q
@@ -29,7 +30,8 @@ def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
 
 
 def find_articles_with_tag(tag: str) -> QuerySet[Article]:
-    return find_published_articles().filter(tags__name__in=[tag])
+    articles_with_tag__ids = TaggedItem.objects.filter(tag__name=tag).values_list("object_id", flat=True)
+    return find_published_articles().filter(id__in=articles_with_tag__ids)
 
 
 def find_articles_by_query(q: str) -> QuerySet[Article]:
