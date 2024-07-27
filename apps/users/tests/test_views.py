@@ -50,8 +50,7 @@ class TestViews(TestCase):
 
     def test_user_logout_view_get(self):
         response = self.client.get(reverse("logout"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("users/logout.html")
+        self.assertEqual(response.status_code, 405)
 
     def test_user_logout_view_post(self):
         self.client.login(username="test_user", password="12345")
