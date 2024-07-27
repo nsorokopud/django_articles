@@ -35,13 +35,16 @@ def find_articles_with_tag(tag: str) -> QuerySet[Article]:
 
 
 def find_articles_by_query(q: str) -> QuerySet[Article]:
+    articles_with_tags_containing_q__ids = TaggedItem.objects.filter(tag__name__icontains=q).values_list(
+        "object_id", flat=True
+    )
     return (
         find_published_articles()
         .filter(
             Q(title__icontains=q)
-            | Q(category__title__icontains=q)
-            | Q(tags__name__icontains=q)
             | Q(content__icontains=q)
+            | Q(category__title__icontains=q)
+            | Q(id__in=articles_with_tags_containing_q__ids)
         )
         .distinct()
     )
