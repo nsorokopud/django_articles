@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
-    "awesome_django_timezones",
     "ckeditor",
     "ckeditor_uploader",
     "crispy_forms",
@@ -52,7 +51,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "config.middleware.ErrorLoggingMiddleware",
-    "awesome_django_timezones.middleware.TimezonesMiddleware",
+    "config.middleware.TimezoneMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -180,10 +179,9 @@ if LOGGING_ENABLED:
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
+DEFAULT_USER_TZ = os.getenv("DEFAULT_USER_TZ", "Europe/London")  # default time zone for rendering
 USE_I18N = True
 USE_TZ = True
-
-AWESOME_TZ_DEFAULT_TZ = "Europe/Istanbul"
 
 
 # Static files (CSS, JavaScript, Images)
