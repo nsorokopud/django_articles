@@ -149,6 +149,12 @@ aside.sidebar {
     word-break: break-all;
 }
 
+.article-preview-author-right {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+}
+
 h3.article-title {
     font-size: 35px;
 }

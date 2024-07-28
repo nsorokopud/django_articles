@@ -12,10 +12,12 @@
                 <article class="article article-single p-3">
                     <div class="article-preview-author d-flex align-items-center mb-3">
                         <img src="{{ article.author.profile.image.url }}" class="article-author-avatar rounded-circle" alt="Avatar" />
-                        <a href="#" class="article-author-name">{{ article.author.username|truncatechars:9 }}</a>
-                        <span class="article-preview-date mx-3">
-                            {{ article.created_at|localtime|date:'H:i d.m.Y' }}
-                        </span>
+                        <div class="article-preview-author-right">
+                            <a href="#" class="article-author-name">{{ article.author.username }}</a>
+                            <span class="article-preview-date">
+                                {{ article.created_at|localtime|date:'H:i d.m.Y' }}
+                            </span>
+                        </div>
                     </div>
 
                     <hr>
