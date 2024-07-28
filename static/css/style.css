@@ -289,6 +289,24 @@ span.article-preview-icon-counter {
     border: 1px solid #00B74A;
 }
 
+@media screen and (max-width: 430px) {
+    .pagination .page-link {
+        padding: .375rem .5rem;
+    }
+}
+
+@media screen and (max-width: 355px) {
+    .pagination .page-link {
+        font-size: 13px;
+    }
+}
+
+@media screen and (max-width: 320px) {
+    .pagination .page-link {
+        padding: .375rem .39rem;
+    }
+}
+
 /* Article page */
 
 article.article-single {
