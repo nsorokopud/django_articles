@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "storages",
     "articles",
     "users",
+    "notifications",
 ]
 
 MIDDLEWARE = [
