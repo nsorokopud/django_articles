@@ -32,6 +32,7 @@ if DEBUG:
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -45,6 +46,9 @@ INSTALLED_APPS = [
     "debug_toolbar",
     "taggit",
     "storages",
+    "channels",
+    "channels_redis",
+
     "articles",
     "users",
     "notifications",
@@ -83,6 +87,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 
 # Database
@@ -271,3 +276,13 @@ if USE_HEROKU:
                 },
             }
         }
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(os.environ["REDIS_HOST"], os.environ["REDIS_PORT"])],
+        },
+    },
+}
