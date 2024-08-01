@@ -18,7 +18,7 @@ class Notification(models.Model):
     sender = models.ForeignKey(
         User, null=True, blank=True, related_name="sent_notifications", on_delete=models.SET_NULL
     )
-    recepient = models.ForeignKey(
+    recipient = models.ForeignKey(
         User, blank=True, related_name="received_notifications", on_delete=models.CASCADE
     )
     status = models.CharField(
@@ -29,5 +29,5 @@ class Notification(models.Model):
     def __str__(self):
         created_at = self.created_at.strftime("%H:%M:%S %d-%m-%Y")
         sender = self.sender.username
-        recepient = self.recepient.username
-        return f"{created_at} [{self.type}] from {sender} to {recepient}: {self.link}"
+        recipient = self.recipient.username
+        return f"{created_at} [{self.type}] from {sender} to {recipient}: {self.link}"
