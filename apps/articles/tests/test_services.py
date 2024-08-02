@@ -231,7 +231,9 @@ class TestServices(TestCase):
             tags=["tag1", "tag2"],
         )
 
-        last_article = Article.objects.last()
+        # articles are sorted by '-created_at' by default, so the last one created will be
+        # the first one in queryset
+        last_article = Article.objects.first()
 
         self.assertEqual(last_article.pk, a1.pk)
         self.assertEqual(last_article.slug, "a1")
