@@ -155,3 +155,15 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
         .likes_count
     )
     return likes_count
+
+
+def _generate_unique_article_slug(article_title: str):
+    slug = slugify(article_title)
+    unique_slug = slug
+
+    number = 1
+    while Article.objects.filter(slug=unique_slug).exists():
+        unique_slug = f'{slug}-{number}'
+        number += 1
+    
+    return unique_slug

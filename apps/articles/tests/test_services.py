@@ -15,6 +15,7 @@ from articles.services import (
     increment_article_views_counter,
     toggle_article_like,
     toggle_comment_like,
+    _generate_unique_article_slug,
 )
 
 
@@ -220,6 +221,20 @@ class TestServices(TestCase):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
         cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
         self.assertCountEqual(get_all_categories(), [cat1, cat2, self.test_category])
+
+    def test__generate_unique_article_slug(self):
+        self.assertEqual(_generate_unique_article_slug("abc"), "abc")
+
+        Article.objects.create(
+            title="abc", slug="abc", author=self.test_user, preview_text="1", content="1"
+        )
+        next_slug = _generate_unique_article_slug("abc")
+        self.assertEqual(next_slug, "abc-1")
+
+        Article.objects.create(
+            title="abc-", slug=next_slug, author=self.test_user, preview_text="1", content="1"
+        )
+        self.assertEqual(_generate_unique_article_slug("abc"), "abc-2")
 
     def test_create_article(self):
         a1 = create_article(
