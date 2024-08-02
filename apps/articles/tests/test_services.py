@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from articles.models import Article, ArticleCategory, ArticleComment
@@ -257,6 +258,41 @@ class TestServices(TestCase):
         expected_tags = ["tag1", "tag2"]
         actual_tags = [tag.name for tag in last_article.tags.all()]
         self.assertCountEqual(actual_tags, expected_tags)
+
+    def test_create_article_with_same_title(self):
+        a1 = create_article(
+            title="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            tags=["tag1", "tag2"],
+        )
+
+        a2 = create_article(
+            title="a2",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+        )
+
+        self.assertEqual(a1.slug, "a1")
+        self.assertEqual(a2.slug, "a2")
+
+        with self.assertRaises(IntegrityError):
+            a3 = create_article(
+                title="a1",
+                category=self.test_category,
+                author=self.test_user,
+                preview_text="text1",
+                content="content1",
+                tags=["tag1", "tag2"],
+            )
+
+        self.assertEqual(Article.objects.count(), 2)
+        last_article = Article.objects.first()
+        self.assertEqual(last_article, a2)
 
     def test_create_article_tags_creation(self):
         a1 = create_article(
