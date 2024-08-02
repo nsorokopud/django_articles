@@ -91,6 +91,7 @@ def get_all_users_that_liked_article(article_slug: str) -> QuerySet[User]:
     article = get_object_or_404(Article, slug=article_slug)
     return article.users_that_liked.all()
 
+
 @transaction.atomic
 def create_article(
     *,
@@ -164,7 +165,7 @@ def _generate_unique_article_slug(article_title: str):
 
     number = 1
     while Article.objects.filter(slug=unique_slug).exists():
-        unique_slug = f'{slug}-{number}'
+        unique_slug = f"{slug}-{number}"
         number += 1
-    
+
     return unique_slug
