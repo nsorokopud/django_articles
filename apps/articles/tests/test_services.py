@@ -258,6 +258,30 @@ class TestServices(TestCase):
         actual_tags = [tag.name for tag in last_article.tags.all()]
         self.assertCountEqual(actual_tags, expected_tags)
 
+    def test_create_article_tags_creation(self):
+        a1 = create_article(
+            title="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+            tags=["tag1", "tag2"],
+        )
+
+        a1_actual_tags = [t.name for t in a1.tags.all()]
+        self.assertCountEqual(a1_actual_tags, ["tag1", "tag2"])
+
+        a2 = create_article(
+            title="a2",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+        )
+
+        a2_actual_tags = [t.name for t in a2.tags.all()]
+        self.assertCountEqual(a2_actual_tags, [])
+
     def test_get_all_users_that_liked_article(self):
         a = Article.objects.create(
             title="a1",
