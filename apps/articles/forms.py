@@ -19,13 +19,13 @@ class ArticleCreateForm(forms.ModelForm):
         super(ArticleCreateForm, self).save(commit=False, **kwargs)
 
         article = create_article(
-            self.cleaned_data["title"],
-            self.cleaned_data["category"],
-            self.request.user,
-            self.cleaned_data["preview_text"],
-            self.cleaned_data["content"],
-            self.cleaned_data["tags"],
-            self.cleaned_data["preview_image"],
+            title=self.cleaned_data["title"],
+            author=self.request.user,
+            preview_text=self.cleaned_data["preview_text"],
+            content=self.cleaned_data["content"],
+            category=self.cleaned_data["category"],
+            tags=self.cleaned_data["tags"],
+            preview_image=self.cleaned_data["preview_image"],
         )
         return article
 

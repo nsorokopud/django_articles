@@ -4,6 +4,7 @@ from sql_util.utils import SubqueryAggregate
 from taggit.models import TaggedItem
 
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Count, F, Q
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
@@ -90,17 +91,18 @@ def get_all_users_that_liked_article(article_slug: str) -> QuerySet[User]:
     article = get_object_or_404(Article, slug=article_slug)
     return article.users_that_liked.all()
 
-
+@transaction.atomic
 def create_article(
+    *,
     title: str,
-    category: ArticleCategory,
     author: User,
     preview_text: str,
     content: str,
+    category: Optional[ArticleCategory] = None,
     tags: Optional[List] = None,
     preview_image: Optional[str] = None,
 ) -> Article:
-    article = Article.objects.create(
+    article = Article(
         title=title,
         category=category,
         author=author,
@@ -109,11 +111,10 @@ def create_article(
         content=content,
         is_published=True,
     )
-    article.slug = slugify(title)
-    if not tags:
-        tags = []
-    article.tags.add(*tags)
+    article.slug = _generate_unique_article_slug(title)
     article.save()
+    if tags is not None:
+        article.tags.add(*tags)
     return article
 
 
