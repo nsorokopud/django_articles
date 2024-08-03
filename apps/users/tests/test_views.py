@@ -2,8 +2,6 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from users.models import Profile
-
 
 class TestViews(TestCase):
     def setUp(self):
@@ -12,7 +10,6 @@ class TestViews(TestCase):
         self.test_user = User(username="test_user", email="test@test.com")
         self.test_user.set_password("12345")
         self.test_user.save()
-        self.test_user_profile = Profile.objects.create(user=self.test_user)
 
     def test_user_registration_view_get(self):
         response = self.client.get(reverse("registration"))

@@ -9,19 +9,24 @@ from users.signals import create_profile
 
 class TestServices(TestCase):
     def setUp(self):
-        signals.post_save.disconnect(create_profile, sender=User)
-
         self.test_user = User(username="test_user", email="test@test.com")
         self.test_user.set_password("12345")
         self.test_user.save()
-        self.test_profile = Profile.objects.create(user=self.test_user)
+
+    def tearDown(self):
+        signals.post_save.connect(create_profile, sender=User)
 
     def test_create_user_profile(self):
+        signals.post_save.disconnect(create_profile, sender=User)
+
+        u = User.objects.create(username="user", email="test1@test.com")
+        
         with self.assertRaises(Profile.DoesNotExist):
-            profile = Profile.objects.get(user=self.test_user)
-        profile = create_user_profile(self.test_user)
-        self.assertEqual(profile.user, self.test_user)
-        self.assertEqual(Profile.objects.filter(user=self.test_user).first(), profile)
+            profile = Profile.objects.get(user=u)
+        
+        profile = create_user_profile(u)
+        self.assertEqual(profile.user, u)
+        self.assertEqual(Profile.objects.filter(user=u).first(), profile)
 
     def test_get_user_by_id(self):
         u1 = get_user_by_id(self.test_user.id)
