@@ -168,6 +168,13 @@ def get_all_article_slugs() -> "ValuesQuerySet[str]":
     return Article.objects.values_list("slug", flat=True)
 
 
+def find_article_slugs_by_user(user_id: int) -> list[str]:
+    """Returns a list of slugs of all articles published by user with
+    specified user_id.
+    """
+    return list(Article.objects.filter(author__id=user_id).values_list("slug", flat=True))
+
+
 def _generate_unique_article_slug(article_title: str):
     slug = slugify(article_title)
     unique_slug = slug
