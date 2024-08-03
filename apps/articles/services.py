@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sql_util.utils import SubqueryAggregate
 from taggit.models import TaggedItem
@@ -7,6 +7,10 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.db.models.query import QuerySet
+
+if TYPE_CHECKING:
+    from django.db.models.query import ValuesQuerySet
+
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 
@@ -157,6 +161,11 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
         .likes_count
     )
     return likes_count
+
+
+def get_all_article_slugs() -> "ValuesQuerySet[str]":
+    """Returns a queryset of slugs of all articles."""
+    return Article.objects.values_list("slug", flat=True)
 
 
 def _generate_unique_article_slug(article_title: str):
