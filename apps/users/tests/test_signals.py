@@ -4,7 +4,7 @@ from django.test import TestCase
 from users.models import Profile
 
 
-class TestServices(TestCase):
+class TestSignals(TestCase):
     def test_profile_created_when_user_created(self):
         u1 = User.objects.create(username="user1", email="email1@example.com")
         p1 = Profile.objects.get(user__id=u1.id)
