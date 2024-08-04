@@ -15,6 +15,7 @@ from articles.services import (
     get_all_article_slugs,
     get_all_categories,
     get_all_users_that_liked_article,
+    get_comment_by_id,
     increment_article_views_counter,
     toggle_article_like,
     toggle_comment_like,
@@ -486,3 +487,32 @@ class TestServices(TestCase):
             content="",
         )
         self.assertCountEqual(find_article_slugs_by_user(u1.pk), ["a1", "a2"])
+
+    def test_get_comment_by_id(self):
+        a = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+        )
+
+        with self.assertRaises(ArticleComment.DoesNotExist):
+            get_comment_by_id(1)
+
+        c1 = ArticleComment.objects.create(article=a, author=self.test_user, text="")
+        self.assertEqual(get_comment_by_id(1), c1)
+
+        with self.assertRaises(ArticleComment.DoesNotExist):
+            get_comment_by_id(2)
+
+        c2 = ArticleComment.objects.create(article=a, author=self.test_user, text="")
+        self.assertEqual(get_comment_by_id(2), c2)
+
+        c2.delete()
+        with self.assertRaises(ArticleComment.DoesNotExist):
+            get_comment_by_id(2)
+
+        c1.delete()
+        with self.assertRaises(ArticleComment.DoesNotExist):
+            get_comment_by_id(1)

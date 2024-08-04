@@ -175,6 +175,10 @@ def find_article_slugs_by_user(user_id: int) -> list[str]:
     return list(Article.objects.filter(author__id=user_id).values_list("slug", flat=True))
 
 
+def get_comment_by_id(comment_id: int) -> ArticleComment:
+    return ArticleComment.objects.get(id=comment_id)
+
+
 def _generate_unique_article_slug(article_title: str):
     slug = slugify(article_title)
     unique_slug = slug
