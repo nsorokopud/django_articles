@@ -437,7 +437,7 @@ class TestServices(TestCase):
 
     def test_get_all_article_slugs(self):
         self.assertCountEqual(get_all_article_slugs(), [])
-        
+
         Article.objects.create(
             title="a1",
             slug="a1",
@@ -458,7 +458,7 @@ class TestServices(TestCase):
 
     def test_find_article_slugs_by_user(self):
         u1 = User.objects.create(username="user1", email="test@test.com")
-        
+
         self.assertCountEqual(find_article_slugs_by_user(u1.pk), [])
 
         Article.objects.create(
