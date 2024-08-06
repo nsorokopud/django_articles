@@ -1,84 +1,71 @@
+likeArticle();
+
 function getCookie(cname) {
-    let name = cname + "=";
+    let name = cname + '=';
     let ca = document.cookie.split(';');
-    for(let i = 0; i < ca.length; i++)
-    {
+    for (let i = 0; i < ca.length; i++) {
         let c = ca[i];
-        while (c.charAt(0) == ' ')
-        {
+        while (c.charAt(0) == ' ') {
             c = c.substring(1);
         }
-        if (c.indexOf(name) == 0)
-        {
+        if (c.indexOf(name) == 0) {
             return c.substring(name.length, c.length);
         }
     }
-    return "";
+    return '';
 }
 
-function like_article()
-{
-    const likeLink = document.getElementById("articleLikeLink");
-    const likeIcon = document.getElementById("articleLikeIcon");
-    const likesCounter = document.getElementById("articleLikesCounter");
-    
-    
-        likeLink.onclick = (e) => {
-            e.preventDefault();
-            if (likeLink.hasAttribute("is_logged_in"))
-            {
-                let xhr = new XMLHttpRequest();
-                let url = likeLink.href;
-                
-                let csrftoken = getCookie("csrftoken");
+function likeArticle() {
+    const likeLink = document.getElementById('articleLikeLink');
+    const likeIcon = document.getElementById('articleLikeIcon');
+    const likesCounter = document.getElementById('articleLikesCounter');
 
-                xhr.open("POST", url, true);
-                xhr.setRequestHeader("X-CSRFToken", csrftoken);
-                xhr.dataType = "json";
-                xhr.responseType = "json"
-                xhr.send();
-                
-                xhr.onload = function() {
-                    response = xhr.response;
-                    likeIcon.classList.toggle("active");
-                    likesCounter.textContent = response["likes_count"];
-                };
-            }
-            else
-            {
-                alert("Please, log in if you want to like an article!");
-            }
+    likeLink.onclick = (e) => {
+        e.preventDefault();
+        if (likeLink.hasAttribute('is_logged_in')) {
+            let xhr = new XMLHttpRequest();
+            let url = likeLink.href;
+
+            let csrftoken = getCookie('csrftoken');
+
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('X-CSRFToken', csrftoken);
+            xhr.dataType = 'json';
+            xhr.responseType = 'json';
+            xhr.send();
+
+            xhr.onload = function () {
+                let response = xhr.response;
+                likeIcon.classList.toggle('active');
+                likesCounter.textContent = response['likes_count'];
+            };
+        } else {
+            alert('Please, log in if you want to like an article!');
         }
-    
+    };
 }
 
-function like_comment(e, comment_id)
-{
+function likeComment(e, comment_id) {
     e.preventDefault();
-    commentLink = document.getElementById("commentLink" + comment_id);
+    let commentLink = document.getElementById('commentLink' + comment_id);
 
-    if (commentLink.hasAttribute("is_logged_in"))
-    {
+    if (commentLink.hasAttribute('is_logged_in')) {
         let xhr = new XMLHttpRequest();
         let url = commentLink.href;
-        
-        let csrftoken = getCookie("csrftoken");
 
-        xhr.open("POST", url, true);
-        xhr.setRequestHeader("X-CSRFToken", csrftoken);
-        xhr.dataType = "json";
-        xhr.responseType = "json"
+        let csrftoken = getCookie('csrftoken');
+
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('X-CSRFToken', csrftoken);
+        xhr.dataType = 'json';
+        xhr.responseType = 'json';
         xhr.send();
-        
-        xhr.onload = function() {
-            response = xhr.response;
-            commentLink.getElementsByTagName("i")[0].classList.toggle("active");
-            commentLink.getElementsByClassName("comment-like-count")[0]
-                .textContent = response["comment_likes_count"];
+
+        xhr.onload = function () {
+            let response = xhr.response;
+            commentLink.getElementsByTagName('i')[0].classList.toggle('active');
+            commentLink.getElementsByClassName('comment-like-count')[0].textContent =
+                response['comment_likes_count'];
         };
-    }
-    else alert("Please, log in if you want to like a comment!");
+    } else alert('Please, log in if you want to like a comment!');
 }
-
-
-like_article();

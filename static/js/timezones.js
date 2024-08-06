@@ -22,8 +22,8 @@ function setTimezoneCookie() {
             encodeURIComponent(timezone) +
             ';path=/;samesite=strict;max-age=' +
             maxCookieAge;
-    } catch (err) {
-        conslone.log('Intl library not found');
+    } catch {
+        console.log('Intl library not found');
     }
 }
 
