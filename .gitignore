@@ -323,3 +323,12 @@ $RECYCLE.BIN/
 .timetracker
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,windows,visualstudiocode,python,django,virtualenv
+
+# js
+node_modules
+eslint.config.mjs
+package.json
+package-lock.json
+
+# logging
+logs
