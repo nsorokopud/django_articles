@@ -280,6 +280,14 @@ if USE_HEROKU:
         }
 
 
+# Redis
+
+REDIS_HOST = os.environ["REDIS_HOST"]
+REDIS_PORT = os.environ["REDIS_PORT"]
+
+
+# Django Channels
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -288,3 +296,9 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+
+# Celery
+
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
