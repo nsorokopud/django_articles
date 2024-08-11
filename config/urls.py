@@ -14,6 +14,7 @@ urlpatterns = [
     path("ckeditor/", include("ckeditor_uploader.urls")),
     path("", include("articles.urls")),
     path("", include("users.urls")),
+    path("", include("notifications.urls")),
 ]
 
 if settings.DEBUG:
