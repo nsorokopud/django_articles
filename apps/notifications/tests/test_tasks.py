@@ -9,7 +9,7 @@ from articles.models import Article, ArticleComment
 from articles.signals import send_article_notification, send_comment_notification
 from config.celery import app
 from ..consumers import NotificationConsumer
-from ..tasks import send_new_article_notification
+from ..tasks import send_new_article_notification, send_new_comment_notification
 
 
 class TestTasks(TransactionTestCase):
@@ -61,6 +61,30 @@ class TestTasks(TransactionTestCase):
         self.assertEqual(response["title"], "New Article")
         self.assertEqual(
             response["text"], f"New article from {self.author.username}: '{self.article.title}'"
+        )
+        self.assertEqual(response["link"], f"/articles/{self.article.slug}")
+
+        await communicator.disconnect()
+
+    async def test_send_new_comment_notification(self):
+        communicator = WebsocketCommunicator(
+            NotificationConsumer.as_asgi(), "GET", "notifications"
+        )
+        communicator.scope["user"] = self.user
+        await communicator.connect()
+
+        with start_worker(app, perform_ping_check=False):
+            result = send_new_comment_notification.delay(self.comment.id, self.user.id)
+            self.assertEqual(result.get(), None)
+            self.assertEqual(result.state, "SUCCESS")
+
+        response = await communicator.receive_nothing()
+        self.assertEqual(response, False)
+
+        response = await communicator.receive_json_from()
+        self.assertEqual(response["title"], "New Comment")
+        self.assertEqual(
+            response["text"], f"New comment on your article from {self.author.username}"
         )
         self.assertEqual(response["link"], f"/articles/{self.article.slug}")
 
