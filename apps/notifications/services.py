@@ -87,3 +87,10 @@ def mark_notification_as_read(notification_id: int) -> None:
 def delete_notification(notification_id: int) -> None:
     notification = get_notification_by_id(notification_id)
     notification.delete()
+
+
+def get_unread_notifications_count_by_user(user: User) -> int:
+    """Returns the total count of unread notifications addressed to the
+    specified user.
+    """
+    return Notification.objects.filter(recipient=user, status=Notification.Status.UNREAD).count()

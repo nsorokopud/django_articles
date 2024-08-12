@@ -18,6 +18,7 @@ from ..services import (
     delete_notification,
     find_notifications_by_user,
     get_notification_by_id,
+    get_unread_notifications_count_by_user,
     mark_notification_as_read,
     send_new_article_notification,
     send_new_comment_notification,
@@ -259,3 +260,55 @@ class TestServices(TestCase):
         delete_notification(n.id)
         with self.assertRaises(Notification.DoesNotExist):
             Notification.objects.get(id=n.id)
+
+    def test_get_unread_notifications_count_by_user(self):
+        n1 = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        n2 = Notification.objects.create(
+            type=Notification.Type.NEW_COMMENT,
+            title="New Comment",
+            message=f"New comment on your article from {self.author.username}",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        n3 = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+            status=Notification.Status.READ,
+        )
+        n4 = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.user.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.user,
+            recipient=self.author,
+            status=Notification.Status.UNREAD,
+        )
+
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 4)
+
+        unread_notifications_count = Notification.objects.filter(
+            status=Notification.Status.UNREAD
+        ).count()
+        self.assertEqual(unread_notifications_count, 3)
+
+        unread_notifications_for_user_count = Notification.objects.filter(
+            status=Notification.Status.UNREAD, recipient=self.user
+        ).count()
+        self.assertEqual(unread_notifications_for_user_count, 2)
+
+        res = get_unread_notifications_count_by_user(self.user)
+        self.assertEqual(res, 2)
