@@ -2,9 +2,9 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from articles.models import Article
+from articles.models import Article, ArticleComment
 from ..models import Notification
-from ..services import create_new_article_notification
+from ..services import create_new_article_notification, create_new_comment_notification
 
 
 class TestServices(TestCase):
@@ -34,4 +34,22 @@ class TestServices(TestCase):
         self.assertEqual(n.status, Notification.Status.UNREAD)
         self.assertEqual(n.title, "New Article")
         self.assertEqual(n.message, f"New article from {self.author.username}: '{self.a.title}'")
+        self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
+
+    def test_create_new_comment_notification(self):
+        c = ArticleComment(article=self.a, author=self.user, text="1")
+
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 0)
+
+        create_new_comment_notification(c, self.author)
+
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 1)
+
+        n = Notification.objects.get(sender=self.user, recipient=self.author)
+        self.assertEqual(n.type, Notification.Type.NEW_COMMENT)
+        self.assertEqual(n.status, Notification.Status.UNREAD)
+        self.assertEqual(n.title, "New Comment")
+        self.assertEqual(n.message, f"New comment on your article from {self.user.username}")
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
