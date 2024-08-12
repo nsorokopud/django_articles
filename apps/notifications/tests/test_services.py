@@ -1,10 +1,19 @@
+from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
+from channels.testing import WebsocketCommunicator
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
+from ..consumers import NotificationConsumer
 from ..models import Notification
-from ..services import create_new_article_notification, create_new_comment_notification
+from ..services import (
+    create_new_article_notification,
+    create_new_comment_notification,
+    _send_notification,
+)
 
 
 class TestServices(TestCase):
@@ -19,6 +28,37 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
+
+    async def test__send_notification(self):
+        n = await database_sync_to_async(Notification.objects.create)(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        communicator = WebsocketCommunicator(
+            NotificationConsumer.as_asgi(), "GET", "notifications"
+        )
+        communicator.scope["user"] = self.user
+        await communicator.connect()
+
+        await sync_to_async(_send_notification)(n, self.user.username)
+
+        response = await communicator.receive_json_from()
+        self.assertEqual(
+            response,
+            {
+                "id": n.id,
+                "title": n.title,
+                "text": n.message,
+                "link": n.link,
+                "timestamp": n.created_at.isoformat(),
+            },
+        )
+
+        await communicator.disconnect()
 
     def test_create_new_article_notification(self):
         notifications_count = Notification.objects.count()

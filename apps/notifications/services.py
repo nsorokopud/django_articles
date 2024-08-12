@@ -1,8 +1,26 @@
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
 from .models import Notification
+
+
+def _send_notification(notification: Notification, group_name: str):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        group_name,
+        {
+            "type": "send_notification",
+            "id": notification.id,
+            "title": notification.title,
+            "message": notification.message,
+            "link": notification.link,
+            "timestamp": notification.created_at.isoformat(),
+        }
+    )
 
 
 def create_new_article_notification(article: Article, recipient: User) -> Notification:
