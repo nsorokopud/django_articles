@@ -8,6 +8,14 @@ from articles.models import Article, ArticleComment
 from .models import Notification
 
 
+def send_new_article_notification(article: Article) -> None:
+    subscribers = article.author.profile.subscribers.all()
+    for subscriber in subscribers:
+        notification = create_new_article_notification(article, subscriber)
+        group_name = subscriber.username
+        _send_notification(notification, group_name)
+
+
 def _send_notification(notification: Notification, group_name: str):
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(

@@ -1,3 +1,6 @@
+from datetime import datetime
+from unittest.mock import call, patch
+
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
@@ -12,6 +15,7 @@ from ..models import Notification
 from ..services import (
     create_new_article_notification,
     create_new_comment_notification,
+    send_new_article_notification,
     _send_notification,
 )
 
@@ -28,6 +32,45 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
+
+    def test_send_new_article_notification(self):
+        user1 = User.objects.create_user(username="user1")
+        user2 = User.objects.create_user(username="user2")
+        self.author.profile.subscribers.add(user1)
+        self.author.profile.subscribers.add(user2)
+        n1 = Notification(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=user1,
+            created_at=datetime.now(),
+        )
+        n2 = Notification(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=user2,
+            created_at=datetime.now(),
+        )
+
+        with patch(
+            "notifications.services.create_new_article_notification", side_effect=[n1, n2]
+        ) as create_new_article_notification__mock, patch(
+            "notifications.services._send_notification",
+        ) as _send_notification__mock:
+
+            send_new_article_notification(self.a)
+
+            create_new_article_notification__mock.assert_has_calls(
+                [call(self.a, user1), call(self.a, user2)], any_order=True
+            )
+            _send_notification__mock.assert_has_calls(
+                [call(n1, user1.username), call(n2, user2.username)], any_order=True
+            )
 
     async def test__send_notification(self):
         n = await database_sync_to_async(Notification.objects.create)(
