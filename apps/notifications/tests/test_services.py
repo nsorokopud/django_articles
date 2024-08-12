@@ -16,6 +16,7 @@ from ..services import (
     create_new_article_notification,
     create_new_comment_notification,
     find_notifications_by_user,
+    get_notification_by_id,
     send_new_article_notification,
     send_new_comment_notification,
     _send_notification,
@@ -162,6 +163,35 @@ class TestServices(TestCase):
         self.assertEqual(n.title, "New Comment")
         self.assertEqual(n.message, f"New comment on your article from {self.user.username}")
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
+
+    def test_get_notification_by_id(self):
+        n1 = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        n2 = Notification.objects.create(
+            type=Notification.Type.NEW_COMMENT,
+            title="New Comment",
+            message=f"New comment on your article from {self.user.username}",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.user,
+            recipient=self.author,
+        )
+
+        res1 = get_notification_by_id(n1.id)
+        self.assertEqual(res1, n1)
+        self.assertEqual(res1, Notification.objects.get(id=n1.id))
+
+        res2 = get_notification_by_id(n2.id)
+        self.assertEqual(res2, n2)
+        self.assertEqual(res2, Notification.objects.get(id=n2.id))
+
+        with self.assertRaises(Notification.DoesNotExist):
+            get_notification_by_id(-1)
 
     def test_find_notifications_by_user(self):
         notifications_count = Notification.objects.count()

@@ -66,6 +66,10 @@ def create_new_comment_notification(comment: ArticleComment, recipient: User) ->
     return notification
 
 
+def get_notification_by_id(notification_id: int) -> Notification:
+    return Notification.objects.get(pk=notification_id)
+
+
 def find_notifications_by_user(user: User) -> QuerySet[Notification]:
     """Returns a queryset of notifications addressed to the specified
     user.
