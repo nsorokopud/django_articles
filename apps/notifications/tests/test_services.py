@@ -15,6 +15,7 @@ from ..models import Notification
 from ..services import (
     create_new_article_notification,
     create_new_comment_notification,
+    find_notifications_by_user,
     send_new_article_notification,
     send_new_comment_notification,
     _send_notification,
@@ -161,3 +162,38 @@ class TestServices(TestCase):
         self.assertEqual(n.title, "New Comment")
         self.assertEqual(n.message, f"New comment on your article from {self.user.username}")
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
+
+    def test_find_notifications_by_user(self):
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 0)
+
+        n1 = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        n2 = Notification.objects.create(
+            type=Notification.Type.NEW_COMMENT,
+            title="New Comment",
+            message=f"New comment on your article from {self.author.username}",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        n3 = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.user.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.user,
+            recipient=self.author,
+        )
+
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 3)
+
+        res = find_notifications_by_user(self.user)
+        self.assertCountEqual(res, [n1, n2])

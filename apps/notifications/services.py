@@ -2,6 +2,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 from django.contrib.auth.models import User
+from django.db.models.query import QuerySet
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
@@ -63,3 +64,10 @@ def create_new_comment_notification(comment: ArticleComment, recipient: User) ->
         recipient=recipient,
     )
     return notification
+
+
+def find_notifications_by_user(user: User) -> QuerySet[Notification]:
+    """Returns a queryset of notifications addressed to the specified
+    user.
+    """
+    return Notification.objects.filter(recipient__in=[user])
