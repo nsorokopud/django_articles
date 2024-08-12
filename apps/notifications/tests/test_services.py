@@ -16,6 +16,7 @@ from ..services import (
     create_new_article_notification,
     create_new_comment_notification,
     send_new_article_notification,
+    send_new_comment_notification,
     _send_notification,
 )
 
@@ -71,6 +72,30 @@ class TestServices(TestCase):
             _send_notification__mock.assert_has_calls(
                 [call(n1, user1.username), call(n2, user2.username)], any_order=True
             )
+
+    def test_send_new_comment_notification(self):
+        c = ArticleComment(article=self.a, author=self.user, text="1")
+
+        n = Notification(
+            type=Notification.Type.NEW_COMMENT,
+            title="New Comment",
+            message=f"New comment on your article from {self.author.username}",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.user,
+            recipient=self.author,
+            created_at=datetime.now(),
+        )
+
+        with patch(
+            "notifications.services.create_new_comment_notification", return_value=n
+        ) as create_new_comment_notification__mock, patch(
+            "notifications.services._send_notification",
+        ) as _send_notification__mock:
+
+            send_new_comment_notification(c, self.author)
+
+            create_new_comment_notification__mock.assert_called_once_with(c, self.author)
+            _send_notification__mock.assert_called_once_with(n, self.author.username)
 
     async def test__send_notification(self):
         n = await database_sync_to_async(Notification.objects.create)(

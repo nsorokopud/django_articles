@@ -8,6 +8,12 @@ from articles.models import Article, ArticleComment
 from .models import Notification
 
 
+def send_new_comment_notification(comment: ArticleComment, recipient: User) -> None:
+    notification = create_new_comment_notification(comment, recipient)
+    group_name = recipient.username
+    _send_notification(notification, group_name)
+
+
 def send_new_article_notification(article: Article) -> None:
     subscribers = article.author.profile.subscribers.all()
     for subscriber in subscribers:
