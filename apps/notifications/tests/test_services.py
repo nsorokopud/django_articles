@@ -17,6 +17,7 @@ from ..services import (
     create_new_comment_notification,
     find_notifications_by_user,
     get_notification_by_id,
+    mark_notification_as_read,
     send_new_article_notification,
     send_new_comment_notification,
     _send_notification,
@@ -227,3 +228,18 @@ class TestServices(TestCase):
 
         res = find_notifications_by_user(self.user)
         self.assertCountEqual(res, [n1, n2])
+
+    def test_mark_notification_as_read(self):
+        n = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        self.assertEqual(n.status, Notification.Status.UNREAD)
+
+        mark_notification_as_read(n.id)
+        n.refresh_from_db()
+        self.assertEqual(n.status, Notification.Status.READ)
