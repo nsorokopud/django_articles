@@ -15,6 +15,7 @@ from ..models import Notification
 from ..services import (
     create_new_article_notification,
     create_new_comment_notification,
+    delete_notification,
     find_notifications_by_user,
     get_notification_by_id,
     mark_notification_as_read,
@@ -243,3 +244,18 @@ class TestServices(TestCase):
         mark_notification_as_read(n.id)
         n.refresh_from_db()
         self.assertEqual(n.status, Notification.Status.READ)
+
+    def test_delete_notification(self):
+        n = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+        self.assertEqual(Notification.objects.get(id=n.id), n)
+
+        delete_notification(n.id)
+        with self.assertRaises(Notification.DoesNotExist):
+            Notification.objects.get(id=n.id)

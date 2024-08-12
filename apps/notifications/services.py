@@ -82,3 +82,8 @@ def mark_notification_as_read(notification_id: int) -> None:
     notification = get_notification_by_id(notification_id)
     notification.status = Notification.Status.READ
     notification.save()
+
+
+def delete_notification(notification_id: int) -> None:
+    notification = get_notification_by_id(notification_id)
+    notification.delete()
