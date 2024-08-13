@@ -44,3 +44,28 @@ class TestViews(TestCase):
         )
         self.n.refresh_from_db()
         self.assertEqual(self.n.status, Notification.Status.READ)
+
+    def test_delete_notification_view(self):
+        res = Notification.objects.get(id=self.n.id)
+        self.assertEqual(res, self.n)
+
+        response = self.client.post(reverse("notification-delete", args=[self.n.id]))
+        self.assertEqual(response.status_code, 403)
+        self.n.refresh_from_db()
+        res = Notification.objects.get(id=self.n.id)
+        self.assertEqual(res, self.n)
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("notification-delete", args=[self.n.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "ok",
+                "message": "notification was deleted successfully",
+                "unread_notifications_count": 0,
+            },
+        )
+        with self.assertRaises(Notification.DoesNotExist):
+            Notification.objects.get(id=self.n.id)
