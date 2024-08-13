@@ -242,7 +242,7 @@ class TestServices(TestCase):
         )
         self.assertEqual(n.status, Notification.Status.UNREAD)
 
-        mark_notification_as_read(n.id)
+        mark_notification_as_read(n)
         n.refresh_from_db()
         self.assertEqual(n.status, Notification.Status.READ)
 

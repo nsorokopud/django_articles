@@ -77,9 +77,8 @@ def find_notifications_by_user(user: User) -> QuerySet[Notification]:
     return Notification.objects.filter(recipient__in=[user])
 
 
-def mark_notification_as_read(notification_id: int) -> None:
+def mark_notification_as_read(notification: Notification) -> None:
     """Changes the status of the notification to 'read'."""
-    notification = get_notification_by_id(notification_id)
     notification.status = Notification.Status.READ
     notification.save()
 
