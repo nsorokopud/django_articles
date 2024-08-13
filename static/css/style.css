@@ -59,6 +59,14 @@ header i {
     margin-right: 30px;
 }
 
+.header-user .notification-badge {
+    margin-right: 5px;
+}
+
+.header-user i:hover {
+    color: #198754;
+}
+
 @media screen and (max-width: 990px) {
     .header-user {
         flex-direction: column;

@@ -13,6 +13,13 @@
                     <div class="header-user text-white">
                         {% if request.user.is_authenticated %}
                         <a class="link-green" href="{% url 'article-create' %}">New article</a>
+                        <!-- Icon -->
+                        <button type="button" id="notificationBadge" data-bs-toggle="modal" data-bs-target="#modal" class="text-body notification-badge" style="text-align: left">
+                            <i class="fas fa-envelope fs-4"></i>
+                            <span id="notificationCounter" class="badge rounded-pill badge-notification bg-danger"
+                                style="position: relative; top: -15px; left: -15px;{% if notifications_count < 1 %}visibility: hidden;{%endif%}">
+                                {% if notifications_count <= 0 %}0{% elif notifications_count > 999 %}999+{% else %}{{ notifications_count }}{% endif %}</span>
+                        </button>
                         <a class="header-user-link" href="{% url 'user-profile' %}">
                             <i class="fas fa-user"></i> {{ request.user.username|truncatechars:30 }}
                         </a>
