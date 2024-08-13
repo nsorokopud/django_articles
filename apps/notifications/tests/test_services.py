@@ -257,7 +257,7 @@ class TestServices(TestCase):
         )
         self.assertEqual(Notification.objects.get(id=n.id), n)
 
-        delete_notification(n.id)
+        delete_notification(n)
         with self.assertRaises(Notification.DoesNotExist):
             Notification.objects.get(id=n.id)
 
