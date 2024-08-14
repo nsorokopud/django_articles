@@ -91,72 +91,7 @@
                 </div>
             </div>
 
-            <!-- Pagination -->
-            {% if paginator.num_pages > 1 %}
-            <nav>
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                        {% if page_obj.number > 3 %}
-                        <li class="page-item">
-                            {% if request.GET.q %}
-                            <a class="page-link" href="?q={{ request.GET.q }}&page=1" aria-disabled="true">1</a>
-                            {% else %}
-                            <a class="page-link" href="?page=1" aria-disabled="true">1</a>
-                            {% endif %}
-                        </li>
-                        {% endif %}
-                        <li class="page-item">
-                            {% if request.GET.q %}
-                            <a class="page-link" href="?q={{ request.GET.q }}&page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                                <span aria-hidden="true">&lt;&lt;</span>
-                            </a>
-                            {% else %}
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                                <span aria-hidden="true">&lt;&lt;</span>
-                            </a>
-                            {% endif %}
-                        </li>
-                    {% endif %}
-
-                    {% for p in paginator.page_range %}
-                        {% if p == page_obj.number %}
-                            {% if request.GET.q %}
-                            <li class="page-item active"><a class="page-link" href="?q={{ request.GET.q }}&page={{ p }}">{{ p }}</a></li>
-                            {% else %}
-                            <li class="page-item active"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>
-                            {% endif %}
-                        {% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %}
-                            {% if request.GET.q %}
-                            <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&page={{ p }}">{{ p }}</a></li>
-                            {% else %}
-                            <li class="page-item"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if page_obj.has_next %}
-                        <li class="page-item">
-                            {% if request.GET.q %}
-                            <a class="page-link" href="?q={{ request.GET.q }}&page={{ page_obj.next_page_number }}" aria-label="Next">
-                                <span aria-hidden="true">&gt;&gt;</span>
-                            </a>
-                            {% else %}
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
-                                <span aria-hidden="true">&gt;&gt;</span>
-                            </a>
-                            {% endif %}
-                        </li>
-                        {% if page_obj.number < paginator.num_pages|add:-2 %}
-                            {% if request.GET.q %}
-                            <li class="page-item"><a class="page-link" href="?q={{ request.GET.q }}&page={{ paginator.num_pages }}">{{ paginator.num_pages }}</a></li>
-                            {% else %}
-                            <li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}">{{ paginator.num_pages }}</a></li>
-                            {% endif %}
-                        {% endif %}
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
+            {% include "articles/article_pagination.html" %}
         </section>
 
     </div> <!-- End of container -->
