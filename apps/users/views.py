@@ -8,6 +8,7 @@ from django.views import View
 from django.views.generic import CreateView
 
 from users.forms import ProfileUpdateForm, UserUpdateForm
+from .services import get_user_by_username
 
 
 class UserRegistrationView(CreateView):
@@ -45,3 +46,15 @@ class UserProfileView(LoginRequiredMixin, View):
             user_form.save()
             profile_form.save()
             return redirect(reverse("user-profile"))
+
+
+class AuthorPageView(View):
+    def get(self, request, author_username):
+        author = get_user_by_username(author_username)
+        context = {
+            "author": author,
+            "author_image_url": author.profile.image.url,
+            "subscribers_count": author.profile.subscribers.count(),
+            "is_subscribed": request.user in author.profile.subscribers.all(),
+        }
+        return render(request, "users/author_page.html", context)

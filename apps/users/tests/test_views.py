@@ -69,3 +69,8 @@ class TestViews(TestCase):
         response = self.client.get(reverse("user-profile"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("users/profile.html")
+
+    def test_author_page_view(self):
+        response = self.client.get(reverse("author-page", args=(self.test_user.username,)))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed("users/author_page.html")
