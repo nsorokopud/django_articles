@@ -14,7 +14,7 @@
           <div>Subscribers: {{ subscribers_count }}</div>
           {% if user != author %}
             <form class="author-subscribe-form" method="post"
-              action="{% url 'author-subscription' author.username %}">
+              action="{% url 'author-subscribe' author.username %}">
               {% csrf_token %}
 
               {% if is_subscribed %}
