@@ -20,3 +20,21 @@
     </div>
 </form>
 {% endblock form %}
+
+{% block form-after %}
+<div class="mt-5">
+    {% if subscribed_authors %}
+        <h4>Your subscriptions ({{ subscribed_authors|length }}):</h4>
+        <ul>
+            {% for author_username in subscribed_authors %}
+            <li>
+                <a class="subscription-link link-green"
+                    href="{% url 'author-page' author_username %}">{{ author_username }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <h4>Your are not subscribed to any author yet</h4>
+    {% endif %}
+</div>
+{% endblock form-after %}
