@@ -8,7 +8,7 @@ from django.views import View
 from django.views.generic import CreateView
 
 from users.forms import ProfileUpdateForm, UserUpdateForm
-from .services import get_user_by_username
+from .services import get_all_supscriptions_of_user, get_user_by_username
 
 
 class UserRegistrationView(CreateView):
@@ -32,8 +32,13 @@ class UserProfileView(LoginRequiredMixin, View):
     def get(self, request):
         user_form = UserUpdateForm(instance=request.user)
         profile_form = ProfileUpdateForm(instance=request.user.profile)
+        subscribed_authors = get_all_supscriptions_of_user(request.user)
 
-        context = {"user_form": user_form, "profile_form": profile_form}
+        context = {
+            "user_form": user_form,
+            "profile_form": profile_form,
+            "subscribed_authors": subscribed_authors,
+        }
         return render(request, "users/profile.html", context)
 
     def post(self, request):
