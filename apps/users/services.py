@@ -32,3 +32,14 @@ def get_all_supscriptions_of_user(user: User) -> list[str]:
     subscribed to.
     """
     return [p.user.username for p in user.subscribed_profiles.all()]
+
+
+def toggle_user_supscription(user: User, author: User) -> None:
+    """Adds user to the list of author's subscribers if that user is not
+    in the list. Otherwise removes the user from the list.
+    """
+    if user.pk != author.pk:
+        if user not in author.profile.subscribers.all():
+            author.profile.subscribers.add(user)
+        else:
+            author.profile.subscribers.remove(user)

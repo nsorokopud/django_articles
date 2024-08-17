@@ -8,7 +8,8 @@ from users.services import (
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
     get_user_by_id,
-    get_user_by_username
+    get_user_by_username,
+    toggle_user_supscription
 )
 from users.signals import create_profile
 
@@ -108,3 +109,18 @@ class TestServices(TestCase):
         a1.profile.subscribers.remove(self.test_user)
         res = get_all_supscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [])
+
+    def test_toggle_user_supscription(self):
+        author = User.objects.create(username="author")
+
+        self.assertTrue(self.test_user not in author.profile.subscribers.all())
+
+        toggle_user_supscription(self.test_user, author)
+        self.assertTrue(self.test_user in author.profile.subscribers.all())
+
+        toggle_user_supscription(self.test_user, author)
+        self.assertTrue(self.test_user not in author.profile.subscribers.all())
+
+        self.assertTrue(self.test_user not in self.test_user.profile.subscribers.all())
+        toggle_user_supscription(self.test_user, self.test_user)
+        self.assertTrue(self.test_user not in self.test_user.profile.subscribers.all())
