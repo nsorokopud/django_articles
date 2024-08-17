@@ -8,7 +8,7 @@ from django.views import View
 from django.views.generic import CreateView
 
 from users.forms import ProfileUpdateForm, UserUpdateForm
-from .services import get_all_supscriptions_of_user, get_user_by_username
+from .services import get_all_supscriptions_of_user, get_user_by_username, toggle_user_supscription
 
 
 class UserRegistrationView(CreateView):
@@ -63,3 +63,10 @@ class AuthorPageView(View):
             "is_subscribed": request.user in author.profile.subscribers.all(),
         }
         return render(request, "users/author_page.html", context)
+
+
+class AuthorSubscribeView(LoginRequiredMixin, View):
+    def post(self, request, author_username):
+        author = get_user_by_username(author_username)
+        toggle_user_supscription(request.user, author)
+        return redirect(reverse("author-page", args=(author_username,)))
