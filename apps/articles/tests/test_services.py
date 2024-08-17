@@ -5,14 +5,12 @@ from django.test import TestCase
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
     create_article,
-    find_article_slugs_by_user,
     find_articles_by_query,
     find_articles_of_category,
     find_articles_with_tag,
     find_comments_to_article,
     find_article_comments_liked_by_user,
     find_published_articles,
-    get_all_article_slugs,
     get_all_categories,
     get_all_users_that_liked_article,
     get_comment_by_id,
@@ -434,59 +432,6 @@ class TestServices(TestCase):
         increment_article_views_counter(a1.slug)
         a1.refresh_from_db()
         self.assertEqual(a1.views_count, 2)
-
-    def test_get_all_article_slugs(self):
-        self.assertCountEqual(get_all_article_slugs(), [])
-
-        Article.objects.create(
-            title="a1",
-            slug="a1",
-            author=self.test_user,
-            preview_text="",
-            content="",
-        )
-        self.assertCountEqual(get_all_article_slugs(), ["a1"])
-
-        Article.objects.create(
-            title="a2",
-            slug="a2",
-            author=self.test_user,
-            preview_text="",
-            content="",
-        )
-        self.assertCountEqual(get_all_article_slugs(), ["a1", "a2"])
-
-    def test_find_article_slugs_by_user(self):
-        u1 = User.objects.create(username="user1", email="test@test.com")
-
-        self.assertCountEqual(find_article_slugs_by_user(u1.pk), [])
-
-        Article.objects.create(
-            title="a1",
-            slug="a1",
-            author=u1,
-            preview_text="",
-            content="",
-        )
-        self.assertCountEqual(find_article_slugs_by_user(u1.pk), ["a1"])
-
-        Article.objects.create(
-            title="a2",
-            slug="a2",
-            author=u1,
-            preview_text="",
-            content="",
-        )
-        self.assertCountEqual(find_article_slugs_by_user(u1.pk), ["a1", "a2"])
-
-        Article.objects.create(
-            title="a3",
-            slug="a3",
-            author=self.test_user,
-            preview_text="",
-            content="",
-        )
-        self.assertCountEqual(find_article_slugs_by_user(u1.pk), ["a1", "a2"])
 
     def test_get_comment_by_id(self):
         a = Article.objects.create(

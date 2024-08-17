@@ -163,18 +163,6 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
     return likes_count
 
 
-def get_all_article_slugs() -> "ValuesQuerySet[str]":
-    """Returns a queryset of slugs of all articles."""
-    return Article.objects.values_list("slug", flat=True)
-
-
-def find_article_slugs_by_user(user_id: int) -> list[str]:
-    """Returns a list of slugs of all articles published by user with
-    specified user_id.
-    """
-    return list(Article.objects.filter(author__id=user_id).values_list("slug", flat=True))
-
-
 def get_comment_by_id(comment_id: int) -> ArticleComment:
     return ArticleComment.objects.get(id=comment_id)
 
