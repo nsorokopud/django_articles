@@ -8,6 +8,7 @@ from users.services import (
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
     get_user_by_id,
+    get_user_by_username
 )
 from users.signals import create_profile
 
@@ -72,6 +73,18 @@ class TestServices(TestCase):
 
         p0.subscribers.remove(*[u1, u2])
         self.assertCountEqual(find_user_profiles_with_subscribers(), [])
+
+    def test_get_user_by_username(self):
+        u1 = User.objects.create_user(username="user1")
+
+        res = get_user_by_username(self.test_user.username)
+        self.assertEqual(res, self.test_user)
+
+        res = get_user_by_username(u1.username)
+        self.assertEqual(res, u1)
+
+        with self.assertRaises(User.DoesNotExist):
+            get_user_by_username("non_existent_user")
 
     def test_get_all_supscriptions_of_user(self):
         a1 = User.objects.create_user(username="author1")
