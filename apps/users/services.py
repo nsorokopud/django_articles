@@ -21,3 +21,10 @@ def find_user_profiles_with_subscribers() -> QuerySet[Profile]:
     return Profile.objects.annotate(subscribers_count=Count("subscribers")).filter(
         subscribers_count__gt=0
     )
+
+
+def get_all_supscriptions_of_user(user: User) -> list[str]:
+    """Returns a list of usernames of all authors the specified user is
+    subscribed to.
+    """
+    return [p.user.username for p in user.subscribed_profiles.all()]

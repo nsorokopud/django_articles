@@ -3,7 +3,12 @@ from django.db.models import signals
 from django.test import TestCase
 
 from users.models import Profile
-from users.services import create_user_profile, find_user_profiles_with_subscribers, get_user_by_id
+from users.services import (
+    create_user_profile,
+    find_user_profiles_with_subscribers,
+    get_all_supscriptions_of_user,
+    get_user_by_id,
+)
 from users.signals import create_profile
 
 
@@ -20,10 +25,10 @@ class TestServices(TestCase):
         signals.post_save.disconnect(create_profile, sender=User)
 
         u = User.objects.create(username="user", email="test1@test.com")
-        
+
         with self.assertRaises(Profile.DoesNotExist):
             profile = Profile.objects.get(user=u)
-        
+
         profile = create_user_profile(u)
         self.assertEqual(profile.user, u)
         self.assertEqual(Profile.objects.filter(user=u).first(), profile)
@@ -67,3 +72,26 @@ class TestServices(TestCase):
 
         p0.subscribers.remove(*[u1, u2])
         self.assertCountEqual(find_user_profiles_with_subscribers(), [])
+
+    def test_get_all_supscriptions_of_user(self):
+        a1 = User.objects.create_user(username="author1")
+        a2 = User.objects.create_user(username="author2")
+
+        res = get_all_supscriptions_of_user(self.test_user)
+        self.assertCountEqual(res, [])
+
+        a1.profile.subscribers.add(self.test_user)
+        res = get_all_supscriptions_of_user(self.test_user)
+        self.assertCountEqual(res, [a1.username])
+
+        a2.profile.subscribers.add(self.test_user)
+        res = get_all_supscriptions_of_user(self.test_user)
+        self.assertCountEqual(res, [a1.username, a2.username])
+
+        a2.profile.subscribers.remove(self.test_user)
+        res = get_all_supscriptions_of_user(self.test_user)
+        self.assertCountEqual(res, [a1.username])
+
+        a1.profile.subscribers.remove(self.test_user)
+        res = get_all_supscriptions_of_user(self.test_user)
+        self.assertCountEqual(res, [])
