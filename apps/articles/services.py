@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Iterable, List, Optional
 
 from sql_util.utils import SubqueryAggregate
 from taggit.models import TaggedItem
@@ -34,11 +34,15 @@ def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
     return find_published_articles().filter(category__slug=category_slug)
 
 
-def find_articles_with_tag(tag: str) -> QuerySet[Article]:
-    articles_with_tag__ids = TaggedItem.objects.filter(tag__name=tag).values_list(
-        "object_id", flat=True
-    )
-    return find_published_articles().filter(id__in=articles_with_tag__ids)
+def find_articles_with_tags(
+    tags: Iterable[str], queryset: Optional[QuerySet[Article]] = None
+) -> QuerySet[Article]:
+    if queryset is None:
+        queryset = find_published_articles()
+
+    for tag in tags:
+        queryset = queryset.filter(tags__name=tag)
+    return queryset
 
 
 def find_articles_by_query(q: str) -> QuerySet[Article]:
