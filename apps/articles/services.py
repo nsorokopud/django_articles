@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import Iterable, List, Optional
 
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag, TaggedItem
@@ -7,10 +7,6 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.db.models.query import QuerySet
-
-if TYPE_CHECKING:
-    from django.db.models.query import ValuesQuerySet
-
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 
