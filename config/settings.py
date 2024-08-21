@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     "crispy_forms",
     "debug_toolbar",
     "taggit",
+    "django_filters",
+    "django_select2",
     "storages",
     "channels",
     "channels_redis",
@@ -297,6 +299,13 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
+    },
+    "select2": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/2",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -317,3 +326,8 @@ CHANNEL_LAYERS = {
 
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+
+
+# Select2
+
+SELECT2_CACHE_BACKEND = "select2"

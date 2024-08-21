@@ -12,6 +12,7 @@ from config import views as project_views
 urlpatterns = [
     path("ckeditor/upload/", login_required(upload), name="ckeditor_upload"),
     path("ckeditor/", include("ckeditor_uploader.urls")),
+    path("select2/", include("django_select2.urls")),
     path("", include("articles.urls")),
     path("", include("users.urls")),
     path("", include("notifications.urls")),
