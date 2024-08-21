@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Iterable, List, Optional
 
 from sql_util.utils import SubqueryAggregate
-from taggit.models import TaggedItem
+from taggit.models import Tag, TaggedItem
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -93,6 +93,10 @@ def get_all_categories() -> QuerySet[ArticleCategory]:
             "article__id", filter=Q(is_published=True), aggregate=Count
         )
     )
+
+
+def get_all_tags():
+    return Tag.objects.all()
 
 
 def get_all_users_that_liked_article(article_slug: str) -> QuerySet[User]:

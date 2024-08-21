@@ -1,3 +1,5 @@
+from taggit.models import Tag
+
 from django.contrib.auth.models import User
 from django.db.utils import IntegrityError
 from django.test import TestCase
@@ -12,6 +14,7 @@ from articles.services import (
     find_article_comments_liked_by_user,
     find_published_articles,
     get_all_categories,
+    get_all_tags,
     get_all_users_that_liked_article,
     get_comment_by_id,
     increment_article_views_counter,
@@ -226,6 +229,35 @@ class TestServices(TestCase):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
         cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
         self.assertCountEqual(get_all_categories(), [cat1, cat2, self.test_category])
+
+    def test_get_all_tags(self):
+        a1 = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
+        )
+        a2 = Article.objects.create(
+            title="a2",
+            slug="a2",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text2",
+            content="content2",
+        )
+
+        res = get_all_tags()
+        self.assertCountEqual(res, [])
+
+        a1.tags.add("tag1", "tag2")
+        res = [tag.name for tag in get_all_tags()]
+        self.assertCountEqual(res, ["tag1", "tag2"])
+
+        a2.tags.add("tag2", "tag3")
+        res = [tag.name for tag in get_all_tags()]
+        self.assertCountEqual(res, ["tag1", "tag2", "tag3"])
 
     def test__generate_unique_article_slug(self):
         self.assertEqual(_generate_unique_article_slug("abc"), "abc")
