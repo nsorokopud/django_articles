@@ -27,9 +27,9 @@ class ArticleListFilterView(FilterView):
         return services.find_published_articles()
 
 
-class HomePageView(CategoriesMixin, ListView):
-    def get_queryset(self):
-        return services.find_published_articles()
+class HomePageView(View):
+    def get(self, request):
+        return redirect("articles")
 
 
 class ArticleDetailView(CategoriesMixin, DetailView):
@@ -88,7 +88,7 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
     model = Article
     context_object_name = "article"
     slug_url_kwarg = "article_slug"
-    success_url = reverse_lazy("home")
+    success_url = reverse_lazy("articles")
 
 
 class ArticleCommentView(LoginRequiredMixin, View):

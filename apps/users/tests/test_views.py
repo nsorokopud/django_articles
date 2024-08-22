@@ -41,7 +41,7 @@ class TestViews(TestCase):
         self.assertEqual(response.wsgi_request.user.is_authenticated, False)
 
         response = self.client.post(reverse("login"), login_data)
-        self.assertRedirects(response, reverse("home"), status_code=302, target_status_code=200)
+        self.assertRedirects(response, reverse("articles"), status_code=302, target_status_code=200)
         self.assertEqual(response.wsgi_request.user.is_authenticated, True)
         self.assertEqual(response.wsgi_request.user, self.test_user)
 
