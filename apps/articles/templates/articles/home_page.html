@@ -1,5 +1,11 @@
 {% extends "articles/base.html" %}
+{% load static %}
 {% load tz %}
+
+{% block extra_links %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="{% static 'css/select2.css' %}">
+{% endblock extra_links %}
 
 {% block content-main %}
     <div class="container main-container d-flex mx-auto">
@@ -88,3 +94,9 @@
 
     </div> <!-- End of container -->
     {% endblock content-main %}
+
+{% block extra_scripts %}
+<!-- Articles Filtering -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'js/articles-filtering.js'%}"></script>
+{% endblock extra_scripts %}

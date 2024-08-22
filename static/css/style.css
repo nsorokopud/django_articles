@@ -107,6 +107,33 @@ header i {
     color: #198754 !important;
 }
 
+#filteringForm .form-group {
+    margin-top: 10px;
+}
+
+#filteringForm .form-group label {
+    margin-bottom: 3px;
+}
+
+#filteringForm .textInput {
+    padding: .375rem 8px !important;
+}
+
+@media screen and (max-width: 1199px) {
+    #filteringForm .buttons-section {
+        flex-direction: column;
+    }
+
+    #filteringForm .btn {
+        width: 100%;
+    }
+
+    .btn-reset {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+}
+
 /* Main */
 
 main {
@@ -255,6 +282,7 @@ span.article-preview-icon-counter {
 
     aside.sidebar {
         width: 100%;
+        margin-bottom: 40px;
     }
 
     .main-content {
