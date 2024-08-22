@@ -1,13 +1,19 @@
+{% load crispy_forms_tags %}
+
 <aside class="sidebar">
     <div class="sidebar__inner p-3 bg-dark text-white">
-        <h3 class="mb-4">Categories</h3>
-        <ul class="categories-list">
-            {% for category in categories %}
-            {% if category.articles_count > 0 %}
-            <li><a href="{% url 'article-category' category.slug %}" {% if selected_category_slug == category.slug %}class="category-selected"{% endif %}>
-                {{ category.title }} ({{ category.articles_count }})</a></li>
-            {% endif %}
-            {% endfor %}
-        </ul>
+      <div class="d-flex justify-content-between">
+        <h3>Filtering</h3>
+        <a class="btn btn-dark dropdown-toggle" data-bs-toggle="collapse"
+          href="#filteringForm" role="button" aria-expanded="false"
+          aria-controls="filteringForm"></a>
+      </div>
+      <form method="get" class="collapse show mt-3" id="filteringForm">
+        {{ filter.form|crispy }}
+        <div class="buttons-section d-flex mt-4">
+          <a class="btn btn-secondary btn-reset p-1 me-4" href="{% url 'home' %}">Reset</a>
+          <input id="filterSubmit" class="btn btn-success p-1" type="submit" />
+        </div>
+      </form>
     </div>
 </aside>
