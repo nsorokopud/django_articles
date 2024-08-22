@@ -7,21 +7,13 @@
         {% include "inclusion/sidebar.html" %}
 
         <section class="main-content">
-
-            <div class="row">
-                <div class="col-sm-12 col-lg-10 mx-auto">
-                    <form class="article-search d-flex" type="GET" action="{% url 'article-search' %}">
-                        <input name="q" class="form-control me-2" type="search" placeholder="{{ request.GET.q }}" aria-label="Search"/>
-                        <button class="btn btn-outline-success" type="submit">Search</button>
-                    </form>
-                </div>
-            </div>
-
             <div class="row">
                 <div class="articles-container col-lg-10 col-md-12 mx-auto">
 
                     {% if not articles %}
                     <h2>No articles matching your query</h2>
+                    {% else %}
+                    <h2 class="mb-5">Articles matching your query ({{ paginator.count }}):</h2>
                     {% endif %}
 
                     {% for article in articles %}
@@ -44,12 +36,12 @@
                                 <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                             </h3>
                             {% if article.category %}
-                                <h5 class="article-category">Category: <a href="{% url 'article-category' article.category.slug %}">{{ article.category }}</a></h5>
+                                <h5 class="article-category">Category: <a href="{% url 'articles' %}?category={{ article.category.slug }}">{{ article.category }}</a></h5>
                             {% endif %}
                             {% if article.tags.all %}
                             <ul class="article-tags-list"><span class="tags-span">Tags: </span>
                                 {% for tag in article.tags.all %}
-                                <li><a class="article-tag-link" href="{% url 'article-tag' tag %}">#{{ tag }}</a></li>
+                                <li><a class="article-tag-link" href="{% url 'articles'%}?tags={{ tag }}">#{{ tag }}</a></li>
                                 {% endfor %}
                             </ul>
                             {% endif %}
