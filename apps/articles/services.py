@@ -1,7 +1,7 @@
 from typing import Iterable, List, Optional
 
 from sql_util.utils import SubqueryAggregate
-from taggit.models import Tag, TaggedItem
+from taggit.models import Tag
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -41,20 +41,18 @@ def find_articles_with_tags(
     return queryset
 
 
-def find_articles_by_query(q: str) -> QuerySet[Article]:
-    articles_with_tags_containing_q__ids = TaggedItem.objects.filter(
-        tag__name__icontains=q
-    ).values_list("object_id", flat=True)
-    return (
-        find_published_articles()
-        .filter(
-            Q(title__icontains=q)
-            | Q(content__icontains=q)
-            | Q(category__title__icontains=q)
-            | Q(id__in=articles_with_tags_containing_q__ids)
-        )
-        .distinct()
-    )
+def find_articles_by_query(
+    q: str, queryset: Optional[QuerySet[Article]] = None
+) -> QuerySet[Article]:
+    if queryset is None:
+        queryset = find_published_articles()
+
+    return queryset.filter(
+        Q(title__icontains=q)
+        | Q(content__icontains=q)
+        | Q(category__title__icontains=q)
+        | Q(tags__name__icontains=q)
+    ).distinct()
 
 
 def find_article_comments_liked_by_user(article_slug: str, user: User) -> List[int]:

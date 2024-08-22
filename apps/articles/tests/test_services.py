@@ -148,7 +148,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
+            is_published=True
         )
         a1.tags.add("cat1", "tag1")
         a2 = Article.objects.create(
@@ -159,7 +159,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text2",
             content="content2",
-            is_published=True,
+            is_published=True
         )
         a3 = Article.objects.create(
             title="a3",
@@ -168,7 +168,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text3",
             content="content3",
-            is_published=True,
+            is_published=True
         )
         a4 = Article.objects.create(
             title="a4",
@@ -177,7 +177,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text4",
             content="content4",
-            is_published=True,
+            is_published=True
         )
         a4.tags.add("tag", "tag1", "tag2")
         Article.objects.create(
@@ -187,19 +187,26 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text5",
             content="content5",
-            is_published=False,
+            is_published=False
         )
 
-        self.assertCountEqual(list(find_articles_by_query("a")), [a1, a2, a3, a4])  # By title
-        self.assertCountEqual(
-            list(find_articles_by_query("content")), [a1, a2, a3, a4]
-        )  # By content
-        self.assertCountEqual(list(find_articles_by_query("test_")), [a1, a2])  # By category
-        self.assertCountEqual(
-            list(find_articles_by_query("cat1")), [a1, a3, a4]
-        )  # By category + tag
-        self.assertCountEqual(list(find_articles_by_query("tag1")), [a1, a4])  # By tag
-        self.assertCountEqual(list(find_articles_by_query("agrj")), [])  # Not found
+        self.assertCountEqual(find_articles_by_query("a"), [a1, a2, a3, a4])  # By title
+        self.assertCountEqual(find_articles_by_query("content"), [a1, a2, a3, a4])  # By content
+        self.assertCountEqual(find_articles_by_query("test_"), [a1, a2])  # By category
+        self.assertCountEqual(find_articles_by_query("cat1"), [a1, a3, a4])  # By category + tag
+        self.assertCountEqual(find_articles_by_query("tag1"), [a1, a4])  # By tag
+        self.assertCountEqual(find_articles_by_query("agrj"), [])  # Not found
+
+        # With queryset
+        queryset = Article.objects.filter(id__in=[a1.id, a4.id])
+        self.assertCountEqual(find_articles_by_query("a", queryset), [a1, a4])
+        self.assertCountEqual(find_articles_by_query("content", queryset), [a1, a4])
+        self.assertCountEqual(find_articles_by_query("test_", queryset), [a1])
+        self.assertCountEqual(find_articles_by_query("cat1", queryset), [a1, a4])
+
+        queryset = Article.objects.filter(id__in=[a1.id, a2.id, a3.id])
+        self.assertCountEqual(find_articles_by_query("tag1", queryset), [a1])
+        self.assertCountEqual(find_articles_by_query("agrj", queryset), [])
 
     def test_find_comments_to_article(self):
         a1 = Article.objects.create(
