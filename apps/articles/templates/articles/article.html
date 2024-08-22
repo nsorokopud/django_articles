@@ -25,12 +25,12 @@
                     <div class="article-preview-main">
                         <h3 class="article-title mb-4">{{ article.title }}</h3>
                         {% if article.category %}
-                        <h5 class="article-category">Category: <a href="{% url 'article-category' article.category.slug %}">{{ article.category }}</a></h5>
+                        <h5 class="article-category">Category: <a href="{% url 'articles' %}?category={{ article.category.slug }}">{{ article.category }}</a></h5>
                         {% endif %}
                         {% if article.tags.all %}
                             <ul class="article-tags-list"><span class="tags-span">Tags: </span>
                                 {% for tag in article.tags.all %}
-                                <li><a class="article-tag-link" href="{% url 'article-tag' tag %}">#{{ tag }}</a></li>
+                                <li><a class="article-tag-link" href="{% url 'articles' %}?tags={{ tag.name }}">#{{ tag.name }}</a></li>
                                 {% endfor %}
                             </ul>
                             {% endif %}

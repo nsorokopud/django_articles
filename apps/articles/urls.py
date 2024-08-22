@@ -6,13 +6,6 @@ from articles import views
 urlpatterns = [
     path("", views.HomePageView.as_view(), name="home"),
     path("articles/", views.ArticleListFilterView.as_view(), name="articles"),
-    path(
-        "category/<slug:category_slug>",
-        views.ArticleCategoryView.as_view(),
-        name="article-category",
-    ),
-    path("tag/<str:tag>", views.ArticleTagView.as_view(), name="article-tag"),
-    path("articles/search", views.ArticleSearchView.as_view(), name="article-search"),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
         "articles/<slug:article_slug>/update",

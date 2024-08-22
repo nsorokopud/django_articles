@@ -32,35 +32,6 @@ class HomePageView(CategoriesMixin, ArticlesListMixin, ListView):
         return services.find_published_articles()
 
 
-class ArticleCategoryView(CategoriesMixin, ArticlesListMixin, ListView):
-    slug_url_kwarg = "category_slug"
-    allow_empty = False
-
-    def get_queryset(self):
-        category_slug = self.kwargs["category_slug"]
-        return services.find_articles_of_category(category_slug)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["selected_category_slug"] = self.kwargs["category_slug"]
-        return context
-
-
-class ArticleTagView(CategoriesMixin, ArticlesListMixin, ListView):
-    slug_url_kwarg = "category_slug"
-    allow_empty = False
-
-    def get_queryset(self):
-        tag = self.kwargs["tag"]
-        return services.find_articles_with_tag(tag)
-
-
-class ArticleSearchView(CategoriesMixin, ArticlesListMixin, ListView):
-    def get_queryset(self):
-        query = self.request.GET.get("q", "")
-        return services.find_articles_by_query(query)
-
-
 class ArticleDetailView(CategoriesMixin, DetailView):
     model = Article
     slug_url_kwarg = "article_slug"

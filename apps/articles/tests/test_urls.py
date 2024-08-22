@@ -5,13 +5,11 @@ from django.urls import reverse, resolve
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.views import (
     ArticleListFilterView,
-    ArticleCategoryView,
     ArticleCommentView,
     ArticleCreateView,
     ArticleDeleteView,
     ArticleDetailView,
     ArticleLikeView,
-    ArticleSearchView,
     ArticleUpdateView,
     CommentLikeView,
     HomePageView,
@@ -74,11 +72,3 @@ class TestURLs(TestCase):
     def test_comment_like_url_is_resolved(self):
         url = reverse("comment-like", args=[self.test_comment.id])
         self.assertEqual(resolve(url).func.view_class, CommentLikeView)
-
-    def test_article_category_url_is_resolved(self):
-        url = reverse("article-category", args=[self.test_article.slug])
-        self.assertEqual(resolve(url).func.view_class, ArticleCategoryView)
-
-    def test_article_search_url_is_resolved(self):
-        url = reverse("article-search")
-        self.assertEqual(resolve(url).func.view_class, ArticleSearchView)

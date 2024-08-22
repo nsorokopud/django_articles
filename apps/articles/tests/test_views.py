@@ -44,29 +44,6 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
-    def test_article_category_view(self):
-        response = self.client.get(reverse("article-category", args=["gherngjre"]))
-        self.assertRaises(Http404)
-
-        response = self.client.get(reverse("article-category", args=[self.test_category.slug]))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("articles/home_page.html")
-
-    def test_article_tag_view(self):
-        response = self.client.get(reverse("article-tag", args=["dadcsds"]))
-        self.assertRaises(Http404)
-
-        response = self.client.get(
-            reverse("article-tag", args=[self.test_article.tags.all()[0].name])
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("articles/home_page.html")
-
-    def test_article_search_view(self):
-        response = self.client.get(reverse("article-search"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("articles/home_page.html")
-
     def test_article_details_page_view(self):
         response = self.client.get(reverse("article-details", args=[self.test_article.slug]))
 
