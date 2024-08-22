@@ -4,6 +4,7 @@ from django.urls import reverse, resolve
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.views import (
+    ArticleListFilterView,
     ArticleCategoryView,
     ArticleCommentView,
     ArticleCreateView,
@@ -41,6 +42,10 @@ class TestURLs(TestCase):
     def test_homepage_url_is_resolved(self):
         url = reverse("home")
         self.assertEqual(resolve(url).func.view_class, HomePageView)
+
+    def test_articles_list_page_url_is_resolved(self):
+        url = reverse("articles")
+        self.assertEqual(resolve(url).func.view_class, ArticleListFilterView)
 
     def test_article_details_page_url_is_resolved(self):
         url = reverse("article-details", args=[self.test_article.slug])

@@ -38,6 +38,12 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("articles/home_page.html")
 
+    def test_article_list_filter_view(self):
+        response = self.client.get(reverse("articles"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed("articles/home_page.html")
+
     def test_article_category_view(self):
         response = self.client.get(reverse("article-category", args=["gherngjre"]))
         self.assertRaises(Http404)

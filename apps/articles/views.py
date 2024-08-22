@@ -1,3 +1,5 @@
+from django_filters.views import FilterView
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -7,9 +9,22 @@ from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from articles import services
+from articles.constants import ARTICLES_PER_PAGE_COUNT
+from articles.filters import ArticleFilter
 from articles.forms import ArticleCreateForm, ArticleCommentForm
 from articles.models import Article
 from articles.utils import AllowOnlyAuthorMixin, ArticlesListMixin, CategoriesMixin
+
+
+class ArticleListFilterView(FilterView):
+    model = Article
+    filterset_class = ArticleFilter
+    context_object_name = "articles"
+    paginate_by = ARTICLES_PER_PAGE_COUNT
+    template_name = "articles/home_page.html"
+
+    def get_queryset(self):
+        return services.find_published_articles()
 
 
 class HomePageView(CategoriesMixin, ArticlesListMixin, ListView):
