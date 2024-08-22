@@ -13,7 +13,7 @@ from articles.constants import ARTICLES_PER_PAGE_COUNT
 from articles.filters import ArticleFilter
 from articles.forms import ArticleCreateForm, ArticleCommentForm
 from articles.models import Article
-from articles.utils import AllowOnlyAuthorMixin, ArticlesListMixin, CategoriesMixin
+from articles.utils import AllowOnlyAuthorMixin, CategoriesMixin
 
 
 class ArticleListFilterView(FilterView):
@@ -27,7 +27,7 @@ class ArticleListFilterView(FilterView):
         return services.find_published_articles()
 
 
-class HomePageView(CategoriesMixin, ArticlesListMixin, ListView):
+class HomePageView(CategoriesMixin, ListView):
     def get_queryset(self):
         return services.find_published_articles()
 

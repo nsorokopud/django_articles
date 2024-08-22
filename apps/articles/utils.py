@@ -1,7 +1,5 @@
 from django.http import Http404
 
-from articles.constants import ARTICLES_PER_PAGE_COUNT
-from articles.models import Article
 from articles.services import get_all_categories
 
 
@@ -11,13 +9,6 @@ class AllowOnlyAuthorMixin:
             raise Http404()
         else:
             return super().dispatch(*args, **kwargs)
-
-
-class ArticlesListMixin:
-    model = Article
-    context_object_name = "articles"
-    paginate_by = ARTICLES_PER_PAGE_COUNT
-    template_name = "articles/home_page.html"
 
 
 class CategoriesMixin:
