@@ -46,13 +46,13 @@ class TestViews(TestCase):
         response = self.client.get(reverse("articles"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("articles/home_page.html")
+        self.assertTemplateUsed(response, "articles/home_page.html")
 
     def test_article_details_page_view(self):
         response = self.client.get(reverse("article-details", args=[self.test_article.slug]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("articles/article.html")
+        self.assertTemplateUsed(response, "articles/article.html")
 
         self.test_article.refresh_from_db()
         self.assertEqual(self.test_article.views_count, 1)
@@ -66,13 +66,12 @@ class TestViews(TestCase):
             status_code=302,
             target_status_code=200,
         )
-        self.assertTemplateUsed("articles/article.html")
 
     def test_article_creation_page_view_authorized(self):
         self.client.login(username="test_user", password="12345")
         response = self.client.get(reverse("article-create"))
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("articles/article.html")
+        self.assertTemplateUsed(response, "articles/article_form.html")
 
     def test_article_update_view_unauthorized(self):
         url = reverse("article-update", args=[self.test_article.slug])
@@ -108,7 +107,6 @@ class TestViews(TestCase):
             status_code=302,
             target_status_code=200,
         )
-        self.assertTemplateUsed("articles/article_update.html")
 
         self.assertEqual(a.author.username, "test_user")
         self.assertEqual(a.title, "new title")
@@ -140,7 +138,6 @@ class TestViews(TestCase):
             Article.objects.get(pk=a.pk)
 
         self.assertRedirects(response, reverse("articles"), status_code=302, target_status_code=200)
-        self.assertTemplateUsed("articles/home_page.html")
 
     def test_article_comment_view_unauthorized(self):
         url = reverse("article-comment", args=[self.test_article.slug])
@@ -151,7 +148,6 @@ class TestViews(TestCase):
             status_code=302,
             target_status_code=200,
         )
-        self.assertTemplateUsed("articles/article.html")
 
     def test_article_comment_view_authorized(self):
         url = reverse("article-comment", args=[self.test_article.slug])
@@ -165,7 +161,6 @@ class TestViews(TestCase):
             status_code=302,
             target_status_code=200,
         )
-        self.assertTemplateUsed("articles/article.html")
 
         article_comments = ArticleComment.objects.filter(article=self.test_article)
         self.assertEqual(len(article_comments), 2)

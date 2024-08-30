@@ -14,7 +14,7 @@ class TestViews(TestCase):
     def test_user_registration_view_get(self):
         response = self.client.get(reverse("registration"))
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("users/registration.html")
+        self.assertTemplateUsed(response, "users/registration.html")
 
     def test_user_registration_view_post(self):
         user_data = {
@@ -32,7 +32,7 @@ class TestViews(TestCase):
     def test_user_login_view_get(self):
         response = self.client.get(reverse("login"))
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("users/login.html")
+        self.assertTemplateUsed(response, "users/login.html")
 
     def test_user_login_view_post(self):
         login_data = {"username": "test_user", "password": "12345"}
@@ -58,7 +58,7 @@ class TestViews(TestCase):
         self.assertEqual(response.wsgi_request.user.is_authenticated, False)
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("users/logout.html")
+        self.assertTemplateUsed(response, "users/logout.html")
 
     def test_user_profile_view(self):
         response = self.client.get(reverse("user-profile"))
@@ -68,12 +68,12 @@ class TestViews(TestCase):
         self.client.login(username="test_user", password="12345")
         response = self.client.get(reverse("user-profile"))
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("users/profile.html")
+        self.assertTemplateUsed(response, "users/profile.html")
 
     def test_author_page_view(self):
         response = self.client.get(reverse("author-page", args=(self.test_user.username,)))
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed("users/author_page.html")
+        self.assertTemplateUsed(response, "users/author_page.html")
 
     def test_author_subscribe_view(self):
         author = User.objects.create_user(username="author1")
