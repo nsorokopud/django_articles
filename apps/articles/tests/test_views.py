@@ -73,12 +73,12 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/article_form.html")
 
-    def test_article_update_view_unauthorized(self):
+    def test_article_update_view_post_unauthorized(self):
         url = reverse("article-update", args=[self.test_article.slug])
         self.client.get(url)
         self.assertRaises(Http404)
 
-    def test_article_update_view_authorized(self):
+    def test_article_update_view_post_authorized(self):
         updated_data = {
             "title": "new title",
             "preview_text": "new preview text",
