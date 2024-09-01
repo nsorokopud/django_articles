@@ -16,6 +16,7 @@ from articles.services import (
     get_all_categories,
     get_all_tags,
     get_all_users_that_liked_article,
+    get_article_by_slug,
     get_comment_by_id,
     increment_article_views_counter,
     toggle_article_like,
@@ -374,6 +375,26 @@ class TestServices(TestCase):
         self.assertEqual(list(get_all_users_that_liked_article(a.slug)), [])
         a.users_that_liked.add(self.test_user)
         self.assertCountEqual(get_all_users_that_liked_article(a.slug), [self.test_user])
+
+    def test_get_article_by_slug(self):
+        with self.assertRaises(Article.DoesNotExist):
+            get_article_by_slug("a1")
+
+        a = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="text1",
+            content="content1"
+        )
+
+        res = get_article_by_slug("a1")
+        self.assertEqual(res, a)
+
+        a.delete()
+        with self.assertRaises(Article.DoesNotExist):
+            get_article_by_slug("a1")
 
     def test_toggle_article_like(self):
         a = Article.objects.create(
