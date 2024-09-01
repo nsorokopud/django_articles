@@ -9,7 +9,7 @@ class BasicErrorView(View):
 
     def get(self, request, *args, **kwargs):
         context = {"error_code": self.error_code, "error_message": self.error_message}
-        return render(request, self.template, context)
+        return render(request, self.template, context, status=self.error_code)
 
 
 class Error403View(BasicErrorView):
