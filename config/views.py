@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.generic import View
 
@@ -7,9 +8,16 @@ class BasicErrorView(View):
     error_message = ""
     template = "error.html"
 
-    def get(self, request, *args, **kwargs):
+    def dispatch(self, *args, **kwargs):
+        if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": f"HTTP Error {self.error_code}: {self.error_message}",
+                }
+            )
         context = {"error_code": self.error_code, "error_message": self.error_message}
-        return render(request, self.template, context, status=self.error_code)
+        return render(self.request, self.template, context, status=self.error_code)
 
 
 class Error403View(BasicErrorView):
