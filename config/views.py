@@ -20,6 +20,11 @@ class BasicErrorView(View):
         return render(self.request, self.template, context, status=self.error_code)
 
 
+class Error400View(BasicErrorView):
+    error_code = 400
+    error_message = "Bad request"
+
+
 class Error403View(BasicErrorView):
     error_code = 403
     error_message = "Access forbidden"

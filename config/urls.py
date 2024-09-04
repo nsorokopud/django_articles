@@ -28,6 +28,7 @@ else:
     urlpatterns.append(path("__djangoblog__/", admin.site.urls))
 
 # Error handlers
+handler400 = project_views.Error400View.as_view()
 handler403 = project_views.Error403View.as_view()
 handler404 = project_views.Error404View.as_view()
 handler405 = project_views.Error405View.as_view()
