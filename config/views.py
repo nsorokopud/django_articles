@@ -35,11 +35,6 @@ class Error404View(BasicErrorView):
     error_message = "Page not found"
 
 
-class Error405View(BasicErrorView):
-    error_code = 405
-    error_message = "Method not allowed"
-
-
 class Error500View(BasicErrorView):
     error_code = 500
     error_message = "Internal server error"
