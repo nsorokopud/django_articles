@@ -1,6 +1,7 @@
 from django_filters.views import FilterView
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.defaultfilters import slugify
@@ -116,3 +117,12 @@ class CommentLikeView(View):
         user_id = request.user.id
         likes_count = services.toggle_comment_like(comment_id, user_id)
         return JsonResponse({"comment_likes_count": likes_count})
+
+
+class AttachedFileUploadView(LoginRequiredMixin, View):
+    def post(self, request):
+        file = request.FILES.get("file")
+        article_id = request.POST.get("articleId")
+        file_path, article_url = services.save_media_file_attached_to_article(file, article_id)
+        data = {"location": default_storage.url(file_path), "articleUrl": article_url}
+        return JsonResponse({"status": "success", "data": data})
