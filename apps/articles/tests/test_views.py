@@ -1,4 +1,7 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Count
 from django.http import Http404
 from django.test import Client, TestCase
@@ -230,3 +233,54 @@ class TestViews(TestCase):
             .likes_count
         )
         self.assertEqual(likes_count, 0)
+
+    def test_attached_file_upload_view_unauthorized(self):
+        url = reverse("attached-file-upload")
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={url}",
+            status_code=302,
+            target_status_code=200,
+        )
+
+    def test_attached_file_upload_view_incorrect_post_data(self):
+        url = reverse("attached-file-upload")
+        self.client.force_login(self.test_user)
+
+        with self.assertRaises(Article.DoesNotExist):
+            response = self.client.post(url)
+
+        self.client.raise_request_exception = False
+
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 500)
+
+        response = self.client.post(url, {}, headers={"X-Requested-With": "XMLHttpRequest"})
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "error")
+        self.assertEqual(response_json["message"], "HTTP Error 500: Internal server error")
+
+        self.client.raise_request_exception = True
+
+    def test_attached_file_upload_view_correct(self):
+        file_name = "file.jpg"
+        self.client.force_login(self.test_user)
+
+        with patch(
+            "django.core.files.storage.default_storage.save", side_effect=[file_name]
+        ), patch("django.core.files.storage.default_storage.url", side_effect=[file_name]):
+            file = SimpleUploadedFile(file_name, b"file_content", content_type="image/jpg")
+            response = self.client.post(
+                reverse("attached-file-upload"),
+                {"articleId": self.test_article.id, "file": file},
+                headers={"X-Requested-With": "XMLHttpRequest"},
+            )
+            self.assertEqual(response.status_code, 200)
+            response_json = response.json()
+            self.assertEqual(response_json["status"], "success")
+            self.assertEqual(
+                response_json["data"],
+                {"location": "file.jpg", "articleUrl": "/articles/test-article"},
+            )
