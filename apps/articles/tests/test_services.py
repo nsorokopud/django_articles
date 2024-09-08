@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 from taggit.models import Tag
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.test import TestCase
 
@@ -20,6 +23,7 @@ from articles.services import (
     get_article_by_slug,
     get_comment_by_id,
     increment_article_views_counter,
+    save_media_file_attached_to_article,
     toggle_article_like,
     toggle_comment_like,
     _generate_unique_article_slug,
@@ -546,3 +550,24 @@ class TestServices(TestCase):
         c1.delete()
         with self.assertRaises(ArticleComment.DoesNotExist):
             get_comment_by_id(1)
+
+    def test_save_media_file_attached_to_article(self):
+        a = Article.objects.create(
+            title="a1", slug="a1", author=self.test_user, preview_text="text1", content="content1"
+        )
+
+        file_name = "file.jpg"
+        file_path = f"articles/uploads/{self.test_user.username}/{a.id}/file_xyz-xyz.jpg"
+        file = SimpleUploadedFile(file_name, b"file_content", content_type="image/jpg")
+
+        with self.assertRaises(Article.DoesNotExist):
+            save_media_file_attached_to_article(file, -1)
+
+        with patch("articles.services.uuid4", return_value="xyz-xyz") as uuid_mock, patch(
+            "articles.services.default_storage.save", side_effect=[file_name]
+        ) as save_mock:
+            res = save_media_file_attached_to_article(file, a.id)
+            uuid_mock.assert_called_once()
+            save_mock.assert_called_once_with(file_path, file)
+            self.assertEqual(res[0], file_path)
+            self.assertEqual(res[1], a.get_absolute_url())
