@@ -63,13 +63,21 @@ class ArticleDetailView(CategoriesMixin, DetailView):
 class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
     model = Article
     form_class = ArticleCreateForm
-    template_name = "articles/article_create.html"
+    template_name = "articles/article_form.html"
     login_url = reverse_lazy("login")
 
     def get_form_kwargs(self):
         kwargs = super(ArticleCreateView, self).get_form_kwargs()
         kwargs["request"] = self.request
         return kwargs
+
+    def post(self, request):
+        form = ArticleCreateForm(request.POST, request=request)
+        if form.is_valid():
+            article = form.save()
+            data = {"articleId": article.id, "articleUrl": article.get_absolute_url()}
+            return JsonResponse({"status": "success", "data": data})
+        return JsonResponse({"status": "fail", "data": form.errors})
 
 
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
