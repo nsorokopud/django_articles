@@ -76,6 +76,61 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/article_form.html")
 
+    def test_article_create_view_post_unauthorized(self):
+        url = reverse("article-create")
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={url}",
+            status_code=302,
+            target_status_code=200,
+        )
+
+    def test_article_create_view_post_authorized(self):
+        article_data = {"title": "a1", "preview_text": "1", "content": "1"}
+        invalid_article_data = {"title": "a1"}
+
+        with self.assertRaises(Article.DoesNotExist):
+            Article.objects.get(slug="a1")
+
+        self.client.force_login(self.test_user)
+
+        url = reverse("article-create")
+
+        response = self.client.post(
+            url, invalid_article_data, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "fail")
+        self.assertEqual(
+            response_json["data"],
+            {"preview_text": ["This field is required."], "content": ["This field is required."]},
+        )
+
+        response = self.client.post(
+            url, article_data, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "success")
+        self.assertEqual(
+            response_json["data"],
+            {"articleId": self.test_article.id + 1, "articleUrl": "/articles/a1"},
+        )
+
+        a = Article.objects.get(slug="a1")
+        self.assertEqual(a.title, article_data["title"])
+        self.assertEqual(a.slug, article_data["title"])
+        self.assertEqual(a.author, self.test_user)
+        self.assertEqual(a.category, None)
+        self.assertCountEqual(a.tags.all(), [])
+        self.assertEqual(a.preview_text, article_data["preview_text"])
+        self.assertEqual(a.content, article_data["content"])
+        with self.assertRaises(ValueError):
+            self.assertEqual(a.preview_image.url)
+        self.assertEqual(a.is_published, True)
+
     def test_article_update_view_post_unauthorized(self):
         url = reverse("article-update", args=[self.test_article.slug])
         self.client.get(url)
