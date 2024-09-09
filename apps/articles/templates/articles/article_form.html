@@ -27,6 +27,7 @@
             <a href="{{ article.get_absolute_url }}" 
               class="btn btn-secondary mx-3">Go back</a>
             <input type="hidden" id="articleId" value="{{ form.instance.id }}"/>
+            <input type="hidden" id="articleSlug" value="{{ form.instance.slug }}"/>
           {% else %}
             <button id="articleFormCreateButton" class="btn btn-outline-success"
               type="submit">Create</button>
