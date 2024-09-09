@@ -51,10 +51,10 @@ function onArticleFormCreateButtonClick() {
 
             if (containsUploadedImages) {
                 tinymce.activeEditor.uploadImages().then(() => {
-                    updateArticle(response.data.articleId, form, tinymce.activeEditor);
+                    updateArticle(response.data.articleSlug, form, tinymce.activeEditor);
                 });
             } else {
-                updateArticle(response.data.articleId, form, tinymce.activeEditor);
+                updateArticle(response.data.articleSlug, form, tinymce.activeEditor);
             }
         } else if (response.status == 'fail') {
             displayFormValidationErrors(response);
@@ -74,6 +74,7 @@ function onArticleFormUpdateButtonClick() {
 
     let form = document.getElementById('articleForm');
     let articleId = document.getElementById('articleId').value;
+    let articleSlug = document.getElementById('articleSlug').value;
     let content = tinymce.activeEditor.getBody();
 
     let containsUploadedImages = checkIfContentContainsUploadedImages(content);
@@ -81,16 +82,16 @@ function onArticleFormUpdateButtonClick() {
     if (containsUploadedImages) {
         localStorage.setItem('createdArticleId', articleId);
         tinymce.activeEditor.uploadImages().then(() => {
-            updateArticle(articleId, form, tinymce.activeEditor);
+            updateArticle(articleSlug, form, tinymce.activeEditor);
         });
     } else {
-        updateArticle(articleId, form, tinymce.activeEditor);
+        updateArticle(articleSlug, form, tinymce.activeEditor);
     }
 }
 
-function updateArticle(articleId, form, editor) {
+function updateArticle(articleSlug, form, editor) {
     xhr = new XMLHttpRequest();
-    xhr.open('POST', `/articles/${articleId}/update`);
+    xhr.open('POST', `/articles/${articleSlug}/update`);
     xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
