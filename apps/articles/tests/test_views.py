@@ -116,7 +116,11 @@ class TestViews(TestCase):
         self.assertEqual(response_json["status"], "success")
         self.assertEqual(
             response_json["data"],
-            {"articleId": self.test_article.id + 1, "articleUrl": "/articles/a1"},
+            {
+                "articleId": self.test_article.id + 1,
+                "articleSlug": article_data["title"],
+                "articleUrl": "/articles/a1",
+            },
         )
 
         a = Article.objects.get(slug="a1")

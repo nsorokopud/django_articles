@@ -75,7 +75,7 @@ class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
         form = ArticleCreateForm(request.POST, request=request)
         if form.is_valid():
             article = form.save()
-            data = {"articleId": article.id, "articleUrl": article.get_absolute_url()}
+            data = {"articleId": article.id, "articleSlug": article.slug, "articleUrl": article.get_absolute_url()}
             return JsonResponse({"status": "success", "data": data})
         return JsonResponse({"status": "fail", "data": form.errors})
 
