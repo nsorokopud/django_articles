@@ -42,8 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
-    "ckeditor",
-    "ckeditor_uploader",
+    "tinymce",
     "crispy_forms",
     "debug_toolbar",
     "taggit",
@@ -224,30 +223,34 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
 
-# CKEditor
 
-CKEDITOR_UPLOAD_PATH = "ckeditor_uploads/"
-CKEDITOR_IMAGE_BACKEND = "pillow"
-CKEDITOR_BROWSE_SHOW_DIRS = True
-CKEDITOR_RESTRICT_BY_USER = True
+# TinyMCE
 
-CKEDITOR_CONFIGS = {
-    "default": {
-        "toolbar": [
-            ["Undo", "Redo", "Maximize"],
-            ["PasteFromWord"],
-            ["Find", "Replace", "SelectAll"],
-            ["Bold", "Italic", "Underline", "Strike", "Subscript", "Superscript"],
-            ["Font", "FontSize", "TextColor", "BGColor", "Styles", "Format", "RemoveFormat"],
-            ["JustifyLeft", "JustifyCenter", "JustifyRight", "JustifyBlock"],
-            ["NumberedList", "BulletedList", "Outdent", "Indent", "BidiLtr", "BidiRtl"],
-            ["Link", "Unlink", "Anchor"],
-            ["Image", "Iframe", "Table", "HorizontalRule", "Smiley", "SpecialChar", "Blockquote"],
-            ["Source", "Preview"],
-        ],
-        "width": "100%",
-    },
+TINYMCE_JS_URL = "https://cdn.jsdelivr.net/npm/tinymce@7.3.0/tinymce.min.js"
+
+TINYMCE_EXTRA_MEDIA = {
+    "js": ["js/tinymce-upload-handler.js"],
 }
+
+TINYMCE_DEFAULT_CONFIG = {
+    "theme": "silver",
+    "height": 500,
+    "width": "100%",
+    "menubar": False,
+    "plugins": "image link autolink media advlist lists table codesample charmap fullscreen",
+    "toolbar": [
+        "undo redo | fullscreen | hr image media table codesample blockquote | subscript superscript charmap",
+        "blocks | bullist numlist indent outdent | alignleft aligncenter alignright alignjustify lineheight",
+        "fontfamily fontsize | bold italic underline strikethrough forecolor backcolor | removeformat",
+    ],
+    "file_picker_types": "image media",
+    "images_upload_url": "/tinymce/upload",
+    "images_upload_handler": "tinymceUploadHandler",
+    "automatic_uploads": False,
+    "promotion": False,
+    "license_key": "gpl",
+}
+
 
 # AWS
 
