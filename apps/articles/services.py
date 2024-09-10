@@ -183,16 +183,24 @@ def get_comment_by_id(comment_id: int) -> ArticleComment:
 
 
 def _generate_unique_article_slug(article_title: str):
-    slug = slugify(article_title)
-    unique_slug = slug
+    """Returns a unique slug for the specified article title. If an
+    article with the specified title already exists, the corresponding
+    slug is returned. Otherwise the next available unique slug is
+    returned.
+    """
+    try:
+        article = Article.objects.get(title=article_title)
+        return article.slug
+    except Article.DoesNotExist:
+        slug = slugify(article_title)
+        unique_slug = slug
 
-    number = 1
-    while Article.objects.filter(slug=unique_slug).exists():
-        unique_slug = f"{slug}-{number}"
-        number += 1
-
-    return unique_slug
-
+        number = 1
+        while Article.objects.filter(slug=unique_slug).exists():
+            unique_slug = f"{slug}-{number}"
+            number += 1
+    
+        return unique_slug
 
 def save_media_file_attached_to_article(file: IO, article_id: int) -> tuple[str, str]:
     article = get_article_by_id(article_id)

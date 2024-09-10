@@ -278,13 +278,16 @@ class TestServices(TestCase):
         Article.objects.create(
             title="abc", slug="abc", author=self.test_user, preview_text="1", content="1"
         )
-        next_slug = _generate_unique_article_slug("abc")
-        self.assertEqual(next_slug, "abc-1")
+
+        self.assertEqual(_generate_unique_article_slug("abc"), "abc")
+        self.assertEqual(_generate_unique_article_slug("abc "), "abc-1")
 
         Article.objects.create(
-            title="abc-", slug=next_slug, author=self.test_user, preview_text="1", content="1"
+            title="abc-", slug="abc-1", author=self.test_user, preview_text="1", content="1"
         )
-        self.assertEqual(_generate_unique_article_slug("abc"), "abc-2")
+        self.assertEqual(_generate_unique_article_slug("abc"), "abc")
+        self.assertEqual(_generate_unique_article_slug("abc-"), "abc-1")
+        self.assertEqual(_generate_unique_article_slug("abc -"), "abc-2")
 
     def test_create_article(self):
         a1 = create_article(
