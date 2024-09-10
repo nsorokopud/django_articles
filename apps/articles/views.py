@@ -4,7 +4,6 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.template.defaultfilters import slugify
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -12,7 +11,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, U
 from articles import services
 from articles.constants import ARTICLES_PER_PAGE_COUNT
 from articles.filters import ArticleFilter
-from articles.forms import ArticleCreateForm, ArticleCommentForm
+from articles.forms import ArticleCreateForm, ArticleUpdateForm, ArticleCommentForm
 from articles.models import Article
 from articles.utils import AllowOnlyAuthorMixin, CategoriesMixin
 
@@ -83,14 +82,25 @@ class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     model = Article
     fields = ["title", "category", "tags", "preview_text", "preview_image", "content"]
-    slug_url_kwarg = "article_slug"
     login_url = reverse_lazy("login")
-    template_name = "articles/article_update.html"
+    template_name_suffix = "_form"
 
-    def form_valid(self, form):
-        form.instance.author = self.request.user
-        form.instance.slug = slugify(form.instance.title)
-        return super().form_valid(form)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["update"] = True
+        return context
+
+    def get_object(self):
+        return services.get_article_by_slug(self.kwargs["article_slug"])
+
+    def post(self, request, *args, **kwargs):
+        article = self.get_object()
+        form = ArticleUpdateForm(request.POST, instance=article)
+        if form.is_valid():
+            article = form.save()
+            data = {"articleUrl": article.get_absolute_url()}
+            return JsonResponse({"status": "success", "data": data})
+        return JsonResponse({"status": "fail", "data": form.errors})
 
 
 class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
