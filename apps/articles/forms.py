@@ -1,7 +1,7 @@
 from django import forms
 
 from articles.models import Article, ArticleComment
-from articles.services import create_article, get_article_by_id, _generate_unique_article_slug
+from articles.services import create_article, _generate_unique_article_slug
 
 
 class ArticleCreateForm(forms.ModelForm):
@@ -39,9 +39,7 @@ class ArticleUpdateForm(forms.ModelForm):
 
     def save(self, **kwargs):
         instance = super().save(commit=False, **kwargs)
-        previous_title = get_article_by_id(instance.id).title
-        if instance.title != previous_title:
-            instance.slug = _generate_unique_article_slug(instance.title)
+        instance.slug = _generate_unique_article_slug(instance.title)
         instance.save()
         self.save_m2m()
         return instance
