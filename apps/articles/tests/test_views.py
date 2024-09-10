@@ -108,6 +108,8 @@ class TestViews(TestCase):
             {"preview_text": ["This field is required."], "content": ["This field is required."]},
         )
 
+        self.assertEqual(Article.objects.count(), 1)
+
         response = self.client.post(
             url, article_data, headers={"X-Requested-With": "XMLHttpRequest"}
         )
@@ -122,6 +124,8 @@ class TestViews(TestCase):
                 "articleUrl": "/articles/a1",
             },
         )
+
+        self.assertEqual(Article.objects.count(), 2)
 
         a = Article.objects.get(slug="a1")
         self.assertEqual(a.title, article_data["title"])
