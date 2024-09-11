@@ -6,9 +6,8 @@ from articles.services import get_all_categories
 class AllowOnlyAuthorMixin:
     def dispatch(self, *args, **kwargs):
         if self.get_object().author != self.request.user:
-            raise Http404()
-        else:
-            return super().dispatch(*args, **kwargs)
+            raise Http404
+        return super().dispatch(*args, **kwargs)
 
 
 class CategoriesMixin:
