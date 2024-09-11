@@ -156,7 +156,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True
+            is_published=True,
         )
         a1.tags.add("cat1", "tag1")
         a2 = Article.objects.create(
@@ -167,7 +167,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text2",
             content="content2",
-            is_published=True
+            is_published=True,
         )
         a3 = Article.objects.create(
             title="a3",
@@ -176,7 +176,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text3",
             content="content3",
-            is_published=True
+            is_published=True,
         )
         a4 = Article.objects.create(
             title="a4",
@@ -185,7 +185,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text4",
             content="content4",
-            is_published=True
+            is_published=True,
         )
         a4.tags.add("tag", "tag1", "tag2")
         Article.objects.create(
@@ -195,7 +195,7 @@ class TestServices(TestCase):
             author=self.test_user,
             preview_text="text5",
             content="content5",
-            is_published=False
+            is_published=False,
         )
 
         self.assertCountEqual(find_articles_by_query("a"), [a1, a2, a3, a4])  # By title
@@ -396,7 +396,7 @@ class TestServices(TestCase):
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
-            content="content1"
+            content="content1",
         )
         _id = a.id
 
@@ -417,7 +417,7 @@ class TestServices(TestCase):
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
-            content="content1"
+            content="content1",
         )
 
         res = get_article_by_slug("a1")
