@@ -1,9 +1,12 @@
-from typing import Iterable, List, Optional
+import os
+from typing import Iterable, IO, List, Optional
+from uuid import uuid4
 
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
 from django.contrib.auth.models import User
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.db.models.query import QuerySet
@@ -180,12 +183,30 @@ def get_comment_by_id(comment_id: int) -> ArticleComment:
 
 
 def _generate_unique_article_slug(article_title: str):
-    slug = slugify(article_title)
-    unique_slug = slug
+    """Returns a unique slug for the specified article title. If an
+    article with the specified title already exists, the corresponding
+    slug is returned. Otherwise the next available unique slug is
+    returned.
+    """
+    try:
+        article = Article.objects.get(title=article_title)
+        return article.slug
+    except Article.DoesNotExist:
+        slug = slugify(article_title)
+        unique_slug = slug
 
-    number = 1
-    while Article.objects.filter(slug=unique_slug).exists():
-        unique_slug = f"{slug}-{number}"
-        number += 1
+        number = 1
+        while Article.objects.filter(slug=unique_slug).exists():
+            unique_slug = f"{slug}-{number}"
+            number += 1
+    
+        return unique_slug
 
-    return unique_slug
+def save_media_file_attached_to_article(file: IO, article_id: int) -> tuple[str, str]:
+    article = get_article_by_id(article_id)
+    name, extension = str(file).split(".")
+    filename = f"{name}_{uuid4()}.{extension}"
+    directory = os.path.join("articles", "uploads", article.author.username, str(article_id))
+    file_path = os.path.join(directory, filename)
+    default_storage.save(file_path, file)
+    return file_path, article.get_absolute_url()

@@ -2,8 +2,8 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.urls import reverse
 
-from ckeditor_uploader.fields import RichTextUploadingField
 from taggit.managers import TaggableManager
+from tinymce.models import HTMLField
 
 from articles.constants import DISPLAYED_COMMENT_LENGTH
 
@@ -18,7 +18,7 @@ class Article(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     preview_text = models.TextField(max_length=512)
     preview_image = models.ImageField(upload_to="articles/preview_images/", null=True, blank=True)
-    content = RichTextUploadingField()
+    content = HTMLField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, db_index=True)

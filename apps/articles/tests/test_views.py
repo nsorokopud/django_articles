@@ -1,4 +1,7 @@
+from unittest.mock import patch
+
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Count
 from django.http import Http404
 from django.test import Client, TestCase
@@ -73,12 +76,99 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/article_form.html")
 
-    def test_article_update_view_post_unauthorized(self):
-        url = reverse("article-update", args=[self.test_article.slug])
-        self.client.get(url)
-        self.assertRaises(Http404)
+    def test_article_create_view_post_unauthorized(self):
+        url = reverse("article-create")
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={url}",
+            status_code=302,
+            target_status_code=200,
+        )
 
-    def test_article_update_view_post_authorized(self):
+    def test_article_create_view_post_authorized(self):
+        article_data = {"title": "a1", "preview_text": "1", "content": "1"}
+        invalid_article_data = {"title": "a1"}
+
+        with self.assertRaises(Article.DoesNotExist):
+            Article.objects.get(slug="a1")
+
+        self.client.force_login(self.test_user)
+
+        url = reverse("article-create")
+
+        response = self.client.post(
+            url, invalid_article_data, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "fail")
+        self.assertEqual(
+            response_json["data"],
+            {"preview_text": ["This field is required."], "content": ["This field is required."]},
+        )
+
+        self.assertEqual(Article.objects.count(), 1)
+
+        response = self.client.post(
+            url, article_data, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "success")
+        self.assertEqual(
+            response_json["data"],
+            {
+                "articleId": self.test_article.id + 1,
+                "articleSlug": article_data["title"],
+                "articleUrl": "/articles/a1",
+            },
+        )
+
+        self.assertEqual(Article.objects.count(), 2)
+
+        a = Article.objects.get(slug="a1")
+        self.assertEqual(a.title, article_data["title"])
+        self.assertEqual(a.slug, article_data["title"])
+        self.assertEqual(a.author, self.test_user)
+        self.assertEqual(a.category, None)
+        self.assertCountEqual(a.tags.all(), [])
+        self.assertEqual(a.preview_text, article_data["preview_text"])
+        self.assertEqual(a.content, article_data["content"])
+        with self.assertRaises(ValueError):
+            self.assertEqual(a.preview_image.url)
+        self.assertEqual(a.is_published, True)
+
+    def test_article_update_view_get(self):
+        url = reverse("article-update", kwargs={"article_slug": self.test_article.slug})
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+        user = User.objects.create_user("user1")
+        self.client.force_login(user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+        self.client.force_login(self.test_user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "articles/article_form.html")
+
+        url = reverse("article-update", kwargs={"article_slug": "non-existent-article"})
+
+        with self.assertRaises(Article.DoesNotExist):
+            response = self.client.get(url)
+
+        self.client.raise_request_exception = False
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 500)
+        self.assertTemplateUsed(response, "error.html")
+        self.assertEqual(response.context["error_code"], 500)
+        self.assertEqual(response.context["error_message"], "Internal server error")
+        self.client.raise_request_exception = True
+
+    def test_article_update_view_post_unauthorized(self):
         updated_data = {
             "title": "new title",
             "preview_text": "new preview text",
@@ -97,24 +187,102 @@ class TestViews(TestCase):
             author=self.test_user,
         )
 
-        self.client.login(username="test_user", password="12345")
-        response = self.client.post(reverse("article-update", args=[a.slug]), updated_data)
-
-        a.refresh_from_db()
-        self.assertRedirects(
-            response,
-            reverse("article-details", args=[a.slug]),
-            status_code=302,
-            target_status_code=200,
+        response = self.client.post(
+            reverse("article-update", kwargs={"article_slug": a.slug}),
+            updated_data,
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"status": "error", "message": "HTTP Error 404: Page not found"}
         )
 
+        user = User.objects.create_user(username="user1")
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("article-update", kwargs={"article_slug": a.slug}),
+            updated_data,
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"message": "HTTP Error 404: Page not found", "status": "error"}
+        )
+
+    def test_article_update_view_post_authorized(self):
+        invalid_updated_data = {
+            "title": "",
+            "content": "",
+        }
+
+        cat = ArticleCategory.objects.create(title="new category", slug="new-category")
+
+        updated_data = {
+            "title": "new title",
+            "category": cat.id,
+            "preview_text": "new preview text",
+            "content": "new content",
+            "tags": "tag2, tag3",
+        }
+
+        a = Article.objects.create(
+            title="title",
+            slug="slug",
+            category=self.test_category,
+            preview_text="text",
+            content="content",
+            author=self.test_user,
+        )
+        a.tags.add("tag1")
+
+        url = reverse("article-update", kwargs={"article_slug": "non-existent-article"})
+
+        self.client.force_login(self.test_user)
+        with self.assertRaises(Article.DoesNotExist):
+            response = self.client.post(
+                url, updated_data, headers={"X-Requested-With": "XMLHttpRequest"}
+            )
+
+        self.client.raise_request_exception = False
+        response = self.client.post(
+            url, updated_data, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"status": "error", "message": "HTTP Error 500: Internal server error"},
+        )
+        self.client.raise_request_exception = True
+
+        response = self.client.post(reverse("article-update", args=[a.slug]), invalid_updated_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "fail",
+                "data": {
+                    "title": ["This field is required."],
+                    "preview_text": ["This field is required."],
+                    "content": ["This field is required."],
+                },
+            },
+        )
+
+        response = self.client.post(reverse("article-update", args=[a.slug]), updated_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"status": "success", "data": {"articleUrl": "/articles/new-title"}}
+        )
+
+        a.refresh_from_db()
         self.assertEqual(a.author.username, "test_user")
         self.assertEqual(a.title, "new title")
         self.assertEqual(a.slug, "new-title")
+        self.assertEqual(a.category.title, "new category")
         self.assertEqual(a.preview_text, "new preview text")
         self.assertEqual(a.content, "new content")
         new_tags = [tag.name for tag in a.tags.all()]
-        self.assertCountEqual(new_tags, ["tag1", "tag2"])
+        self.assertCountEqual(new_tags, ["tag2", "tag3"])
 
     def test_article_delete_view_unauthorized(self):
         url = reverse("article-delete", args=[self.test_article.slug])
@@ -230,3 +398,54 @@ class TestViews(TestCase):
             .likes_count
         )
         self.assertEqual(likes_count, 0)
+
+    def test_attached_file_upload_view_unauthorized(self):
+        url = reverse("attached-file-upload")
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={url}",
+            status_code=302,
+            target_status_code=200,
+        )
+
+    def test_attached_file_upload_view_incorrect_post_data(self):
+        url = reverse("attached-file-upload")
+        self.client.force_login(self.test_user)
+
+        with self.assertRaises(Article.DoesNotExist):
+            response = self.client.post(url)
+
+        self.client.raise_request_exception = False
+
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 500)
+
+        response = self.client.post(url, {}, headers={"X-Requested-With": "XMLHttpRequest"})
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "error")
+        self.assertEqual(response_json["message"], "HTTP Error 500: Internal server error")
+
+        self.client.raise_request_exception = True
+
+    def test_attached_file_upload_view_correct(self):
+        file_name = "file.jpg"
+        self.client.force_login(self.test_user)
+
+        with patch(
+            "django.core.files.storage.default_storage.save", side_effect=[file_name]
+        ), patch("django.core.files.storage.default_storage.url", side_effect=[file_name]):
+            file = SimpleUploadedFile(file_name, b"file_content", content_type="image/jpg")
+            response = self.client.post(
+                reverse("attached-file-upload"),
+                {"articleId": self.test_article.id, "file": file},
+                headers={"X-Requested-With": "XMLHttpRequest"},
+            )
+            self.assertEqual(response.status_code, 200)
+            response_json = response.json()
+            self.assertEqual(response_json["status"], "success")
+            self.assertEqual(
+                response_json["data"],
+                {"location": "file.jpg", "articleUrl": "/articles/test-article"},
+            )

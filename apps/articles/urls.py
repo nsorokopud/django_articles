@@ -5,6 +5,7 @@ from articles import views
 
 urlpatterns = [
     path("", views.HomePageView.as_view(), name="home"),
+    path("tinymce/upload", views.AttachedFileUploadView.as_view(), name="attached-file-upload"),
     path("articles/", views.ArticleListFilterView.as_view(), name="articles"),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
