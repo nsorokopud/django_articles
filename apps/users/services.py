@@ -10,6 +10,10 @@ def create_user_profile(user: User) -> Profile:
     return profile
 
 
+def get_all_users() -> QuerySet[User]:
+    return User.objects.all()
+
+
 def get_user_by_id(user_id: int) -> User:
     return User.objects.get(id=user_id)
 
