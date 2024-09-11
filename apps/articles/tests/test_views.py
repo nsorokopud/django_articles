@@ -305,7 +305,9 @@ class TestViews(TestCase):
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)
 
-        self.assertRedirects(response, reverse("articles"), status_code=302, target_status_code=200)
+        self.assertRedirects(
+            response, reverse("articles"), status_code=302, target_status_code=200
+        )
 
     def test_article_comment_view_unauthorized(self):
         url = reverse("article-comment", args=[self.test_article.slug])
