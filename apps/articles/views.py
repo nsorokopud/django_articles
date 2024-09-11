@@ -71,7 +71,7 @@ class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
         return kwargs
 
     def post(self, request):
-        form = ArticleCreateForm(request.POST, request=request)
+        form = ArticleCreateForm(request.POST, request.FILES, request=request)
         if form.is_valid():
             article = form.save()
             data = {"articleId": article.id, "articleSlug": article.slug, "articleUrl": article.get_absolute_url()}
@@ -95,7 +95,7 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
 
     def post(self, request, *args, **kwargs):
         article = self.get_object()
-        form = ArticleUpdateForm(request.POST, instance=article)
+        form = ArticleUpdateForm(request.POST, request.FILES, instance=article)
         if form.is_valid():
             article = form.save()
             data = {"articleUrl": article.get_absolute_url()}
