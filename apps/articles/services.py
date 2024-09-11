@@ -210,3 +210,10 @@ def save_media_file_attached_to_article(file: IO, article_id: int) -> tuple[str,
     file_path = os.path.join(directory, filename)
     default_storage.save(file_path, file)
     return file_path, article.get_absolute_url()
+
+
+def delete_media_files_attached_to_article(article: Article) -> None:
+    article_dir = os.path.join("articles", "uploads", article.author.username, str(article.id))
+    for file in default_storage.listdir(article_dir)[1]:
+        default_storage.delete(os.path.join(article_dir, file))
+    default_storage.delete(article_dir)
