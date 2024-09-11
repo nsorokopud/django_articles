@@ -1,4 +1,5 @@
-from unittest.mock import patch
+import os
+from unittest.mock import call, patch
 
 from taggit.models import Tag
 
@@ -10,6 +11,7 @@ from django.test import TestCase
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
     create_article,
+    delete_media_files_attached_to_article,
     find_articles_by_query,
     find_articles_of_category,
     find_articles_with_tags,
@@ -574,3 +576,24 @@ class TestServices(TestCase):
             save_mock.assert_called_once_with(file_path, file)
             self.assertEqual(res[0], file_path)
             self.assertEqual(res[1], a.get_absolute_url())
+
+    def test_delete_media_files_attached_to_article(self):
+        a = Article.objects.create(
+            title="a1", slug="a1", author=self.test_user, preview_text="text1", content="content1"
+        )
+        directory = f"articles/uploads/{self.test_user.username}/{a.id}"
+
+        with patch(
+            "articles.services.default_storage.listdir",
+            return_value=[[directory], ["file1", "file2"]],
+        ), patch("articles.services.default_storage.delete") as delete_mock:
+
+            delete_media_files_attached_to_article(a)
+            delete_mock.assert_has_calls(
+                [
+                    call(os.path.join(directory, "file1")),
+                    call(os.path.join(directory, "file2")),
+                    call(directory),
+                ],
+                any_order=False,
+            )
