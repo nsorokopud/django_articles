@@ -7,6 +7,7 @@ from users.services import (
     create_user_profile,
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
+    get_all_users,
     get_user_by_id,
     get_user_by_username,
     toggle_user_supscription
@@ -109,6 +110,15 @@ class TestServices(TestCase):
         a1.profile.subscribers.remove(self.test_user)
         res = get_all_supscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [])
+
+    def test_get_all_users(self):
+        self.assertCountEqual(get_all_users(), [self.test_user])
+
+        new_user = User.objects.create(username="new_user")
+        self.assertCountEqual(get_all_users(), [self.test_user, new_user])
+
+        new_user.delete()
+        self.assertCountEqual(get_all_users(), [self.test_user])
 
     def test_toggle_user_supscription(self):
         author = User.objects.create(username="author")
