@@ -26,10 +26,18 @@ class TestNotificationIntegration(TransactionTestCase):
         cls.celery_worker.__exit__(None, None, None)
 
     async def test_client_receives_notification_upon_new_article_creation(self):
-        user1 = await database_sync_to_async(User.objects.create_user)(username="u1", email="u1@test.com")
-        user2 = await database_sync_to_async(User.objects.create_user)(username="u2", email="u2@test.com")
-        user3 = await database_sync_to_async(User.objects.create_user)(username="u3", email="u3@test.com")
-        author = await database_sync_to_async(User.objects.create_user)(username="author", email="author@test.com")
+        user1 = await database_sync_to_async(User.objects.create_user)(
+            username="u1", email="u1@test.com"
+        )
+        user2 = await database_sync_to_async(User.objects.create_user)(
+            username="u2", email="u2@test.com"
+        )
+        user3 = await database_sync_to_async(User.objects.create_user)(
+            username="u3", email="u3@test.com"
+        )
+        author = await database_sync_to_async(User.objects.create_user)(
+            username="author", email="author@test.com"
+        )
 
         communicator1 = WebsocketCommunicator(
             NotificationConsumer.as_asgi(), "GET", "notifications"
@@ -69,15 +77,11 @@ class TestNotificationIntegration(TransactionTestCase):
         self.assertEqual(response3, True)
 
         self.assertEqual(response1["title"], "New Article")
-        self.assertEqual(
-            response1["text"], f"New article from {author.username}: '{a.title}'"
-        )
+        self.assertEqual(response1["text"], f"New article from {author.username}: '{a.title}'")
         self.assertEqual(response1["link"], f"/articles/{a.slug}")
 
         self.assertEqual(response2["title"], "New Article")
-        self.assertEqual(
-            response2["text"], f"New article from {author.username}: '{a.title}'"
-        )
+        self.assertEqual(response2["text"], f"New article from {author.username}: '{a.title}'")
         self.assertEqual(response2["link"], f"/articles/{a.slug}")
 
         self.assertNotEqual(response1["id"], response2["id"])
@@ -96,7 +100,7 @@ class TestNotificationIntegration(TransactionTestCase):
             preview_text="text1",
             content="content1",
         )
-        
+
         communicator = WebsocketCommunicator(
             NotificationConsumer.as_asgi(), "GET", "notifications"
         )
