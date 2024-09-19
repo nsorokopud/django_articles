@@ -34,7 +34,7 @@ def _send_notification(notification: Notification, group_name: str):
             "message": notification.message,
             "link": notification.link,
             "timestamp": notification.created_at.isoformat(),
-        }
+        },
     )
 
 
