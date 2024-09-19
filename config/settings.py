@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "tinymce",
     "crispy_forms",
+    "hcaptcha_field",
     "debug_toolbar",
     "taggit",
     "django_filters",
@@ -222,6 +223,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Chrispy forms
 
 CRISPY_TEMPLATE_PACK = "bootstrap4"
+
+
+# hCaptcha
+
+HCAPTCHA_SITEKEY = os.getenv("HCAPTCHA_SITEKEY", "")
+HCAPTCHA_SECRET = os.getenv("HCAPTCHA_SECRET", "")
 
 
 # TinyMCE
