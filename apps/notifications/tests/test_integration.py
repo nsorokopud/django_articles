@@ -2,13 +2,13 @@ from celery.contrib.testing.worker import start_worker
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
-from django.contrib.auth.models import User
 from django.test import TransactionTestCase
 
 from ..consumers import NotificationConsumer
 from articles.models import Article, ArticleComment
 from config.celery import app
 from notifications.models import Notification
+from users.models import User
 
 
 class TestNotificationIntegration(TransactionTestCase):
@@ -26,11 +26,11 @@ class TestNotificationIntegration(TransactionTestCase):
         cls.celery_worker.__exit__(None, None, None)
 
     async def test_client_receives_notification_upon_new_article_creation(self):
-        user1 = await database_sync_to_async(User.objects.create_user)(username="u1")
-        user2 = await database_sync_to_async(User.objects.create_user)(username="u2")
-        user3 = await database_sync_to_async(User.objects.create_user)(username="u3")
-        author = await database_sync_to_async(User.objects.create_user)(username="author")
-        
+        user1 = await database_sync_to_async(User.objects.create_user)(username="u1", email="u1@test.com")
+        user2 = await database_sync_to_async(User.objects.create_user)(username="u2", email="u2@test.com")
+        user3 = await database_sync_to_async(User.objects.create_user)(username="u3", email="u3@test.com")
+        author = await database_sync_to_async(User.objects.create_user)(username="author", email="author@test.com")
+
         communicator1 = WebsocketCommunicator(
             NotificationConsumer.as_asgi(), "GET", "notifications"
         )

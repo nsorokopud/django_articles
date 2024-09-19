@@ -5,7 +5,6 @@ from uuid import uuid4
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
-from django.contrib.auth.models import User
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Count, F, Q
@@ -14,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 
 from articles.models import Article, ArticleCategory, ArticleComment
+from users.models import User
 
 
 def find_published_articles() -> QuerySet[Article]:

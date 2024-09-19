@@ -1,8 +1,7 @@
-from django.contrib.auth.models import User
 from django.db.models import signals
 from django.test import TestCase
 
-from users.models import Profile
+from users.models import Profile, User
 from users.services import (
     create_user_profile,
     find_user_profiles_with_subscribers,
@@ -89,8 +88,8 @@ class TestServices(TestCase):
             get_user_by_username("non_existent_user")
 
     def test_get_all_supscriptions_of_user(self):
-        a1 = User.objects.create_user(username="author1")
-        a2 = User.objects.create_user(username="author2")
+        a1 = User.objects.create_user(username="author1", email="author1@test.com")
+        a2 = User.objects.create_user(username="author2",  email="author2@test.com")
 
         res = get_all_supscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [])

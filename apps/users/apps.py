@@ -7,7 +7,7 @@ class UsersConfig(AppConfig):
     name = "users"
 
     def ready(self):
-        from django.contrib.auth.models import User
+        from users.models import User
         from .signals import create_profile
 
         post_save.connect(create_profile, sender=User)

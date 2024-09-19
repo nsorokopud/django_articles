@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from users.models import Profile
+from users.models import Profile, User
 
+
+admin.site.register(User)
 
 @admin.register(Profile)
 class UserProfileAdmin(admin.ModelAdmin):

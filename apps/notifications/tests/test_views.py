@@ -1,16 +1,16 @@
-from django.contrib.auth.models import User
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from articles.models import Article
+from users.models import User
 from ..models import Notification
 
 
 class TestViews(TestCase):
     def setUp(self):
         self.client = Client()
-        self.author = User.objects.create_user(username="author")
-        self.user = User.objects.create_user(username="user")
+        self.author = User.objects.create_user(username="author", email="author@test.com")
+        self.user = User.objects.create_user(username="user", email="user@test.com")
         self.a = Article(
             title="a",
             slug="a",

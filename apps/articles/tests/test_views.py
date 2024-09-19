@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Count
 from django.http import Http404
@@ -8,6 +7,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from articles.models import Article, ArticleCategory, ArticleComment
+from users.models import User
 
 
 class TestViews(TestCase):

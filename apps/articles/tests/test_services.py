@@ -3,7 +3,6 @@ from unittest.mock import call, patch
 
 from taggit.models import Tag
 
-from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.test import TestCase
@@ -30,11 +29,12 @@ from articles.services import (
     toggle_comment_like,
     _generate_unique_article_slug,
 )
+from users.models import User
 
 
 class TestServices(TestCase):
     def setUp(self):
-        self.test_user = User(username="test_user", email="test@test.com")
+        self.test_user = User(username="test_user", email="test_user@test.com")
         self.test_user.set_password("12345")
         self.test_user.save()
 

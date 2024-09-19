@@ -1,4 +1,3 @@
-from django.contrib.auth.models import User
 from django.db import models
 from django.urls import reverse
 
@@ -6,6 +5,7 @@ from taggit.managers import TaggableManager
 from tinymce.models import HTMLField
 
 from articles.constants import DISPLAYED_COMMENT_LENGTH
+from users.models import User
 
 
 class Article(models.Model):

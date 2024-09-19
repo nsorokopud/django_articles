@@ -1,8 +1,7 @@
-from django.contrib.auth.models import User
 from django.db.models import Count
 from django.db.models.query import QuerySet
 
-from users.models import Profile
+from users.models import Profile, User
 
 
 def create_user_profile(user: User) -> Profile:

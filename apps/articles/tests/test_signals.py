@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
+from users.models import User
 from django.db.models import signals
 from django.test import TransactionTestCase
 

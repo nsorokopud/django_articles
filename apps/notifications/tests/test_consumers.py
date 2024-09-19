@@ -1,15 +1,16 @@
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 
-from django.contrib.auth.models import AnonymousUser, User
+from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 
+from users.models import User
 from ..consumers import NotificationConsumer
 
 
 class TestNotificationConsumer(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="u1")
+        self.user = User.objects.create_user(username="u1", email="u1@test.com")
 
     async def test_anonymous_user_fails_to_connect(self):
         communicator = WebsocketCommunicator(

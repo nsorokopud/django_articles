@@ -1,4 +1,3 @@
-from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse, resolve
 
@@ -14,6 +13,7 @@ from articles.views import (
     CommentLikeView,
     HomePageView,
 )
+from users.models import User
 
 
 class TestURLs(TestCase):

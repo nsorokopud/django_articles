@@ -5,11 +5,11 @@ from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
-from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
+from users.models import User
 from ..consumers import NotificationConsumer
 from ..models import Notification
 from ..services import (
@@ -28,8 +28,8 @@ from ..services import (
 
 class TestServices(TestCase):
     def setUp(self):
-        self.author = User.objects.create_user(username="author")
-        self.user = User.objects.create_user(username="user")
+        self.author = User.objects.create_user(username="author", email="author@test.com")
+        self.user = User.objects.create_user(username="user", email="user@test.com")
         self.a = Article(
             title="a",
             slug="a",
@@ -40,8 +40,8 @@ class TestServices(TestCase):
         )
 
     def test_send_new_article_notification(self):
-        user1 = User.objects.create_user(username="user1")
-        user2 = User.objects.create_user(username="user2")
+        user1 = User.objects.create_user(username="user1", email="user1@test.com")
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
         self.author.profile.subscribers.add(user1)
         self.author.profile.subscribers.add(user2)
         n1 = Notification(

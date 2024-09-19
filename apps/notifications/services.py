@@ -1,11 +1,11 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-from django.contrib.auth.models import User
 from django.db.models.query import QuerySet
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
+from users.models import User
 from .models import Notification
 
 
