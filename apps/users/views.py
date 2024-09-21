@@ -6,7 +6,12 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView
 
-from users.forms import ProfileUpdateForm, UserCreationForm, UserUpdateForm
+from users.forms import (
+    AuthenticationForm,
+    ProfileUpdateForm,
+    UserCreationForm,
+    UserUpdateForm,
+)
 from .services import get_all_supscriptions_of_user, get_user_by_username, toggle_user_supscription
 
 
@@ -18,6 +23,7 @@ class UserRegistrationView(CreateView):
 
 
 class UserLoginView(LoginView):
+    form_class = AuthenticationForm
     template_name = "users/login.html"
 
 
