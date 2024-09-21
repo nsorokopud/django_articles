@@ -1,4 +1,3 @@
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.contrib.auth.views import LoginView, LogoutView
@@ -7,7 +6,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView
 
-from users.forms import ProfileUpdateForm, UserUpdateForm
+from users.forms import ProfileUpdateForm, UserCreationForm, UserUpdateForm
 from .services import get_all_supscriptions_of_user, get_user_by_username, toggle_user_supscription
 
 
