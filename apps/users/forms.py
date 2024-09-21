@@ -1,9 +1,17 @@
 from hcaptcha_field import hCaptchaField
 
 from django import forms
-from django.contrib.auth.forms import UserCreationForm as DefaultUserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm as DefaultAuthenticationForm,
+    UserCreationForm as DefaultUserCreationForm,
+)
 
 from users.models import Profile, User
+
+
+class AuthenticationForm(DefaultAuthenticationForm):
+    username = forms.CharField(label="Username or Email")
+    hcaptcha = hCaptchaField(label="")
 
 
 class UserCreationForm(DefaultUserCreationForm):
