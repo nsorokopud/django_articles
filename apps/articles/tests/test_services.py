@@ -536,25 +536,21 @@ class TestServices(TestCase):
             content="content1",
         )
 
-        with self.assertRaises(ArticleComment.DoesNotExist):
-            get_comment_by_id(1)
-
         c1 = ArticleComment.objects.create(article=a, author=self.test_user, text="")
-        self.assertEqual(get_comment_by_id(1), c1)
-
-        with self.assertRaises(ArticleComment.DoesNotExist):
-            get_comment_by_id(2)
-
+        c1_id = c1.id
         c2 = ArticleComment.objects.create(article=a, author=self.test_user, text="")
-        self.assertEqual(get_comment_by_id(2), c2)
+        c2_id = c2.id
+
+        self.assertEqual(get_comment_by_id(c1_id), c1)
+        self.assertEqual(get_comment_by_id(c2_id), c2)
 
         c2.delete()
         with self.assertRaises(ArticleComment.DoesNotExist):
-            get_comment_by_id(2)
+            get_comment_by_id(c2_id)
 
         c1.delete()
         with self.assertRaises(ArticleComment.DoesNotExist):
-            get_comment_by_id(1)
+            get_comment_by_id(c1_id)
 
     def test_save_media_file_attached_to_article(self):
         a = Article.objects.create(
