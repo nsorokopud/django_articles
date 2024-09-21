@@ -9,7 +9,7 @@ from users.services import (
     get_all_users,
     get_user_by_id,
     get_user_by_username,
-    toggle_user_supscription
+    toggle_user_supscription,
 )
 from users.signals import create_profile
 
@@ -89,7 +89,7 @@ class TestServices(TestCase):
 
     def test_get_all_supscriptions_of_user(self):
         a1 = User.objects.create_user(username="author1", email="author1@test.com")
-        a2 = User.objects.create_user(username="author2",  email="author2@test.com")
+        a2 = User.objects.create_user(username="author2", email="author2@test.com")
 
         res = get_all_supscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [])
