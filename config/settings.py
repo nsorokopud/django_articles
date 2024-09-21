@@ -117,6 +117,10 @@ AUTH_USER_MODEL = "users.User"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "articles"
 
+AUTHENTICATION_BACKENDS = [
+    "users.auth_backends.EmailOrUsernameAuthenticationBackend",
+]
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
