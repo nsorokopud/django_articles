@@ -199,8 +199,9 @@ def _generate_unique_article_slug(article_title: str):
         while Article.objects.filter(slug=unique_slug).exists():
             unique_slug = f"{slug}-{number}"
             number += 1
-    
+
         return unique_slug
+
 
 def save_media_file_attached_to_article(file: IO, article_id: int) -> tuple[str, str]:
     article = get_article_by_id(article_id)
