@@ -5,7 +5,7 @@ from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
@@ -26,7 +26,7 @@ from ..services import (
 )
 
 
-class TestServices(TestCase):
+class TestServices(TransactionTestCase):
     def setUp(self):
         self.author = User.objects.create_user(username="author", email="author@test.com")
         self.user = User.objects.create_user(username="user", email="user@test.com")
