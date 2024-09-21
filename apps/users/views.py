@@ -1,5 +1,4 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.models import User
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
@@ -12,6 +11,7 @@ from users.forms import (
     UserCreationForm,
     UserUpdateForm,
 )
+from .models import User
 from .services import get_all_supscriptions_of_user, get_user_by_username, toggle_user_supscription
 
 
