@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -25,10 +27,11 @@ class TestViews(TestCase):
             "password2": "asdasab1231",
         }
 
-        response = self.client.post(reverse("registration"), user_data)
-        self.assertRedirects(response, reverse("login"), status_code=302, target_status_code=200)
-        user = User.objects.order_by("id").last()
-        self.assertEqual(user.username, user_data["username"])
+        with patch("hcaptcha_field.hCaptchaField.validate", return_value=True):
+            response = self.client.post(reverse("registration"), user_data)
+            self.assertRedirects(response, reverse("login"), status_code=302, target_status_code=200)
+            user = User.objects.order_by("id").last()
+            self.assertEqual(user.username, user_data["username"])
 
     def test_user_login_view_get(self):
         response = self.client.get(reverse("login"))
