@@ -1,7 +1,15 @@
+from django.contrib.sites.shortcuts import get_current_site
+from django.core.mail import EmailMultiAlternatives
 from django.db.models import Count
 from django.db.models.query import QuerySet
+from django.http import HttpRequest
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from users.models import Profile, User
+from users.tokens import activation_token_generator
 
 
 def create_user_profile(user: User) -> Profile:
@@ -51,3 +59,18 @@ def toggle_user_supscription(user: User, author: User) -> None:
             author.profile.subscribers.add(user)
         else:
             author.profile.subscribers.remove(user)
+
+
+def send_account_activation_email(request: HttpRequest, user: User):
+    subject = "User account activation"
+    encoded_user_id = urlsafe_base64_encode(force_bytes(user.pk))
+    domain = get_current_site(request)
+    token = activation_token_generator.make_token(user)
+    protocol = "https" if request.is_secure() else "http"
+    message = render_to_string("users/activation_email.html", {
+        "username": user.username,
+        "url": f"{protocol}://{domain}{reverse("account-activate", args=[encoded_user_id, token])}"
+    })
+    email = EmailMultiAlternatives(subject, message, to=[user.email])
+    email.attach_alternative(message, "text/html")
+    email.send()
