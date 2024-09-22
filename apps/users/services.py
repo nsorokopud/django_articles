@@ -9,6 +9,11 @@ def create_user_profile(user: User) -> Profile:
     return profile
 
 
+def activate_user(user):
+    user.is_active = True
+    user.save()
+
+
 def get_all_users() -> QuerySet[User]:
     return User.objects.all()
 
