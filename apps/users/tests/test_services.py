@@ -1,5 +1,10 @@
+from unittest.mock import Mock, patch
+
+from django.core import mail
 from django.db.models import signals
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from users.models import Profile, User
 from users.services import (
@@ -10,6 +15,7 @@ from users.services import (
     get_all_users,
     get_user_by_id,
     get_user_by_username,
+    send_account_activation_email,
     toggle_user_supscription,
 )
 from users.signals import create_profile
@@ -127,6 +133,42 @@ class TestServices(TestCase):
 
         new_user.delete()
         self.assertCountEqual(get_all_users(), [self.test_user])
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_send_account_activation_email(self):
+        user1 = User.objects.create_user(username="user1", email="user1@test.com")
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
+
+        self.assertEqual(len(mail.outbox), 0)
+
+        request = Mock()
+        request.is_secure = lambda: True
+        request.get_host = lambda: "www.site.com"
+
+        with patch("users.services.activation_token_generator.make_token", return_value="token1"):
+            send_account_activation_email(request, user1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].recipients(), ["user1@test.com"])
+        self.assertEqual(mail.outbox[0].subject, "User account activation")
+        uid = urlsafe_base64_encode(force_bytes(user1.pk))
+        expected_body = (
+            f"\nHello, user1.<br><br>\nPlease follow the link to finish your registration:\n"
+            f'<a href="https://www.site.com/activate_account/{uid}/token1/">Finish registration</a>\n\n'
+        )
+        self.assertEqual(mail.outbox[0].body, expected_body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+
+        request.is_secure = lambda: False
+        with patch("users.services.activation_token_generator.make_token", return_value="token2"):
+            send_account_activation_email(request, user2)
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(mail.outbox[1].recipients(), ["user2@test.com"])
+        uid = urlsafe_base64_encode(force_bytes(user2.pk))
+        expected_body = (
+            f"\nHello, user2.<br><br>\nPlease follow the link to finish your registration:\n"
+            f'<a href="http://www.site.com/activate_account/{uid}/token2/">Finish registration</a>\n\n'
+        )
+        self.assertEqual(mail.outbox[1].body, expected_body)
 
     def test_toggle_user_supscription(self):
         author = User.objects.create(username="author")
