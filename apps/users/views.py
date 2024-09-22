@@ -1,7 +1,10 @@
+from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.views import View
 from django.views.generic import CreateView
 
@@ -12,7 +15,14 @@ from users.forms import (
     UserUpdateForm,
 )
 from .models import User
-from .services import get_all_supscriptions_of_user, get_user_by_username, toggle_user_supscription
+from .services import (
+    activate_user,
+    get_all_supscriptions_of_user,
+    get_user_by_id,
+    get_user_by_username,
+    toggle_user_supscription,
+)
+from .tokens import activation_token_generator
 
 
 class UserRegistrationView(CreateView):
@@ -20,6 +30,33 @@ class UserRegistrationView(CreateView):
     form_class = UserCreationForm
     template_name = "users/registration.html"
     success_url = reverse_lazy("login")
+
+
+class AccountActivationView(View):
+    def get(self, request, user_id_b64: str, token: str):
+        if request.user.is_authenticated:
+            logout(request)
+        try:
+            user_id = force_str(urlsafe_base64_decode(user_id_b64))
+            user = get_user_by_id(user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            context = {"is_activation_successful": False, "error_message": "Invalid user id"}
+            return render(request, "users/account_activation.html", context)
+        if user.is_active:
+            context = {
+                "is_activation_successful": False,
+                "error_message": "This account is already activated",
+            }
+            return render(request, "users/account_activation.html", context)
+        if not activation_token_generator.check_token(user, token):
+            context = {
+                "is_activation_successful": False,
+                "error_message": "Invalid token",
+            }
+            return render(request, "users/account_activation.html", context)
+        activate_user(user)
+        context = {"is_activation_successful": True}
+        return render(request, "users/account_activation.html", context)
 
 
 class UserLoginView(LoginView):
