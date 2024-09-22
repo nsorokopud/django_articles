@@ -3,6 +3,7 @@ from django.test import TestCase
 
 from users.models import Profile, User
 from users.services import (
+    activate_user,
     create_user_profile,
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
@@ -22,6 +23,14 @@ class TestServices(TestCase):
 
     def tearDown(self):
         signals.post_save.connect(create_profile, sender=User)
+
+    def test_activate_user(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="12345", is_active=False
+        )
+        self.assertFalse(user.is_active)
+        activate_user(user)
+        self.assertTrue(user.is_active)
 
     def test_create_user_profile(self):
         signals.post_save.disconnect(create_profile, sender=User)
