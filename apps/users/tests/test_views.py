@@ -37,6 +37,14 @@ class TestViews(TestCase):
             user = User.objects.order_by("id").last()
             self.assertEqual(user.username, user_data["username"])
 
+    def test_post_registration_view(self):
+        response = self.client.get(reverse("post-registration"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/post_registration.html")
+
+        response = self.client.post(reverse("post-registration"))
+        self.assertEqual(response.status_code, 405)
+
     def test_user_login_view_get(self):
         response = self.client.get(reverse("login"))
         self.assertEqual(response.status_code, 200)
