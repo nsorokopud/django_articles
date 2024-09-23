@@ -10,6 +10,7 @@ from users.models import Profile, User
 from users.services import (
     activate_user,
     create_user_profile,
+    deactivate_user,
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
     get_all_users,
@@ -37,6 +38,12 @@ class TestServices(TestCase):
         self.assertFalse(user.is_active)
         activate_user(user)
         self.assertTrue(user.is_active)
+
+    def test_deactivate_user(self):
+        user = User.objects.create_user(username="user", email="user@test.com")
+        self.assertTrue(user.is_active)
+        deactivate_user(user)
+        self.assertFalse(user.is_active)
 
     def test_create_user_profile(self):
         signals.post_save.disconnect(create_profile, sender=User)
