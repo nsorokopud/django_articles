@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import ANY, call, patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -26,16 +26,38 @@ class TestViews(TestCase):
     def test_user_registration_view_post(self):
         user_data = {
             "username": "user1",
-            "email": "aa1@gmail.com",
+            "email": "user1@test.com",
             "password1": "asdasab1231",
             "password2": "asdasab1231",
         }
 
+        invalid_user_data = {
+            "username": "user1",
+            "email": "user1@test",
+            "password1": "asdasab1231",
+            "password2": "123",
+        }
+
         with patch("hcaptcha_field.hCaptchaField.validate", return_value=True):
+            response = self.client.post(reverse("registration"), invalid_user_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed("users/registration.html")
+        self.assertEqual(response.context["form"].errors, {
+            "email": ["Enter a valid email address."],
+            "password2": ["The two password fields didn’t match."]
+        })
+
+        with patch("hcaptcha_field.hCaptchaField.validate", return_value=True), patch(
+            "users.views.send_account_activation_email") as send_email__mock:
             response = self.client.post(reverse("registration"), user_data)
-            self.assertRedirects(response, reverse("login"), status_code=302, target_status_code=200)
             user = User.objects.order_by("id").last()
             self.assertEqual(user.username, user_data["username"])
+            self.assertFalse(user.is_active)
+            self.assertCountEqual(send_email__mock.call_args_list, [call(ANY, user)])
+
+        self.assertRedirects(
+            response, reverse("post-registration"), status_code=302, target_status_code=200
+        )
 
     def test_post_registration_view(self):
         response = self.client.get(reverse("post-registration"))
