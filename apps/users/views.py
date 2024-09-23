@@ -17,10 +17,12 @@ from users.forms import (
 from .models import User
 from .services import (
     activate_user,
+    deactivate_user,
     get_all_supscriptions_of_user,
     get_user_by_id,
     get_user_by_username,
     toggle_user_supscription,
+    send_account_activation_email,
 )
 from .tokens import activation_token_generator
 
@@ -30,6 +32,15 @@ class UserRegistrationView(CreateView):
     form_class = UserCreationForm
     template_name = "users/registration.html"
     success_url = reverse_lazy("login")
+
+    def post(self, request):
+        form = self.get_form()
+        if form.is_valid():
+            user = form.save(commit=False)
+            deactivate_user(user)
+            send_account_activation_email(request, user)
+            return redirect(reverse("post-registration"))
+        return render(request, self.template_name, {"form": form})
 
 
 class PostUserRegistrationView(View):
