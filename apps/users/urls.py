@@ -5,6 +5,7 @@ from users import views
 
 urlpatterns = [
     path("register/", views.UserRegistrationView.as_view(), name="registration"),
+    path("post_registration/", views.PostUserRegistrationView.as_view(), name="post-registration"),
     path(
         "activate_account/<str:user_id_b64>/<str:token>/",
         views.AccountActivationView.as_view(),

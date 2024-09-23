@@ -32,6 +32,11 @@ class UserRegistrationView(CreateView):
     success_url = reverse_lazy("login")
 
 
+class PostUserRegistrationView(View):
+    def get(self, request):
+        return render(request, "users/post_registration.html")
+
+
 class AccountActivationView(View):
     def get(self, request, user_id_b64: str, token: str):
         if request.user.is_authenticated:
