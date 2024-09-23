@@ -11,6 +11,7 @@ urlpatterns = [
         views.AccountActivationView.as_view(),
         name="account-activate",
     ),
+    path("set_password/", views.PasswordSetView.as_view(), name="password-set"),
     path("login/", views.UserLoginView.as_view(), name="login"),
     path("user/profile/", views.UserProfileView.as_view(), name="user-profile"),
     path("author/<str:author_username>/", views.AuthorPageView.as_view(), name="author-page"),

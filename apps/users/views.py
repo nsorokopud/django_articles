@@ -1,6 +1,12 @@
+from allauth.account.views import (
+    PasswordSetView as AllauthPasswordSetView,
+    sensitive_post_parameters_m,
+)
+
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
@@ -73,6 +79,16 @@ class AccountActivationView(View):
         activate_user(user)
         context = {"is_activation_successful": True}
         return render(request, "users/account_activation.html", context)
+
+
+class PasswordSetView(AllauthPasswordSetView):
+    template_name = "users/password_set.html"
+
+    @sensitive_post_parameters_m
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or request.user.has_usable_password():
+            raise PermissionDenied
+        return View.dispatch(self, request, *args, **kwargs)
 
 
 class UserLoginView(LoginView):
