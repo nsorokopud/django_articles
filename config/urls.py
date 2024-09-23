@@ -7,6 +7,7 @@ from config import views as project_views
 
 
 urlpatterns = [
+    path("accounts/", include("allauth.urls")),
     path("select2/", include("django_select2.urls")),
     path("", include("articles.urls")),
     path("", include("users.urls")),

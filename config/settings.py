@@ -52,6 +52,10 @@ INSTALLED_APPS = [
     "storages",
     "channels",
     "channels_redis",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
 
     "articles",
     "users",
@@ -68,6 +72,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
@@ -117,9 +122,32 @@ AUTH_USER_MODEL = "users.User"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "articles"
 
+SITE_ID = 2
+
 AUTHENTICATION_BACKENDS = [
     "users.auth_backends.EmailOrUsernameAuthenticationBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+
+SOCIALACCOUNT_ONLY = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        "APP": {
+            "client_id": os.environ["GOOGLE_OAUTH_CLIENT_ID"],
+            "secret": os.environ["GOOGLE_OAUTH_CLIENT_SECRET"],
+        },
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+        "EMAIL_AUTHENTICATION": True,
+    }
+}
 
 
 # Password validation
