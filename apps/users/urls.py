@@ -12,7 +12,6 @@ urlpatterns = [
         name="account-activate",
     ),
     path("login/", views.UserLoginView.as_view(), name="login"),
-    path("logout/", views.UserLogoutView.as_view(), name="logout"),
     path("user/profile/", views.UserProfileView.as_view(), name="user-profile"),
     path("author/<str:author_username>/", views.AuthorPageView.as_view(), name="author-page"),
     path(

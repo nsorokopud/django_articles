@@ -1,6 +1,6 @@
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
@@ -78,10 +78,6 @@ class AccountActivationView(View):
 class UserLoginView(LoginView):
     form_class = AuthenticationForm
     template_name = "users/login.html"
-
-
-class UserLogoutView(LogoutView):
-    template_name = "users/logout.html"
 
 
 class UserProfileView(LoginRequiredMixin, View):

@@ -109,21 +109,6 @@ class TestViews(TestCase):
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         self.assertNotEqual(response.wsgi_request.user, self.test_user)
 
-    def test_user_logout_view_get(self):
-        response = self.client.get(reverse("logout"))
-        self.assertEqual(response.status_code, 405)
-
-    def test_user_logout_view_post(self):
-        self.client.login(username="test_user", password="12345")
-
-        response = self.client.get(reverse("registration"))
-        self.assertEqual(response.wsgi_request.user.is_authenticated, True)
-        response = self.client.post(reverse("logout"))
-        self.assertEqual(response.wsgi_request.user.is_authenticated, False)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/logout.html")
-
     def test_user_profile_view(self):
         response = self.client.get(reverse("user-profile"))
         redirect_url = f'{reverse("login")}?next={reverse("user-profile")}'
