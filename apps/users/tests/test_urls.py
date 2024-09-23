@@ -1,7 +1,8 @@
+from allauth.account.views import LogoutView
 from django.test import TestCase
 from django.urls import reverse, resolve
 
-from users.views import UserLoginView, UserLogoutView, UserProfileView, UserRegistrationView
+from users.views import UserLoginView, UserProfileView, UserRegistrationView
 
 
 class TestURLs(TestCase):
@@ -14,8 +15,8 @@ class TestURLs(TestCase):
         self.assertEqual(resolve(url).func.view_class, UserLoginView)
 
     def test_user_logout_url_is_resolved(self):
-        url = reverse("logout")
-        self.assertEqual(resolve(url).func.view_class, UserLogoutView)
+        url = reverse("account_logout")
+        self.assertEqual(resolve(url).func.view_class, LogoutView)
 
     def test_user_profile_url_is_resolved(self):
         url = reverse("user-profile")
