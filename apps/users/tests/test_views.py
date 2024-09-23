@@ -228,3 +228,65 @@ class TestViews(TestCase):
         user2.refresh_from_db()
         self.assertFalse(user1.is_active)
         self.assertFalse(user1.is_active)
+
+    def test_password_set_view_get(self):
+        url = reverse("password-set")
+
+        # anonymous user
+        response = self.client.get(url)
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(response.status_code, 403)
+
+        # user with usable password
+        self.client.force_login(self.test_user)
+        response = self.client.get(url)
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(response.status_code, 403)
+
+        # user without usable password
+        user = User.objects.create_user(username="user1", email="user1@test.com")
+        self.client.force_login(user)
+        response = self.client.get(url)
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/password_set.html")
+
+    def test_password_set_view_post(self):
+        user = User.objects.create_user(username="user1", email="user1@test.com")
+        password = "Abcd1234!"
+        self.assertFalse(user.has_usable_password())
+        self.assertFalse(user.check_password(password))
+
+        url = reverse("password-set")
+
+        # anonymous user
+        response = self.client.post(url, {
+            "password1": password,
+            "password2": password,
+        })
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(response.status_code, 403)
+
+        # user with usable password
+        self.client.force_login(self.test_user)
+        response = self.client.post(url, {
+            "password1": password,
+            "password2": password,
+        })
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(self.test_user.check_password("12345"))
+
+        # user without usable password
+        self.client.force_login(user)
+        response = self.client.post(url, {
+            "password1": password,
+            "password2": password,
+        })
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertRedirects(
+            response, reverse("articles"), status_code=302, target_status_code=200
+        )
+        user.refresh_from_db()
+        self.assertTrue(user.has_usable_password())
+        self.assertTrue(user.check_password(password))
