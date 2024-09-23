@@ -129,6 +129,7 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
+ACCOUNT_ADAPTER = "users.adapters.AccountAdapter"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 
 SOCIALACCOUNT_ONLY = True
