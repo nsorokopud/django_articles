@@ -1,3 +1,4 @@
+from allauth.account.models import EmailAddress
 from unittest.mock import Mock, patch
 
 from django.core import mail
@@ -35,9 +36,20 @@ class TestServices(TestCase):
         user = User.objects.create_user(
             username="user", email="user@test.com", password="12345", is_active=False
         )
+
         self.assertFalse(user.is_active)
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
+        with self.assertRaises(EmailAddress.DoesNotExist):
+            EmailAddress.objects.get(user=user, email=user.email)
+
         activate_user(user)
         self.assertTrue(user.is_active)
+
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+        allauth_email = EmailAddress.objects.get(user=user)
+        self.assertEqual(allauth_email.email, user.email)
+        self.assertTrue(allauth_email.verified)
+        self.assertTrue(allauth_email.primary)
 
     def test_deactivate_user(self):
         user = User.objects.create_user(username="user", email="user@test.com")

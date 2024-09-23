@@ -1,3 +1,5 @@
+from allauth.account.models import EmailAddress
+
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Count
@@ -25,6 +27,7 @@ def deactivate_user(user: User) -> None:
 def activate_user(user):
     user.is_active = True
     user.save()
+    EmailAddress.objects.create(user=user, email=user.email, verified=True, primary=True)
 
 
 def get_all_users() -> QuerySet[User]:
