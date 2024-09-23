@@ -17,6 +17,11 @@ def create_user_profile(user: User) -> Profile:
     return profile
 
 
+def deactivate_user(user: User) -> None:
+    user.is_active = False
+    user.save()
+
+
 def activate_user(user):
     user.is_active = True
     user.save()
