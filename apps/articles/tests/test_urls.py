@@ -10,6 +10,7 @@ from articles.views import (
     ArticleDetailView,
     ArticleLikeView,
     ArticleUpdateView,
+    AttachedFileUploadView,
     CommentLikeView,
     HomePageView,
 )
@@ -72,3 +73,7 @@ class TestURLs(TestCase):
     def test_comment_like_url_is_resolved(self):
         url = reverse("comment-like", args=[self.test_comment.id])
         self.assertEqual(resolve(url).func.view_class, CommentLikeView)
+
+    def test_attached_file_upload_url_is_resolved(self):
+        url = reverse("attached-file-upload")
+        self.assertEqual(resolve(url).func.view_class, AttachedFileUploadView)
