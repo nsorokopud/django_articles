@@ -342,12 +342,29 @@ class TestViews(TestCase):
     def test_article_like_view_get(self):
         url = reverse("article-like", args=[self.test_article.slug])
         response = self.client.get(url)
+        self.assertRedirects(
+            response,
+            "/login/?next=/articles/test-article/like",
+            status_code=302,
+            target_status_code=200,
+        )
+
+        self.client.force_login(self.test_user)
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 405)
 
     def test_article_like_view_post(self):
         url = reverse("article-like", args=[self.test_article.slug])
-        self.client.login(username="test_user", password="12345")
 
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            "/login/?next=/articles/test-article/like",
+            status_code=302,
+            target_status_code=200,
+        )
+
+        self.client.login(username="test_user", password="12345")
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [self.test_user])

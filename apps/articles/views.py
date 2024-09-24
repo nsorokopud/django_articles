@@ -123,7 +123,7 @@ class ArticleCommentView(LoginRequiredMixin, View):
             return redirect(reverse("article-details", args=[article_slug]))
 
 
-class ArticleLikeView(View):
+class ArticleLikeView(LoginRequiredMixin, View):
     def post(self, request, article_slug):
         user_id = request.user.id
         likes_count = services.toggle_article_like(article_slug, user_id)
