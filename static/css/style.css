@@ -489,3 +489,30 @@ img.profile-image {
     outline: 0;
     box-shadow: 0 0 0 0.3rem rgba(255, 10, 29, 0.25);
 }
+
+/* Google sign in button */
+
+.google-btn {
+    margin: auto !important;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    background-color: #ffffff;
+    border: 1px solid #dfdfdf;
+    border-radius: 4px;
+    color: #333333;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.google-btn img {
+    width: 30px;
+    margin-right: 10px;
+}
+
+.google-btn:hover {
+    background-color: #f1f1f1;
+    color: #198754;
+}
