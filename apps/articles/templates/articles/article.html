@@ -117,7 +117,7 @@
                                         <p>{{ comment.text }}</p>
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="d-flex align-items-center">
-                                                <a id="commentLink{{ comment.id }}" href="{% url 'comment-like' comment.id %}" onClick="like_comment(event, {{ comment.id }})" class="comment-like-link link-muted me-2" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
+                                                <a id="commentLink{{ comment.id }}" href="{% url 'comment-like' comment.id %}" onClick="likeComment(event, {{ comment.id }})" class="comment-like-link link-muted me-2" {% if request.user.is_authenticated %}is_logged_in{% endif %}>
                                                     <i class="article-icon fas fa-thumbs-up m-1 {% if comment.id in liked_comments %}active{% endif %}"></i>
                                                     <span class="comment-like-count">{{ comment.likes_count }}</span>
                                                 </a>
