@@ -490,6 +490,14 @@ img.profile-image {
     box-shadow: 0 0 0 0.3rem rgba(255, 10, 29, 0.25);
 }
 
+/* hCaptcha */
+
+.hcaptchawidget.form-control.h-captcha {
+    margin-top: 2rem;
+    border: none;
+    padding: 0;
+}
+
 /* Google sign in button */
 
 .google-btn {
