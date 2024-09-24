@@ -130,7 +130,7 @@ class ArticleLikeView(LoginRequiredMixin, View):
         return JsonResponse({"likes_count": likes_count})
 
 
-class CommentLikeView(View):
+class CommentLikeView(LoginRequiredMixin, View):
     def post(self, request, comment_id):
         user_id = request.user.id
         likes_count = services.toggle_comment_like(comment_id, user_id)

@@ -389,13 +389,31 @@ class TestViews(TestCase):
 
     def test_comment_like_view_get(self):
         url = reverse("comment-like", args=[self.test_comment.id])
+
+        response = self.client.get(url)
+        self.assertRedirects(
+            response,
+            f"/login/?next=/comments/{self.test_comment.id}/like",
+            status_code=302,
+            target_status_code=200,
+        )
+
+        self.client.force_login(self.test_user)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 405)
 
     def test_comment_like_view_post(self):
         url = reverse("comment-like", args=[self.test_comment.id])
-        self.client.login(username="test_user", password="12345")
 
+        response = self.client.post(url)
+        self.assertRedirects(
+            response,
+            f"/login/?next=/comments/{self.test_comment.id}/like",
+            status_code=302,
+            target_status_code=200,
+        )
+
+        self.client.login(username="test_user", password="12345")
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [self.test_user])
