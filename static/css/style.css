@@ -392,6 +392,10 @@ a i.fa-thumbs-up.active {
     margin-right: 20px;
 }
 
+.comment-like-link:hover {
+    color: #198754;
+}
+
 .article-tag-link {
     text-decoration: none;
     margin-right: 12px;
