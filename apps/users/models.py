@@ -12,6 +12,7 @@ class Profile(models.Model):
         default="users/profile_images/default_avatar.jpg", upload_to="users/profile_images/"
     )
     subscribers = models.ManyToManyField(User, related_name="subscribed_profiles")
+    notification_emails_allowed = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.user.username}'s profile"
