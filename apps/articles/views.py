@@ -32,7 +32,7 @@ class HomePageView(View):
         return redirect("articles")
 
 
-class ArticleDetailView(CategoriesMixin, DetailView):
+class ArticleDetailView(DetailView):
     model = Article
     slug_url_kwarg = "article_slug"
     context_object_name = "article"
@@ -59,7 +59,7 @@ class ArticleDetailView(CategoriesMixin, DetailView):
         return context
 
 
-class ArticleCreateView(LoginRequiredMixin, CategoriesMixin, CreateView):
+class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
     form_class = ArticleCreateForm
     template_name = "articles/article_form.html"
