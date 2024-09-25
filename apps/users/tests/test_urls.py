@@ -1,7 +1,8 @@
 from allauth.account.views import LogoutView
 from allauth.socialaccount.providers.google import views as google_views
+
 from django.test import TestCase
-from django.urls import reverse, resolve
+from django.urls import resolve, reverse
 
 from users.views import (
     AccountActivationView,
