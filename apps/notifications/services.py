@@ -1,10 +1,13 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
+from django.core.mail import EmailMultiAlternatives
 from django.db.models.query import QuerySet
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
+from config.settings import DEFAULT_DOMAIN_NAME, DEFAULT_PROTOCOL
 from users.models import User
 from .models import Notification
 
@@ -64,6 +67,19 @@ def create_new_comment_notification(comment: ArticleComment, recipient: User) ->
         recipient=recipient,
     )
     return notification
+
+
+def send_notification_email(notification: Notification) -> None:
+    message = render_to_string(
+        "notifications/email.html",
+        {
+            "message": notification.message,
+            "url": f"{DEFAULT_PROTOCOL}://{DEFAULT_DOMAIN_NAME}{notification.link}",
+        },
+    )
+    email = EmailMultiAlternatives(notification.title, message, to=[notification.recipient.email])
+    email.attach_alternative(message, "text/html")
+    email.send()
 
 
 def get_notification_by_id(notification_id: int) -> Notification:
