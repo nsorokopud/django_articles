@@ -5,10 +5,12 @@ from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
-from django.test import TransactionTestCase
+from django.core import mail
+from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
+from config.settings import DEFAULT_DOMAIN_NAME, DEFAULT_PROTOCOL
 from users.models import User
 from ..consumers import NotificationConsumer
 from ..models import Notification
@@ -22,6 +24,7 @@ from ..services import (
     mark_notification_as_read,
     send_new_article_notification,
     send_new_comment_notification,
+    send_notification_email,
     _send_notification,
 )
 
@@ -101,6 +104,33 @@ class TestServices(TransactionTestCase):
 
             create_new_comment_notification__mock.assert_called_once_with(c, self.author)
             _send_notification__mock.assert_called_once_with(n, self.author.username)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_send_notification_email(self):
+        notification = Notification(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.a.title}'",
+            link=reverse("article-details", args=(self.a.slug,)),
+            sender=self.author,
+            recipient=self.user,
+            created_at=datetime.now(),
+        )
+
+        self.assertEqual(len(mail.outbox), 0)
+
+        send_notification_email(notification)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].recipients(), ["user@test.com"])
+        self.assertEqual(mail.outbox[0].subject, "New Article")
+        expected_body = (
+            f"\n{notification.message}. "
+            f'<a href="{DEFAULT_PROTOCOL}://{DEFAULT_DOMAIN_NAME}{notification.link}">'
+            "Check it out</a>\n\n"
+        )
+        self.assertEqual(mail.outbox[0].body, expected_body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
 
     async def test__send_notification(self):
         n = await database_sync_to_async(Notification.objects.create)(
