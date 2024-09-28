@@ -92,28 +92,43 @@ class TestServices(TransactionTestCase):
             self.assertEqual(send_notification_email__mock.call_args_list, [call(n1.id)])
 
     def test_send_new_comment_notification(self):
-        c = ArticleComment(article=self.a, author=self.user, text="1")
+        author1 = User.objects.create_user(username="author1", email="author1@test.com")
+        a = Article(title="a", slug="a", author=author1, preview_text="a", content="a")
+        c = ArticleComment(article=a, author=self.user, text="1")
 
-        n = Notification(
+        n = Notification.objects.create(
             type=Notification.Type.NEW_COMMENT,
             title="New Comment",
-            message=f"New comment on your article from {self.author.username}",
-            link=reverse("article-details", args=(self.a.slug,)),
+            message=f"New comment on your article from {author1.username}",
+            link=reverse("article-details", args=(a.slug,)),
             sender=self.user,
-            recipient=self.author,
-            created_at=datetime.now(),
+            recipient=author1,
         )
 
         with patch(
             "notifications.services.create_new_comment_notification", return_value=n
         ) as create_new_comment_notification__mock, patch(
             "notifications.services._send_notification",
-        ) as _send_notification__mock:
+        ) as _send_notification__mock, patch(
+            "notifications.tasks.send_notification_email.delay"
+        ) as send_notification_email__mock:
 
-            send_new_comment_notification(c, self.author)
+            send_new_comment_notification(c, author1)
 
-            create_new_comment_notification__mock.assert_called_once_with(c, self.author)
-            _send_notification__mock.assert_called_once_with(n, self.author.username)
+            create_new_comment_notification__mock.assert_called_once_with(c, author1)
+            _send_notification__mock.assert_called_once_with(n, author1.username)
+            self.assertEqual(send_notification_email__mock.call_args_list, [call(n.id)])
+
+        author1.profile.notification_emails_allowed = False
+        author1.profile.save()
+        author1.refresh_from_db()
+        self.assertFalse(author1.profile.notification_emails_allowed)
+
+        with patch(
+            "notifications.tasks.send_notification_email.delay"
+        ) as send_notification_email__mock:
+            send_new_comment_notification(c, author1)
+            self.assertEqual(send_notification_email__mock.call_args_list, [])
 
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_send_notification_email(self):

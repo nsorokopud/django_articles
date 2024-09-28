@@ -17,6 +17,8 @@ def send_new_comment_notification(comment: ArticleComment, recipient: User) -> N
     notification = create_new_comment_notification(comment, recipient)
     group_name = recipient.username
     _send_notification(notification, group_name)
+    if recipient.profile.notification_emails_allowed:
+        send_notification_email__task.delay(notification.id)
 
 
 def send_new_article_notification(article: Article) -> None:
