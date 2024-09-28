@@ -18,3 +18,11 @@ def send_new_comment_notification(comment_id: int, recipient_id: int) -> None:
     comment = get_comment_by_id(comment_id)
     recipient = get_user_by_id(recipient_id)
     send_new_comment_notification(comment, recipient)
+
+
+@app.task
+def send_notification_email(notification_id: int) -> None:
+    from .services import get_notification_by_id, send_notification_email
+
+    notification = get_notification_by_id(notification_id)
+    send_notification_email(notification)
