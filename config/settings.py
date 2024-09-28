@@ -121,6 +121,7 @@ AUTH_USER_MODEL = "users.User"
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "articles"
+LOGOUT_REDIRECT_URL = LOGIN_URL
 
 SITE_ID = 2
 
