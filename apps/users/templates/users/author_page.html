@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
   <div class="container">
@@ -18,9 +19,13 @@
               {% csrf_token %}
 
               {% if is_subscribed %}
-                <button class="btn btn-danger p-1" type="submit">Unsubscribe</button>
+                <button id="authorSubscribeButton" class="btn btn-danger p-1"
+                  {% if user.is_authenticated %}isLoggedIn{% endif %}
+                  type="submit">Unsubscribe</button>
               {% else %}
-                <button class="btn btn-success p-1" type="submit">Subscribe</button>
+                <button id="authorSubscribeButton" class="btn btn-success p-1"
+                  {% if user.is_authenticated %}isLoggedIn{% endif %}
+                  type="submit">Subscribe</button>
               {% endif %}
             </form>
           {% endif %}
@@ -33,3 +38,7 @@
     </div>
   </div>
 {% endblock content %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/author-subscribe.js'%}"></script>
+{% endblock extra_scripts %}
