@@ -39,6 +39,10 @@ button.select2-selection__clear {
     background-color: #1D6C4A  !important;
 }
 
+.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+    background-color: #198754;
+}
+
 .select2-container--default .select2-selection--multiple .select2-selection__clear {
     margin: 0 3px 0 0;
 }
