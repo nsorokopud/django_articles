@@ -10,6 +10,7 @@ from articles.models import Article, ArticleComment
 from config.settings import DEFAULT_DOMAIN_NAME, DEFAULT_PROTOCOL
 from users.models import User
 from .models import Notification
+from .tasks import send_notification_email as send_notification_email__task
 
 
 def send_new_comment_notification(comment: ArticleComment, recipient: User) -> None:
@@ -24,6 +25,8 @@ def send_new_article_notification(article: Article) -> None:
         notification = create_new_article_notification(article, subscriber)
         group_name = subscriber.username
         _send_notification(notification, group_name)
+        if subscriber.profile.notification_emails_allowed:
+            send_notification_email__task.delay(notification.id)
 
 
 def _send_notification(notification: Notification, group_name: str):

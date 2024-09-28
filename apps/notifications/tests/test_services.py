@@ -45,9 +45,11 @@ class TestServices(TransactionTestCase):
     def test_send_new_article_notification(self):
         user1 = User.objects.create_user(username="user1", email="user1@test.com")
         user2 = User.objects.create_user(username="user2", email="user2@test.com")
+        user2.profile.notification_emails_allowed = False
+        user2.profile.save()
         self.author.profile.subscribers.add(user1)
         self.author.profile.subscribers.add(user2)
-        n1 = Notification(
+        n1 = Notification.objects.create(
             type=Notification.Type.NEW_ARTICLE,
             title="New Article",
             message=f"New article from {self.author.username}: '{self.a.title}'",
@@ -56,7 +58,7 @@ class TestServices(TransactionTestCase):
             recipient=user1,
             created_at=datetime.now(),
         )
-        n2 = Notification(
+        n2 = Notification.objects.create(
             type=Notification.Type.NEW_ARTICLE,
             title="New Article",
             message=f"New article from {self.author.username}: '{self.a.title}'",
@@ -66,11 +68,18 @@ class TestServices(TransactionTestCase):
             created_at=datetime.now(),
         )
 
+        user1.refresh_from_db()
+        user2.refresh_from_db()
+        self.assertTrue(user1.profile.notification_emails_allowed)
+        self.assertFalse(user2.profile.notification_emails_allowed)
+
         with patch(
             "notifications.services.create_new_article_notification", side_effect=[n1, n2]
         ) as create_new_article_notification__mock, patch(
             "notifications.services._send_notification",
-        ) as _send_notification__mock:
+        ) as _send_notification__mock, patch(
+            "notifications.tasks.send_notification_email.delay"
+        ) as send_notification_email__mock:
 
             send_new_article_notification(self.a)
 
@@ -80,6 +89,7 @@ class TestServices(TransactionTestCase):
             _send_notification__mock.assert_has_calls(
                 [call(n1, user1.username), call(n2, user2.username)], any_order=True
             )
+            self.assertEqual(send_notification_email__mock.call_args_list, [call(n1.id)])
 
     def test_send_new_comment_notification(self):
         c = ArticleComment(article=self.a, author=self.user, text="1")
