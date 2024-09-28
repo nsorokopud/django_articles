@@ -1,15 +1,23 @@
+from unittest.mock import patch
+
 from celery.contrib.testing.worker import start_worker
 from channels.testing import WebsocketCommunicator
 
 from django.db.models import signals
 from django.test import TransactionTestCase
+from django.urls import reverse
 
 from articles.models import Article, ArticleComment
 from articles.signals import send_article_notification, send_comment_notification
 from config.celery import app
 from users.models import User
 from ..consumers import NotificationConsumer
-from ..tasks import send_new_article_notification, send_new_comment_notification
+from ..models import Notification
+from ..tasks import (
+    send_new_article_notification,
+    send_new_comment_notification,
+    send_notification_email,
+)
 
 
 class TestTasks(TransactionTestCase):
@@ -89,3 +97,21 @@ class TestTasks(TransactionTestCase):
         self.assertEqual(response["link"], f"/articles/{self.article.slug}")
 
         await communicator.disconnect()
+
+    def test_send_notification_email(self):
+        notification = Notification.objects.create(
+            type=Notification.Type.NEW_ARTICLE,
+            title="New Article",
+            message=f"New article from {self.author.username}: '{self.article.title}'",
+            link=reverse("article-details", args=(self.article.slug,)),
+            sender=self.author,
+            recipient=self.user,
+        )
+
+        with patch(
+            "notifications.services.send_notification_email"
+        ) as send_notification_email__mock, start_worker(app, perform_ping_check=False):
+            result = send_notification_email.delay(notification.id)
+            self.assertEqual(result.get(), None)
+            self.assertEqual(result.state, "SUCCESS")
+            send_notification_email__mock.assert_called_once_with(notification)
