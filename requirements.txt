@@ -1,29 +1,107 @@
-asgiref==3.5.0; python_version >= "3.8"
-boto3==1.20.54; python_version >= "3.6"
-botocore==1.23.54; python_version >= "3.6"
-certifi==2021.10.8; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
-charset-normalizer==2.0.12; python_full_version >= "3.6.0" and python_version >= "3"
-django-ckeditor==6.2.0
-django-crispy-forms==1.14.0; python_version >= "3.7"
-django-debug-toolbar==3.2.4; python_version >= "3.6"
-django-js-asset==1.2.2
-django-sql-utils==0.6.1
-django-storages==1.12.3; python_version >= "3.5"
-django-taggit==2.1.0; python_version >= "3.6"
-django==4.0.1; python_version >= "3.8"
-gunicorn==20.1.0; python_version >= "3.5"
-idna==3.3; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version >= "3.5"
+amqp==5.2.0
+asgiref==3.8.1
+attrs==24.2.0
+autobahn==24.4.2
+Automat==24.8.1
+beautifulsoup4==4.12.3
+billiard==4.2.1
+bleach==6.1.0
+boto3==1.35.29
+botocore==1.35.29
+celery==5.4.0
+certifi==2024.8.30
+cffi==1.17.1
+channels==4.1.0
+channels-redis==4.2.0
+charset-normalizer==3.3.2
+click==8.1.7
+click-didyoumean==0.3.1
+click-plugins==1.1.1
+click-repl==0.3.0
+colorama==0.4.6
+constantly==23.10.4
+cryptography==43.0.1
+cssbeautifier==1.15.1
+daphne==4.1.2
+Django==5.1.1
+django-allauth==65.0.2
+django-appconf==1.0.6
+django-ckeditor==6.7.1
+django-ckeditor-5==0.2.13
+django-crispy-forms==2.3
+django-debug-toolbar==4.4.6
+django-filebrowser==4.0.3
+django-filter==24.3
+django-grappelli==4.0.1
+django-hcaptcha-field==1.4.0
+django-js-asset==2.2.0
+django-redis==5.4.0
+django-select2==8.2.1
+django-sql-utils==0.7.0
+django-storages==1.14.4
+django-summernote==0.8.20.0
+django-taggit==6.1.0
+django-tinymce==4.1.0
+djhtml==3.0.6
+djlint==1.35.2
+EditorConfig==0.12.4
+flower==2.0.1
+gunicorn==23.0.0
+html-tag-names==0.1.2
+html-void-elements==0.1.0
+html5lib==1.1
+humanize==4.10.0
+hyperlink==21.0.0
+idna==3.10
+incremental==24.7.2
+iniconfig==2.0.0
 ipapi==1.0.4
-jmespath==0.10.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.6"
-pillow==9.0.0; python_version >= "3.7"
-psycopg2==2.9.3; python_version >= "3.6"
-python-dateutil==2.8.2; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.6"
-python-dotenv==0.19.2; python_version >= "3.5"
-pytz==2021.3
-requests==2.27.1; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
-s3transfer==0.5.1; python_version >= "3.6"
-six==1.16.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.6"
-sqlparse==0.4.2; python_version >= "3.8"
-tzdata==2021.5; sys_platform == "win32" and python_version >= "3.8"
-urllib3==1.26.8; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version < "4" and python_version >= "3.6"
-whitenoise==6.0.0; python_version >= "3.7"
+jmespath==1.0.1
+jsbeautifier==1.15.1
+json5==0.9.25
+kombu==5.4.2
+minify_html==0.15.0
+msgpack==1.1.0
+mypy-extensions==1.0.0
+oauthlib==3.2.2
+packaging==24.1
+pathspec==0.12.1
+pillow==10.4.0
+platformdirs==4.3.6
+pluggy==1.5.0
+prometheus_client==0.21.0
+prompt_toolkit==3.0.48
+psycopg2==2.9.9
+pyasn1==0.6.1
+pyasn1_modules==0.4.1
+pycparser==2.22
+PyJWT==2.9.0
+pyOpenSSL==24.2.1
+pytest==8.3.3
+pytest-django==4.9.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.0.1
+pytz==2024.2
+PyYAML==6.0.2
+redis==5.1.0
+regex==2024.9.11
+requests==2.32.3
+requests-oauthlib==2.0.0
+s3transfer==0.10.2
+service-identity==24.1.0
+setuptools==75.1.0
+six==1.16.0
+soupsieve==2.6
+sqlparse==0.5.1
+tornado==6.4.1
+tqdm==4.66.5
+Twisted==24.7.0
+txaio==23.1.1
+typing_extensions==4.12.2
+tzdata==2024.2
+urllib3==2.2.3
+vine==5.1.0
+wcwidth==0.2.13
+webencodings==0.5.1
+whitenoise==6.7.0
+zope.interface==7.0.3
