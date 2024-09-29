@@ -146,8 +146,8 @@ aside.sidebar {
     width: 26%;
 }
 
-.main-content {
-    width: 70%;
+aside.sidebar + .main-content {
+    width: 65%;
 }
 
 .article-search {
@@ -272,7 +272,7 @@ span.article-preview-icon-counter {
     }
 
     .main-content {
-        width: 100%;
+        width: 100% !important;
     }
 
     .article-search {
