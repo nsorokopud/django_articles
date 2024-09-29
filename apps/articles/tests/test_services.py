@@ -579,7 +579,7 @@ class TestServices(TestCase):
         )
         directory = f"articles/uploads/{self.test_user.username}/{a.id}"
 
-        with patch(
+        with patch("articles.services.default_storage.exists", return_value=True), patch(
             "articles.services.default_storage.listdir",
             return_value=[[directory], ["file1", "file2"]],
         ), patch("articles.services.default_storage.delete") as delete_mock:
