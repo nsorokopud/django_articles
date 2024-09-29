@@ -28,6 +28,10 @@ header {
     font-weight: 500;
 }
 
+.navbar-brand {
+    font-size: 28px;
+}
+
 header a, header button {
     text-decoration: none;
     color: white;
