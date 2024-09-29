@@ -173,6 +173,10 @@ aside.sidebar + .main-content {
 
 /* Article */
 
+.articles-container:has(.article-single) {
+    width: 100%;
+}
+
 .article {
     margin-bottom: 50px;
     background: white;
