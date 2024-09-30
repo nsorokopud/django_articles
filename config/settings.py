@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "tinymce",
     "crispy_forms",
+    "crispy_bootstrap4",
     "hcaptcha_field",
     "debug_toolbar",
     "taggit",

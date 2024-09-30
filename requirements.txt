@@ -20,6 +20,7 @@ click-plugins==1.1.1
 click-repl==0.3.0
 colorama==0.4.6
 constantly==23.10.4
+crispy-bootstrap4==2024.1
 cryptography==43.0.1
 cssbeautifier==1.15.1
 daphne==4.1.2
