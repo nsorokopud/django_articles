@@ -39,6 +39,7 @@ class Article(models.Model):
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
     slug = models.CharField(max_length=256, unique=True, db_index=True)
+    image = models.ImageField(upload_to="categories/images/", null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Categories"
