@@ -55,6 +55,9 @@
                                 {% if article.preview_image %}
                                 <img class="img-fluid mx-auto article-preview-image" src="{{ article.preview_image.url }}"
                                     alt="Article preview image">
+                                {% elif article.category.image %}
+                                <img class="img-fluid mx-auto article-preview-image" src="{{ article.category.image.url }}"
+                                    alt="Article preview image">
                                 {% endif %}
                                 <p class="article-preview-text mt-3">
                                     {{ article.preview_text }}
