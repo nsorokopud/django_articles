@@ -41,7 +41,11 @@ class ArticleFilter(FilterSet):
         widget=Select2TagWidget(attrs={"id": "filterTagsInput"}),
     )
     ordering = OrderingFilter(
-        fields=[("created_at", "Date")],
+        fields=[
+            ("created_at", "Date and Time"),
+            ("views_count", "Views"),
+            ("likes_count", "Likes"),
+        ],
     )
 
     class Meta:
