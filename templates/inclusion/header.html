@@ -12,7 +12,10 @@
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0"></ul>
                     <div class="header-user text-white">
                         {% if request.user.is_authenticated %}
-                        <a class="link-green" href="{% url 'article-create' %}">New article</a>
+                        <a class="link-green" href="{% url 'article-create' %}">
+                          New article
+                          <i class="fa-solid fa-pen-to-square fa-bounce"></i>
+                        </a>
                         <!-- Icon -->
                         <button type="button" id="notificationBadge" data-bs-toggle="modal" data-bs-target="#modal" class="text-body notification-badge" style="text-align: left">
                             <i class="fas fa-envelope fs-4"></i>
