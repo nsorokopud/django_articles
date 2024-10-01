@@ -1,6 +1,6 @@
 /* Common */
 
-.link-green {
+.link-green, .link-green i {
     text-decoration: none;
     color: #00B74A;
 }
