@@ -32,7 +32,8 @@
         </div>
         <div>
           Check out this author's
-          <a class="link-green" href="{% url 'articles' %}?author={{ author.username }}">articles</a>
+          <a href="{% url 'articles' %}?author={{ author.username }}"
+            class="link-green">articles</a>
         </div>
       </div>
     </div>

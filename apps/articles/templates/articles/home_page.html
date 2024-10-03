@@ -3,100 +3,110 @@
 {% load tz %}
 
 {% block extra_links %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+  rel="stylesheet" />
 <link rel="stylesheet" href="{% static 'css/select2.css' %}">
 {% endblock extra_links %}
 
 {% block content-main %}
-    <div class="container main-container d-flex mx-auto">
+  <div class="container main-container d-flex mx-auto">
 
-        {% include "inclusion/sidebar.html" %}
+    {% include "inclusion/sidebar.html" %}
 
-        <section class="main-content mx-auto">
-            <div class="row">
-                <div class="articles-container mx-auto">
-
-                    {% if not articles %}
-                    <h2>No articles matching your query</h2>
-                    {% else %}
-                    <h2 class="mb-5">Articles matching your query ({{ paginator.count }}):</h2>
-                    {% endif %}
-
-                    {% for article in articles %}
-                    <article class="article p-3">
-                        <div class="article-preview-author d-flex align-items-center mb-3">
-                            <img class="article-author-avatar rounded-circle"
-                                src="{{ article.author.profile.image.url }}" alt="Article author's image" />
-                            <div class="article-preview-author-right">
-                              <a href="{% url 'author-page' article.author.username %}" class="article-author-name">{{ article.author.username }}</a>
-                                <time class="article-preview-date" datetime="{{ article.created_at.isoformat }}">
-                                    {{ article.created_at|localtime|date:'H:i d-m-Y' }}
-                                </time>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <div class="article-preview-main">
-                            <h3 class="article-title mb-4">
-                                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
-                            </h3>
-                            {% if article.category %}
-                                <h5 class="article-category">Category: <a href="{% url 'articles' %}?category={{ article.category.slug }}">{{ article.category }}</a></h5>
-                            {% endif %}
-                            {% if article.tags.all %}
-                            <ul class="article-tags-list"><span class="tags-span">Tags: </span>
-                                {% for tag in article.tags.all %}
-                                <li><a class="article-tag-link" href="{% url 'articles' %}?tags={{ tag }}">#{{ tag }}</a></li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-                            <div class="article-preview-content">
-                                {% if article.preview_image %}
-                                <img class="img-fluid mx-auto article-preview-image" src="{{ article.preview_image.url }}"
-                                    alt="Article preview image">
-                                {% elif article.category.image %}
-                                <img class="img-fluid mx-auto article-preview-image" src="{{ article.category.image.url }}"
-                                    alt="Article preview image">
-                                {% endif %}
-                                <p class="article-preview-text mt-3">
-                                    {{ article.preview_text }}
-                                </p>
-
-                                <hr>
-
-                                <div class="article-preview-bottom d-flex justify-content-between align-items-center">
-                                    <a href="{{ article.get_absolute_url }}" class="btn btn-success">Read full</a>
-
-                                    <span class="article-preview-icons">
-                                        <span class="mx-2 article-preview-icons__item">
-                                            <i class="far fa-eye m-1"></i>
-                                            <span class="article-preview-icon-counter">{{ article.views_count }}</span>
-                                        </span>
-                                        <span class="mx-2 article-preview-icons__item">
-                                            <i class="far fa-thumbs-up m-1"></i>
-                                            <span class="article-preview-icon-counter">{{ article.likes_count }}</span>
-                                        </span>
-                                        <span class="mx-2 article-preview-icons__item">
-                                            <i class="far fa-regular fa-comment"></i>
-                                            <span class="article-preview-icon-counter">
-                                                {{ article.comments_count }}
-                                            </span>
-                                        </span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                    {% endfor %}
-                </div>
+    <section class="main-content mx-auto">
+      <div class="row">
+        <div class="articles-container mx-auto">
+          {% if not articles %}
+          <h2>No articles matching your query</h2>
+          {% else %}
+          <h2 class="mb-5">Articles matching your query ({{ paginator.count }}):</h2>
+          {% endif %}
+          {% for article in articles %}
+          <article class="article p-3">
+            <div class="article-preview-author d-flex align-items-center mb-3">
+              <img class="article-author-avatar rounded-circle"
+                src="{{ article.author.profile.image.url }}"
+                alt="Article author's image" />
+              <div class="article-preview-author-right">
+                <a href="{% url 'author-page' article.author.username %}"
+                  class="article-author-name">{{ article.author.username }}</a>
+                  <time class="article-preview-date"
+                    datetime="{{ article.created_at.isoformat }}">
+                    {{ article.created_at|localtime|date:'H:i d-m-Y' }}
+                  </time>
+              </div>
             </div>
 
-            {% include "articles/article_pagination.html" %}
-        </section>
+            <hr>
 
-    </div> <!-- End of container -->
-    {% endblock content-main %}
+            <div class="article-preview-main">
+                <h3 class="article-title mb-4">
+                  <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                </h3>
+                {% if article.category %}
+                  <h5 class="article-category">Category:
+                    <a href="{% url 'articles' %}?category={{ article.category.slug }}">
+                      {{ article.category }}</a>
+                  </h5>
+                {% endif %}
+                {% if article.tags.all %}
+                <ul class="article-tags-list"><span class="tags-span">Tags: </span>
+                  {% for tag in article.tags.all %}
+                  <li>
+                    <a class="article-tag-link"
+                      href="{% url 'articles' %}?tags={{ tag }}">#{{ tag }}</a>
+                  </li>
+                  {% endfor %}
+                </ul>
+                {% endif %}
+                <div class="article-preview-content">
+                  {% if article.preview_image %}
+                  <img class="img-fluid mx-auto article-preview-image"
+                  src="{{ article.preview_image.url }}" alt="Article preview image">
+                  {% elif article.category.image %}
+                  <img class="img-fluid mx-auto article-preview-image"
+                    src="{{ article.category.image.url }}" alt="Article preview image">
+                  {% endif %}
+                  <p class="article-preview-text mt-3">
+                    {{ article.preview_text }}
+                  </p>
+
+                  <hr>
+
+                  <div
+                    class="article-preview-bottom d-flex justify-content-between align-items-center">
+                    <a href="{{ article.get_absolute_url }}"
+                      class="btn btn-success">Read full</a>
+                    <span class="article-preview-icons">
+                      <span class="mx-2 article-preview-icons__item">
+                        <i class="far fa-eye m-1"></i>
+                        <span class="article-preview-icon-counter">
+                          {{ article.views_count }}</span>
+                      </span>
+                      <span class="mx-2 article-preview-icons__item">
+                        <i class="far fa-thumbs-up m-1"></i>
+                        <span class="article-preview-icon-counter">
+                          {{ article.likes_count }}</span>
+                      </span>
+                      <span class="mx-2 article-preview-icons__item">
+                        <i class="far fa-regular fa-comment"></i>
+                        <span class="article-preview-icon-counter">
+                          {{ article.comments_count }}
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+                </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% include "articles/article_pagination.html" %}
+    </section>
+  </div> <!-- End of container -->
+{% endblock content-main %}
 
 {% block extra_scripts %}
 <!-- Articles Filtering -->
