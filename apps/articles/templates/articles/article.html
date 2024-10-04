@@ -31,16 +31,18 @@
                 {{ article.category }}</a>
             </h5>
             {% endif %}
-            {% if article.tags.all %}
+            {% with tags=article.tags.all %}
+              {% if tags %}
               <ul class="article-tags-list"><span class="tags-span">Tags: </span>
-                {% for tag in article.tags.all %}
+                {% for tag in tags %}
                 <li>
                   <a href="{% url 'articles' %}?tags={{ tag.name }}"
                     class="article-tag-link">#{{ tag.name }}</a>
                 </li>
                 {% endfor %}
               </ul>
-            {% endif %}
+              {% endif %}
+            {% endwith %}
             <div class="article-preview-content">
               {% if article.preview_image %}
                 <img class="img-fluid mx-auto article-preview-image"
