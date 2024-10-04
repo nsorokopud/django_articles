@@ -520,11 +520,11 @@ class TestServices(TestCase):
             is_published=True,
         )
         self.assertEqual(a1.views_count, 0)
-        increment_article_views_counter(a1.slug)
-        a1.refresh_from_db()
+        new_views_count = increment_article_views_counter(a1)
+        self.assertEqual(new_views_count, 1)
         self.assertEqual(a1.views_count, 1)
-        increment_article_views_counter(a1.slug)
-        a1.refresh_from_db()
+        new_views_count = increment_article_views_counter(a1)
+        self.assertEqual(new_views_count, 2)
         self.assertEqual(a1.views_count, 2)
 
     def test_get_comment_by_id(self):

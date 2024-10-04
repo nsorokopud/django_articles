@@ -41,7 +41,7 @@ class ArticleDetailView(DetailView):
     def get_object(self):
         article_slug = self.kwargs.get(self.slug_url_kwarg)
         article = services.get_article_by_slug(article_slug)
-        services.increment_article_views_counter(article_slug)
+        services.increment_article_views_counter(article)
         return article
 
     def get_context_data(self, **kwargs):

@@ -138,12 +138,11 @@ def create_article(
     return article
 
 
-def increment_article_views_counter(article_slug: str) -> Article:
-    article = get_object_or_404(Article, slug=article_slug)
+def increment_article_views_counter(article: Article) -> int:
     article.views_count = F("views_count") + 1
     article.save(update_fields=("views_count",))
     article.refresh_from_db()
-    return article
+    return article.views_count
 
 
 def toggle_article_like(article_slug: str, user_id: int) -> int:
