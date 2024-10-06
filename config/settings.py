@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "storages",
     "channels",
     "channels_redis",
+    "django_minify_html",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -65,6 +66,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django_minify_html.middleware.MinifyHtmlMiddleware",
     "config.middleware.ErrorLoggingMiddleware",
     "config.middleware.TimezoneMiddleware",
     "django.middleware.security.SecurityMiddleware",
