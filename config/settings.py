@@ -66,6 +66,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django.middleware.gzip.GZipMiddleware",
     "django_minify_html.middleware.MinifyHtmlMiddleware",
     "config.middleware.ErrorLoggingMiddleware",
     "config.middleware.TimezoneMiddleware",
