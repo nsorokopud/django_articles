@@ -248,7 +248,6 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 USE_WHITENOISE = bool(int(os.getenv("USE_WHITENOISE", 0)))
 
 if USE_WHITENOISE:
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
     WHITENOISE_USE_FINDERS = True
 
 MEDIA_URL = "/media/"
@@ -314,7 +313,25 @@ if USE_AWS_S3:
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     AWS_S3_FILE_OVERWRITE = False
 
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+# Storages
+
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "storages.backends.s3boto3.S3Boto3Storage"
+            if USE_AWS_S3
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if USE_WHITENOISE
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
 
 
 # Heroku
