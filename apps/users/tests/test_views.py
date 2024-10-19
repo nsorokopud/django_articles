@@ -130,7 +130,7 @@ class TestViews(TestCase):
         target_url = reverse("author-subscribe", args=(author.username,))
         response = self.client.post(target_url)
 
-        redirect_url = f"{reverse("login")}?next={target_url}"
+        redirect_url = f"{reverse('login')}?next={target_url}"
         self.assertRedirects(response, redirect_url, status_code=302, target_status_code=200)
 
         self.client.force_login(self.test_user)
