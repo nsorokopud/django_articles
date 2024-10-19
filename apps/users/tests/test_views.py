@@ -42,13 +42,17 @@ class TestViews(TestCase):
             response = self.client.post(reverse("registration"), invalid_user_data)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed("users/registration.html")
-        self.assertEqual(response.context["form"].errors, {
-            "email": ["Enter a valid email address."],
-            "password2": ["The two password fields didn’t match."]
-        })
+        self.assertEqual(
+            response.context["form"].errors,
+            {
+                "email": ["Enter a valid email address."],
+                "password2": ["The two password fields didn’t match."],
+            },
+        )
 
         with patch("hcaptcha_field.hCaptchaField.validate", return_value=True), patch(
-            "users.views.send_account_activation_email") as send_email__mock:
+            "users.views.send_account_activation_email"
+        ) as send_email__mock:
             response = self.client.post(reverse("registration"), user_data)
             user = User.objects.order_by("id").last()
             self.assertEqual(user.username, user_data["username"])
@@ -82,7 +86,9 @@ class TestViews(TestCase):
 
         with patch("hcaptcha_field.hCaptchaField.validate", return_value=True):
             response = self.client.post(reverse("login"), login_data1)
-        self.assertRedirects(response, reverse("articles"), status_code=302, target_status_code=200)
+        self.assertRedirects(
+            response, reverse("articles"), status_code=302, target_status_code=200
+        )
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.wsgi_request.user, self.test_user)
 
@@ -90,7 +96,9 @@ class TestViews(TestCase):
 
         with patch("hcaptcha_field.hCaptchaField.validate", return_value=True):
             response = self.client.post(reverse("login"), login_data2)
-        self.assertRedirects(response, reverse("articles"), status_code=302, target_status_code=200)
+        self.assertRedirects(
+            response, reverse("articles"), status_code=302, target_status_code=200
+        )
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.wsgi_request.user, self.test_user)
 
@@ -103,9 +111,14 @@ class TestViews(TestCase):
         form = response.context["form"]
         self.assertTrue(isinstance(form, AuthenticationForm))
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors, {"__all__": [
-            "Please enter a correct username and password. Note that both fields may be case-sensitive."
-        ]})
+        self.assertEqual(
+            form.errors,
+            {
+                "__all__": [
+                    "Please enter a correct username and password. Note that both fields may be case-sensitive."
+                ]
+            },
+        )
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         self.assertNotEqual(response.wsgi_request.user, self.test_user)
 
@@ -147,9 +160,15 @@ class TestViews(TestCase):
         self.assertTrue(self.test_user not in author.profile.subscribers.all())
 
     def test_account_activation_view(self):
-        user1 = User.objects.create_user(username="user1", email="user1@test.com", password="a12345", is_active=False)
-        user2 = User.objects.create_user(username="user2", email="user2@test.com", password="b12345", is_active=False)
-        user3 = User.objects.create_user(username="user3", email="user3@test.com", password="c12345", is_active=True)
+        user1 = User.objects.create_user(
+            username="user1", email="user1@test.com", password="a12345", is_active=False
+        )
+        user2 = User.objects.create_user(
+            username="user2", email="user2@test.com", password="b12345", is_active=False
+        )
+        user3 = User.objects.create_user(
+            username="user3", email="user3@test.com", password="c12345", is_active=True
+        )
 
         self.assertFalse(user1.is_active)
         self.assertFalse(user2.is_active)
@@ -260,29 +279,38 @@ class TestViews(TestCase):
         url = reverse("password-set")
 
         # anonymous user
-        response = self.client.post(url, {
-            "password1": password,
-            "password2": password,
-        })
+        response = self.client.post(
+            url,
+            {
+                "password1": password,
+                "password2": password,
+            },
+        )
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.status_code, 403)
 
         # user with usable password
         self.client.force_login(self.test_user)
-        response = self.client.post(url, {
-            "password1": password,
-            "password2": password,
-        })
+        response = self.client.post(
+            url,
+            {
+                "password1": password,
+                "password2": password,
+            },
+        )
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertEqual(response.status_code, 403)
         self.assertTrue(self.test_user.check_password("12345"))
 
         # user without usable password
         self.client.force_login(user)
-        response = self.client.post(url, {
-            "password1": password,
-            "password2": password,
-        })
+        response = self.client.post(
+            url,
+            {
+                "password1": password,
+                "password2": password,
+            },
+        )
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertRedirects(
             response, reverse("articles"), status_code=302, target_status_code=200
