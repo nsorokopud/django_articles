@@ -75,10 +75,13 @@ def send_account_activation_email(request: HttpRequest, user: User):
     domain = get_current_site(request)
     token = activation_token_generator.make_token(user)
     protocol = "https" if request.is_secure() else "http"
-    message = render_to_string("users/activation_email.html", {
-        "username": user.username,
-        "url": f"{protocol}://{domain}{reverse("account-activate", args=[encoded_user_id, token])}"
-    })
+    message = render_to_string(
+        "users/activation_email.html",
+        {
+            "username": user.username,
+            "url": f"{protocol}://{domain}{reverse('account-activate', args=[encoded_user_id, token])}",
+        },
+    )
     email = EmailMultiAlternatives(subject, message, to=[user.email])
     email.attach_alternative(message, "text/html")
     email.send()
