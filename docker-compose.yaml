@@ -1,0 +1,72 @@
+services:
+  web-app:
+    build: .
+    image: nsorokopud/projects:django-articles
+    restart: "no"
+    expose:
+      - 8000
+    env_file:
+      - .env
+    volumes:
+      - static-volume:/app/staticfiles/
+    depends_on:
+      - db
+      - redis
+      - celery-worker
+
+  db:
+    image: postgres:17.0-alpine
+    restart: "no"
+    expose:
+      - 5432
+    environment:
+      - POSTGRES_DB=django_articles_db
+      - POSTGRES_USER=articles_user
+      - POSTGRES_PASSWORD=Cjhjrjgel2014
+    volumes:
+      - db-volume:/var/lib/postgresql/data/
+
+  celery-worker:
+    build: .
+    image: nsorokopud/projects:django-articles
+    restart: "no"
+    env_file:
+      - .env
+    entrypoint: celery
+    command: -A config worker -l INFO
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: redis:7.4-alpine
+    restart: "no"
+    expose:
+      - 6379
+
+  flower:
+    build: .
+    image: nsorokopud/projects:django-articles
+    env_file:
+      - .env
+    entrypoint: celery
+    command: -A config flower
+    ports:
+      - 5555:5555
+    depends_on:
+      - redis
+      - db
+
+  nginx:
+    build: ./nginx
+    image: nsorokopud/projects:nginx-django-articles
+    ports:
+    - 80:80
+    depends_on:
+    - web-app
+    volumes:
+      - static-volume:/static/
+
+volumes:
+  db-volume:
+  static-volume:
