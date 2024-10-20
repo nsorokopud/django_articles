@@ -110,8 +110,8 @@ jobs:
           script: |
             echo ${{ secrets.SSH_PASSWORD }} | sudo -S mv /home/user/docker-compose.yaml /projects/django_articles;
             cd /projects/django_articles;
-            docker compose stop;
+            docker compose down;
             docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }};
             docker pull ${{ secrets.WEB_IMAGE }};
             docker pull ${{ secrets.NGINX_IMAGE }};
-            docker compose up -d --build;
+            docker compose up -d;
