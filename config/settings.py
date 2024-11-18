@@ -30,6 +30,8 @@ ALLOWED_HOSTS = os.environ["ALLOWED_HOSTS"].split(" ")
 if DEBUG:
     INTERNAL_IPS = ["127.0.0.1"]
 
+SCHEME = os.environ["SCHEME"]
+DOMAIN_NAME = os.environ["DOMAIN_NAME"]
 
 # Application definition
 
@@ -414,10 +416,3 @@ EMAIL_PORT = os.environ["EMAIL_PORT"]
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 EMAIL_USE_TLS = os.environ["EMAIL_USE_TLS"]
-
-
-# HTTPS
-
-SCHEME = os.environ["SCHEME"]
-
-DOMAIN_NAME = os.environ["DOMAIN_NAME"]
