@@ -420,4 +420,4 @@ EMAIL_USE_TLS = os.environ["EMAIL_USE_TLS"]
 
 SCHEME = os.environ["SCHEME"]
 
-DEFAULT_DOMAIN_NAME = os.environ["DEFAULT_DOMAIN_NAME"]
+DOMAIN_NAME = os.environ["DOMAIN_NAME"]

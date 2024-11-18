@@ -10,7 +10,7 @@ from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
-from config.settings import DEFAULT_DOMAIN_NAME, SCHEME
+from config.settings import DOMAIN_NAME, SCHEME
 from users.models import User
 from ..consumers import NotificationConsumer
 from ..models import Notification
@@ -151,7 +151,7 @@ class TestServices(TransactionTestCase):
         self.assertEqual(mail.outbox[0].subject, "New Article")
         expected_body = (
             f"\n{notification.message}. "
-            f'<a href="{SCHEME}://{DEFAULT_DOMAIN_NAME}{notification.link}">'
+            f'<a href="{SCHEME}://{DOMAIN_NAME}{notification.link}">'
             "Check it out</a>\n\n"
         )
         self.assertEqual(mail.outbox[0].body, expected_body)

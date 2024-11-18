@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
-from config.settings import DEFAULT_DOMAIN_NAME, SCHEME
+from config.settings import DOMAIN_NAME, SCHEME
 from users.models import User
 from .models import Notification
 from .tasks import send_notification_email as send_notification_email__task
@@ -79,7 +79,7 @@ def send_notification_email(notification: Notification) -> None:
         "notifications/email.html",
         {
             "message": notification.message,
-            "url": f"{SCHEME}://{DEFAULT_DOMAIN_NAME}{notification.link}",
+            "url": f"{SCHEME}://{DOMAIN_NAME}{notification.link}",
         },
     )
     email = EmailMultiAlternatives(notification.title, message, to=[notification.recipient.email])
