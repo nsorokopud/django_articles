@@ -418,7 +418,6 @@ EMAIL_USE_TLS = os.environ["EMAIL_USE_TLS"]
 
 # HTTPS
 
-USE_HTTPS = bool(int(os.getenv("USE_HTTPS", False)))
+SCHEME = os.environ["SCHEME"]
 
-DEFAULT_PROTOCOL = "https" if USE_HTTPS else "http"
 DEFAULT_DOMAIN_NAME = os.environ["DEFAULT_DOMAIN_NAME"]
