@@ -1,7 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse, resolve
 
-from articles.models import Article, ArticleCategory, ArticleComment
 from articles.views import (
     ArticleListFilterView,
     ArticleCommentView,
@@ -14,30 +13,9 @@ from articles.views import (
     CommentLikeView,
     HomePageView,
 )
-from users.models import User
 
 
 class TestURLs(TestCase):
-    def setUp(self):
-        self.test_user = User(username="test_user", email="test@test.com")
-        self.test_user.set_password("12345")
-        self.test_user.save()
-
-        self.test_category = ArticleCategory.objects.create(title="cat1", slug="cat1")
-        self.test_article = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-            is_published=True,
-        )
-
-        self.test_comment = ArticleComment.objects.create(
-            article=self.test_article, author=self.test_user, text="text"
-        )
-
     def test_homepage_url_is_resolved(self):
         url = reverse("home")
         self.assertEqual(resolve(url).func.view_class, HomePageView)
@@ -47,7 +25,7 @@ class TestURLs(TestCase):
         self.assertEqual(resolve(url).func.view_class, ArticleListFilterView)
 
     def test_article_details_page_url_is_resolved(self):
-        url = reverse("article-details", args=[self.test_article.slug])
+        url = reverse("article-details", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleDetailView)
 
     def test_article_creation_page_url_is_resolved(self):
@@ -55,23 +33,23 @@ class TestURLs(TestCase):
         self.assertEqual(resolve(url).func.view_class, ArticleCreateView)
 
     def test_article_update_page_url_is_resolved(self):
-        url = reverse("article-update", args=[self.test_article.slug])
+        url = reverse("article-update", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleUpdateView)
 
     def test_article_delete_page_url_is_resolved(self):
-        url = reverse("article-delete", args=[self.test_article.slug])
+        url = reverse("article-delete", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleDeleteView)
 
     def test_article_comment_url_is_resolved(self):
-        url = reverse("article-comment", args=[self.test_article.slug])
+        url = reverse("article-comment", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleCommentView)
 
     def test_article_like_url_is_resolved(self):
-        url = reverse("article-like", args=[self.test_article.slug])
+        url = reverse("article-like", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleLikeView)
 
     def test_comment_like_url_is_resolved(self):
-        url = reverse("comment-like", args=[self.test_comment.id])
+        url = reverse("comment-like", args=[1])
         self.assertEqual(resolve(url).func.view_class, CommentLikeView)
 
     def test_attached_file_upload_url_is_resolved(self):
