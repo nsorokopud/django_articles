@@ -14,12 +14,8 @@ class TestViews(TestCase):
     def setUp(self):
         self.client = Client()
 
-        self.test_user = User(username="test_user", email="test@test.com")
-        self.test_user.set_password("12345")
-        self.test_user.save()
-
+        self.test_user = User.objects.create_user(username="test_user", email="test@test.com")
         self.test_category = ArticleCategory.objects.create(title="cat1", slug="cat1")
-
         self.test_article = Article.objects.create(
             title="test_article",
             slug="test-article",
@@ -71,7 +67,7 @@ class TestViews(TestCase):
         )
 
     def test_article_creation_page_view_authorized(self):
-        self.client.login(username="test_user", password="12345")
+        self.client.force_login(self.test_user)
         response = self.client.get(reverse("article-create"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/article_form.html")
@@ -299,7 +295,7 @@ class TestViews(TestCase):
             author=self.test_user,
         )
 
-        self.client.login(username="test_user", password="12345")
+        self.client.force_login(self.test_user)
         response = self.client.post(reverse("article-delete", args=[a.slug]))
 
         with self.assertRaises(Article.DoesNotExist):
@@ -323,7 +319,7 @@ class TestViews(TestCase):
         url = reverse("article-comment", args=[self.test_article.slug])
         comment_data = {"text": "text"}
 
-        self.client.login(username="test_user", password="12345")
+        self.client.force_login(self.test_user)
         response = self.client.post(url, comment_data)
         self.assertRedirects(
             response,
@@ -364,7 +360,7 @@ class TestViews(TestCase):
             target_status_code=200,
         )
 
-        self.client.login(username="test_user", password="12345")
+        self.client.force_login(self.test_user)
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [self.test_user])
@@ -413,7 +409,7 @@ class TestViews(TestCase):
             target_status_code=200,
         )
 
-        self.client.login(username="test_user", password="12345")
+        self.client.force_login(self.test_user)
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [self.test_user])

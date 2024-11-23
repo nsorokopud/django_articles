@@ -14,9 +14,7 @@ class TestViews(TestCase):
     def setUp(self):
         self.client = Client()
 
-        self.test_user = User(username="test_user", email="test@test.com")
-        self.test_user.set_password("12345")
-        self.test_user.save()
+        self.test_user = User.objects.create_user(username="test_user", email="test@test.com")
 
     def test_user_registration_view_get(self):
         response = self.client.get(reverse("registration"))
@@ -77,6 +75,8 @@ class TestViews(TestCase):
         self.assertTemplateUsed(response, "users/login.html")
 
     def test_user_login_view_post(self):
+        self.test_user.set_password("12345")
+        self.test_user.save()
         login_data1 = {"username": "test_user", "password": "12345"}
         login_data2 = {"username": "test@test.com", "password": "12345"}
         login_data_invalid = {"username": "invalid", "password": "invalid"}
@@ -127,7 +127,7 @@ class TestViews(TestCase):
         redirect_url = f'{reverse("login")}?next={reverse("user-profile")}'
         self.assertRedirects(response, redirect_url, status_code=302, target_status_code=200)
 
-        self.client.login(username="test_user", password="12345")
+        self.client.force_login(self.test_user)
         response = self.client.get(reverse("user-profile"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/profile.html")
@@ -257,6 +257,8 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 403)
 
         # user with usable password
+        self.test_user.set_password("12345")
+        self.test_user.save()
         self.client.force_login(self.test_user)
         response = self.client.get(url)
         self.assertTrue(response.wsgi_request.user.is_authenticated)
@@ -290,6 +292,8 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 403)
 
         # user with usable password
+        self.test_user.set_password("12345")
+        self.test_user.save()
         self.client.force_login(self.test_user)
         response = self.client.post(
             url,

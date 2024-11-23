@@ -28,7 +28,6 @@ from ..services import (
     _send_notification,
 )
 
-
 class TestServices(TransactionTestCase):
     def setUp(self):
         self.author = User.objects.create_user(username="author", email="author@test.com")

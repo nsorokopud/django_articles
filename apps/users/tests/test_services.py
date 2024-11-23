@@ -25,17 +25,13 @@ from users.signals import create_profile
 
 class TestServices(TestCase):
     def setUp(self):
-        self.test_user = User(username="test_user", email="test@test.com")
-        self.test_user.set_password("12345")
-        self.test_user.save()
+        self.test_user = User.objects.create_user(username="test_user", email="test@test.com")
 
     def tearDown(self):
         signals.post_save.connect(create_profile, sender=User)
 
     def test_activate_user(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="12345", is_active=False
-        )
+        user = User.objects.create_user(username="user", email="user@test.com", is_active=False)
 
         self.assertFalse(user.is_active)
         self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)

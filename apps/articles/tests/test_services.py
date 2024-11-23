@@ -34,10 +34,7 @@ from users.models import User
 
 class TestServices(TestCase):
     def setUp(self):
-        self.test_user = User(username="test_user", email="test_user@test.com")
-        self.test_user.set_password("12345")
-        self.test_user.save()
-
+        self.test_user = User.objects.create_user(username="test_user", email="test_user@test.com")
         self.test_category = ArticleCategory.objects.create(title="test_cat", slug="test_cat")
 
     def test_find_published_articles(self):
