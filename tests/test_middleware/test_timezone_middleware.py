@@ -3,13 +3,13 @@ from unittest.mock import Mock, call, patch
 import pytz
 
 from django.conf import settings
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
 from config.middleware import TimezoneMiddleware, get_default_timezone
 
 
-class TimezoneMiddlewareTestCase(TestCase):
+class TimezoneMiddlewareTestCase(SimpleTestCase):
     def test_timezone_middleware(self):
         request = Mock()
         request.COOKIES = {"timezone": "America/Juneau"}

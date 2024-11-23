@@ -1,7 +1,7 @@
 from allauth.account.views import LogoutView
 from allauth.socialaccount.providers.google import views as google_views
 
-from django.test import TestCase
+from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 
 from users.views import (
@@ -16,7 +16,7 @@ from users.views import (
 )
 
 
-class TestURLs(TestCase):
+class TestURLs(SimpleTestCase):
     def test_account_activation_url_is_resolved(self):
         url = reverse("account-activate", args=["a", "b"])
         self.assertEqual(resolve(url).func.view_class, AccountActivationView)

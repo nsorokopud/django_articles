@@ -1,8 +1,8 @@
 from django.contrib.staticfiles import finders
-from django.test import TestCase
+from django.test import SimpleTestCase
 
 
-class TestStatic(TestCase):
+class TestStatic(SimpleTestCase):
     def test_css_is_loading(self):
         css_path = finders.find("css/style.css")
         self.assertIsNotNone(css_path)

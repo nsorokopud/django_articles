@@ -1,10 +1,10 @@
-from django.test import TestCase
+from django.test import SimpleTestCase
 from django.urls import reverse, resolve
 
 from notifications.views import DeleteNotificationView, ReadNotificationView
 
 
-class TestURLs(TestCase):
+class TestURLs(SimpleTestCase):
     def test_read_notification_url_is_resolved(self):
         url = reverse("notification-read", args=[1])
         self.assertEqual(resolve(url).func.view_class, ReadNotificationView)
