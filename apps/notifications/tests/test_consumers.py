@@ -1,3 +1,4 @@
+from asyncio.exceptions import TimeoutError
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 
