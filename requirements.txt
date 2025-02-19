@@ -48,6 +48,7 @@ django-tinymce==4.1.0
 djhtml==3.0.6
 djlint==1.35.2
 EditorConfig==0.12.4
+execnet==2.1.1
 flower==2.0.1
 gunicorn==23.0.0
 html-tag-names==0.1.2
@@ -82,6 +83,7 @@ PyJWT==2.9.0
 pyOpenSSL==24.2.1
 pytest==8.3.3
 pytest-django==4.9.0
+pytest-xdist==3.6.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.2
