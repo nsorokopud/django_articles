@@ -338,27 +338,6 @@ STORAGES = {
 }
 
 
-# Heroku
-
-USE_HEROKU = bool(int(os.getenv("USE_HEROKU", False)))
-
-if USE_HEROKU:
-    if "test" in sys.argv:
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.postgresql_psycopg2",
-                "NAME": os.environ["TEST_DB_NAME"],
-                "USER": os.environ["TEST_DB_USER"],
-                "PASSWORD": os.environ["TEST_DB_PASSWORD"],
-                "HOST": os.environ["TEST_DB_HOST"],
-                "PORT": os.environ["TEST_DB_PORT"],
-                "TEST": {
-                    "NAME": os.environ["TEST_DB_NAME"],
-                },
-            }
-        }
-
-
 # Redis
 
 REDIS_HOST = os.environ["REDIS_HOST"]
