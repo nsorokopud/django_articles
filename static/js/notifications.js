@@ -8,7 +8,8 @@ notificationDeleteButtons.forEach((button) => {
     addEventListenerToNotificaionDeleteButton(button);
 });
 
-const socket = new WebSocket(`ws://${window.location.host}/ws/notifications/`);
+const wsScheme = window.location.protocol == 'https:' ? 'wss' : 'ws';
+const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/notifications/`);
 addEventListenersToWebSocket(socket);
 
 function addEventListenersToWebSocket(socket) {
