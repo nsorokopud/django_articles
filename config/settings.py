@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "whitenoise.runserver_nostatic",
     "django.contrib.staticfiles",
     "tinymce",
     "crispy_forms",
@@ -74,7 +73,6 @@ MIDDLEWARE = [
     "config.middleware.ErrorLoggingMiddleware",
     "config.middleware.TimezoneMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -248,11 +246,6 @@ STATIC_URL = "/static/"
 STATIC_ROOT = "staticfiles"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
-# Whitenoise
-USE_WHITENOISE = bool(int(os.getenv("USE_WHITENOISE", 0)))
-
-if USE_WHITENOISE:
-    WHITENOISE_USE_FINDERS = True
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
@@ -330,9 +323,7 @@ STORAGES = {
     },
     "staticfiles": {
         "BACKEND": (
-            "whitenoise.storage.CompressedManifestStaticFilesStorage"
-            if USE_WHITENOISE
-            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
         ),
     },
 }
