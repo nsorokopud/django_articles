@@ -1,6 +1,8 @@
 from .base import *
 
 
+SECURE_SSL_REDIRECT = False
+
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 CACHES = {
