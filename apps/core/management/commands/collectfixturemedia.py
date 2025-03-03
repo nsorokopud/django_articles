@@ -30,6 +30,9 @@ class Command(BaseCommand):
                 continue
             try:
                 dest_path = str(path).split(fixture_media_dir)[-1].lstrip("/")
+                if default_storage.exists(dest_path):
+                    self.stderr.write(f"File '{dest_path}' already exists.\n")
+                    continue
                 with open(path, "rb") as file:
                     default_storage.save(dest_path, File(file))
                 self.stdout.write(f"Copied {path}\n")
