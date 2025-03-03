@@ -33,6 +33,16 @@ if DEBUG:
 SCHEME = os.environ["SCHEME"]
 DOMAIN_NAME = os.environ["DOMAIN_NAME"]
 
+if SCHEME.lower() == "https":
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 
 # Application definition
 
