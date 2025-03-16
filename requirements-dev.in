@@ -16,3 +16,6 @@ pytest-xdist==3.6.1
 
 # Static analysis
 mypy==1.15.0
+
+# Pre-commit hooks
+pre-commit==4.1.0
