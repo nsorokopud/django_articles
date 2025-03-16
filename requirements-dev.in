@@ -1,0 +1,18 @@
+# After changing this file, please run `pip-compile requirements-dev.in` to
+# also update `requirements-dev.txt`
+
+-r requirements.in
+
+# Requirements management
+pip-tools==7.4.1
+
+# Debugging
+django-debug-toolbar==4.4.6
+
+# Testing
+pytest==8.3.3
+pytest-django==4.9.0
+pytest-xdist==3.6.1
+
+# Static analysis
+mypy==1.15.0
