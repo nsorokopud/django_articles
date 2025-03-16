@@ -325,9 +325,6 @@ $RECYCLE.BIN/
 
 # js
 node_modules
-eslint.config.mjs
-package.json
-package-lock.json
 
 # logging
 logs
