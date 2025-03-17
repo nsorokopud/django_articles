@@ -1,12 +1,12 @@
 {% extends "users/form_base.html" %}
 
 {% block form %}
-<div class="logout-block text-center">
-  {% if is_activation_successful %}
-    <h3 class=" mb-5">Your account was successfully activated.</h3>
-    <big><a href="{% url 'login' %}" class="link-green">Log In</a></big>
-  {% else %}
-    <h3 class=" mb-5">An error occured during activation: {{ error_message }}.</h3>
-  {% endif %}
-</div>
+  <div class="logout-block text-center">
+    {% if is_activation_successful %}
+      <h3 class=" mb-5">Your account was successfully activated.</h3>
+      <big><a href="{% url 'login' %}" class="link-green">Log In</a></big>
+    {% else %}
+      <h3 class=" mb-5">An error occured during activation: {{ error_message }}.</h3>
+    {% endif %}
+  </div>
 {% endblock form %}

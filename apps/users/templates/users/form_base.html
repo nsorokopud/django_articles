@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-  <div class="container-fluid d-flex justify-content-center my-5">
-    <div class="col-12 col-md-8 col-lg-6">
-      {% block form %}{% endblock form %}
-      {% block form-after %}{% endblock form-after %}
+  <div class="container">
+    <div class="container-fluid d-flex justify-content-center my-5">
+      <div class="col-12 col-md-8 col-lg-6">
+        {% block form %}{% endblock %}
+        {% block form-after %}{% endblock %}
+      </div>
     </div>
   </div>
-</div>
 {% endblock content %}

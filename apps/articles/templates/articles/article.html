@@ -1,157 +1,166 @@
 {% extends "articles/base.html" %}
-{% load static %}
-{% load crispy_forms_tags %}
-{% load tz %}
+{% load crispy_forms_tags static tz %}
 
 {% block content-main %}
-<div class="container main-container d-flex mx-auto">
-  <section class="main-content col-12 col-lg-10 mx-auto">
-    <div class="row">
-      <div class="articles-container mx-auto nopadding">
-        <article class="article article-single p-3">
-          <div class="article-preview-author d-flex align-items-center mb-3">
-            <img src="{{ article.author.profile.image.url }}"
-              class="article-author-avatar rounded-circle" alt="Avatar" />
-            <div class="article-preview-author-right">
-              <a href="{% url 'author-page' article.author.username %}"
-                class="article-author-name">{{ article.author.username }}</a>
-              <time datetime="{{ article.created_at.isoformat }}"
-                class="article-preview-date">
-                {{ article.created_at|localtime|date:'H:i d-m-Y' }}
-              </time>
-            </div>
-          </div>
-          <hr>
-          <div class="article-preview-main">
-            <h3 class="article-title mb-4">{{ article.title }}</h3>
-            {% if article.category %}
-            <h5 class="article-category">
-              Category:
-              <a href="{% url 'articles' %}?category={{ article.category.slug }}">
-                {{ article.category }}</a>
-            </h5>
-            {% endif %}
-            {% with tags=article.tags.all %}
-              {% if tags %}
-              <ul class="article-tags-list"><span class="tags-span">Tags: </span>
-                {% for tag in tags %}
-                <li>
-                  <a href="{% url 'articles' %}?tags={{ tag.name }}"
-                    class="article-tag-link">#{{ tag.name }}</a>
-                </li>
-                {% endfor %}
-              </ul>
-              {% endif %}
-            {% endwith %}
-            <div class="article-preview-content">
-              {% if article.preview_image %}
-                <img class="img-fluid mx-auto article-preview-image"
-                  src="{{ article.preview_image.url }}" alt="Article preview image">
-              {% endif %}
-              <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
-              <hr>
-              <span class="article-preview-icons">
-                <span class="mx-2 article-preview-icons__item">
-                  <i class="article-icon far fa-eye m-1"></i>
-                  <span class="article-icon-counter">{{ article.views_count }}</span>
-                </span>
-                <span class="mx-2 article-preview-icons__item">
-                  <a id="articleLikeLink" class="article-icon"
-                    href="{% url 'article-like' article.slug %}"
-                    {% if request.user.is_authenticated %}is_logged_in{% endif %}>
-                    <i id="articleLikeIcon"
-                      class="article-icon fas fa-thumbs-up m-1 {% if user_liked %}active{% endif %}">
-                    </i>
-                  </a>
-                  <span id="articleLikesCounter" class="article-icon-counter">
-                    {{ article.likes_count }}</span>
-                </span>
-              </span>
-              {% if article.author == request.user %}
-              <div class="mt-4">
-                <a class="btn btn-secondary btn-sm mx-2"
-                  href="{% url 'article-update' article.slug %}">Update</a>
-                <a class="btn btn-danger btn-sm"
-                  href="{% url 'article-delete' article.slug %}">Delete</a>
+  <div class="container main-container d-flex mx-auto">
+    <section class="main-content col-12 col-lg-10 mx-auto">
+      <div class="row">
+        <div class="articles-container mx-auto nopadding">
+          <article class="article article-single p-3">
+            <div class="article-preview-author d-flex align-items-center mb-3">
+              <img src="{{ article.author.profile.image.url }}"
+                   class="article-author-avatar rounded-circle"
+                   alt="Avatar" />
+              <div class="article-preview-author-right">
+                <a href="{% url 'author-page' article.author.username %}"
+                   class="article-author-name">{{ article.author.username }}</a>
+                <time datetime="{{ article.created_at.isoformat }}"
+                      class="article-preview-date">
+                  {{ article.created_at|localtime|date:'H:i d-m-Y' }}
+                </time>
               </div>
-              {% endif %}
             </div>
-          </div>
-        </article>
+            <hr>
+            <div class="article-preview-main">
+              <h3 class="article-title mb-4">{{ article.title }}</h3>
+              {% if article.category %}
+                <h5 class="article-category">
+                  Category:
+                  <a href="{% url 'articles' %}?category={{ article.category.slug }}">
+                  {{ article.category }}</a>
+                </h5>
+              {% endif %}
+              {% with tags=article.tags.all %}
+                {% if tags %}
+                  <ul class="article-tags-list">
+                    <span class="tags-span">Tags:</span>
+                    {% for tag in tags %}
+                      <li>
+                        <a href="{% url 'articles' %}?tags={{ tag.name }}"
+                           class="article-tag-link">#{{ tag.name }}</a>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              {% endwith %}
+              <div class="article-preview-content">
+                {% if article.preview_image %}
+                  <img class="img-fluid mx-auto article-preview-image"
+                       src="{{ article.preview_image.url }}"
+                       alt="Article preview image">
+                {% endif %}
+                <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
+                <hr>
+                <span class="article-preview-icons">
+                  <span class="mx-2 article-preview-icons__item">
+                    <i class="article-icon far fa-eye m-1"></i>
+                    <span class="article-icon-counter">{{ article.views_count }}</span>
+                  </span>
+                  <span class="mx-2 article-preview-icons__item">
+                    <a id="articleLikeLink"
+                       class="article-icon"
+                       href="{% url 'article-like' article.slug %}"
+                       {% if request.user.is_authenticated %}is_logged_in{% endif %}>
+                      <i id="articleLikeIcon"
+                         class="article-icon fas fa-thumbs-up m-1
+                                {% if user_liked %}active{% endif %}">
+                      </i>
+                    </a>
+                    <span id="articleLikesCounter" class="article-icon-counter">
+                    {{ article.likes_count }}</span>
+                  </span>
+                </span>
+                {% if article.author == request.user %}
+                  <div class="mt-4">
+                    <a class="btn btn-secondary btn-sm mx-2"
+                       href="{% url 'article-update' article.slug %}">Update</a>
+                    <a class="btn btn-danger btn-sm"
+                       href="{% url 'article-delete' article.slug %}">Delete</a>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </article>
+        </div>
       </div>
-    </div>
-  </section>
-</div> <!-- End of container 1 -->
+    </section>
+  </div>
+  <!-- End of container 1 -->
 {% endblock content-main %}
 
 {% block content-bottom %}
-<div class="container">
-  <hr>
-  <section class="article-comment-section">
-    <div class="row">
-      <div class="col-lg-8 col-md-12 mx-auto nopadding">
-        {% if comments_count > 0 %}
-        <h2 class="article-comments-title">
-          Comments to this article ({{ comments_count }}):</h2>
-        {% else %}
-        <h2 class="article-comments-title">There are no comments yet</h2>
-        {% endif %}
-        {% if request.user.is_authenticated %}
-        <div class="card">
-          <div class="card-body p-4">
-            <div class="w-100">
-              <h5>Add a comment</h5>
-              <form class="form-outline" method="post"
-                action="{% url 'article-comment' article.slug %}">
-                {% csrf_token %}
-                {{ form|crispy }}
-                <button type="submit" class="btn btn-success mt-3">
-                  Send <i class="fas fa-long-arrow-alt-right ms-1"></i>
-                </button>
-              </form>
-              <div class="d-flex justify-content-between mt-3"></div>
-            </div>
-          </div>
-        </div>
-        {% else %}
-        <a href="{% url 'login' %}?next={% url 'article-details' article.slug %}"
-          class="link-green">Log in to leave comments</a>
-        {% endif %}
-        <div class="article-comments-container row d-flex justify-content-center my-5">
-          <div class="col-12">
-            {% for comment in comments %}
-            <div class="d-flex flex-start mb-4">
-              <img class="rounded-circle shadow-1-strong me-3"
-                src="{{ comment.author.profile.image.url }}" alt="avatar"
-                width="65" height="65" />
-              <div class="card w-100">
-                <div class="card-body p-4">
-                  <h5>{{ comment.author.username }}</h5>
-                  <p class="small">{{ comment.created_at|localtime|date:'H:i d.m.Y' }}</p>
-                  <p>{{ comment.text }}</p>
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                      <a id="commentLink{{ comment.id }}"
-                        href="{% url 'comment-like' comment.id %}"
-                        onClick="likeComment(event, {{ comment.id }})"
-                        class="comment-like-link link-muted me-2"
-                        {% if request.user.is_authenticated %}is_logged_in{% endif %}
-                      >
-                        <i class="article-icon fas fa-thumbs-up m-1 {% if comment.id in liked_comments %}active{% endif %}">  
-                        </i>
-                        <span class="comment-like-count">{{ comment.likes_count }}</span>
-                      </a>
-                    </div>
-                  </div>
+  <div class="container">
+    <hr>
+    <section class="article-comment-section">
+      <div class="row">
+        <div class="col-lg-8 col-md-12 mx-auto nopadding">
+          {% if comments_count > 0 %}
+            <h2 class="article-comments-title">
+              Comments to this article ({{ comments_count }}):
+            </h2>
+          {% else %}
+            <h2 class="article-comments-title">There are no comments yet</h2>
+          {% endif %}
+          {% if request.user.is_authenticated %}
+            <div class="card">
+              <div class="card-body p-4">
+                <div class="w-100">
+                  <h5>Add a comment</h5>
+                  <form class="form-outline"
+                        method="post"
+                        action="{% url 'article-comment' article.slug %}">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-success mt-3">
+                      Send <i class="fas fa-long-arrow-alt-right ms-1"></i>
+                    </button>
+                  </form>
+                  <div class="d-flex justify-content-between mt-3"></div>
                 </div>
               </div>
             </div>
-            {% endfor %}
+          {% else %}
+            <a href="{% url 'login' %}?next={% url 'article-details' article.slug %}"
+               class="link-green">Log in to leave comments</a>
+          {% endif %}
+          <div class="article-comments-container row d-flex justify-content-center my-5">
+            <div class="col-12">
+              {% for comment in comments %}
+                <div class="d-flex flex-start mb-4">
+                  <img class="rounded-circle shadow-1-strong me-3"
+                       src="{{ comment.author.profile.image.url }}"
+                       alt="avatar"
+                       width="65"
+                       height="65" />
+                  <div class="card w-100">
+                    <div class="card-body p-4">
+                      <h5>{{ comment.author.username }}</h5>
+                      <p class="small">{{ comment.created_at|localtime|date:'H:i d.m.Y' }}</p>
+                      <p>{{ comment.text }}</p>
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                          <a id="commentLink{{ comment.id }}"
+                             href="{% url 'comment-like' comment.id %}"
+                             onClick="likeComment(event, {{ comment.id }})"
+                             class="comment-like-link link-muted me-2"
+                             {% if request.user.is_authenticated %}is_logged_in{% endif %}>
+                            <i class="article-icon fas fa-thumbs-up m-1
+                                      {% if comment.id in liked_comments %}active{% endif %}">
+                            </i>
+                            <span class="comment-like-count">{{ comment.likes_count }}</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
-</div><!-- End of container 2 -->
-<script src="{% static 'js/like.js' %}"></script>
+    </section>
+  </div>
+  <!-- End of container 2 -->
+  <script src="{% static 'js/like.js' %}"></script>
 {% endblock content-bottom %}
