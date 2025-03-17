@@ -4,7 +4,8 @@
 
 {% block form %}
   <img class="d-block rounded-circle profile-image mx-auto"
-       src="{{ user.profile.image.url }}">
+       src="{{ user.profile.image.url }}"
+       alt="Profile picture">
   <h2 class="text-center mb-5">{{ user.username }}</h2>
 
   <form class="user-form" method="post" enctype="multipart/form-data">
