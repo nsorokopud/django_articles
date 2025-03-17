@@ -1,0 +1,10 @@
+{
+  "name": "django-articles",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nsorokopud/django_articles.git"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}
