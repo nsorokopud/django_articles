@@ -14,7 +14,8 @@ pytest==8.3.3
 pytest-django==4.9.0
 pytest-xdist==3.6.1
 
-# Static analysis
+# Static analysis and formatting
+djlint==1.35.2
 mypy==1.15.0
 
 # Pre-commit hooks
