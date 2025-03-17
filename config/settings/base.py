@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap4",
     "hcaptcha_field",
-    "debug_toolbar",
     "taggit",
     "django_filters",
     "django_select2",
@@ -78,6 +77,10 @@ INSTALLED_APPS = [
     "notifications",
 ]
 
+if DEBUG:
+    INSTALLED_APPS += ["debug_toolbar"]
+
+
 MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
     "django_minify_html.middleware.MinifyHtmlMiddleware",
@@ -91,8 +94,11 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
+
+if DEBUG:
+    MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+
 
 ROOT_URLCONF = "config.urls"
 
