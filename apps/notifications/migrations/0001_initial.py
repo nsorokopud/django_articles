@@ -36,9 +36,9 @@ class Migration(migrations.Migration):
                         max_length=255,
                     ),
                 ),
-                ("title", models.CharField(blank=True, max_length=255, null=True)),
-                ("message", models.CharField(blank=True, max_length=500, null=True)),
-                ("link", models.URLField(blank=True, max_length=500, null=True)),
+                ("title", models.CharField(blank=True, max_length=255)),
+                ("message", models.CharField(blank=True, max_length=500)),
+                ("link", models.URLField(blank=True, max_length=500)),
                 (
                     "status",
                     models.CharField(
@@ -46,7 +46,6 @@ class Migration(migrations.Migration):
                         choices=[("unread", "Unread"), ("read", "Read")],
                         default="unread",
                         max_length=255,
-                        null=True,
                     ),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),

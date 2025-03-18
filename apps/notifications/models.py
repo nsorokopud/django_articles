@@ -13,9 +13,9 @@ class Notification(models.Model):
         READ = "read"
 
     type = models.CharField(max_length=255, choices=Type)
-    title = models.CharField(max_length=255, null=True, blank=True)
-    message = models.CharField(max_length=500, null=True, blank=True)
-    link = models.URLField(max_length=500, null=True, blank=True)
+    title = models.CharField(max_length=255, blank=True)
+    message = models.CharField(max_length=500, blank=True)
+    link = models.URLField(max_length=500, blank=True)
     sender = models.ForeignKey(
         User,
         null=True,
@@ -30,7 +30,7 @@ class Notification(models.Model):
         on_delete=models.CASCADE,
     )
     status = models.CharField(
-        max_length=255, null=True, blank=True, choices=Status, default=Status.UNREAD
+        max_length=255, blank=True, choices=Status, default=Status.UNREAD
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
