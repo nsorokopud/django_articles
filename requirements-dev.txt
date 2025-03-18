@@ -164,6 +164,8 @@ incremental==24.7.2
     # via twisted
 iniconfig==2.0.0
     # via pytest
+isort==6.0.1
+    # via -r requirements-dev.in
 jmespath==1.0.1
     # via
     #   boto3

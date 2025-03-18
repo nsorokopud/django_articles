@@ -7,6 +7,12 @@ format_attribute_template_tags=true
 max_blank_lines=1
 ignore="H006,H031,T003"
 
+[tool.isort]
+profile = "black"
+line_length = 88
+lines_after_imports = 2
+known_first_party = "articles,core,notifications,tests,users"
+
 [tool.mypy]
 ignore_missing_imports = true
 show_column_numbers = true
