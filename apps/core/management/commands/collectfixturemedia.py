@@ -24,7 +24,7 @@ class Command(BaseCommand):
             if not confirm.lower().startswith("y"):
                 raise CommandError("Media syncing aborted")
 
-        self.stdout.write(f"Copying fixture media files...\n")
+        self.stdout.write("Copying fixture media files...\n")
         fixture_media_dir = str(settings.BASE_DIR / "fixtures" / "media")
         for path in Path(fixture_media_dir).glob("**/*"):
             if not (path.is_file() and self.is_valid_media_file(path)):
@@ -39,7 +39,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"Copied {path}\n")
             except Exception as e:
                 self.stderr.write(repr(e))
-        self.stdout.write(f"Fixture media files copying finished.\n")
+        self.stdout.write("Fixture media files copying finished.\n")
 
     def is_valid_media_file(self, file_path) -> bool:
         return str(file_path).split(".")[-1] in ["jpg", "jpeg", "png", "bmp"]
