@@ -17,9 +17,7 @@ class Article(models.Model):
     tags = TaggableManager(blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     preview_text = models.TextField(max_length=512)
-    preview_image = models.ImageField(
-        upload_to="articles/preview_images/", null=True, blank=True
-    )
+    preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
     content = HTMLField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -43,7 +41,7 @@ class Article(models.Model):
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
     slug = models.CharField(max_length=256, unique=True, db_index=True)
-    image = models.ImageField(upload_to="categories/images/", null=True, blank=True)
+    image = models.ImageField(upload_to="categories/images/", blank=True)
 
     class Meta:
         verbose_name_plural = "Categories"

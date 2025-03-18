@@ -36,9 +36,7 @@ class Migration(migrations.Migration):
                 ("slug", models.CharField(db_index=True, max_length=256, unique=True)),
                 (
                     "image",
-                    models.ImageField(
-                        blank=True, null=True, upload_to="categories/images/"
-                    ),
+                    models.ImageField(blank=True, upload_to="categories/images/"),
                 ),
             ],
             options={
@@ -63,9 +61,7 @@ class Migration(migrations.Migration):
                 ("preview_text", models.TextField(max_length=512)),
                 (
                     "preview_image",
-                    models.ImageField(
-                        blank=True, null=True, upload_to="articles/preview_images/"
-                    ),
+                    models.ImageField(blank=True, upload_to="articles/preview_images/"),
                 ),
                 ("content", tinymce.models.HTMLField()),
                 ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
