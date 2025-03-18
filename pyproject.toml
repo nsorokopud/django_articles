@@ -14,6 +14,16 @@ format_attribute_template_tags=true
 max_blank_lines=1
 ignore="H006,H031,T003"
 
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["W503"]
+exclude = "venv,node_modules,migrations"
+per-file-ignores = """
+    __init__.py: F401,F403
+    config/settings/test.py: F401,F403
+    */tests/*: F841
+"""
+
 [tool.isort]
 profile = "black"
 line_length = 88

@@ -146,6 +146,15 @@ execnet==2.1.1
     # via pytest-xdist
 filelock==3.18.0
     # via virtualenv
+flake8==7.1.2
+    # via
+    #   -r requirements-dev.in
+    #   flake8-django
+    #   flake8-pyproject
+flake8-django==1.1.1
+    # via -r requirements-dev.in
+flake8-pyproject==1.2.3
+    # via -r requirements-dev.in
 flower==2.0.1
     # via -r requirements.in
 html-tag-names==0.1.2
@@ -185,6 +194,8 @@ kombu==5.5.0
     # via celery
 markdown-it-py==3.0.0
     # via rich
+mccabe==0.7.0
+    # via flake8
 mdurl==0.1.2
     # via markdown-it-py
 minify-html==0.15.0
@@ -234,8 +245,12 @@ pyasn1==0.6.1
     #   service-identity
 pyasn1-modules==0.4.1
     # via service-identity
+pycodestyle==2.12.1
+    # via flake8
 pycparser==2.22
     # via cffi
+pyflakes==3.2.0
+    # via flake8
 pygments==2.19.1
     # via rich
 pyjwt==2.9.0
