@@ -163,7 +163,7 @@ class TestServices(TransactionTestCase):
         self.assertEqual(mail.outbox[0].recipients(), ["user@test.com"])
         self.assertEqual(mail.outbox[0].subject, "New Article")
         expected_body = (
-            f"\n{notification.message}. "
+            f"\n  {notification.message}. "
             f'<a href="{SCHEME}://{DOMAIN_NAME}{notification.link}">'
             "Check it out</a>\n\n"
         )

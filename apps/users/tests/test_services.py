@@ -174,8 +174,10 @@ class TestServices(TestCase):
         self.assertEqual(mail.outbox[0].subject, "User account activation")
         uid = urlsafe_base64_encode(force_bytes(user1.pk))
         expected_body = (
-            f"\nHello, user1.<br><br>\nPlease follow the link to finish your registration:\n"
-            f'<a href="https://www.site.com/activate_account/{uid}/token1/">Finish registration</a>\n\n'
+            f"\n  Hello, user1.\n  <br>\n  <br>\n"
+            "  Please follow the link to finish your registration:\n"
+            f'  <a href="https://www.site.com/activate_account/{uid}/token1/">'
+            "Finish registration</a>\n\n"
         )
         self.assertEqual(mail.outbox[0].body, expected_body)
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
@@ -190,8 +192,10 @@ class TestServices(TestCase):
         self.assertEqual(mail.outbox[1].recipients(), ["user2@test.com"])
         uid = urlsafe_base64_encode(force_bytes(user2.pk))
         expected_body = (
-            f"\nHello, user2.<br><br>\nPlease follow the link to finish your registration:\n"
-            f'<a href="http://www.site.com/activate_account/{uid}/token2/">Finish registration</a>\n\n'
+            "\n  Hello, user2.\n  <br>\n  <br>\n"
+            "  Please follow the link to finish your registration:\n"
+            f'  <a href="http://www.site.com/activate_account/{uid}/token2/">'
+            "Finish registration</a>\n\n"
         )
         self.assertEqual(mail.outbox[1].body, expected_body)
 
