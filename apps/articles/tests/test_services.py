@@ -4,7 +4,6 @@ from unittest.mock import call, patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.test import TestCase
-from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (

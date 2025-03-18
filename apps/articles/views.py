@@ -4,13 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
+from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 
 from articles import services
@@ -18,7 +12,7 @@ from articles.constants import ARTICLES_PER_PAGE_COUNT
 from articles.filters import ArticleFilter
 from articles.forms import ArticleCommentForm, ArticleCreateForm, ArticleUpdateForm
 from articles.models import Article
-from articles.utils import AllowOnlyAuthorMixin, CategoriesMixin
+from articles.utils import AllowOnlyAuthorMixin
 
 
 class ArticleListFilterView(FilterView):
