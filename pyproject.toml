@@ -1,4 +1,8 @@
 
+[tool.black]
+target-version = ["py312"]
+line-length = 88
+
 [tool.djlint]
 profile="django"
 indent = 2

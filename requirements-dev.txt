@@ -23,6 +23,8 @@ automat==24.8.1
     # via twisted
 billiard==4.2.1
     # via celery
+black==25.1.0
+    # via -r requirements-dev.in
 boto3==1.35.29
     # via -r requirements.in
 botocore==1.35.99
@@ -51,6 +53,7 @@ charset-normalizer==3.4.1
     # via requests
 click==8.1.8
     # via
+    #   black
     #   celery
     #   click-didyoumean
     #   click-plugins
@@ -185,21 +188,28 @@ msgpack==1.1.0
 mypy==1.15.0
     # via -r requirements-dev.in
 mypy-extensions==1.0.0
-    # via mypy
+    # via
+    #   black
+    #   mypy
 nodeenv==1.9.1
     # via pre-commit
 packaging==24.2
     # via
+    #   black
     #   build
     #   pytest
 pathspec==0.12.1
-    # via djlint
+    # via
+    #   black
+    #   djlint
 pillow==10.4.0
     # via -r requirements.in
 pip-tools==7.4.1
     # via -r requirements-dev.in
 platformdirs==4.3.6
-    # via virtualenv
+    # via
+    #   black
+    #   virtualenv
 pluggy==1.5.0
     # via pytest
 pre-commit==4.1.0
