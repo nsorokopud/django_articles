@@ -58,10 +58,12 @@ def find_articles_by_query(
 
 
 def find_article_comments_liked_by_user(article_slug: str, user: User) -> List[int]:
-    comments = ArticleComment.objects.filter(article__slug=article_slug).prefetch_related(
-        "users_that_liked"
-    )
-    return [comment.id for comment in comments if user in comment.users_that_liked.all()]
+    comments = ArticleComment.objects.filter(
+        article__slug=article_slug
+    ).prefetch_related("users_that_liked")
+    return [
+        comment.id for comment in comments if user in comment.users_that_liked.all()
+    ]
 
 
 def find_comments_to_article(article_slug: str) -> QuerySet[ArticleComment]:
@@ -169,7 +171,9 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
         user = User.objects.get(id=user_id)
         comment.users_that_liked.add(user)
     likes_count = (
-        ArticleComment.objects.annotate(likes_count=Count("users_that_liked", distinct=True))
+        ArticleComment.objects.annotate(
+            likes_count=Count("users_that_liked", distinct=True)
+        )
         .get(id=comment_id)
         .likes_count
     )
@@ -205,14 +209,18 @@ def save_media_file_attached_to_article(file: IO, article_id: int) -> tuple[str,
     article = get_article_by_id(article_id)
     name, extension = str(file).split(".")
     filename = f"{name}_{uuid4()}.{extension}"
-    directory = os.path.join("articles", "uploads", article.author.username, str(article_id))
+    directory = os.path.join(
+        "articles", "uploads", article.author.username, str(article_id)
+    )
     file_path = os.path.join(directory, filename)
     default_storage.save(file_path, file)
     return file_path, article.get_absolute_url()
 
 
 def delete_media_files_attached_to_article(article: Article) -> None:
-    article_dir = os.path.join("articles", "uploads", article.author.username, str(article.id))
+    article_dir = os.path.join(
+        "articles", "uploads", article.author.username, str(article.id)
+    )
     if default_storage.exists(article_dir):
         for file in default_storage.listdir(article_dir)[1]:
             default_storage.delete(os.path.join(article_dir, file))

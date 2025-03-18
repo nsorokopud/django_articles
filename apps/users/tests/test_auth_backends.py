@@ -19,24 +19,36 @@ class TestAuthenticationBackends(TestCase):
         request = self.client.get(reverse("login"))
         self.assertEqual(request.status_code, 200)
 
-        self.assertEqual(authenticate(request, username="user1", password="user1_Abc1234"), user1)
         self.assertEqual(
-            authenticate(request, username="user1@test.com", password="user1_Abc1234"), user1
+            authenticate(request, username="user1", password="user1_Abc1234"), user1
         )
-        self.assertEqual(authenticate(request, username="user2", password="user2_Xyz1234"), user2)
         self.assertEqual(
-            authenticate(request, username="user2@test.com", password="user2_Xyz1234"), user2
+            authenticate(request, username="user1@test.com", password="user1_Abc1234"),
+            user1,
+        )
+        self.assertEqual(
+            authenticate(request, username="user2", password="user2_Xyz1234"), user2
+        )
+        self.assertEqual(
+            authenticate(request, username="user2@test.com", password="user2_Xyz1234"),
+            user2,
         )
 
         self.assertEqual(authenticate(request, username="user1"), None)
         self.assertEqual(authenticate(request, password="user1_Abcd1234"), None)
         self.assertEqual(authenticate(request, username="user99", password="abc"), None)
         self.assertEqual(authenticate(request, username="user1", password=""), None)
-        self.assertEqual(authenticate(request, username="user2", password="user1_Abc1234"), None)
-        self.assertEqual(authenticate(request, username="user99", password="user1_Abc1234"), None)
         self.assertEqual(
-            authenticate(request, username="user2@test.com", password="user1_Abc1234"), None
+            authenticate(request, username="user2", password="user1_Abc1234"), None
         )
         self.assertEqual(
-            authenticate(request, username="user99@test.com", password="user1_Abc1234"), None
+            authenticate(request, username="user99", password="user1_Abc1234"), None
+        )
+        self.assertEqual(
+            authenticate(request, username="user2@test.com", password="user1_Abc1234"),
+            None,
+        )
+        self.assertEqual(
+            authenticate(request, username="user99@test.com", password="user1_Abc1234"),
+            None,
         )

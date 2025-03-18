@@ -25,13 +25,17 @@ from users.signals import create_profile
 
 class TestServices(TestCase):
     def setUp(self):
-        self.test_user = User.objects.create_user(username="test_user", email="test@test.com")
+        self.test_user = User.objects.create_user(
+            username="test_user", email="test@test.com"
+        )
 
     def tearDown(self):
         signals.post_save.connect(create_profile, sender=User)
 
     def test_activate_user(self):
-        user = User.objects.create_user(username="user", email="user@test.com", is_active=False)
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
 
         self.assertFalse(user.is_active)
         self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
@@ -160,7 +164,10 @@ class TestServices(TestCase):
         request.is_secure = lambda: True
         request.get_host = lambda: "www.site.com"
 
-        with patch("users.services.activation_token_generator.make_token", return_value="token1"):
+        with patch(
+            "users.services.activation_token_generator.make_token",
+            return_value="token1",
+        ):
             send_account_activation_email(request, user1)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].recipients(), ["user1@test.com"])
@@ -174,7 +181,10 @@ class TestServices(TestCase):
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
 
         request.is_secure = lambda: False
-        with patch("users.services.activation_token_generator.make_token", return_value="token2"):
+        with patch(
+            "users.services.activation_token_generator.make_token",
+            return_value="token2",
+        ):
             send_account_activation_email(request, user2)
         self.assertEqual(len(mail.outbox), 2)
         self.assertEqual(mail.outbox[1].recipients(), ["user2@test.com"])

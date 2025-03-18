@@ -77,11 +77,15 @@ class TestNotificationIntegration(TransactionTestCase):
         self.assertEqual(response3, True)
 
         self.assertEqual(response1["title"], "New Article")
-        self.assertEqual(response1["text"], f"New article from {author.username}: '{a.title}'")
+        self.assertEqual(
+            response1["text"], f"New article from {author.username}: '{a.title}'"
+        )
         self.assertEqual(response1["link"], f"/articles/{a.slug}")
 
         self.assertEqual(response2["title"], "New Article")
-        self.assertEqual(response2["text"], f"New article from {author.username}: '{a.title}'")
+        self.assertEqual(
+            response2["text"], f"New article from {author.username}: '{a.title}'"
+        )
         self.assertEqual(response2["link"], f"/articles/{a.slug}")
 
         self.assertNotEqual(response1["id"], response2["id"])
@@ -91,7 +95,9 @@ class TestNotificationIntegration(TransactionTestCase):
         await communicator3.disconnect()
 
     async def test_client_receives_notification_upon_new_comment_creation(self):
-        author = await database_sync_to_async(User.objects.create_user)(username="author")
+        author = await database_sync_to_async(User.objects.create_user)(
+            username="author"
+        )
 
         article = await database_sync_to_async(Article.objects.create)(
             title="a",
@@ -118,7 +124,9 @@ class TestNotificationIntegration(TransactionTestCase):
 
         self.assertEqual(response["id"], last_notification.id)
         self.assertEqual(response["title"], "New Comment")
-        self.assertEqual(response["text"], f"New comment on your article from {c.author.username}")
+        self.assertEqual(
+            response["text"], f"New comment on your article from {c.author.username}"
+        )
         self.assertEqual(response["link"], "/articles/a")
 
         await communicator.disconnect()

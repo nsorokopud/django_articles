@@ -62,7 +62,10 @@ class AccountActivationView(View):
             user_id = force_str(urlsafe_base64_decode(user_id_b64))
             user = get_user_by_id(user_id)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            context = {"is_activation_successful": False, "error_message": "Invalid user id"}
+            context = {
+                "is_activation_successful": False,
+                "error_message": "Invalid user id",
+            }
             return render(request, "users/account_activation.html", context)
         if user.is_active:
             context = {

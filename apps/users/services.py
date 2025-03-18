@@ -26,7 +26,9 @@ def deactivate_user(user: User) -> None:
 def activate_user(user):
     user.is_active = True
     user.save()
-    EmailAddress.objects.create(user=user, email=user.email, verified=True, primary=True)
+    EmailAddress.objects.create(
+        user=user, email=user.email, verified=True, primary=True
+    )
 
 
 def get_all_users() -> QuerySet[User]:
@@ -78,7 +80,8 @@ def send_account_activation_email(request: HttpRequest, user: User):
         "users/activation_email.html",
         {
             "username": user.username,
-            "url": f"{protocol}://{domain}{reverse('account-activate', args=[encoded_user_id, token])}",
+            "url": f"{protocol}://{domain}"
+            + reverse("account-activate", args=[encoded_user_id, token]),
         },
     )
     email = EmailMultiAlternatives(subject, message, to=[user.email])

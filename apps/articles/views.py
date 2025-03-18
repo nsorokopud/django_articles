@@ -79,7 +79,11 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         form = ArticleCreateForm(request.POST, request.FILES, request=request)
         if form.is_valid():
             article = form.save()
-            data = {"articleId": article.id, "articleSlug": article.slug, "articleUrl": article.get_absolute_url()}
+            data = {
+                "articleId": article.id,
+                "articleSlug": article.slug,
+                "articleUrl": article.get_absolute_url(),
+            }
             return JsonResponse({"status": "success", "data": data})
         return JsonResponse({"status": "fail", "data": form.errors})
 
@@ -146,6 +150,8 @@ class AttachedFileUploadView(LoginRequiredMixin, View):
     def post(self, request):
         file = request.FILES.get("file")
         article_id = request.POST.get("articleId")
-        file_path, article_url = services.save_media_file_attached_to_article(file, article_id)
+        file_path, article_url = services.save_media_file_attached_to_article(
+            file, article_id
+        )
         data = {"location": default_storage.url(file_path), "articleUrl": article_url}
         return JsonResponse({"status": "success", "data": data})

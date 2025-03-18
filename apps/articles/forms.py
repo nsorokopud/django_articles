@@ -9,7 +9,14 @@ class ArticleCreateForm(forms.ModelForm):
 
     class Meta:
         model = Article
-        fields = ["title", "category", "tags", "preview_text", "preview_image", "content"]
+        fields = [
+            "title",
+            "category",
+            "tags",
+            "preview_text",
+            "preview_image",
+            "content",
+        ]
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request")
@@ -35,7 +42,14 @@ class ArticleUpdateForm(forms.ModelForm):
 
     class Meta:
         model = Article
-        fields = ["title", "category", "tags", "preview_text", "preview_image", "content"]
+        fields = [
+            "title",
+            "category",
+            "tags",
+            "preview_text",
+            "preview_image",
+            "content",
+        ]
 
     def save(self, **kwargs):
         instance = super().save(commit=False, **kwargs)

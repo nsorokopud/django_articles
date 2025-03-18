@@ -31,7 +31,9 @@ from ..services import (
 
 class TestServices(TransactionTestCase):
     def setUp(self):
-        self.author = User.objects.create_user(username="author", email="author@test.com")
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
         self.user = User.objects.create_user(username="user", email="user@test.com")
         self.a = Article(
             title="a",
@@ -73,13 +75,18 @@ class TestServices(TransactionTestCase):
         self.assertTrue(user1.profile.notification_emails_allowed)
         self.assertFalse(user2.profile.notification_emails_allowed)
 
-        with patch(
-            "notifications.services.create_new_article_notification", side_effect=[n1, n2]
-        ) as create_new_article_notification__mock, patch(
-            "notifications.services._send_notification",
-        ) as _send_notification__mock, patch(
-            "notifications.tasks.send_notification_email.delay"
-        ) as send_notification_email__mock:
+        with (
+            patch(
+                "notifications.services.create_new_article_notification",
+                side_effect=[n1, n2],
+            ) as create_new_article_notification__mock,
+            patch(
+                "notifications.services._send_notification",
+            ) as _send_notification__mock,
+            patch(
+                "notifications.tasks.send_notification_email.delay"
+            ) as send_notification_email__mock,
+        ):
 
             send_new_article_notification(self.a)
 
@@ -89,7 +96,9 @@ class TestServices(TransactionTestCase):
             _send_notification__mock.assert_has_calls(
                 [call(n1, user1.username), call(n2, user2.username)], any_order=True
             )
-            self.assertEqual(send_notification_email__mock.call_args_list, [call(n1.id)])
+            self.assertEqual(
+                send_notification_email__mock.call_args_list, [call(n1.id)]
+            )
 
     def test_send_new_comment_notification(self):
         author1 = User.objects.create_user(username="author1", email="author1@test.com")
@@ -105,13 +114,17 @@ class TestServices(TransactionTestCase):
             recipient=author1,
         )
 
-        with patch(
-            "notifications.services.create_new_comment_notification", return_value=n
-        ) as create_new_comment_notification__mock, patch(
-            "notifications.services._send_notification",
-        ) as _send_notification__mock, patch(
-            "notifications.tasks.send_notification_email.delay"
-        ) as send_notification_email__mock:
+        with (
+            patch(
+                "notifications.services.create_new_comment_notification", return_value=n
+            ) as create_new_comment_notification__mock,
+            patch(
+                "notifications.services._send_notification",
+            ) as _send_notification__mock,
+            patch(
+                "notifications.tasks.send_notification_email.delay"
+            ) as send_notification_email__mock,
+        ):
 
             send_new_comment_notification(c, author1)
 
@@ -201,7 +214,9 @@ class TestServices(TransactionTestCase):
         self.assertEqual(n.type, Notification.Type.NEW_ARTICLE)
         self.assertEqual(n.status, Notification.Status.UNREAD)
         self.assertEqual(n.title, "New Article")
-        self.assertEqual(n.message, f"New article from {self.author.username}: '{self.a.title}'")
+        self.assertEqual(
+            n.message, f"New article from {self.author.username}: '{self.a.title}'"
+        )
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
 
     def test_create_new_comment_notification(self):
@@ -219,7 +234,9 @@ class TestServices(TransactionTestCase):
         self.assertEqual(n.type, Notification.Type.NEW_COMMENT)
         self.assertEqual(n.status, Notification.Status.UNREAD)
         self.assertEqual(n.title, "New Comment")
-        self.assertEqual(n.message, f"New comment on your article from {self.user.username}")
+        self.assertEqual(
+            n.message, f"New comment on your article from {self.user.username}"
+        )
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
 
     def test_get_notification_by_id(self):

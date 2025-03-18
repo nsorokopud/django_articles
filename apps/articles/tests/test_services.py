@@ -33,8 +33,12 @@ from users.models import User
 
 class TestServices(TestCase):
     def setUp(self):
-        self.test_user = User.objects.create_user(username="test_user", email="test_user@test.com")
-        self.test_category = ArticleCategory.objects.create(title="test_cat", slug="test_cat")
+        self.test_user = User.objects.create_user(
+            username="test_user", email="test_user@test.com"
+        )
+        self.test_category = ArticleCategory.objects.create(
+            title="test_cat", slug="test_cat"
+        )
 
     def test_find_published_articles(self):
         a1 = Article.objects.create(
@@ -195,9 +199,13 @@ class TestServices(TestCase):
         )
 
         self.assertCountEqual(find_articles_by_query("a"), [a1, a2, a3, a4])  # By title
-        self.assertCountEqual(find_articles_by_query("content"), [a1, a2, a3, a4])  # By content
+        self.assertCountEqual(
+            find_articles_by_query("content"), [a1, a2, a3, a4]
+        )  # By content
         self.assertCountEqual(find_articles_by_query("test_"), [a1, a2])  # By category
-        self.assertCountEqual(find_articles_by_query("cat1"), [a1, a3, a4])  # By category + tag
+        self.assertCountEqual(
+            find_articles_by_query("cat1"), [a1, a3, a4]
+        )  # By category + tag
         self.assertCountEqual(find_articles_by_query("tag1"), [a1, a4])  # By tag
         self.assertCountEqual(find_articles_by_query("agrj"), [])  # Not found
 
@@ -231,9 +239,13 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
-        comment1 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment1 = ArticleComment.objects.create(
+            article=a1, author=self.test_user, text="text"
+        )
         ArticleComment.objects.create(article=a2, author=self.test_user, text="text")
-        comment3 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment3 = ArticleComment.objects.create(
+            article=a1, author=self.test_user, text="text"
+        )
         self.assertCountEqual(find_comments_to_article(a1.slug), [comment1, comment3])
 
     def test_get_all_categories(self):
@@ -274,14 +286,22 @@ class TestServices(TestCase):
         self.assertEqual(_generate_unique_article_slug("abc"), "abc")
 
         Article.objects.create(
-            title="abc", slug="abc", author=self.test_user, preview_text="1", content="1"
+            title="abc",
+            slug="abc",
+            author=self.test_user,
+            preview_text="1",
+            content="1",
         )
 
         self.assertEqual(_generate_unique_article_slug("abc"), "abc")
         self.assertEqual(_generate_unique_article_slug("abc "), "abc-1")
 
         Article.objects.create(
-            title="abc-", slug="abc-1", author=self.test_user, preview_text="1", content="1"
+            title="abc-",
+            slug="abc-1",
+            author=self.test_user,
+            preview_text="1",
+            content="1",
         )
         self.assertEqual(_generate_unique_article_slug("abc"), "abc")
         self.assertEqual(_generate_unique_article_slug("abc-"), "abc-1")
@@ -297,8 +317,8 @@ class TestServices(TestCase):
             tags=["tag1", "tag2"],
         )
 
-        # articles are sorted by '-created_at' by default, so the last one created will be
-        # the first one in queryset
+        # articles are sorted by '-created_at' by default, so the last one created will
+        # be the first one in queryset
         last_article = Article.objects.first()
 
         self.assertEqual(last_article.pk, a1.pk)
@@ -380,7 +400,9 @@ class TestServices(TestCase):
         )
         self.assertEqual(list(get_all_users_that_liked_article(a.slug)), [])
         a.users_that_liked.add(self.test_user)
-        self.assertCountEqual(get_all_users_that_liked_article(a.slug), [self.test_user])
+        self.assertCountEqual(
+            get_all_users_that_liked_article(a.slug), [self.test_user]
+        )
 
     def test_get_article_by_id(self):
         with self.assertRaises(Article.DoesNotExist):
@@ -462,7 +484,9 @@ class TestServices(TestCase):
             content="content1",
             is_published=True,
         )
-        comment = ArticleComment.objects.create(article=a, author=self.test_user, text="text")
+        comment = ArticleComment.objects.create(
+            article=a, author=self.test_user, text="text"
+        )
 
         user = User(username="user1", email="test@test.com")
         user.set_password("12345")
@@ -493,9 +517,13 @@ class TestServices(TestCase):
             is_published=True,
         )
 
-        comment1 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment1 = ArticleComment.objects.create(
+            article=a1, author=self.test_user, text="text"
+        )
         ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
-        comment3 = ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment3 = ArticleComment.objects.create(
+            article=a1, author=self.test_user, text="text"
+        )
 
         comment1.users_that_liked.add(self.test_user)
         comment3.users_that_liked.add(self.test_user)
@@ -550,19 +578,28 @@ class TestServices(TestCase):
 
     def test_save_media_file_attached_to_article(self):
         a = Article.objects.create(
-            title="a1", slug="a1", author=self.test_user, preview_text="text1", content="content1"
+            title="a1",
+            slug="a1",
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
         )
 
         file_name = "file.jpg"
-        file_path = f"articles/uploads/{self.test_user.username}/{a.id}/file_xyz-xyz.jpg"
+        file_path = (
+            f"articles/uploads/{self.test_user.username}/{a.id}/file_xyz-xyz.jpg"
+        )
         file = SimpleUploadedFile(file_name, b"file_content", content_type="image/jpg")
 
         with self.assertRaises(Article.DoesNotExist):
             save_media_file_attached_to_article(file, -1)
 
-        with patch("articles.services.uuid4", return_value="xyz-xyz") as uuid_mock, patch(
-            "articles.services.default_storage.save", side_effect=[file_name]
-        ) as save_mock:
+        with (
+            patch("articles.services.uuid4", return_value="xyz-xyz") as uuid_mock,
+            patch(
+                "articles.services.default_storage.save", side_effect=[file_name]
+            ) as save_mock,
+        ):
             res = save_media_file_attached_to_article(file, a.id)
             uuid_mock.assert_called_once()
             save_mock.assert_called_once_with(file_path, file)
@@ -571,14 +608,22 @@ class TestServices(TestCase):
 
     def test_delete_media_files_attached_to_article(self):
         a = Article.objects.create(
-            title="a1", slug="a1", author=self.test_user, preview_text="text1", content="content1"
+            title="a1",
+            slug="a1",
+            author=self.test_user,
+            preview_text="text1",
+            content="content1",
         )
         directory = f"articles/uploads/{self.test_user.username}/{a.id}"
 
-        with patch("articles.services.default_storage.exists", return_value=True), patch(
-            "articles.services.default_storage.listdir",
-            return_value=[[directory], ["file1", "file2"]],
-        ), patch("articles.services.default_storage.delete") as delete_mock:
+        with (
+            patch("articles.services.default_storage.exists", return_value=True),
+            patch(
+                "articles.services.default_storage.listdir",
+                return_value=[[directory], ["file1", "file2"]],
+            ),
+            patch("articles.services.default_storage.delete") as delete_mock,
+        ):
 
             delete_media_files_attached_to_article(a)
             delete_mock.assert_has_calls(

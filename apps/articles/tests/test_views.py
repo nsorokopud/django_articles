@@ -14,7 +14,9 @@ class TestViews(TestCase):
     def setUp(self):
         self.client = Client()
 
-        self.test_user = User.objects.create_user(username="test_user", email="test@test.com")
+        self.test_user = User.objects.create_user(
+            username="test_user", email="test@test.com"
+        )
         self.test_category = ArticleCategory.objects.create(title="cat1", slug="cat1")
         self.test_article = Article.objects.create(
             title="test_article",
@@ -48,7 +50,9 @@ class TestViews(TestCase):
         self.assertTemplateUsed(response, "articles/home_page.html")
 
     def test_article_details_page_view(self):
-        response = self.client.get(reverse("article-details", args=[self.test_article.slug]))
+        response = self.client.get(
+            reverse("article-details", args=[self.test_article.slug])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/article.html")
@@ -101,7 +105,10 @@ class TestViews(TestCase):
         self.assertEqual(response_json["status"], "fail")
         self.assertEqual(
             response_json["data"],
-            {"preview_text": ["This field is required."], "content": ["This field is required."]},
+            {
+                "preview_text": ["This field is required."],
+                "content": ["This field is required."],
+            },
         )
 
         self.assertEqual(Article.objects.count(), 1)
@@ -190,7 +197,8 @@ class TestViews(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"status": "error", "message": "HTTP Error 404: Page not found"}
+            response.json(),
+            {"status": "error", "message": "HTTP Error 404: Page not found"},
         )
 
         user = User.objects.create_user(username="user1")
@@ -202,7 +210,8 @@ class TestViews(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"message": "HTTP Error 404: Page not found", "status": "error"}
+            response.json(),
+            {"message": "HTTP Error 404: Page not found", "status": "error"},
         )
 
     def test_article_update_view_post_authorized(self):
@@ -250,7 +259,9 @@ class TestViews(TestCase):
         )
         self.client.raise_request_exception = True
 
-        response = self.client.post(reverse("article-update", args=[a.slug]), invalid_updated_data)
+        response = self.client.post(
+            reverse("article-update", args=[a.slug]), invalid_updated_data
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
@@ -264,10 +275,13 @@ class TestViews(TestCase):
             },
         )
 
-        response = self.client.post(reverse("article-update", args=[a.slug]), updated_data)
+        response = self.client.post(
+            reverse("article-update", args=[a.slug]), updated_data
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"status": "success", "data": {"articleUrl": "/articles/new-title"}}
+            response.json(),
+            {"status": "success", "data": {"articleUrl": "/articles/new-title"}},
         )
 
         a.refresh_from_db()
@@ -363,7 +377,9 @@ class TestViews(TestCase):
         self.client.force_login(self.test_user)
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
-        self.assertCountEqual(list(self.test_article.users_that_liked.all()), [self.test_user])
+        self.assertCountEqual(
+            list(self.test_article.users_that_liked.all()), [self.test_user]
+        )
         likes_count = (
             Article.objects.filter(slug=self.test_article.slug)
             .annotate(likes_count=Count("users_that_liked", distinct=True))
@@ -412,7 +428,9 @@ class TestViews(TestCase):
         self.client.force_login(self.test_user)
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
-        self.assertCountEqual(list(self.test_comment.users_that_liked.all()), [self.test_user])
+        self.assertCountEqual(
+            list(self.test_comment.users_that_liked.all()), [self.test_user]
+        )
         likes_count = (
             ArticleComment.objects.filter(id=self.test_comment.id)
             .annotate(likes_count=Count("users_that_liked", distinct=True))
@@ -454,11 +472,15 @@ class TestViews(TestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 500)
 
-        response = self.client.post(url, {}, headers={"X-Requested-With": "XMLHttpRequest"})
+        response = self.client.post(
+            url, {}, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
         self.assertEqual(response_json["status"], "error")
-        self.assertEqual(response_json["message"], "HTTP Error 500: Internal server error")
+        self.assertEqual(
+            response_json["message"], "HTTP Error 500: Internal server error"
+        )
 
         self.client.raise_request_exception = True
 
@@ -466,10 +488,18 @@ class TestViews(TestCase):
         file_name = "file.jpg"
         self.client.force_login(self.test_user)
 
-        with patch(
-            "django.core.files.storage.default_storage.save", side_effect=[file_name]
-        ), patch("django.core.files.storage.default_storage.url", side_effect=[file_name]):
-            file = SimpleUploadedFile(file_name, b"file_content", content_type="image/jpg")
+        with (
+            patch(
+                "django.core.files.storage.default_storage.save",
+                side_effect=[file_name],
+            ),
+            patch(
+                "django.core.files.storage.default_storage.url", side_effect=[file_name]
+            ),
+        ):
+            file = SimpleUploadedFile(
+                file_name, b"file_content", content_type="image/jpg"
+            )
             response = self.client.post(
                 reverse("attached-file-upload"),
                 {"articleId": self.test_article.id, "file": file},

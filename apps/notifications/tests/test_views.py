@@ -10,7 +10,9 @@ from ..models import Notification
 class TestViews(TestCase):
     def setUp(self):
         self.client = Client()
-        self.author = User.objects.create_user(username="author", email="author@test.com")
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
         self.user = User.objects.create_user(username="user", email="user@test.com")
         self.a = Article(
             title="a",
@@ -41,7 +43,8 @@ class TestViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(), {"status": "ok", "message": "notification status was changed to READ"}
+            response.json(),
+            {"status": "ok", "message": "notification status was changed to READ"},
         )
         self.n.refresh_from_db()
         self.assertEqual(self.n.status, Notification.Status.READ)

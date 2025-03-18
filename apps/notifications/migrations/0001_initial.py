@@ -15,17 +15,60 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('new article', 'New Article'), ('new comment', 'New Comment')], max_length=255)),
-                ('title', models.CharField(blank=True, max_length=255, null=True)),
-                ('message', models.CharField(blank=True, max_length=500, null=True)),
-                ('link', models.URLField(blank=True, max_length=500, null=True)),
-                ('status', models.CharField(blank=True, choices=[('unread', 'Unread'), ('read', 'Read')], default='unread', max_length=255, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('recipient', models.ForeignKey(blank=True, on_delete=django.db.models.deletion.CASCADE, related_name='received_notifications', to=settings.AUTH_USER_MODEL)),
-                ('sender', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='sent_notifications', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("new article", "New Article"),
+                            ("new comment", "New Comment"),
+                        ],
+                        max_length=255,
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=255, null=True)),
+                ("message", models.CharField(blank=True, max_length=500, null=True)),
+                ("link", models.URLField(blank=True, max_length=500, null=True)),
+                (
+                    "status",
+                    models.CharField(
+                        blank=True,
+                        choices=[("unread", "Unread"), ("read", "Read")],
+                        default="unread",
+                        max_length=255,
+                        null=True,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "recipient",
+                    models.ForeignKey(
+                        blank=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="received_notifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "sender",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="sent_notifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

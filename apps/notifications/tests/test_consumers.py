@@ -73,7 +73,13 @@ class TestNotificationConsumer(TestCase):
         response = await communicator.receive_json_from()
         self.assertEqual(
             response,
-            {"id": 1, "title": "abc", "text": "msg", "link": "google.com", "timestamp": "1"},
+            {
+                "id": 1,
+                "title": "abc",
+                "text": "msg",
+                "link": "google.com",
+                "timestamp": "1",
+            },
         )
         await communicator.disconnect()
 
@@ -143,11 +149,23 @@ class TestNotificationConsumer(TestCase):
 
         self.assertEqual(
             response1,
-            {"id": 1, "title": "abc", "text": "msg", "link": "google.com", "timestamp": "1"},
+            {
+                "id": 1,
+                "title": "abc",
+                "text": "msg",
+                "link": "google.com",
+                "timestamp": "1",
+            },
         )
         self.assertEqual(
             response2,
-            {"id": 1, "title": "abc", "text": "msg", "link": "google.com", "timestamp": "1"},
+            {
+                "id": 1,
+                "title": "abc",
+                "text": "msg",
+                "link": "google.com",
+                "timestamp": "1",
+            },
         )
 
         await communicator1.disconnect()

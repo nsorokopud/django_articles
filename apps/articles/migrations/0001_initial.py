@@ -12,7 +12,10 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("taggit", "0006_rename_taggeditem_content_type_object_id_taggit_tagg_content_8fc721_idx"),
+        (
+            "taggit",
+            "0006_rename_taggeditem_content_type_object_id_taggit_tagg_content_8fc721_idx",
+        ),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -23,14 +26,19 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
                     ),
                 ),
                 ("title", models.CharField(max_length=256)),
                 ("slug", models.CharField(db_index=True, max_length=256, unique=True)),
                 (
                     "image",
-                    models.ImageField(blank=True, null=True, upload_to="categories/images/"),
+                    models.ImageField(
+                        blank=True, null=True, upload_to="categories/images/"
+                    ),
                 ),
             ],
             options={
@@ -44,7 +52,10 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
                     ),
                 ),
                 ("title", models.CharField(db_index=True, max_length=256, unique=True)),
@@ -52,7 +63,9 @@ class Migration(migrations.Migration):
                 ("preview_text", models.TextField(max_length=512)),
                 (
                     "preview_image",
-                    models.ImageField(blank=True, null=True, upload_to="articles/preview_images/"),
+                    models.ImageField(
+                        blank=True, null=True, upload_to="articles/preview_images/"
+                    ),
                 ),
                 ("content", tinymce.models.HTMLField()),
                 ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
@@ -62,7 +75,8 @@ class Migration(migrations.Migration):
                 (
                     "author",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
                     ),
                 ),
                 (
@@ -78,7 +92,9 @@ class Migration(migrations.Migration):
                 (
                     "users_that_liked",
                     models.ManyToManyField(
-                        blank=True, related_name="users_that_liked", to=settings.AUTH_USER_MODEL
+                        blank=True,
+                        related_name="users_that_liked",
+                        to=settings.AUTH_USER_MODEL,
                     ),
                 ),
                 (
@@ -102,7 +118,10 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.BigAutoField(
-                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
                     ),
                 ),
                 ("text", models.TextField()),
@@ -110,13 +129,15 @@ class Migration(migrations.Migration):
                 (
                     "article",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to="articles.article"
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="articles.article",
                     ),
                 ),
                 (
                     "author",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
                     ),
                 ),
                 (

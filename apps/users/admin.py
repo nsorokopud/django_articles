@@ -6,6 +6,7 @@ from users.models import Profile, User
 
 admin.site.register(User)
 
+
 @admin.register(Profile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "get_profile_image")

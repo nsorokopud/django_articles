@@ -46,7 +46,11 @@ class TestSignals(TransactionTestCase):
             "notifications.tasks.send_new_article_notification.delay"
         ) as send_new_article_notification__mock:
             a = Article.objects.create(
-                title="a1", slug="a1", author=user, preview_text="text", content="content"
+                title="a1",
+                slug="a1",
+                author=user,
+                preview_text="text",
+                content="content",
             )
             send_new_article_notification__mock.assert_called_once_with(a.slug)
 
@@ -56,7 +60,11 @@ class TestSignals(TransactionTestCase):
             "notifications.tasks.send_new_article_notification.delay"
         ) as send_new_article_notification__mock:
             Article.objects.create(
-                title="a2", slug="a2", author=user, preview_text="text", content="content"
+                title="a2",
+                slug="a2",
+                author=user,
+                preview_text="text",
+                content="content",
             )
             send_new_article_notification__mock.assert_not_called()
 

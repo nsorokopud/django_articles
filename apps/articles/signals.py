@@ -10,7 +10,9 @@ from .services import delete_media_files_attached_to_article
 
 def send_article_notification(sender, instance, created, **kwargs) -> None:
     if created and not kwargs.get("raw", False):
-        transaction.on_commit(lambda: send_new_article_notification.delay(instance.slug))
+        transaction.on_commit(
+            lambda: send_new_article_notification.delay(instance.slug)
+        )
 
 
 def send_comment_notification(sender, instance, created, **kwargs) -> None:

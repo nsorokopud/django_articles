@@ -18,11 +18,13 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
         tz_middleware = TimezoneMiddleware(get_response)
 
         # USE_TZ=False
-        with override_settings(USE_TZ=False), patch(
-            "django.utils.timezone.activate"
-        ) as timezone_activate__mock, patch(
-            "config.middleware.get_default_timezone",
-            return_value=pytz.timezone("America/Chihuahua"),
+        with (
+            override_settings(USE_TZ=False),
+            patch("django.utils.timezone.activate") as timezone_activate__mock,
+            patch(
+                "config.middleware.get_default_timezone",
+                return_value=pytz.timezone("America/Chihuahua"),
+            ),
         ):
             response = tz_middleware(request)
             self.assertEqual(get_response.return_value, response)
@@ -30,44 +32,53 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
 
         # USE_TZ=True, no timezone cookie
         request.COOKIES = {}
-        with override_settings(USE_TZ=True), patch(
-            "django.utils.timezone.activate"
-        ) as timezone_activate__mock, patch(
-            "config.middleware.get_default_timezone",
-            return_value=pytz.timezone("America/Chihuahua"),
+        with (
+            override_settings(USE_TZ=True),
+            patch("django.utils.timezone.activate") as timezone_activate__mock,
+            patch(
+                "config.middleware.get_default_timezone",
+                return_value=pytz.timezone("America/Chihuahua"),
+            ),
         ):
             response = tz_middleware(request)
             self.assertEqual(get_response.return_value, response)
             self.assertEqual(
-                timezone_activate__mock.call_args_list, [call(pytz.timezone("America/Chihuahua"))]
+                timezone_activate__mock.call_args_list,
+                [call(pytz.timezone("America/Chihuahua"))],
             )
 
         # USE_TZ=True with valid timezone cookie
         request.COOKIES = {"timezone": "America/Juneau"}
-        with override_settings(USE_TZ=True), patch(
-            "django.utils.timezone.activate"
-        ) as timezone_activate__mock, patch(
-            "config.middleware.get_default_timezone",
-            return_value=pytz.timezone("America/Chihuahua"),
+        with (
+            override_settings(USE_TZ=True),
+            patch("django.utils.timezone.activate") as timezone_activate__mock,
+            patch(
+                "config.middleware.get_default_timezone",
+                return_value=pytz.timezone("America/Chihuahua"),
+            ),
         ):
             response = tz_middleware(request)
             self.assertEqual(get_response.return_value, response)
             self.assertEqual(
-                timezone_activate__mock.call_args_list, [call(pytz.timezone("America/Juneau"))]
+                timezone_activate__mock.call_args_list,
+                [call(pytz.timezone("America/Juneau"))],
             )
 
         # USE_TZ=True with invalid timezone cookie
         request.COOKIES = {"timezone": "abc"}
-        with override_settings(USE_TZ=True), patch(
-            "django.utils.timezone.activate"
-        ) as timezone_activate__mock, patch(
-            "config.middleware.get_default_timezone",
-            return_value=pytz.timezone("America/Chihuahua"),
+        with (
+            override_settings(USE_TZ=True),
+            patch("django.utils.timezone.activate") as timezone_activate__mock,
+            patch(
+                "config.middleware.get_default_timezone",
+                return_value=pytz.timezone("America/Chihuahua"),
+            ),
         ):
             response = tz_middleware(request)
             self.assertEqual(get_response.return_value, response)
             self.assertEqual(
-                timezone_activate__mock.call_args_list, [call(pytz.timezone("America/Chihuahua"))]
+                timezone_activate__mock.call_args_list,
+                [call(pytz.timezone("America/Chihuahua"))],
             )
 
     def test_get_default_timezone(self):
@@ -75,12 +86,16 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
             res = get_default_timezone()
         self.assertEqual(res, pytz.timezone("Africa/Bamako"))
 
-        with override_settings(DEFAULT_USER_TZ="Africa/Bamako", TIME_ZONE="America/Atka"):
+        with override_settings(
+            DEFAULT_USER_TZ="Africa/Bamako", TIME_ZONE="America/Atka"
+        ):
             del settings.DEFAULT_USER_TZ
             res = get_default_timezone()
         self.assertEqual(res, pytz.timezone("America/Atka"))
 
-        with override_settings(DEFAULT_USER_TZ="Africa/Bamako", TIME_ZONE="America/Atka"):
+        with override_settings(
+            DEFAULT_USER_TZ="Africa/Bamako", TIME_ZONE="America/Atka"
+        ):
             del settings.DEFAULT_USER_TZ
             del settings.TIME_ZONE
             res = get_default_timezone()
@@ -90,8 +105,11 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
             res = get_default_timezone()
         self.assertEqual(res, pytz.timezone("UTC"))
 
-        with patch("pytz.timezone", side_effect=AttributeError), override_settings(
-            DEFAULT_USER_TZ="Africa/Bamako", TIME_ZONE="America/Atka"
+        with (
+            patch("pytz.timezone", side_effect=AttributeError),
+            override_settings(
+                DEFAULT_USER_TZ="Africa/Bamako", TIME_ZONE="America/Atka"
+            ),
         ):
             res = get_default_timezone()
         self.assertEqual(res, pytz.timezone("UTC"))

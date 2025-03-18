@@ -13,7 +13,7 @@ class EmailOrUsernameAuthenticationBackend(ModelBackend):
         request: HttpRequest,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Optional[AbstractUser]:
         UserModel = get_user_model()
         try:

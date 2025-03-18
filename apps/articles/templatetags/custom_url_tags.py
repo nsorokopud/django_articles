@@ -16,7 +16,9 @@ def relative_url(field_name, value, urlencode=None):
     url = f"?{field_name}={value}"
     if urlencode:
         querystring = urlencode.split("&")
-        filtered_querystring = filter(lambda param: param.split("=")[0] != field_name, querystring)
+        filtered_querystring = filter(
+            lambda param: param.split("=")[0] != field_name, querystring
+        )
         encoded_querystring = "&".join(filtered_querystring)
         if encoded_querystring != "":
             url = f"?{encoded_querystring}&{field_name}={value}"

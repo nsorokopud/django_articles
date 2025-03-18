@@ -37,7 +37,9 @@ class TestTasks(TransactionTestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="user@test.com")
-        self.author = User.objects.create_user(username="author", email="author@test.com")
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
         self.author.profile.subscribers.add(self.user)
         self.article = Article.objects.create(
             title="a1",
@@ -68,7 +70,8 @@ class TestTasks(TransactionTestCase):
         response = await communicator.receive_json_from()
         self.assertEqual(response["title"], "New Article")
         self.assertEqual(
-            response["text"], f"New article from {self.author.username}: '{self.article.title}'"
+            response["text"],
+            f"New article from {self.author.username}: '{self.article.title}'",
         )
         self.assertEqual(response["link"], f"/articles/{self.article.slug}")
 
@@ -108,9 +111,12 @@ class TestTasks(TransactionTestCase):
             recipient=self.user,
         )
 
-        with patch(
-            "notifications.services.send_notification_email"
-        ) as send_notification_email__mock, start_worker(app, perform_ping_check=False):
+        with (
+            patch(
+                "notifications.services.send_notification_email"
+            ) as send_notification_email__mock,
+            start_worker(app, perform_ping_check=False),
+        ):
             result = send_notification_email.delay(notification.id)
             self.assertEqual(result.get(), None)
             self.assertEqual(result.state, "SUCCESS")

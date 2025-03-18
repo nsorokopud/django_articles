@@ -25,7 +25,9 @@ class DeleteNotificationView(View):
         notification = get_notification_by_id(notification_id)
         if notification.recipient == request.user:
             delete_notification(notification)
-            unread_notifications_count = get_unread_notifications_count_by_user(request.user)
+            unread_notifications_count = get_unread_notifications_count_by_user(
+                request.user
+            )
             return JsonResponse(
                 {
                     "status": "ok",

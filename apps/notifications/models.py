@@ -17,10 +17,17 @@ class Notification(models.Model):
     message = models.CharField(max_length=500, null=True, blank=True)
     link = models.URLField(max_length=500, null=True, blank=True)
     sender = models.ForeignKey(
-        User, null=True, blank=True, related_name="sent_notifications", on_delete=models.SET_NULL
+        User,
+        null=True,
+        blank=True,
+        related_name="sent_notifications",
+        on_delete=models.SET_NULL,
     )
     recipient = models.ForeignKey(
-        User, blank=True, related_name="received_notifications", on_delete=models.CASCADE
+        User,
+        blank=True,
+        related_name="received_notifications",
+        on_delete=models.CASCADE,
     )
     status = models.CharField(
         max_length=255, null=True, blank=True, choices=Status, default=Status.UNREAD

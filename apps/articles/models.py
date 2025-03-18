@@ -17,12 +17,16 @@ class Article(models.Model):
     tags = TaggableManager(blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     preview_text = models.TextField(max_length=512)
-    preview_image = models.ImageField(upload_to="articles/preview_images/", null=True, blank=True)
+    preview_image = models.ImageField(
+        upload_to="articles/preview_images/", null=True, blank=True
+    )
     content = HTMLField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, db_index=True)
-    users_that_liked = models.ManyToManyField(User, related_name="users_that_liked", blank=True)
+    users_that_liked = models.ManyToManyField(
+        User, related_name="users_that_liked", blank=True
+    )
     views_count = models.IntegerField(default=0)
 
     class Meta:

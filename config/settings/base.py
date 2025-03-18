@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "cachalot",
-
     "articles",
     "core",
     "users",
@@ -180,7 +179,10 @@ SOCIALACCOUNT_PROVIDERS = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -196,7 +198,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Logging
 
-LOGGING_ENABLED = bool(int(os.getenv("ENABLE_LOGGING", 0)))
+LOGGING_ENABLED = bool(int(os.getenv("ENABLE_LOGGING", "0")))
 
 LOGS_PATH = os.path.join(BASE_DIR, os.getenv("LOGS_PATH", "logs"))
 
@@ -206,7 +208,10 @@ if LOGGING_ENABLED:
         "disable_existing_loggers": False,
         "formatters": {
             "default_formatter": {
-                "format": "{asctime} - [{levelname}] - {filename}:{funcName}:{lineno} - {message}",
+                "format": (
+                    "{asctime} - [{levelname}] - {filename}:{funcName}:"
+                    "{lineno} - {message}"
+                ),
                 "style": "{",
             },
             "uncatched_errors_formatter": {
@@ -251,7 +256,10 @@ if LOGGING_ENABLED:
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
-DEFAULT_USER_TZ = os.getenv("DEFAULT_USER_TZ", "Europe/London")  # default time zone for rendering
+
+# Default time zone for frontend rendering
+DEFAULT_USER_TZ = os.getenv("DEFAULT_USER_TZ", "Europe/London")
+
 USE_I18N = True
 USE_TZ = True
 
@@ -301,11 +309,22 @@ TINYMCE_DEFAULT_CONFIG = {
     "height": 500,
     "width": "100%",
     "menubar": False,
-    "plugins": "image link autolink media advlist lists table codesample charmap fullscreen",
+    "plugins": (
+        "image link autolink media advlist lists table codesample charmap" "fullscreen"
+    ),
     "toolbar": [
-        "undo redo | fullscreen | hr image media table codesample blockquote | subscript superscript charmap",
-        "blocks | bullist numlist indent outdent | alignleft aligncenter alignright alignjustify lineheight",
-        "fontfamily fontsize | bold italic underline strikethrough forecolor backcolor | removeformat",
+        (
+            "undo redo | fullscreen | hr image media table codesample blockquote | "
+            "subscript superscript charmap"
+        ),
+        (
+            "blocks | bullist numlist indent outdent | "
+            "alignleft aligncenter alignright alignjustify lineheight"
+        ),
+        (
+            "fontfamily fontsize | "
+            "bold italic underline strikethrough forecolor backcolor | removeformat"
+        ),
     ],
     "file_picker_types": "image media",
     "images_upload_url": "/tinymce/upload",
@@ -339,9 +358,7 @@ STORAGES = {
         ),
     },
     "staticfiles": {
-        "BACKEND": (
-            "django.contrib.staticfiles.storage.StaticFilesStorage"
-        ),
+        "BACKEND": ("django.contrib.staticfiles.storage.StaticFilesStorage"),
     },
 }
 

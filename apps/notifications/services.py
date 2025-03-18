@@ -59,7 +59,9 @@ def create_new_article_notification(article: Article, recipient: User) -> Notifi
     return notification
 
 
-def create_new_comment_notification(comment: ArticleComment, recipient: User) -> Notification:
+def create_new_comment_notification(
+    comment: ArticleComment, recipient: User
+) -> Notification:
     """Creates andd returns a notification about a new comment on
     article.
     """
@@ -82,7 +84,9 @@ def send_notification_email(notification: Notification) -> None:
             "url": f"{SCHEME}://{DOMAIN_NAME}{notification.link}",
         },
     )
-    email = EmailMultiAlternatives(notification.title, message, to=[notification.recipient.email])
+    email = EmailMultiAlternatives(
+        notification.title, message, to=[notification.recipient.email]
+    )
     email.attach_alternative(message, "text/html")
     email.send()
 
@@ -112,4 +116,6 @@ def get_unread_notifications_count_by_user(user: User) -> int:
     """Returns the total count of unread notifications addressed to the
     specified user.
     """
-    return Notification.objects.filter(recipient=user, status=Notification.Status.UNREAD).count()
+    return Notification.objects.filter(
+        recipient=user, status=Notification.Status.UNREAD
+    ).count()

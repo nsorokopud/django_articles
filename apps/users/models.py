@@ -9,7 +9,8 @@ class User(AbstractUser):
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(
-        default="users/profile_images/default_avatar.jpg", upload_to="users/profile_images/"
+        default="users/profile_images/default_avatar.jpg",
+        upload_to="users/profile_images/",
     )
     subscribers = models.ManyToManyField(User, related_name="subscribed_profiles")
     notification_emails_allowed = models.BooleanField(default=True)
