@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 
 from users.models import Profile, User
 
@@ -14,4 +14,4 @@ class UserProfileAdmin(admin.ModelAdmin):
     readonly_fields = ("user",)
 
     def get_profile_image(self, profile):
-        return mark_safe(f"<img src={profile.image.url} width='35' height='35'>")
+        return format_html(f"<img src={profile.image.url} width='35' height='35'>")
