@@ -121,7 +121,10 @@ class TestViews(TestCase):
             form.errors,
             {
                 "__all__": [
-                    "Please enter a correct username and password. Note that both fields may be case-sensitive."
+                    (
+                        "Please enter a correct username and password. "
+                        "Note that both fields may be case-sensitive."
+                    )
                 ]
             },
         )
