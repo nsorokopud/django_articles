@@ -1,13 +1,13 @@
 from django.test import SimpleTestCase
-from django.urls import reverse, resolve
+from django.urls import resolve, reverse
 
 from articles.views import (
-    ArticleListFilterView,
     ArticleCommentView,
     ArticleCreateView,
     ArticleDeleteView,
     ArticleDetailView,
     ArticleLikeView,
+    ArticleListFilterView,
     ArticleUpdateView,
     AttachedFileUploadView,
     CommentLikeView,

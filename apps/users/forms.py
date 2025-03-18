@@ -1,10 +1,7 @@
-from hcaptcha_field import hCaptchaField
-
 from django import forms
-from django.contrib.auth.forms import (
-    AuthenticationForm as DefaultAuthenticationForm,
-    UserCreationForm as DefaultUserCreationForm,
-)
+from django.contrib.auth.forms import AuthenticationForm as DefaultAuthenticationForm
+from django.contrib.auth.forms import UserCreationForm as DefaultUserCreationForm
+from hcaptcha_field import hCaptchaField
 
 from users.models import Profile, User
 

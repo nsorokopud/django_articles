@@ -1,8 +1,7 @@
+from allauth.account.views import PasswordSetView as AllauthPasswordSetView
 from allauth.account.views import (
-    PasswordSetView as AllauthPasswordSetView,
     sensitive_post_parameters_m,
 )
-
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
@@ -20,6 +19,7 @@ from users.forms import (
     UserCreationForm,
     UserUpdateForm,
 )
+
 from .models import User
 from .services import (
     activate_user,
@@ -27,8 +27,8 @@ from .services import (
     get_all_supscriptions_of_user,
     get_user_by_id,
     get_user_by_username,
-    toggle_user_supscription,
     send_account_activation_email,
+    toggle_user_supscription,
 )
 from .tokens import activation_token_generator
 

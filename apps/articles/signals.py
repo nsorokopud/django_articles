@@ -1,6 +1,10 @@
 from django.db import transaction
 
-from notifications.tasks import send_new_article_notification, send_new_comment_notification
+from notifications.tasks import (
+    send_new_article_notification,
+    send_new_comment_notification,
+)
+
 from .services import delete_media_files_attached_to_article
 
 

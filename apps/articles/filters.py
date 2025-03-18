@@ -1,17 +1,17 @@
+from django.forms import TextInput
 from django_filters import FilterSet
 from django_filters.filters import (
     CharFilter,
     DateFromToRangeFilter,
-    OrderingFilter,
     ModelChoiceFilter,
     ModelMultipleChoiceFilter,
+    OrderingFilter,
 )
 from django_filters.widgets import DateRangeWidget
 from django_select2.forms import Select2TagWidget
 
-from django.forms import TextInput
-
 from users.services import get_all_users
+
 from .models import Article
 from .services import (
     find_articles_by_query,

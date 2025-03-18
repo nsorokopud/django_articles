@@ -1,8 +1,9 @@
 from unittest.mock import patch
 
-from users.models import User
 from django.db.models import signals
 from django.test import TransactionTestCase
+
+from users.models import User
 
 from ..models import Article, ArticleComment
 from ..signals import (

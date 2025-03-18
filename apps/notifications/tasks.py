@@ -1,6 +1,6 @@
-from articles.services import get_article_by_slug,  get_comment_by_id
-from users.services import get_user_by_id
+from articles.services import get_article_by_slug, get_comment_by_id
 from config.celery import app
+from users.services import get_user_by_id
 
 
 @app.task

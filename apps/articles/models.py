@@ -1,11 +1,11 @@
 from django.db import models
 from django.urls import reverse
-
 from taggit.managers import TaggableManager
 from tinymce.models import HTMLField
 
-from articles.constants import DISPLAYED_COMMENT_LENGTH
 from users.models import User
+
+from .constants import DISPLAYED_COMMENT_LENGTH
 
 
 class Article(models.Model):

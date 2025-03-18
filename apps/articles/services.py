@@ -1,9 +1,6 @@
 import os
-from typing import Iterable, IO, List, Optional
+from typing import IO, Iterable, List, Optional
 from uuid import uuid4
-
-from sql_util.utils import SubqueryAggregate
-from taggit.models import Tag
 
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -11,6 +8,8 @@ from django.db.models import Count, F, Q
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
+from sql_util.utils import SubqueryAggregate
+from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from users.models import User

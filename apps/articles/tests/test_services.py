@@ -1,21 +1,21 @@
 import os
 from unittest.mock import call, patch
 
-from taggit.models import Tag
-
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.test import TestCase
+from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
+    _generate_unique_article_slug,
     create_article,
     delete_media_files_attached_to_article,
+    find_article_comments_liked_by_user,
     find_articles_by_query,
     find_articles_of_category,
     find_articles_with_tags,
     find_comments_to_article,
-    find_article_comments_liked_by_user,
     find_published_articles,
     get_all_categories,
     get_all_tags,
@@ -27,7 +27,6 @@ from articles.services import (
     save_media_file_attached_to_article,
     toggle_article_like,
     toggle_comment_like,
-    _generate_unique_article_slug,
 )
 from users.models import User
 

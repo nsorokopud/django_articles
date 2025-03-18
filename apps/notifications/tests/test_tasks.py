@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 from celery.contrib.testing.worker import start_worker
 from channels.testing import WebsocketCommunicator
-
 from django.db.models import signals
 from django.test import TransactionTestCase
 from django.urls import reverse
@@ -11,6 +10,7 @@ from articles.models import Article, ArticleComment
 from articles.signals import send_article_notification, send_comment_notification
 from config.celery import app
 from users.models import User
+
 from ..consumers import NotificationConsumer
 from ..models import Notification
 from ..tasks import (

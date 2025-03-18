@@ -1,11 +1,12 @@
 from asyncio.exceptions import TimeoutError
+
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-
 from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 
 from users.models import User
+
 from ..consumers import NotificationConsumer
 
 

@@ -1,14 +1,14 @@
 from celery.contrib.testing.worker import start_worker
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
-
 from django.test import TransactionTestCase
 
-from ..consumers import NotificationConsumer
 from articles.models import Article, ArticleComment
 from config.celery import app
 from notifications.models import Notification
 from users.models import User
+
+from ..consumers import NotificationConsumer
 
 
 class TestNotificationIntegration(TransactionTestCase):

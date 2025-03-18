@@ -1,7 +1,6 @@
 from unittest.mock import Mock, call, patch
 
 import pytz
-
 from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse

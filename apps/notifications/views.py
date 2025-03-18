@@ -1,12 +1,11 @@
-from django.http import JsonResponse, HttpResponseForbidden
-
+from django.http import HttpResponseForbidden, JsonResponse
 from django.views import View
 
 from .services import (
-    mark_notification_as_read,
     delete_notification,
     get_notification_by_id,
     get_unread_notifications_count_by_user,
+    mark_notification_as_read,
 )
 
 

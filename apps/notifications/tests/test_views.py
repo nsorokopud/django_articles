@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from articles.models import Article
 from users.models import User
+
 from ..models import Notification
 
 

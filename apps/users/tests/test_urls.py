@@ -1,6 +1,5 @@
 from allauth.account.views import LogoutView
 from allauth.socialaccount.providers.google import views as google_views
-
 from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 

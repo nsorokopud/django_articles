@@ -1,7 +1,7 @@
 from django import forms
 
 from articles.models import Article, ArticleComment
-from articles.services import create_article, _generate_unique_article_slug
+from articles.services import _generate_unique_article_slug, create_article
 
 
 class ArticleCreateForm(forms.ModelForm):

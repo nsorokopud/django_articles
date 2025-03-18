@@ -1,6 +1,6 @@
-from allauth.account.models import EmailAddress
 from unittest.mock import Mock, patch
 
+from allauth.account.models import EmailAddress
 from django.core import mail
 from django.db.models import signals
 from django.test import TestCase, override_settings

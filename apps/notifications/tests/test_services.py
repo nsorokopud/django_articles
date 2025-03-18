@@ -4,7 +4,6 @@ from unittest.mock import call, patch
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
-
 from django.core import mail
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
@@ -12,9 +11,11 @@ from django.urls import reverse
 from articles.models import Article, ArticleComment
 from config.settings import DOMAIN_NAME, SCHEME
 from users.models import User
+
 from ..consumers import NotificationConsumer
 from ..models import Notification
 from ..services import (
+    _send_notification,
     create_new_article_notification,
     create_new_comment_notification,
     delete_notification,
@@ -25,8 +26,8 @@ from ..services import (
     send_new_article_notification,
     send_new_comment_notification,
     send_notification_email,
-    _send_notification,
 )
+
 
 class TestServices(TransactionTestCase):
     def setUp(self):

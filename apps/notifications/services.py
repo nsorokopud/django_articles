@@ -1,6 +1,5 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-
 from django.core.mail import EmailMultiAlternatives
 from django.db.models.query import QuerySet
 from django.template.loader import render_to_string
@@ -9,6 +8,7 @@ from django.urls import reverse
 from articles.models import Article, ArticleComment
 from config.settings import DOMAIN_NAME, SCHEME
 from users.models import User
+
 from .models import Notification
 from .tasks import send_notification_email as send_notification_email__task
 

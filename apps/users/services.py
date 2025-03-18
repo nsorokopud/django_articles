@@ -1,5 +1,4 @@
 from allauth.account.models import EmailAddress
-
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Count

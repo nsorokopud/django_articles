@@ -2,7 +2,6 @@ import logging
 from urllib.parse import unquote
 
 import pytz
-
 from django.conf import settings
 from django.utils import timezone
 

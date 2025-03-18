@@ -8,6 +8,7 @@ class UsersConfig(AppConfig):
 
     def ready(self):
         from users.models import User
+
         from .signals import create_profile
 
         post_save.connect(create_profile, sender=User)
