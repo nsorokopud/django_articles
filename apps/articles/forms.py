@@ -20,10 +20,10 @@ class ArticleCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request")
-        super(ArticleCreateForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def save(self, **kwargs):
-        super(ArticleCreateForm, self).save(commit=False, **kwargs)
+        super().save(commit=False, **kwargs)
 
         article = create_article(
             title=self.cleaned_data["title"],

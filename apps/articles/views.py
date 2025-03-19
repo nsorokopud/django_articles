@@ -65,7 +65,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
     login_url = reverse_lazy("login")
 
     def get_form_kwargs(self):
-        kwargs = super(ArticleCreateView, self).get_form_kwargs()
+        kwargs = super().get_form_kwargs()
         kwargs["request"] = self.request
         return kwargs
 
