@@ -12,8 +12,5 @@ class AccountAdapter(DefaultAccountAdapter):
             return reverse("password-set")
         return super().get_login_redirect_url(request)
 
-    def get_connect_redirect_url(self, request, socialaccount):
-        return self.get_login_redirect_url()
-
     def get_signup_redirect_url(self, request):
         return self.get_login_redirect_url(request)
