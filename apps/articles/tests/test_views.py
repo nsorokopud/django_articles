@@ -139,7 +139,7 @@ class TestViews(TestCase):
         self.assertEqual(a.preview_text, article_data["preview_text"])
         self.assertEqual(a.content, article_data["content"])
         with self.assertRaises(ValueError):
-            self.assertEqual(a.preview_image.url)
+            a.preview_image.url
         self.assertEqual(a.is_published, True)
 
     def test_article_update_view_get(self):
