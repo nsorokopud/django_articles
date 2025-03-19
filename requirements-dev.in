@@ -24,6 +24,9 @@ flake8-django==1.1.1
 Flake8-pyproject==1.2.3
 isort==6.0.1
 mypy==1.15.0
+pylint==3.3.5
+pylint-django==2.6.1
+pylint-per-file-ignores==1.4.0
 
 # Pre-commit hooks
 pre-commit==4.1.0

@@ -13,6 +13,8 @@ asgiref==3.8.1
     #   daphne
     #   django
     #   django-minify-html
+astroid==3.3.9
+    # via pylint
 attrs==25.3.0
     # via
     #   service-identity
@@ -83,6 +85,8 @@ cssbeautifier==1.15.4
     # via djlint
 daphne==4.1.2
     # via -r requirements.in
+dill==0.3.9
+    # via pylint
 distlib==0.3.9
     # via virtualenv
 djade==1.3.2
@@ -179,7 +183,9 @@ incremental==24.7.2
 iniconfig==2.0.0
     # via pytest
 isort==6.0.1
-    # via -r requirements-dev.in
+    # via
+    #   -r requirements-dev.in
+    #   pylint
 jmespath==1.0.1
     # via
     #   boto3
@@ -195,7 +201,9 @@ kombu==5.5.0
 markdown-it-py==3.0.0
     # via rich
 mccabe==0.7.0
-    # via flake8
+    # via
+    #   flake8
+    #   pylint
 mdurl==0.1.2
     # via markdown-it-py
 minify-html==0.15.0
@@ -228,6 +236,7 @@ pip-tools==7.4.1
 platformdirs==4.3.6
     # via
     #   black
+    #   pylint
     #   virtualenv
 pluggy==1.5.0
     # via pytest
@@ -255,6 +264,17 @@ pygments==2.19.1
     # via rich
 pyjwt==2.9.0
     # via -r requirements.in
+pylint==3.3.5
+    # via
+    #   -r requirements-dev.in
+    #   pylint-django
+    #   pylint-plugin-utils
+pylint-django==2.6.1
+    # via -r requirements-dev.in
+pylint-per-file-ignores==1.4.0
+    # via -r requirements-dev.in
+pylint-plugin-utils==0.8.2
+    # via pylint-django
 pyopenssl==25.0.0
     # via twisted
 pyproject-hooks==1.2.0
@@ -309,6 +329,8 @@ sqlparse==0.5.3
     #   django-sql-utils
 stevedore==5.4.1
     # via bandit
+tomlkit==0.13.2
+    # via pylint
 tornado==6.4.2
     # via flower
 tqdm==4.67.1

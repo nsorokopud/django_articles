@@ -36,6 +36,26 @@ show_column_numbers = true
 explicit_package_bases = true
 exclude = ['admin.py']
 
+[tool.pylint]
+load-plugins = ["pylint_django", "pylint_per_file_ignores"]
+django-settings-module="config.settings"
+max-line-length = 88
+disable = [
+  "C0114", "C0115", "C0116", "C0207", "C0411", "C0415",
+  "R0901", "R0903", "R1710", "W0201, W0221"
+]
+ignored-argument-names="_.*|^ignored_|^unused_|request|sender"
+ignore = "venv,.venv,node_modules"
+per-file-ignores = [
+  "filters.py:W0613",
+  "commands/:W0718",
+  "services.py:R0913",
+  "tasks.py:W0621",
+  "tests/:R0801,R0904,R0915,W0104,W0612",
+  "users/auth_backends.py:C0103",
+  "settings/test.py:R0401,R0801,W0401,W0614"
+]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = "test_*.py"
