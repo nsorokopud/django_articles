@@ -50,6 +50,7 @@ ignore = "venv,.venv,node_modules"
 per-file-ignores = [
   "filters.py:W0613",
   "commands/:W0718",
+  "migrations/:C0103,C0301",
   "services.py:R0913",
   "tasks.py:W0621",
   "tests/:R0801,R0904,R0915,W0104,W0612",
