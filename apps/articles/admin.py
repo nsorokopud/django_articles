@@ -20,6 +20,7 @@ class ArticleAdmin(admin.ModelAdmin):
     save_on_top = True
     save_as = True
 
+    @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
         updated_rows_count = queryset.update(is_published=True)
         if updated_rows_count == 1:
@@ -28,6 +29,7 @@ class ArticleAdmin(admin.ModelAdmin):
             message = f"{updated_rows_count} articles were published"
         self.message_user(request, message)
 
+    @admin.action(description="Unpublish selected articles", permissions=("change",))
     def unpublish(self, request, queryset):
         updated_rows_count = queryset.update(is_published=False)
         if updated_rows_count == 1:
@@ -35,12 +37,6 @@ class ArticleAdmin(admin.ModelAdmin):
         else:
             message = f"{updated_rows_count} articles were unpublished"
         self.message_user(request, message)
-
-    publish.short_description = "Publish selected articles"
-    publish.allowed_permissions = ("change",)
-
-    unpublish.short_description = "Unpublish selected articles"
-    unpublish.allowed_permissions = ("change",)
 
 
 @admin.register(ArticleCategory)
