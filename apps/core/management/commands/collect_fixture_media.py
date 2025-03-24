@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 class Command(BaseCommand):
     can_import_settings = True
+    help = "Collects fixture media files and saves them to the default file storage."
 
     def add_arguments(self, parser):
         parser.add_argument(
