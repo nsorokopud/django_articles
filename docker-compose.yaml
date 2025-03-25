@@ -1,0 +1,84 @@
+services:
+  web-app:
+    image: nsorokopud/django_articles:web-app
+    build: .
+    restart: 'unless-stopped'
+    expose:
+      - 8000
+    volumes:
+      - static-volume:/app/staticfiles/
+      - logs-volume:/app/logs/
+    depends_on:
+      - db
+      - redis
+      - celery-worker
+
+  db:
+    image: postgres:17.0-alpine
+    restart: 'unless-stopped'
+    expose:
+      - 5432
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - db-volume:/var/lib/postgresql/data/
+
+  celery-worker:
+    image: nsorokopud/django_articles:web-app
+    build: .
+    restart: 'unless-stopped'
+    entrypoint: celery
+    command: -A config worker -l INFO
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: redis:7.4-alpine
+    restart: 'unless-stopped'
+    expose:
+      - 6379
+
+  flower:
+    image: nsorokopud/django_articles:web-app
+    build: .
+    restart: 'unless-stopped'
+    entrypoint: celery
+    command: >
+      -A config flower --url-prefix=__flower__
+      --basic-auth=${DJANGO_SUPERUSER_USERNAME}:${DJANGO_SUPERUSER_PASSWORD}
+    expose:
+      - 5555
+    depends_on:
+      - web-app
+      - celery-worker
+
+  nginx:
+    image: nsorokopud/django_articles:nginx-${SCHEME}
+    build:
+      context: ./nginx
+      args:
+        SCHEME: ${SCHEME}
+    restart: 'unless-stopped'
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - SSL_CERT_PATH=/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem
+      - SSL_CERT_KEY_PATH=/etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+    ports:
+      - 80:80
+      - 443:443
+    depends_on:
+      - web-app
+      - flower
+    volumes:
+      - static-volume:/static/
+      - ssl-cert-volume:/etc/letsencrypt/
+
+volumes:
+  db-volume:
+  logs-volume:
+  static-volume:
+  ssl-cert-volume:
