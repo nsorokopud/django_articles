@@ -42,7 +42,7 @@ function addEventListenersToWebSocket(socket) {
     let oldNotificationCount = notificationCounter.textContent.trim();
     if (oldNotificationCount == '0') {
       notificationCounter.textContent = '1';
-      notificationCounter.style.visibility = 'visible';
+      notificationCounter.classList.remove('invisible');
     } else if (oldNotificationCount != '999+') {
       notificationCounter.textContent = parseInt(oldNotificationCount) + 1;
     }
@@ -154,7 +154,7 @@ function addEventListenerToNotificaionDeleteButton(button) {
             let newNotificationCount = response.unread_notifications_count;
             notificationCounter.innerText = newNotificationCount;
             if (newNotificationCount == 0) {
-              notificationCounter.style.visibility = 'hidden';
+              notificationCounter.classList.add('invisible');
             }
           },
         );

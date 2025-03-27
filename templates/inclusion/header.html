@@ -30,11 +30,8 @@
                       style="text-align: left">
                 <i class="fas fa-envelope fs-4"></i>
                 <span id="notificationCounter"
-                      class="badge rounded-pill badge-notification bg-danger"
-                      style="position: relative;
-                             top: -15px;
-                             left: -15px;
-                             {% if notifications_count < 1 %}visibility: hidden;{% endif %}">
+                      class="badge rounded-pill badge-notification bg-danger
+                             {% if notifications_count < 1 %}invisible{% endif %}">
                   {% if notifications_count <= 0 %}
                     0
                   {% elif notifications_count > 999 %}
