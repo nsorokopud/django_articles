@@ -138,8 +138,8 @@ function addEventListenerToNotificaionDeleteButton(button) {
           function () {
             $('#' + notificationId).remove();
             if (notificationContainer.children.length == 0) {
-              const modalLabel = document.getElementById('exampleModalLabel');
-              modalLabel.innerText = 'No notifications';
+              const modalTitle = document.getElementById('modalTitle');
+              modalTitle.innerText = 'No notifications';
               const modalBody =
                 document.getElementsByClassName('modal-body')[0];
               const modalFooter =
