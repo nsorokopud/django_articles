@@ -7,7 +7,7 @@ on:
     branches: ['dev']
 
 jobs:
-  run_linters:
+  run_code_quality_tools:
     uses: nsorokopud/django_articles/.github/workflows/run-code-quality-tools.yaml@dev
     secrets: inherit
   run_tests:
