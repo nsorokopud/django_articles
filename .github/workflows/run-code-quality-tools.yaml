@@ -74,4 +74,5 @@ jobs:
           pylint $(git ls-files '*.py')
       - name: Run mypy
         run: |
-          mypy --install-types --config-file pyproject.toml $(git ls-files '*.py')
+          mypy --install-types --non-interactive \
+          --config-file pyproject.toml $(git ls-files '*.py')
