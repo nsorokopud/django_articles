@@ -18,7 +18,7 @@ jobs:
   build_images:
     runs-on: ubuntu-latest
     name: Build Docker Images
-    needs: [test]
+    needs: [run_formatters_and_linters, test]
     env:
       SCHEME: ${{ secrets.SCHEME }}
     steps:
