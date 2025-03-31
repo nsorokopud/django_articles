@@ -1,0 +1,64 @@
+name: Run Tests
+
+on:
+  workflow_call:
+
+env:
+  DJANGO_SETTINGS_MODULE: config.settings.test
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  DEBUG: ${{ secrets.DEBUG }}
+  SCHEME: ${{ secrets.SCHEME }}
+  DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+  ALLOWED_HOSTS: ${{ secrets.ALLOWED_HOSTS }}
+  DB_NAME: ${{ secrets.DB_NAME }}
+  DB_USER: ${{ secrets.DB_USER }}
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  DB_HOST: ${{ secrets.DB_HOST }}
+  DB_PORT: ${{ secrets.DB_PORT }}
+  GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+  GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+  HCAPTCHA_SITEKEY: ${{ secrets.HCAPTCHA_SITEKEY }}
+  HCAPTCHA_SECRET: ${{ secrets.HCAPTCHA_SECRET }}
+  USE_AWS_S3: ${{ secrets.USE_AWS_S3 }}
+  REDIS_HOST: ${{ secrets.REDIS_HOST }}
+  REDIS_PORT: ${{ secrets.REDIS_PORT }}
+  EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+  EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+  EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+  EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+  EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+
+    services:
+      postgres:
+        image: postgres:17.0-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12.2
+          cache: 'pip'
+      - name: Install Python Dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run Migrations
+        run: python manage.py migrate
+      - name: Run Tests
+        run: pytest -n=1 .

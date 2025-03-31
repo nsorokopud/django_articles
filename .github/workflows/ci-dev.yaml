@@ -1,0 +1,15 @@
+name: Dev CI
+
+on:
+  push:
+    branches: ['dev']
+  pull_request:
+    branches: ['dev']
+
+jobs:
+  run_linters:
+    uses: nsorokopud/django_articles/.github/workflows/run-code-quality-tools.yaml@dev
+    secrets: inherit
+  run_tests:
+    uses: nsorokopud/django_articles/.github/workflows/run-tests.yaml@dev
+    secrets: inherit
