@@ -8,11 +8,11 @@ on:
 
 jobs:
   run_formatters_and_linters:
-    uses: nsorokopud/django_articles/.github/workflows/run-formatters-and-linters.yaml@master
+    uses: nsorokopud/django_articles/.github/workflows/run-formatters-and-linters.yaml@dev
     secrets: inherit
 
   test:
-    uses: nsorokopud/django_articles/.github/workflows/run-tests.yaml@master
+    uses: nsorokopud/django_articles/.github/workflows/run-tests.yaml@dev
     secrets: inherit
 
   build_images:
