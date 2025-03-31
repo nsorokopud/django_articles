@@ -44,7 +44,7 @@ jobs:
       - name: Send docker-compose File
         run: |
           sshpass -p ${{ secrets.SSH_PASSWORD }} scp \
-          -o StrictHostKeyChecking=no docker-compose.yml \
+          -o StrictHostKeyChecking=no docker-compose.yaml \
           user@161.97.156.253:/home/user;
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
@@ -55,7 +55,7 @@ jobs:
           port: 22
           script: |
             echo ${{ secrets.SSH_PASSWORD }} | sudo -S \
-            mv /home/user/docker-compose.yml /projects/django_articles;
+            mv /home/user/docker-compose.yaml /projects/django_articles;
             cd /projects/django_articles;
             docker compose down;
             docker login -u ${{ secrets.DOCKERHUB_USERNAME }} \
