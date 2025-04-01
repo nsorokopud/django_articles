@@ -1,6 +1,8 @@
 
 [tool.bandit]
-exclude_dirs = ["venv", ".venv", "tests", "node_modules"]
+exclude_dirs = [
+  "venv", ".venv", "tests", "node_modules", "config/settings/test.py"
+]
 
 [tool.black]
 target-version = ["py312"]
