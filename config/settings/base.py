@@ -132,7 +132,7 @@ DATABASES = {
         "USER": os.environ["DB_USER"],
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
-        "PORT": os.environ["DB_PORT"],
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 
@@ -292,8 +292,8 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 # hCaptcha
 
-HCAPTCHA_SITEKEY = os.getenv("HCAPTCHA_SITEKEY", "")
-HCAPTCHA_SECRET = os.getenv("HCAPTCHA_SECRET", "")
+HCAPTCHA_SITEKEY = os.environ["HCAPTCHA_SITEKEY"]
+HCAPTCHA_SECRET = os.environ["HCAPTCHA_SECRET"]
 
 
 # TinyMCE
@@ -366,7 +366,7 @@ STORAGES = {
 # Redis
 
 REDIS_HOST = os.environ["REDIS_HOST"]
-REDIS_PORT = os.environ["REDIS_PORT"]
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 
 
 # Cache
@@ -395,7 +395,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(os.environ["REDIS_HOST"], os.environ["REDIS_PORT"])],
+            "hosts": [(os.environ["REDIS_HOST"], REDIS_PORT)],
         },
     },
 }
@@ -415,8 +415,8 @@ SELECT2_CACHE_BACKEND = "select2"
 # Emails
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.environ["EMAIL_HOST"]
-EMAIL_PORT = os.environ["EMAIL_PORT"]
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = os.getenv("EMAIL_PORT", "587")
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
-EMAIL_USE_TLS = os.environ["EMAIL_USE_TLS"]
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1")
