@@ -1,0 +1,13 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: ['master']
+
+jobs:
+  run_code_quality_tools:
+    uses: nsorokopud/django_articles/.github/workflows/run-code-quality-tools.yaml@dev
+    secrets: inherit
+  run_tests:
+    uses: nsorokopud/django_articles/.github/workflows/run-tests.yaml@dev
+    secrets: inherit
