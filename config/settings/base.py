@@ -132,7 +132,7 @@ DATABASES = {
         "USER": os.environ["DB_USER"],
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
-        "PORT": os.getenv("DB_PORT", "5432"),
+        "PORT": int(os.getenv("DB_PORT", "5432")),
     }
 }
 
@@ -366,7 +366,7 @@ STORAGES = {
 # Redis
 
 REDIS_HOST = os.environ["REDIS_HOST"]
-REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
 
 # Cache
@@ -416,7 +416,7 @@ SELECT2_CACHE_BACKEND = "select2"
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = os.getenv("EMAIL_PORT", "587")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1")
+EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
