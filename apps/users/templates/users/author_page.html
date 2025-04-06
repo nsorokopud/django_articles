@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+  <div class="container">
+    <div class="author-section col-md-8">
+      <div class="d-flex flex-column justify-content-center align-items-center">
+        <img height="120px"
+             width="120px"
+             class="rounded-circle"
+             src="{{ author_image_url }}"
+             alt="Article author's image" />
+        <h4 class="mt-2">{{ author.username }}</h4>
+      </div>
+      <div class="author-section-bottom">
+        <div class="author-subscribe-section my-4">
+          <div>Subscribers: {{ subscribers_count }}</div>
+          {% if user != author %}
+            <form class="author-subscribe-form"
+                  method="post"
+                  action="{% url 'author-subscribe' author.username %}">
+              {% csrf_token %}
+
+              {% if is_subscribed %}
+                <button id="authorSubscribeButton"
+                        class="btn btn-danger p-1"
+                        {% if user.is_authenticated %}isLoggedIn{% endif %}
+                        type="submit">Unsubscribe</button>
+              {% else %}
+                <button id="authorSubscribeButton"
+                        class="btn btn-success p-1"
+                        {% if user.is_authenticated %}isLoggedIn{% endif %}
+                        type="submit">Subscribe</button>
+              {% endif %}
+            </form>
+          {% endif %}
+        </div>
+        <div>
+          Check out this author's
+          <a href="{% url 'articles' %}?author={{ author.username }}"
+             class="link-green">articles</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/author-subscribe.js' %}"></script>
+{% endblock extra_scripts %}

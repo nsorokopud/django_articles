@@ -1,0 +1,27 @@
+{% extends "articles/base.html" %}
+
+{% block content-main %}
+  <div class="container my-5">
+    <div class="row">
+      <div class="col-xs-12 col-md-10 col-lg-6 mx-auto">
+        <form class="user-form" method="post">
+          {% csrf_token %}
+          <fieldset>
+            <div class="form-group">
+              <legend class="botder-bottom mb-4">Delete Article</legend>
+              <h2 class="text-justify">
+                Are you sure you want to delete the article
+                "{{ article.title }}"?
+              </h2>
+            </div>
+          </fieldset>
+          <div class="form-group">
+            <button class="btn btn-outline-danger mx-2" type="submit">Confirm</button>
+            <a class="btn btn-outline-secondary"
+               href="{% url 'article-details' article.slug %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock content-main %}

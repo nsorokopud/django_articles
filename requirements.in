@@ -1,0 +1,45 @@
+# After changing this file, please run `pip-compile requirements.in` to
+# also update `requirements.txt`
+
+# Core
+Django==5.1.1
+django-taggit==6.1.0
+django-tinymce==4.1.0
+
+# Environment management
+python-dotenv==1.0.1
+
+# DB and ORM
+django-sql-utils==0.7.0
+psycopg2==2.9.10
+
+# Caching and optimization
+django-cachalot==2.6.3
+django-minify-html==1.9.0
+django-redis==5.4.0
+
+# Celery
+celery==5.4.0
+flower==2.0.1
+
+# Django Channels
+channels==4.1.0
+channels-redis==4.2.0
+daphne==4.1.2
+
+# Auth
+django-allauth==65.0.2
+PyJWT==2.9.0
+requests==2.32.3
+
+# Forms
+crispy-bootstrap4==2024.1
+django-crispy-forms==2.3
+django-filter==24.3
+django-hcaptcha-field==1.4.0
+django-select2==8.2.1
+
+# Media and files
+boto3==1.35.29
+django-storages==1.14.4
+pillow==10.4.0

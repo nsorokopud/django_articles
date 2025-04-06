@@ -1,0 +1,58 @@
+{% load tz %}
+
+<div class="modal fade"
+     id="modal"
+     tabindex="-1"
+     aria-labelledby="modal"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title fs-5" id="modalTitle">
+          {% if notifications %}
+            Notifications
+          {% else %}
+            No notifications
+          {% endif %}
+        </h3>
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"></button>
+      </div>
+      <div class="modal-body {% if not notifications %}d-none{% endif %}">
+        <div id="notificationsContainer" class="user-notifications-container">
+          {% for n in notifications reversed %}
+            {# djlint:off #}
+            <div id="notification-{{ n.id }}"
+                 class="notification {% if n.status == n.Status.READ %}read{% endif %}"
+                 href={{ n.link }}>
+              <div class="notification-main">
+                <div class="rounded-circle"></div>
+                <div class="notification-content">
+                  <h6 class="notification-header">
+                    <span class="notification-title me-3">{{ n.title }}</span>
+                    <time class="notification-time"
+                          datetime={{ n.created_at.isoformat }}>
+                      {{ n.created_at|localtime|date:'H:i d-m-Y' }}
+                    </time>
+                  </h6>
+                  <div class="notification-message">{{ n.message }}</div>
+                </div>
+              </div>
+              <button class="notification-delete-button btn btn-danger p-1">
+                Delete
+              </button>
+            </div>
+            {# djlint:on #}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer {% if not notifications %}d-none{% endif %}">
+        <button type="button" class="btn btn-danger p-1" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

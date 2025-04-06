@@ -1,0 +1,39 @@
+{% extends "users/form_base.html" %}
+{% load crispy_forms_tags socialaccount %}
+
+{% block form %}
+  <form class="user-form" method="post">
+    {% csrf_token %}
+    <fieldset>
+      <div class="form-group">
+        <legend class="botder-bottom mb-4">Log In</legend>
+        {{ form|crispy }}
+      </div>
+    </fieldset>
+    <div class="form-group">
+      <button class="btn btn-success" type="submit">Log In</button>
+    </div>
+    <div class="form-group">
+      <h5 class="text-center mb-3">Or</h5>
+      {# djlint:off D018 #}
+      <a class="google-btn"
+         href="{% provider_login_url 'google' action='reauthenticate' %}">
+        <img src="https://img.icons8.com/color/48/000000/google-logo.png"
+             alt="Google Logo"
+             height="30px"
+             width="30px">
+        <span>Sign in with Google</span>
+      </a>
+      {# djlint:on #}
+    </div>
+  </form>
+{% endblock form %}
+
+{% block form-after %}
+  <div class="border-top mt-3">
+    <small class="text-muted">
+      Need an account?
+      <a href="{% url 'registration' %}" class="link-green mx-2">Sign Up</a>
+    </small>
+  </div>
+{% endblock form-after %}

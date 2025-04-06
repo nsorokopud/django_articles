@@ -1,0 +1,38 @@
+# `docker-compose.override.yml` should contain settings for local development
+# to override the ones contained in `docker-compose.yml`
+
+services:
+  web-app:
+    env_file:
+      - .env.docker # Use a different .env file when running via docker
+    ports:
+      - 8000:8000
+      - 8001:5678 # For debugging
+    volumes:
+      - .:/app # Mount the project directory to avoid image rebuilding
+      - .env.docker:/app/.env
+
+  celery-worker:
+    env_file:
+      - .env.docker
+
+  flower:
+    env_file:
+      - .env.docker
+    ports:
+      - 5555:5555
+
+  nginx:
+    env_file:
+      - .env.docker
+    environment:
+      # Use local SSL certificate authority (`jonasal/nginx-certbot` image)
+      - USE_LOCAL_CA=1
+
+  db:
+    ports:
+      - 5432:5432
+
+  redis:
+    ports:
+      - 6379:6379

@@ -1,0 +1,147 @@
+#notificationCounter {
+  position: relative;
+  top: -15px;
+  left: -15px;
+}
+
+.notification {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0 15px;
+  border: 2px solid white;
+  border-bottom: 2px solid lightgrey;
+  text-decoration: none !important;
+  color: black !important;
+}
+
+.notification:last-child {
+  border-bottom: 2px solid white !important;
+}
+
+.notification:hover {
+  cursor: pointer;
+  border-top: 2px solid #198754 !important;
+  border-bottom: 2px solid #198754 !important;
+  color: #00b74a !important;
+}
+
+.notification-hover {
+  cursor: pointer;
+  border-top: 2px solid #198754 !important;
+  border-bottom: 2px solid #198754 !important;
+  color: #00b74a !important;
+}
+
+.notification:hover .notification-time {
+  color: #00b74a !important;
+}
+
+.notification-hover .notification-time {
+  color: #00b74a !important;
+}
+
+.notification-hover:last-child {
+  border-bottom: 2px solid #198754 !important;
+}
+
+.notification:has(+ .notification:hover) {
+  border: 2px solid white !important;
+  color: #45458b;
+}
+
+.notification:has(+ .notification-hover) {
+  border: 2px solid white !important;
+  color: #45458b;
+}
+
+.notification .rounded-circle {
+  margin-right: 1rem;
+  background: #198754;
+  min-height: 9px;
+  min-width: 9px;
+  max-height: 9px;
+  max-width: 9px;
+}
+
+.notification.read .rounded-circle {
+  visibility: hidden;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.notification-title {
+  font-weight: 700;
+}
+
+.notification-time {
+  font-size: 14px;
+  color: #3d424a;
+}
+
+.notification-content {
+  flex-grow: 1;
+  word-break: break-all;
+}
+
+.notification.read .notification-content {
+  opacity: 0.5;
+}
+
+.notification-main {
+  display: flex;
+  align-items: center;
+  flex-grow: 1;
+  margin-right: 4%;
+}
+
+.notification-message {
+  text-align: justify;
+}
+
+@media screen and (max-width: 767px) {
+  .notification {
+    flex-direction: column;
+  }
+
+  .notification-main {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .notification .rounded-circle {
+    margin-right: 0.5rem;
+  }
+
+  .notification-header {
+    flex-direction: column;
+  }
+
+  .notification-title {
+    margin-bottom: 8px;
+  }
+
+  .notification-delete-button {
+    margin-top: 12px;
+    margin-left: auto;
+  }
+
+  /* Modal */
+  .modal-body {
+    padding: 1rem 0.5rem;
+  }
+}
+
+/* Toasts */
+
+.toast:hover {
+  cursor: pointer;
+  color: #198754;
+}
+
+.toast:hover .toast-header {
+  color: #198754 !important;
+}

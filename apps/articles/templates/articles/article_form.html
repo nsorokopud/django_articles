@@ -1,0 +1,49 @@
+{% extends "articles/base.html" %}
+{% load crispy_forms_tags static %}
+
+{% block content-main %}
+  <div class="container main-container d-flex justify-content-center mx-auto">
+    <section class="main-content col-md-10">
+      <div class="row">
+        <div class="col-12 mx-auto">
+          {% if update %}
+            <h2 class="mb-5">Update article</h2>
+          {% else %}
+            <h2 class="mb-5">New article</h2>
+          {% endif %}
+          <form id="articleForm"
+                class="user-form"
+                method="post"
+                {% if update %}
+                  action="{% url 'article-update' article.slug %}"
+                {% else %}
+                  action="{% url 'article-create' %}"
+                {% endif %}
+                enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form|crispy }}
+            {% if update %}
+              <button id="articleFormUpdateButton" class="btn btn-success" type="submit">
+                Confirm update
+              </button>
+              <a href="{{ article.get_absolute_url }}" class="btn btn-secondary mx-3">
+                Go back
+              </a>
+              <input type="hidden" id="articleId" value="{{ form.instance.id }}" />
+              <input type="hidden" id="articleSlug" value="{{ form.instance.slug }}" />
+            {% else %}
+              <button id="articleFormCreateButton"
+                      class="btn btn-outline-success"
+                      type="submit">Create</button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock content-main %}
+
+{% block extra_scripts %}
+  {{ form.media }}
+  <script src="{% static 'js/article-form.js' %}"></script>
+{% endblock extra_scripts %}
