@@ -3,6 +3,8 @@ services:
     image: nsorokopud/django_articles:web-app
     build: .
     restart: 'unless-stopped'
+    env_file:
+      - .env
     expose:
       - 8000
     volumes:
@@ -29,6 +31,8 @@ services:
     image: nsorokopud/django_articles:web-app
     build: .
     restart: 'unless-stopped'
+    env_file:
+      - .env
     entrypoint: celery
     command: -A config worker -l INFO
     depends_on:
@@ -45,6 +49,8 @@ services:
     image: nsorokopud/django_articles:web-app
     build: .
     restart: 'unless-stopped'
+    env_file:
+      - .env
     entrypoint: celery
     command: >
       -A config flower --url-prefix=__flower__
