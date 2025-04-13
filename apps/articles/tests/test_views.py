@@ -62,9 +62,7 @@ class TestViews(TestCase):
 
     def test_article_details_page_view__views_counter_increments_once_per_session(self):
         url = reverse("article-details", args=[self.test_article.slug])
-        user2 = User.objects.create_user(
-            username="user2", email="user2@test.com"
-        )
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
         self.assertEqual(self.test_article.views_count, 0)
 
         self.client.get(url)
