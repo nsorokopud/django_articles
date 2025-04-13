@@ -495,6 +495,10 @@ img.profile-image {
 
 /* hCaptcha */
 
+#id_hcaptcha iframe {
+  max-width: 100%;
+}
+
 .hcaptchawidget.form-control.h-captcha {
   margin-top: 2rem;
   border: none;

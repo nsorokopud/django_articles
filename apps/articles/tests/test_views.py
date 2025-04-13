@@ -60,6 +60,29 @@ class TestViews(TestCase):
         self.test_article.refresh_from_db()
         self.assertEqual(self.test_article.views_count, 1)
 
+    def test_article_details_page_view__views_counter_increments_once_per_session(self):
+        url = reverse("article-details", args=[self.test_article.slug])
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
+        self.assertEqual(self.test_article.views_count, 0)
+
+        self.client.get(url)
+        self.test_article.refresh_from_db()
+        self.assertEqual(self.test_article.views_count, 1)
+
+        self.client.force_login(self.test_user)
+        self.client.get(url)
+        self.test_article.refresh_from_db()
+        self.assertEqual(self.test_article.views_count, 1)
+
+        self.client.force_login(user2)
+        self.client.get(url)
+        self.test_article.refresh_from_db()
+        self.assertEqual(self.test_article.views_count, 2)
+
+        self.client.get(url)
+        self.test_article.refresh_from_db()
+        self.assertEqual(self.test_article.views_count, 2)
+
     def test_article_creation_page_view_unauthorized(self):
         url = reverse("article-create")
         response = self.client.get(url)
