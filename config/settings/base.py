@@ -71,9 +71,9 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.google",
     "cachalot",
     "articles",
-    "core",
     "users",
     "notifications",
+    "management",
 ]
 
 if DEBUG:
