@@ -69,10 +69,14 @@ def create_new_comment_notification(
     """Creates andd returns a notification about a new comment on
     article.
     """
+    message = render_to_string(
+        "notifications/new_comment_notification.html",
+        {"comment_author": comment.author.username},
+    ).strip("\n")
     notification = Notification.objects.create(
         type=Notification.Type.NEW_COMMENT,
         title="New Comment",
-        message=f"New comment on your article from {comment.author.username}",
+        message=message,
         link=reverse("article-details", args=(comment.article.slug,)),
         sender=comment.author,
         recipient=recipient,
