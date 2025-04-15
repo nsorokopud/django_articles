@@ -48,10 +48,14 @@ def _send_notification(notification: Notification, group_name: str):
 
 def create_new_article_notification(article: Article, recipient: User) -> Notification:
     """Creates andd returns a notification about a new article."""
+    message = render_to_string(
+        "notifications/new_article_notification.html",
+        {"article_author": article.author.username, "article_title": article.title},
+    ).strip("\n")
     notification = Notification.objects.create(
         type=Notification.Type.NEW_ARTICLE,
         title="New Article",
-        message=f"New article from {article.author.username}: '{article.title}'",
+        message=message,
         link=reverse("article-details", args=(article.slug,)),
         sender=article.author,
         recipient=recipient,
@@ -65,10 +69,14 @@ def create_new_comment_notification(
     """Creates andd returns a notification about a new comment on
     article.
     """
+    message = render_to_string(
+        "notifications/new_comment_notification.html",
+        {"comment_author": comment.author.username},
+    ).strip("\n")
     notification = Notification.objects.create(
         type=Notification.Type.NEW_COMMENT,
         title="New Comment",
-        message=f"New comment on your article from {comment.author.username}",
+        message=message,
         link=reverse("article-details", args=(comment.article.slug,)),
         sender=comment.author,
         recipient=recipient,
