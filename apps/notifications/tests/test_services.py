@@ -1,10 +1,11 @@
 from datetime import datetime
-from unittest.mock import call, patch
+from unittest.mock import ANY, call, patch
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.core import mail
+from django.db.models import QuerySet
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 
@@ -16,7 +17,7 @@ from ..consumers import NotificationConsumer
 from ..models import Notification
 from ..services import (
     _send_notification,
-    create_new_article_notification,
+    bulk_create_new_article_notifications,
     create_new_comment_notification,
     delete_notification,
     find_notifications_by_user,
@@ -77,9 +78,9 @@ class TestServices(TransactionTestCase):
 
         with (
             patch(
-                "notifications.services.create_new_article_notification",
-                side_effect=[n1, n2],
-            ) as create_new_article_notification__mock,
+                "notifications.services.bulk_create_new_article_notifications",
+                side_effect=[[n1, n2]],
+            ) as bulk_create_new_article_notifications__mock,
             patch(
                 "notifications.services._send_notification",
             ) as _send_notification__mock,
@@ -90,9 +91,13 @@ class TestServices(TransactionTestCase):
 
             send_new_article_notification(self.a)
 
-            create_new_article_notification__mock.assert_has_calls(
-                [call(self.a, user1), call(self.a, user2)], any_order=True
+            bulk_create_new_article_notifications__mock.assert_called_once_with(
+                self.a, ANY
             )
+            argument2 = bulk_create_new_article_notifications__mock.call_args[0][1]
+            self.assertIsInstance(argument2, QuerySet)
+            self.assertListEqual(list(argument2), [user1, user2])
+
             _send_notification__mock.assert_has_calls(
                 [call(n1, user1.username), call(n2, user2.username)], any_order=True
             )
@@ -201,12 +206,11 @@ class TestServices(TransactionTestCase):
 
         await communicator.disconnect()
 
-    def test_create_new_article_notification(self):
+    def test_bulk_create_new_article_notifications(self):
         notifications_count = Notification.objects.count()
         self.assertEqual(notifications_count, 0)
 
-        create_new_article_notification(self.a, self.user)
-
+        bulk_create_new_article_notifications(self.a, [self.user])
         notifications_count = Notification.objects.count()
         self.assertEqual(notifications_count, 1)
 
@@ -218,6 +222,16 @@ class TestServices(TransactionTestCase):
             n.message, f"New article from {self.author.username}: '{self.a.title}'"
         )
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
+
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
+        bulk_create_new_article_notifications(self.a, [self.user, user2])
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 3)
+
+        user_notifications = Notification.objects.filter(recipient=self.user)
+        self.assertEqual(user_notifications.count(), 2)
+        user2_notifications = Notification.objects.filter(recipient=user2)
+        self.assertEqual(user2_notifications.count(), 1)
 
     def test_create_new_comment_notification(self):
         c = ArticleComment(article=self.a, author=self.user, text="1")

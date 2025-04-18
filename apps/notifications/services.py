@@ -1,3 +1,6 @@
+import logging
+from typing import Iterable
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.core.mail import EmailMultiAlternatives
@@ -13,6 +16,9 @@ from .models import Notification
 from .tasks import send_notification_email as send_notification_email__task
 
 
+logger = logging.getLogger("default_logger")
+
+
 def send_new_comment_notification(comment: ArticleComment, recipient: User) -> None:
     notification = create_new_comment_notification(comment, recipient)
     group_name = recipient.username
@@ -23,12 +29,25 @@ def send_new_comment_notification(comment: ArticleComment, recipient: User) -> N
 
 def send_new_article_notification(article: Article) -> None:
     subscribers = article.author.profile.subscribers.all()
-    for subscriber in subscribers:
-        notification = create_new_article_notification(article, subscriber)
-        group_name = subscriber.username
-        _send_notification(notification, group_name)
-        if subscriber.profile.notification_emails_allowed:
-            send_notification_email__task.delay(notification.id)
+    subscriber_count = subscribers.count()
+    logger.info(
+        "Found %d subscribers for article with ID=%d", subscriber_count, article.id
+    )
+    if subscribers.count() > 0:
+        notifications = bulk_create_new_article_notifications(article, subscribers)
+        for notification in notifications:
+            group_name = notification.recipient.username
+            _send_notification(notification, group_name)
+            if notification.recipient.profile.notification_emails_allowed:
+                send_notification_email__task.delay(notification.id)
+        logger.info(
+            (
+                "Initiated sending of %d `New article` notifications about article"
+                "with ID=%d"
+            ),
+            len(notifications),
+            article.id,
+        )
 
 
 def _send_notification(notification: Notification, group_name: str):
@@ -46,21 +65,34 @@ def _send_notification(notification: Notification, group_name: str):
     )
 
 
-def create_new_article_notification(article: Article, recipient: User) -> Notification:
-    """Creates andd returns a notification about a new article."""
+def bulk_create_new_article_notifications(
+    article: Article, recipients: Iterable[User]
+) -> list[Notification]:
+    notifications = []
     message = render_to_string(
         "notifications/new_article_notification.html",
         {"article_author": article.author.username, "article_title": article.title},
     ).strip("\n")
-    notification = Notification.objects.create(
-        type=Notification.Type.NEW_ARTICLE,
-        title="New Article",
-        message=message,
-        link=reverse("article-details", args=(article.slug,)),
-        sender=article.author,
-        recipient=recipient,
+    for user in recipients:
+        notifications.append(
+            Notification(
+                type=Notification.Type.NEW_ARTICLE,
+                title="New Article",
+                message=message,
+                link=reverse("article-details", args=(article.slug,)),
+                sender=article.author,
+                recipient=user,
+            )
+        )
+    created_notifications = Notification.objects.bulk_create(
+        notifications, batch_size=500
     )
-    return notification
+    logger.info(
+        "Created %d `New article` notifications about article with ID=%d",
+        len(created_notifications),
+        article.id,
+    )
+    return created_notifications
 
 
 def create_new_comment_notification(
