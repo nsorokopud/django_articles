@@ -95,23 +95,6 @@ def bulk_create_new_article_notifications(
     return created_notifications
 
 
-def create_new_article_notification(article: Article, recipient: User) -> Notification:
-    """Creates andd returns a notification about a new article."""
-    message = render_to_string(
-        "notifications/new_article_notification.html",
-        {"article_author": article.author.username, "article_title": article.title},
-    ).strip("\n")
-    notification = Notification.objects.create(
-        type=Notification.Type.NEW_ARTICLE,
-        title="New Article",
-        message=message,
-        link=reverse("article-details", args=(article.slug,)),
-        sender=article.author,
-        recipient=recipient,
-    )
-    return notification
-
-
 def create_new_comment_notification(
     comment: ArticleComment, recipient: User
 ) -> Notification:

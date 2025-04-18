@@ -18,7 +18,6 @@ from ..models import Notification
 from ..services import (
     _send_notification,
     bulk_create_new_article_notifications,
-    create_new_article_notification,
     create_new_comment_notification,
     delete_notification,
     find_notifications_by_user,
@@ -233,24 +232,6 @@ class TestServices(TransactionTestCase):
         self.assertEqual(user_notifications.count(), 2)
         user2_notifications = Notification.objects.filter(recipient=user2)
         self.assertEqual(user2_notifications.count(), 1)
-
-    def test_create_new_article_notification(self):
-        notifications_count = Notification.objects.count()
-        self.assertEqual(notifications_count, 0)
-
-        create_new_article_notification(self.a, self.user)
-
-        notifications_count = Notification.objects.count()
-        self.assertEqual(notifications_count, 1)
-
-        n = Notification.objects.get(sender=self.author, recipient=self.user)
-        self.assertEqual(n.type, Notification.Type.NEW_ARTICLE)
-        self.assertEqual(n.status, Notification.Status.UNREAD)
-        self.assertEqual(n.title, "New Article")
-        self.assertEqual(
-            n.message, f"New article from {self.author.username}: '{self.a.title}'"
-        )
-        self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
 
     def test_create_new_comment_notification(self):
         c = ArticleComment(article=self.a, author=self.user, text="1")
