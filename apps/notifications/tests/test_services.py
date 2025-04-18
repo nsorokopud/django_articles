@@ -1,10 +1,11 @@
 from datetime import datetime
-from unittest.mock import call, patch
+from unittest.mock import ANY, call, patch
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.core import mail
+from django.db.models import QuerySet
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 
@@ -78,9 +79,9 @@ class TestServices(TransactionTestCase):
 
         with (
             patch(
-                "notifications.services.create_new_article_notification",
-                side_effect=[n1, n2],
-            ) as create_new_article_notification__mock,
+                "notifications.services.bulk_create_new_article_notifications",
+                side_effect=[[n1, n2]],
+            ) as bulk_create_new_article_notifications__mock,
             patch(
                 "notifications.services._send_notification",
             ) as _send_notification__mock,
@@ -91,9 +92,13 @@ class TestServices(TransactionTestCase):
 
             send_new_article_notification(self.a)
 
-            create_new_article_notification__mock.assert_has_calls(
-                [call(self.a, user1), call(self.a, user2)], any_order=True
+            bulk_create_new_article_notifications__mock.assert_called_once_with(
+                self.a, ANY
             )
+            argument2 = bulk_create_new_article_notifications__mock.call_args[0][1]
+            self.assertIsInstance(argument2, QuerySet)
+            self.assertListEqual(list(argument2), [user1, user2])
+
             _send_notification__mock.assert_has_calls(
                 [call(n1, user1.username), call(n2, user2.username)], any_order=True
             )

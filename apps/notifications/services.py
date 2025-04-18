@@ -29,12 +29,25 @@ def send_new_comment_notification(comment: ArticleComment, recipient: User) -> N
 
 def send_new_article_notification(article: Article) -> None:
     subscribers = article.author.profile.subscribers.all()
-    for subscriber in subscribers:
-        notification = create_new_article_notification(article, subscriber)
-        group_name = subscriber.username
-        _send_notification(notification, group_name)
-        if subscriber.profile.notification_emails_allowed:
-            send_notification_email__task.delay(notification.id)
+    subscriber_count = subscribers.count()
+    logger.info(
+        "Found %d subscribers for article with ID=%d", subscriber_count, article.id
+    )
+    if subscribers.count() > 0:
+        notifications = bulk_create_new_article_notifications(article, subscribers)
+        for notification in notifications:
+            group_name = notification.recipient.username
+            _send_notification(notification, group_name)
+            if notification.recipient.profile.notification_emails_allowed:
+                send_notification_email__task.delay(notification.id)
+        logger.info(
+            (
+                "Initiated sending of %d `New article` notifications about article"
+                "with ID=%d"
+            ),
+            len(notifications),
+            article.id,
+        )
 
 
 def _send_notification(notification: Notification, group_name: str):
