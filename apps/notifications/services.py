@@ -108,7 +108,7 @@ def bulk_create_new_article_notifications(
 def create_new_comment_notification(
     comment: ArticleComment, recipient: User
 ) -> Notification:
-    """Creates andd returns a notification about a new comment on
+    """Creates and returns a notification about a new comment on
     article.
     """
     message = render_to_string(
