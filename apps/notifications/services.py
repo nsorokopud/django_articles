@@ -139,7 +139,7 @@ def find_notifications_by_user(user: User) -> QuerySet[Notification]:
     """Returns a queryset of notifications addressed to the specified
     user.
     """
-    return Notification.objects.filter(recipient__in=[user])
+    return Notification.objects.filter(recipient=user)
 
 
 def mark_notification_as_read(notification: Notification) -> None:
