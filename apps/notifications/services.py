@@ -1,3 +1,6 @@
+import logging
+from typing import Iterable
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.core.mail import EmailMultiAlternatives
@@ -11,6 +14,9 @@ from users.models import User
 
 from .models import Notification
 from .tasks import send_notification_email as send_notification_email__task
+
+
+logger = logging.getLogger("default_logger")
 
 
 def send_new_comment_notification(comment: ArticleComment, recipient: User) -> None:
@@ -44,6 +50,36 @@ def _send_notification(notification: Notification, group_name: str):
             "timestamp": notification.created_at.isoformat(),
         },
     )
+
+
+def bulk_create_new_article_notifications(
+    article: Article, recipients: Iterable[User]
+) -> list[Notification]:
+    notifications = []
+    message = render_to_string(
+        "notifications/new_article_notification.html",
+        {"article_author": article.author.username, "article_title": article.title},
+    ).strip("\n")
+    for user in recipients:
+        notifications.append(
+            Notification(
+                type=Notification.Type.NEW_ARTICLE,
+                title="New Article",
+                message=message,
+                link=reverse("article-details", args=(article.slug,)),
+                sender=article.author,
+                recipient=user,
+            )
+        )
+    created_notifications = Notification.objects.bulk_create(
+        notifications, batch_size=500
+    )
+    logger.info(
+        "Created %d `New article` notifications about article with ID=%d",
+        len(created_notifications),
+        article.id,
+    )
+    return created_notifications
 
 
 def create_new_article_notification(article: Article, recipient: User) -> Notification:
