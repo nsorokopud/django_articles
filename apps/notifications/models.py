@@ -36,6 +36,6 @@ class Notification(models.Model):
 
     def __str__(self):
         created_at = self.created_at.strftime("%H:%M:%S %d-%m-%Y")
-        sender = self.sender.username
+        sender = self.sender.username if self.sender else "System"
         recipient = self.recipient.username
         return f"{created_at} [{self.type}] from {sender} to {recipient}: {self.link}"
