@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable
+from typing import Any, Iterable
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -79,10 +79,10 @@ def bulk_create_new_article_notifications(
     article: Article, recipients: Iterable[User]
 ) -> list[Notification]:
     notifications = []
-    message = render_to_string(
+    message = _render_notification_message(
         "notifications/new_article_notification.html",
         {"article_author": article.author.username, "article_title": article.title},
-    ).strip("\n")
+    )
     for user in recipients:
         notifications.append(
             Notification(
@@ -105,16 +105,21 @@ def bulk_create_new_article_notifications(
     return created_notifications
 
 
+def _render_notification_message(template_name: str, context: dict[str, Any]) -> str:
+    """Renders a notification message from a template."""
+    return render_to_string(template_name, context).strip("\n")
+
+
 def create_new_comment_notification(
     comment: ArticleComment, recipient: User
 ) -> Notification:
     """Creates and returns a notification about a new comment on
     article.
     """
-    message = render_to_string(
+    message = _render_notification_message(
         "notifications/new_comment_notification.html",
         {"comment_author": comment.author.username},
-    ).strip("\n")
+    )
     notification = Notification.objects.create(
         type=Notification.Type.NEW_COMMENT,
         title="New Comment",
