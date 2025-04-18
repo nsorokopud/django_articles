@@ -16,6 +16,7 @@ from ..consumers import NotificationConsumer
 from ..models import Notification
 from ..services import (
     _send_notification,
+    bulk_create_new_article_notifications,
     create_new_article_notification,
     create_new_comment_notification,
     delete_notification,
@@ -200,6 +201,33 @@ class TestServices(TransactionTestCase):
         )
 
         await communicator.disconnect()
+
+    def test_bulk_create_new_article_notifications(self):
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 0)
+
+        bulk_create_new_article_notifications(self.a, [self.user])
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 1)
+
+        n = Notification.objects.get(sender=self.author, recipient=self.user)
+        self.assertEqual(n.type, Notification.Type.NEW_ARTICLE)
+        self.assertEqual(n.status, Notification.Status.UNREAD)
+        self.assertEqual(n.title, "New Article")
+        self.assertEqual(
+            n.message, f"New article from {self.author.username}: '{self.a.title}'"
+        )
+        self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
+
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
+        bulk_create_new_article_notifications(self.a, [self.user, user2])
+        notifications_count = Notification.objects.count()
+        self.assertEqual(notifications_count, 3)
+
+        user_notifications = Notification.objects.filter(recipient=self.user)
+        self.assertEqual(user_notifications.count(), 2)
+        user2_notifications = Notification.objects.filter(recipient=user2)
+        self.assertEqual(user2_notifications.count(), 1)
 
     def test_create_new_article_notification(self):
         notifications_count = Notification.objects.count()
