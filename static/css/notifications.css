@@ -21,28 +21,28 @@
 
 .notification:hover {
   cursor: pointer;
-  border-top: 2px solid #198754 !important;
-  border-bottom: 2px solid #198754 !important;
-  color: #00b74a !important;
+  border-top: 2px solid var(--primary-color) !important;
+  border-bottom: 2px solid var(--primary-color) !important;
+  color: var(--secondary-color) !important;
 }
 
 .notification-hover {
   cursor: pointer;
-  border-top: 2px solid #198754 !important;
-  border-bottom: 2px solid #198754 !important;
-  color: #00b74a !important;
+  border-top: 2px solid var(--primary-color) !important;
+  border-bottom: 2px solid var(--primary-color) !important;
+  color: var(--secondary-color) !important;
 }
 
 .notification:hover .notification-time {
-  color: #00b74a !important;
+  color: var(--secondary-color) !important;
 }
 
 .notification-hover .notification-time {
-  color: #00b74a !important;
+  color: var(--secondary-color) !important;
 }
 
 .notification-hover:last-child {
-  border-bottom: 2px solid #198754 !important;
+  border-bottom: 2px solid var(--primary-color) !important;
 }
 
 .notification:has(+ .notification:hover) {
@@ -57,7 +57,7 @@
 
 .notification .rounded-circle {
   margin-right: 1rem;
-  background: #198754;
+  background: var(--primary-color);
   min-height: 9px;
   min-width: 9px;
   max-height: 9px;
@@ -139,9 +139,9 @@
 
 .toast:hover {
   cursor: pointer;
-  color: #198754;
+  color: var(--primary-color);
 }
 
 .toast:hover .toast-header {
-  color: #198754 !important;
+  color: var(--primary-color) !important;
 }
