@@ -51,6 +51,11 @@ def send_new_article_notification(article: Article) -> None:
 
 
 def _send_notification(notification: Notification, group_name: str):
+    logger.info(
+        "Attempting to send notification with ID=%d to group %s via channels",
+        notification.id,
+        group_name,
+    )
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         group_name,
@@ -62,6 +67,11 @@ def _send_notification(notification: Notification, group_name: str):
             "link": notification.link,
             "timestamp": notification.created_at.isoformat(),
         },
+    )
+    logger.info(
+        "Successfully sent notification with ID=%d to group %s via channels",
+        notification.id,
+        group_name,
     )
 
 
