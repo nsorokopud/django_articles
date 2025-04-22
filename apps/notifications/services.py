@@ -107,7 +107,7 @@ def bulk_create_new_article_notifications(
 
 def _render_notification_message(template_name: str, context: dict[str, Any]) -> str:
     """Renders a notification message from a template."""
-    return render_to_string(template_name, context).strip("\n")
+    return render_to_string(template_name, context).strip("\n").replace("\n", " ")
 
 
 def create_new_comment_notification(
