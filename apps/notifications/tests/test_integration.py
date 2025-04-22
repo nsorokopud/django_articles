@@ -133,7 +133,11 @@ class TestNotificationIntegration(TransactionTestCase):
         self.assertEqual(response["id"], last_notification.id)
         self.assertEqual(response["title"], "New Comment")
         self.assertEqual(
-            response["text"], f"New comment on your article from {c.author.username}"
+            response["text"],
+            (
+                f'New comment on your article <strong>"{c.article.title}"</strong> '
+                f"from <strong>{c.author.username}</strong>"
+            ),
         )
         self.assertEqual(response["link"], "/articles/a")
 

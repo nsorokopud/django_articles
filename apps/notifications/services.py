@@ -118,7 +118,10 @@ def create_new_comment_notification(
     """
     message = _render_notification_message(
         "notifications/new_comment_notification.html",
-        {"comment_author": comment.author.username},
+        {
+            "article_title": comment.article.title,
+            "comment_author": comment.author.username,
+        },
     )
     notification = Notification.objects.create(
         type=Notification.Type.NEW_COMMENT,
