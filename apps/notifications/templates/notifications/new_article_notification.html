@@ -1,1 +1,2 @@
-New article from {{ article_author }}: '{{ article_title }}'
+New article from <strong>{{ article_author|truncatechars:20 }}</strong>:
+<strong>"{{ article_title|truncatechars:70 }}"</strong>

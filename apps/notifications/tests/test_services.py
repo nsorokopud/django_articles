@@ -219,7 +219,11 @@ class TestServices(TransactionTestCase):
         self.assertEqual(n.status, Notification.Status.UNREAD)
         self.assertEqual(n.title, "New Article")
         self.assertEqual(
-            n.message, f"New article from {self.author.username}: '{self.a.title}'"
+            n.message,
+            (
+                f"New article from <strong>{self.author.username}</strong>: "
+                f'<strong>"{self.a.title}"</strong>'
+            ),
         )
         self.assertEqual(n.link, reverse("article-details", args=(self.a.slug,)))
 

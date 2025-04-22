@@ -71,7 +71,10 @@ class TestTasks(TransactionTestCase):
         self.assertEqual(response["title"], "New Article")
         self.assertEqual(
             response["text"],
-            f"New article from {self.author.username}: '{self.article.title}'",
+            (
+                f"New article from <strong>{self.author.username}</strong>: "
+                f'<strong>"{self.article.title}"</strong>'
+            ),
         )
         self.assertEqual(response["link"], f"/articles/{self.article.slug}")
 
