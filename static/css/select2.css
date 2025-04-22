@@ -11,7 +11,7 @@
 }
 
 li.select2-selection__choice {
-  background-color: #198754 !important;
+  background-color: var(--primary-color) !important;
   border: 1px solid darkgreen !important;
   line-height: 25px !important;
 }
@@ -41,7 +41,7 @@ button.select2-selection__clear {
 
 .select2-container--default
   .select2-results__option--highlighted.select2-results__option--selectable {
-  background-color: #198754;
+  background-color: var(--primary-color);
 }
 
 .select2-container--default

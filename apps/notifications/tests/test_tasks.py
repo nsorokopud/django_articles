@@ -71,7 +71,10 @@ class TestTasks(TransactionTestCase):
         self.assertEqual(response["title"], "New Article")
         self.assertEqual(
             response["text"],
-            f"New article from {self.author.username}: '{self.article.title}'",
+            (
+                f"New article from <strong>{self.author.username}</strong>: "
+                f'<strong>"{self.article.title}"</strong>'
+            ),
         )
         self.assertEqual(response["link"], f"/articles/{self.article.slug}")
 
@@ -95,7 +98,11 @@ class TestTasks(TransactionTestCase):
         response = await communicator.receive_json_from()
         self.assertEqual(response["title"], "New Comment")
         self.assertEqual(
-            response["text"], f"New comment on your article from {self.author.username}"
+            response["text"],
+            (
+                f'New comment on your article <strong>"{self.article.title}"</strong> '
+                f"from <strong>{self.author.username}</strong>"
+            ),
         )
         self.assertEqual(response["link"], f"/articles/{self.article.slug}")
 

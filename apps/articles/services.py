@@ -57,13 +57,11 @@ def find_articles_by_query(
     ).distinct()
 
 
-def find_article_comments_liked_by_user(article_slug: str, user: User) -> List[int]:
-    comments = ArticleComment.objects.filter(
-        article__slug=article_slug
-    ).prefetch_related("users_that_liked")
-    return [
-        comment.id for comment in comments if user in comment.users_that_liked.all()
-    ]
+def find_article_comments_liked_by_user(article_slug: str, user: User) -> QuerySet[int]:
+    """Returns ids of `ArticleComment` instances liked by the user"""
+    return ArticleComment.objects.filter(
+        article__slug=article_slug, users_that_liked=user
+    ).values_list("id", flat=True)
 
 
 def find_comments_to_article(article_slug: str) -> QuerySet[ArticleComment]:
