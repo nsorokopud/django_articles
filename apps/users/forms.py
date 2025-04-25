@@ -36,3 +36,6 @@ class ProfileUpdateForm(forms.ModelForm):
         model = Profile
         fields = ["image", "notification_emails_allowed"]
         labels = {"notification_emails_allowed": "Allow notifications via email"}
+        widgets = {
+            "image": forms.FileInput(),
+        }
