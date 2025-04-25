@@ -24,6 +24,12 @@ class UserUpdateForm(forms.ModelForm):
         model = User
         fields = ["username"]
 
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if User.objects.filter(username=username).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("A user with that username already exists.")
+        return username
+
 
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
