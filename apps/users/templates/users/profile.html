@@ -14,6 +14,10 @@
       <div class="form-group">
         <legend class="botder-bottom mb-4">Profile Info</legend>
         {{ user_form|crispy }}
+        <div class="form-group">
+          <label>Email</label>
+          <input class="form-control" readonly value="{{ request.user.email }}">
+        </div>
         {{ profile_form|crispy }}
       </div>
     </fieldset>
