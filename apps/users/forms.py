@@ -34,4 +34,5 @@ class UserUpdateForm(forms.ModelForm):
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ["image"]
+        fields = ["image", "notification_emails_allowed"]
+        labels = {"notification_emails_allowed": "Allow notifications via email"}
