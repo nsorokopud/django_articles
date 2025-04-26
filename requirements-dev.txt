@@ -42,7 +42,9 @@ celery==5.4.0
     #   -r requirements.in
     #   flower
 certifi==2025.1.31
-    # via requests
+    # via
+    #   requests
+    #   sentry-sdk
 cffi==1.17.1
     # via cryptography
 cfgv==3.4.0
@@ -110,6 +112,7 @@ django==5.1.1
     #   django-storages
     #   django-taggit
     #   django-tinymce
+    #   sentry-sdk
 django-allauth==65.0.2
     # via -r requirements.in
 django-appconf==1.1.0
@@ -315,6 +318,8 @@ rich==13.9.4
     # via bandit
 s3transfer==0.10.4
     # via boto3
+sentry-sdk[django]==2.27.0
+    # via -r requirements.in
 service-identity==24.2.0
     # via twisted
 six==1.17.0
@@ -352,6 +357,7 @@ urllib3==2.3.0
     # via
     #   botocore
     #   requests
+    #   sentry-sdk
 vine==5.1.0
     # via
     #   amqp

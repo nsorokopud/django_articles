@@ -1,8 +1,12 @@
+import logging
 import os
 import sys
 from pathlib import Path
 
+import sentry_sdk
 from dotenv import load_dotenv
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -194,6 +198,26 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+
+# Sentry
+
+USE_SENTRY = bool(int(os.getenv("USE_SENTRY", "0")))
+
+if USE_SENTRY:
+    SENTRY_DSN = os.environ["SENTRY_DSN"]
+    SENTRY_TRACES_SAMPLE_RATE = float(os.environ["SENTRY_TRACES_SAMPLE_RATE"])
+    SENTRY_SEND_DEFAULT_PII = bool(int(os.getenv("SENTRY_SEND_DEFAULT_PII", "1")))
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+        ],
+        traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+        send_default_pii=SENTRY_SEND_DEFAULT_PII,
+    )
 
 
 # Logging
