@@ -131,18 +131,6 @@ class TestViews(TestCase):
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         self.assertNotEqual(response.wsgi_request.user, self.test_user)
 
-    def test_user_profile_view(self):
-        response = self.client.get(reverse("user-profile"))
-        redirect_url = f'{reverse("login")}?next={reverse("user-profile")}'
-        self.assertRedirects(
-            response, redirect_url, status_code=302, target_status_code=200
-        )
-
-        self.client.force_login(self.test_user)
-        response = self.client.get(reverse("user-profile"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/profile.html")
-
     def test_author_page_view(self):
         response = self.client.get(
             reverse("author-page", args=(self.test_user.username,))
@@ -351,3 +339,21 @@ class TestViews(TestCase):
         user.refresh_from_db()
         self.assertTrue(user.has_usable_password())
         self.assertTrue(user.check_password(password))
+
+
+class TestUserProfileView(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+
+    def test_get(self):
+        response = self.client.get(reverse("user-profile"))
+        redirect_url = f'{reverse("login")}?next={reverse("user-profile")}'
+        self.assertRedirects(
+            response, redirect_url, status_code=302, target_status_code=200
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("user-profile"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/profile.html")
