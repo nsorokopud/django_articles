@@ -119,11 +119,16 @@ class UserProfileView(LoginRequiredMixin, View):
         profile_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.profile
         )
-
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
             return redirect(reverse("user-profile"))
+        context = {
+            "user_form": user_form,
+            "profile_form": profile_form,
+            "subscribed_authors": get_all_supscriptions_of_user(request.user),
+        }
+        return render(request, "users/profile.html", context)
 
 
 class AuthorPageView(View):
