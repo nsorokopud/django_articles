@@ -43,3 +43,6 @@ django-select2==8.2.1
 boto3==1.35.29
 django-storages==1.14.4
 pillow==10.4.0
+
+# Error tracking
+sentry-sdk[django]==2.27.0

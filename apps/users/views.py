@@ -101,6 +101,7 @@ class UserLoginView(LoginView):
 
 class UserProfileView(LoginRequiredMixin, View):
     login_url = reverse_lazy("login")
+    template_name = "users/profile.html"
 
     def get(self, request):
         user_form = UserUpdateForm(instance=request.user)
@@ -112,18 +113,23 @@ class UserProfileView(LoginRequiredMixin, View):
             "profile_form": profile_form,
             "subscribed_authors": subscribed_authors,
         }
-        return render(request, "users/profile.html", context)
+        return render(request, self.template_name, context)
 
     def post(self, request):
         user_form = UserUpdateForm(request.POST, instance=request.user)
         profile_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.profile
         )
-
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
             return redirect(reverse("user-profile"))
+        context = {
+            "user_form": user_form,
+            "profile_form": profile_form,
+            "subscribed_authors": get_all_supscriptions_of_user(request.user),
+        }
+        return render(request, self.template_name, context)
 
 
 class AuthorPageView(View):

@@ -15,6 +15,15 @@ CACHES = {
     "select2": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
 }
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.InMemoryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 SOCIALACCOUNT_PROVIDERS["google"]["APP"] = {
     "client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
     "secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
