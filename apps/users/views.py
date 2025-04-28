@@ -21,7 +21,7 @@ from users.forms import (
 )
 
 from .models import User
-from .services import (
+from .services.services import (
     activate_user,
     deactivate_user,
     get_all_supscriptions_of_user,
@@ -30,7 +30,7 @@ from .services import (
     send_account_activation_email,
     toggle_user_supscription,
 )
-from .tokens import activation_token_generator
+from .services.tokens import activation_token_generator
 
 
 class UserRegistrationView(CreateView):

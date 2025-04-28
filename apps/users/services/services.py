@@ -10,7 +10,8 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from users.models import Profile, User
-from users.tokens import activation_token_generator
+
+from .tokens import activation_token_generator
 
 
 def create_user_profile(user: User) -> Profile:

@@ -7,7 +7,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from users.forms import AuthenticationForm
 from users.models import User
-from users.tokens import activation_token_generator
+from users.services.tokens import activation_token_generator
 
 
 class TestViews(TestCase):

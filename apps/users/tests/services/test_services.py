@@ -8,7 +8,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from users.models import Profile, User
-from users.services import (
+from users.services.services import (
     activate_user,
     create_user_profile,
     deactivate_user,
@@ -165,7 +165,7 @@ class TestServices(TestCase):
         request.get_host = lambda: "www.site.com"
 
         with patch(
-            "users.services.activation_token_generator.make_token",
+            "users.services.tokens.activation_token_generator.make_token",
             return_value="token1",
         ):
             send_account_activation_email(request, user1)
@@ -184,7 +184,7 @@ class TestServices(TestCase):
 
         request.is_secure = lambda: False
         with patch(
-            "users.services.activation_token_generator.make_token",
+            "users.services.tokens.activation_token_generator.make_token",
             return_value="token2",
         ):
             send_account_activation_email(request, user2)
