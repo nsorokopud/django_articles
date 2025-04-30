@@ -1,7 +1,6 @@
 import logging
 from typing import ClassVar, Optional
 
-import six
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import IntegrityError, connection, transaction
@@ -76,13 +75,12 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
         return counter.token_count
 
 
-class AccountActivationTokenGenerator(PasswordResetTokenGenerator):
+class AccountActivationTokenGenerator(BaseTokenGenerator):
+    token_type: ClassVar[TokenType] = TokenType.ACCOUNT_ACTIVATION
+
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
-        return (
-            six.text_type(user.pk)
-            + six.text_type(timestamp)
-            + six.text_type(user.is_active)
-        )
+        base_hash = super()._make_hash_value(user, timestamp)
+        return base_hash + str(user.is_active)
 
 
 activation_token_generator = AccountActivationTokenGenerator()
