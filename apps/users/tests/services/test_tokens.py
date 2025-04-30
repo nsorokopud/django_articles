@@ -5,7 +5,11 @@ from django.test import TestCase
 from django.utils import timezone
 
 from users.models import TokenCounter, TokenType, User
-from users.services.tokens import BaseTokenGenerator
+from users.services.tokens import (
+    AccountActivationTokenGenerator,
+    BaseTokenGenerator,
+    activation_token_generator,
+)
 
 
 class TestBaseTokenGenerator(TestCase):
@@ -154,3 +158,40 @@ class TestBaseTokenGenerator(TestCase):
         counter2.save()
         self.assertFalse(self.generator.check_token(self.user, token1))
         self.assertFalse(generator2.check_token(self.user, token2))
+
+
+class TestAccountActivationTokenGenerator(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
+
+    def test__make_hash_value(self):
+        TokenCounter.objects.create(
+            user=self.user,
+            token_type=TokenType.ACCOUNT_ACTIVATION,
+            token_count=0,
+        )
+        generator = AccountActivationTokenGenerator()
+        timestamp = int(timezone.now().timestamp())
+        user_login_timestamp = (
+            ""
+            if self.user.last_login is None
+            else self.user.last_login.replace(microsecond=0, tzinfo=None)
+        )
+        hash_value = generator._make_hash_value(self.user, timestamp)
+        expected_hash_value = (
+            f"{self.user.pk}{self.user.password}{user_login_timestamp}"
+            f"{timestamp}{self.user.email}{generator.token_type}0{self.user.is_active}"
+        )
+        self.assertEqual(hash_value, expected_hash_value)
+
+    def test_token_valid_after_creation(self):
+        token = activation_token_generator.make_token(self.user)
+        self.assertTrue(activation_token_generator.check_token(self.user, token))
+
+    def test_token_invalid_after_account_activation(self):
+        token = activation_token_generator.make_token(self.user)
+        self.user.is_active = True
+        self.user.save()
+        self.assertFalse(activation_token_generator.check_token(self.user, token))
