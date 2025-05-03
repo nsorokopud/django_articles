@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from allauth.account.models import EmailAddress
 from django.core import mail
+from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase, override_settings
 from django.utils.encoding import force_bytes
@@ -12,6 +13,7 @@ from users.services.services import (
     activate_user,
     create_user_profile,
     deactivate_user,
+    enforce_unique_email_type_per_user,
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
     get_all_users,
@@ -213,3 +215,55 @@ class TestServices(TestCase):
         self.assertTrue(self.test_user not in self.test_user.profile.subscribers.all())
         toggle_user_supscription(self.test_user, self.test_user)
         self.assertTrue(self.test_user not in self.test_user.profile.subscribers.all())
+
+
+class TestEnforceUniqueEmailTypePerUser(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="test@test.com")
+
+    def test_one_primary_email_allowed(self):
+        EmailAddress.objects.create(
+            user=self.user, email="test1@test.com", primary=True
+        )
+        email2 = EmailAddress(user=self.user, email="test2@test.com", primary=False)
+        enforce_unique_email_type_per_user(email2)
+
+        email2.save()
+        email3 = EmailAddress(user=self.user, email="test3@test.com", primary=False)
+        with self.assertRaises(ValidationError) as context:
+            enforce_unique_email_type_per_user(email3)
+            self.assertEqual(
+                str(context.exception),
+                "['This user already has a primary email address.']",
+            )
+
+    def test_one_non_primary_email_allowed(self):
+        EmailAddress.objects.create(
+            user=self.user, email="test1@test.com", primary=False
+        )
+        email2 = EmailAddress(user=self.user, email="test2@test.com", primary=True)
+        enforce_unique_email_type_per_user(email2)
+
+        email2.save()
+        email3 = EmailAddress(user=self.user, email="test3@test.com", primary=True)
+        with self.assertRaises(ValidationError) as context:
+            enforce_unique_email_type_per_user(email3)
+            self.assertEqual(
+                str(context.exception),
+                "['This user already has a primary email address.']",
+            )
+
+    def test_many_unsaved_instances_allowed(self):
+        email1 = EmailAddress(user=self.user, email="e1@test.com", primary=True)
+        email2 = EmailAddress(user=self.user, email="e2@test.com", primary=True)
+        email3 = EmailAddress(user=self.user, email="e3@test.com", primary=True)
+        enforce_unique_email_type_per_user(email1)
+        enforce_unique_email_type_per_user(email2)
+        enforce_unique_email_type_per_user(email3)
+
+        email4 = EmailAddress(user=self.user, email="e4@test.com", primary=False)
+        email5 = EmailAddress(user=self.user, email="e5@test.com", primary=False)
+        email6 = EmailAddress(user=self.user, email="e6@test.com", primary=False)
+        enforce_unique_email_type_per_user(email4)
+        enforce_unique_email_type_per_user(email5)
+        enforce_unique_email_type_per_user(email6)
