@@ -17,7 +17,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     readonly_fields = ("user",)
 
     def get_profile_image(self, profile):
-        return format_html(f"<img src={profile.image.url} width='35' height='35'>")
+        return format_html("<img src='{}' width='35' height='35' />", profile.image.url)
 
 
 class EmailAddressAdmin(AllauthEmailAddressAdmin):
