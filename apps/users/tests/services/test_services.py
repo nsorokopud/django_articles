@@ -18,6 +18,7 @@ from users.services.services import (
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
     get_all_users,
+    get_pending_email_address,
     get_user_by_id,
     get_user_by_username,
     send_account_activation_email,
@@ -231,6 +232,36 @@ class TestServices(TestCase):
             ).email,
             "new@test.com",
         )
+
+    def test_get_pending_email_address(self):
+        res = get_pending_email_address(self.test_user)
+        self.assertEqual(res, None)
+
+        email = EmailAddress.objects.create(
+            user=self.test_user,
+            email=self.test_user.email,
+            primary=True,
+            verified=True,
+        )
+        res = get_pending_email_address(self.test_user)
+        self.assertEqual(res, None)
+
+        email.primary = False
+        email.save()
+        res = get_pending_email_address(self.test_user)
+        self.assertEqual(res, None)
+
+        email.primary = True
+        email.verified = False
+        email.save()
+        res = get_pending_email_address(self.test_user)
+        self.assertEqual(res, None)
+
+        email.primary = False
+        email.verified = False
+        email.save()
+        res = get_pending_email_address(self.test_user)
+        self.assertEqual(res.pk, email.pk)
 
 
 class TestEnforceUniqueEmailTypePerUser(TestCase):

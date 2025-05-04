@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from allauth.account.models import EmailAddress
 from django.contrib.sites.shortcuts import get_current_site
@@ -119,3 +120,10 @@ def create_pending_email_address(user: User, email: str) -> EmailAddress:
         email_address.user_id,
     )
     return email_address
+
+
+def get_pending_email_address(user: User) -> Optional[EmailAddress]:
+    try:
+        return EmailAddress.objects.get(user=user, primary=False, verified=False)
+    except EmailAddress.DoesNotExist:
+        return None
