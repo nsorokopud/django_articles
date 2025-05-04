@@ -2,9 +2,11 @@ import logging
 from typing import Optional
 
 from allauth.account.models import EmailAddress
+from allauth.socialaccount.models import SocialAccount
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
+from django.db import connection, transaction
 from django.db.models import Count
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
@@ -142,3 +144,19 @@ def get_pending_email_address(user: User) -> Optional[EmailAddress]:
         return EmailAddress.objects.get(user=user, primary=False, verified=False)
     except EmailAddress.DoesNotExist:
         return None
+
+
+def delete_social_accounts_with_email(email: str) -> None:
+    """Deletes all social accounts with the specified email address.
+    Raises TransactionManagementError if called outside of an atomic
+    transaction.
+    """
+    if not connection.in_atomic_block:
+        raise transaction.TransactionManagementError(
+            "This function must be called inside an atomic transaction."
+        )
+
+    accounts = SocialAccount.objects.select_for_update().filter(extra_data__email=email)
+    for account in accounts:
+        account.delete()
+        logger.info("SocialAccount(id=%s) was removed.", account.id)
