@@ -1,9 +1,12 @@
+from allauth.account.models import EmailAddress
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm as DefaultAuthenticationForm
 from django.contrib.auth.forms import UserCreationForm as DefaultUserCreationForm
 from hcaptcha_field import hCaptchaField
 
 from users.models import Profile, User
+
+from .services.services import enforce_unique_email_type_per_user
 
 
 class AuthenticationForm(DefaultAuthenticationForm):
@@ -39,3 +42,22 @@ class ProfileUpdateForm(forms.ModelForm):
         widgets = {
             "image": forms.FileInput(),
         }
+
+
+class EmailAddressModelForm(forms.ModelForm):
+    class Meta:
+        model = EmailAddress
+        fields = "__all__"
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        user = cleaned_data.get("user")
+        if not user:
+            raise forms.ValidationError("User is required.")
+
+        for field_name, value in cleaned_data.items():
+            setattr(self.instance, field_name, value)
+
+        enforce_unique_email_type_per_user(self.instance)
+        return cleaned_data

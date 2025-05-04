@@ -1,5 +1,6 @@
 from allauth.account.models import EmailAddress
 from django.contrib.sites.shortcuts import get_current_site
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Count
 from django.db.models.query import QuerySet
@@ -88,3 +89,16 @@ def send_account_activation_email(request: HttpRequest, user: User):
     email = EmailMultiAlternatives(subject, message, to=[user.email])
     email.attach_alternative(message, "text/html")
     email.send()
+
+
+def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
+    """Ensures that a user has at most one email address of each type (primary or
+    non-primary). Raises `ValidationError` if the user already has an email address with
+    the same `primary` value.
+    """
+    queryset = EmailAddress.objects.filter(user=instance.user, primary=instance.primary)
+    if instance.pk:
+        queryset = queryset.exclude(pk=instance.pk)
+    if queryset.exists():
+        address_type = "primary" if instance.primary else "non-primary"
+        raise ValidationError(f"This user already has a {address_type} email address.")
