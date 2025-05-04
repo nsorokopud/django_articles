@@ -12,6 +12,7 @@ from django.utils.http import urlsafe_base64_encode
 from users.models import Profile, User
 from users.services.services import (
     activate_user,
+    change_email_address,
     create_pending_email_address,
     create_user_profile,
     deactivate_user,
@@ -324,6 +325,40 @@ class TestServices(TestCase):
         self.assertEqual(
             SocialAccount.objects.filter(extra_data__email=email2).count(), 1
         )
+
+    def test_change_email_address(self):
+        email1 = EmailAddress.objects.create(
+            user=self.test_user, email=self.test_user.email, primary=True, verified=True
+        )
+        email2 = EmailAddress.objects.create(
+            user=self.test_user, email="e2@test.com", primary=False, verified=True
+        )
+        SocialAccount.objects.create(
+            user=self.test_user,
+            provider="p1",
+            uid="123",
+            extra_data={"email": email1.email},
+        )
+        self.assertEqual(SocialAccount.objects.count(), 1)
+
+        with self.assertRaises(EmailAddress.DoesNotExist):
+            change_email_address(self.test_user.id)
+
+        email2.verified = False
+        email2.save(update_fields=["verified"])
+
+        change_email_address(self.test_user.id)
+        self.test_user.refresh_from_db()
+        self.assertEqual(self.test_user.email, email2.email)
+
+        email2.refresh_from_db()
+        self.assertTrue(email2.primary)
+        self.assertTrue(email2.verified)
+
+        with self.assertRaises(EmailAddress.DoesNotExist):
+            EmailAddress.objects.get(pk=email1.pk)
+
+        self.assertEqual(SocialAccount.objects.count(), 0)
 
 
 class TestEnforceUniqueEmailTypePerUser(TestCase):

@@ -160,3 +160,34 @@ def delete_social_accounts_with_email(email: str) -> None:
     for account in accounts:
         account.delete()
         logger.info("SocialAccount(id=%s) was removed.", account.id)
+
+
+@transaction.atomic
+def change_email_address(user_id: int) -> None:
+    """Replaces user's email address with the pending one: verifies it,
+    makes it primary, updates user.email, deletes the old address and
+    all social accounts associated with it.
+    """
+    logger.info("Attempting to change email address for User(id=%s)", user_id)
+
+    user = User.objects.select_for_update().get(id=user_id)
+    new_email = EmailAddress.objects.select_for_update().get(
+        user=user, primary=False, verified=False
+    )
+    old_email = EmailAddress.objects.select_for_update().get(user=user, primary=True)
+    user.email = new_email.email
+    user.save(update_fields=["email"])
+
+    # Bypass pre-save signal that enforces email validation
+    EmailAddress.objects.filter(id=old_email.id).update(primary=False)
+    EmailAddress.objects.filter(id=new_email.id).update(primary=True, verified=True)
+
+    old_email.delete()
+    logger.info("EmailAddress(id=%s) was deleted.", old_email.id)
+    delete_social_accounts_with_email(old_email.email)
+    logger.info(
+        "User(id=%s) changed email from (id=%s) to (id=%s)",
+        user_id,
+        old_email.id,
+        new_email.id,
+    )
