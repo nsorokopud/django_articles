@@ -11,6 +11,7 @@ from django.utils.http import urlsafe_base64_encode
 from users.models import Profile, User
 from users.services.services import (
     activate_user,
+    create_pending_email_address,
     create_user_profile,
     deactivate_user,
     enforce_unique_email_type_per_user,
@@ -215,6 +216,21 @@ class TestServices(TestCase):
         self.assertTrue(self.test_user not in self.test_user.profile.subscribers.all())
         toggle_user_supscription(self.test_user, self.test_user)
         self.assertTrue(self.test_user not in self.test_user.profile.subscribers.all())
+
+    def test_create_pending_email_address(self):
+        self.assertEqual(
+            EmailAddress.objects.filter(
+                user=self.test_user, primary=False, verified=False
+            ).count(),
+            0,
+        )
+        create_pending_email_address(self.test_user, email="new@test.com")
+        self.assertEqual(
+            EmailAddress.objects.get(
+                user=self.test_user, primary=False, verified=False
+            ).email,
+            "new@test.com",
+        )
 
 
 class TestEnforceUniqueEmailTypePerUser(TestCase):

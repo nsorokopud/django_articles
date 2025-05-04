@@ -1,3 +1,5 @@
+import logging
+
 from allauth.account.models import EmailAddress
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ValidationError
@@ -13,6 +15,9 @@ from django.utils.http import urlsafe_base64_encode
 from users.models import Profile, User
 
 from .tokens import activation_token_generator
+
+
+logger = logging.getLogger("default_logger")
 
 
 def create_user_profile(user: User) -> Profile:
@@ -102,3 +107,15 @@ def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
     if queryset.exists():
         address_type = "primary" if instance.primary else "non-primary"
         raise ValidationError(f"This user already has a {address_type} email address.")
+
+
+def create_pending_email_address(user: User, email: str) -> EmailAddress:
+    email_address = EmailAddress.objects.create(
+        user=user, email=email, primary=False, verified=False
+    )
+    logger.info(
+        "Pending EmailAddress(id=%s, user_id=%s) was created.",
+        email_address.id,
+        email_address.user_id,
+    )
+    return email_address
