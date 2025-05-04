@@ -1,10 +1,12 @@
 from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
+from django import forms
 from django.test import TestCase
 
 from users.forms import (
     EmailAddressModelForm,
+    EmailChangeForm,
     UserUpdateForm,
 )
 from users.models import User
@@ -112,3 +114,53 @@ class TestEmailAddressModelForm(TestCase):
         self.assertEqual(self.email.email, "u2@t.com")
         self.assertEqual(self.email.verified, False)
         self.assertEqual(self.email.primary, False)
+
+
+class TestEmailChangeForm(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+
+    def test_no_new_email(self):
+        form = EmailChangeForm(data={}, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors, {"new_email": ["This field is required."]})
+
+    def test_new_email_same_as_old(self):
+        form = EmailChangeForm(data={"new_email": self.user.email}, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors, {"new_email": ["Enter a different email address."]}
+        )
+
+    def test_unique_email_violation(self):
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
+        form = EmailChangeForm(data={"new_email": user2.email}, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors, {"new_email": ["A user with that email already exists."]}
+        )
+
+    @patch("users.forms.enforce_unique_email_type_per_user")
+    def test_other_unfinished_email_change(self, mock_enforce):
+        mock_enforce.side_effect = forms.ValidationError(
+            "Other unfinished email change"
+        )
+
+        form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {
+                "__all__": [
+                    (
+                        "There is an unfinished email address change process. "
+                        "Cancel it to start a new one."
+                    )
+                ]
+            },
+        )
+
+    def test_valid_form(self):
+        form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["new_email"], "new@test.com")
