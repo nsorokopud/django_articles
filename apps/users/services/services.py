@@ -122,6 +122,21 @@ def create_pending_email_address(user: User, email: str) -> EmailAddress:
     return email_address
 
 
+def delete_pending_email_address(user: User) -> None:
+    email = get_pending_email_address(user)
+    if email:
+        email.delete()
+        logger.info(
+            "Pending EmailAddress(id=%s, user_id=%s) was removed.",
+            email.id,
+            user.id,
+        )
+    else:
+        logger.warning(
+            "Attempt of removing non-existent EmailAddress for User(id=%s)", user.id
+        )
+
+
 def get_pending_email_address(user: User) -> Optional[EmailAddress]:
     try:
         return EmailAddress.objects.get(user=user, primary=False, verified=False)

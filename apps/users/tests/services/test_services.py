@@ -14,6 +14,7 @@ from users.services.services import (
     create_pending_email_address,
     create_user_profile,
     deactivate_user,
+    delete_pending_email_address,
     enforce_unique_email_type_per_user,
     find_user_profiles_with_subscribers,
     get_all_supscriptions_of_user,
@@ -232,6 +233,33 @@ class TestServices(TestCase):
             ).email,
             "new@test.com",
         )
+
+    def test_delete_pending_email_address(self):
+        self.assertEqual(EmailAddress.objects.count(), 0)
+        delete_pending_email_address(self.test_user)
+
+        email = EmailAddress.objects.create(
+            user=self.test_user, email=self.test_user.email, primary=True, verified=True
+        )
+        self.assertEqual(EmailAddress.objects.count(), 1)
+        delete_pending_email_address(self.test_user)
+        self.assertEqual(EmailAddress.objects.count(), 1)
+
+        email.primary = False
+        email.save()
+        delete_pending_email_address(self.test_user)
+        self.assertEqual(EmailAddress.objects.count(), 1)
+
+        email.primary = True
+        email.verified = False
+        email.save()
+        delete_pending_email_address(self.test_user)
+        self.assertEqual(EmailAddress.objects.count(), 1)
+
+        email.primary = False
+        email.save()
+        delete_pending_email_address(self.test_user)
+        self.assertEqual(EmailAddress.objects.count(), 0)
 
     def test_get_pending_email_address(self):
         res = get_pending_email_address(self.test_user)
