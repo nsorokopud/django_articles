@@ -4,8 +4,9 @@ from typing import Optional
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.sites.shortcuts import get_current_site
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import EmailMultiAlternatives
+from django.core.validators import validate_email
 from django.db import connection, transaction
 from django.db.models import Count
 from django.db.models.query import QuerySet
@@ -17,7 +18,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from users.models import Profile, User
 
-from .tokens import activation_token_generator
+from .tokens import activation_token_generator, email_change_token_generator
 
 
 logger = logging.getLogger("default_logger")
@@ -96,6 +97,25 @@ def send_account_activation_email(request: HttpRequest, user: User):
     )
     email = EmailMultiAlternatives(subject, message, to=[user.email])
     email.attach_alternative(message, "text/html")
+    email.send()
+
+
+def send_email_change_link(request: HttpRequest, new_email: str) -> None:
+    if not request.user.is_authenticated:
+        raise PermissionDenied("Login required to change email address.")
+
+    validate_email(new_email)
+
+    token = email_change_token_generator.make_token(request.user)
+    url = request.build_absolute_uri(reverse("email-change-confirm", args=[token]))
+    context = {"username": request.user.get_username(), "url": url}
+    html_content = render_to_string("users/email_change_email.html", context)
+    text_content = render_to_string("users/email_change_email.txt", context)
+
+    email = EmailMultiAlternatives(
+        subject="Confirm email change", body=text_content, to=[new_email]
+    )
+    email.attach_alternative(html_content, "text/html")
     email.send()
 
 
