@@ -1,3 +1,5 @@
+import logging
+
 from allauth.account.views import PasswordSetView as AllauthPasswordSetView
 from allauth.account.views import (
     sensitive_post_parameters_m,
@@ -37,6 +39,9 @@ from .services.services import (
     toggle_user_supscription,
 )
 from .services.tokens import activation_token_generator
+
+
+logger = logging.getLogger("default_logger")
 
 
 class UserRegistrationView(CreateView):
@@ -121,6 +126,27 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         )
         send_email_change_link(self.request, new_email.email)
         return super().form_valid(form)
+
+
+class EmailChangeCancelView(LoginRequiredMixin, View):
+    def post(self, request):
+        email = get_pending_email_address(request.user)
+        if email:
+            email.delete()
+            logger.info(
+                "User(id=%s) cancelled pending email change; "
+                "EmailAddress(id=%s, user_id=%s) deleted.",
+                request.user.id,
+                email.id,
+                email.user_id,
+            )
+        else:
+            logger.warning(
+                "User(id=%s) attempted to cancel email change, but no pending "
+                "EmailAddress was found.",
+                request.user.id,
+            )
+        return redirect("email-change")
 
 
 class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
