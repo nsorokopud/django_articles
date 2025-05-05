@@ -15,6 +15,7 @@ from django.views.generic import CreateView, FormView
 
 from users.forms import (
     AuthenticationForm,
+    EmailChangeConfirmationForm,
     EmailChangeForm,
     ProfileUpdateForm,
     UserCreationForm,
@@ -24,6 +25,7 @@ from users.forms import (
 from .models import User
 from .services.services import (
     activate_user,
+    change_email_address,
     create_pending_email_address,
     deactivate_user,
     get_all_supscriptions_of_user,
@@ -118,6 +120,22 @@ class EmailChangeView(LoginRequiredMixin, FormView):
             self.request.user, form.cleaned_data["new_email"]
         )
         send_email_change_link(self.request, new_email.email)
+        return super().form_valid(form)
+
+
+class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
+    template_name = "users/email_change_confirm.html"
+    form_class = EmailChangeConfirmationForm
+    success_url = reverse_lazy("email-change")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        kwargs["initial"]["token"] = self.kwargs.get("token")
+        return kwargs
+
+    def form_valid(self, form):
+        change_email_address(self.request.user.id)
         return super().form_valid(form)
 
 
