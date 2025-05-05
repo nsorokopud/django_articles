@@ -18,6 +18,11 @@ urlpatterns = [
     path("set_password/", views.PasswordSetView.as_view(), name="password-set"),
     path("change_email/", views.EmailChangeView.as_view(), name="email-change"),
     path(
+        "change_email_resend/",
+        views.EmailChangeResendView.as_view(),
+        name="email-change-resend",
+    ),
+    path(
         "cancel_email_change/",
         views.EmailChangeCancelView.as_view(),
         name="email-change-cancel",

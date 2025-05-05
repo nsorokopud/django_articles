@@ -128,6 +128,24 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         return super().form_valid(form)
 
 
+class EmailChangeResendView(LoginRequiredMixin, View):
+    def post(self, request):
+        email = get_pending_email_address(request.user)
+        if email:
+            send_email_change_link(request, email.email)
+            logger.info(
+                "User(id=%s) requested a resend of the email change letter.",
+                request.user.id,
+            )
+        else:
+            logger.warning(
+                "User(id=%s) asked to resend email change letter, but no "
+                "pending address was found.",
+                request.user.id,
+            )
+        return redirect("email-change")
+
+
 class EmailChangeCancelView(LoginRequiredMixin, View):
     def post(self, request):
         email = get_pending_email_address(request.user)
