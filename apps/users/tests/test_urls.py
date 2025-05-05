@@ -7,6 +7,7 @@ from users.views import (
     AccountActivationView,
     AuthorPageView,
     AuthorSubscribeView,
+    EmailChangeView,
     PasswordSetView,
     PostUserRegistrationView,
     UserLoginView,
@@ -27,6 +28,10 @@ class TestURLs(SimpleTestCase):
     def test_author_subscribe_url_is_resolved(self):
         url = reverse("author-subscribe", args=["a"])
         self.assertEqual(resolve(url).func.view_class, AuthorSubscribeView)
+
+    def test_email_change_url_is_resolved(self):
+        url = reverse("email-change")
+        self.assertEqual(resolve(url).func.view_class, EmailChangeView)
 
     def test_password_set_url_is_resolved(self):
         url = reverse("password-set")

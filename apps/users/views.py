@@ -11,10 +11,11 @@ from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.views import View
-from django.views.generic import CreateView
+from django.views.generic import CreateView, FormView
 
 from users.forms import (
     AuthenticationForm,
+    EmailChangeForm,
     ProfileUpdateForm,
     UserCreationForm,
     UserUpdateForm,
@@ -23,11 +24,14 @@ from users.forms import (
 from .models import User
 from .services.services import (
     activate_user,
+    create_pending_email_address,
     deactivate_user,
     get_all_supscriptions_of_user,
+    get_pending_email_address,
     get_user_by_id,
     get_user_by_username,
     send_account_activation_email,
+    send_email_change_link,
     toggle_user_supscription,
 )
 from .services.tokens import activation_token_generator
@@ -92,6 +96,29 @@ class PasswordSetView(AllauthPasswordSetView):
         if not request.user.is_authenticated or request.user.has_usable_password():
             raise PermissionDenied
         return View.dispatch(self, request, *args, **kwargs)
+
+
+class EmailChangeView(LoginRequiredMixin, FormView):
+    template_name = "users/email_change.html"
+    form_class = EmailChangeForm
+    success_url = reverse_lazy("email-change")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["pending_email"] = get_pending_email_address(self.request.user)
+        return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        new_email = create_pending_email_address(
+            self.request.user, form.cleaned_data["new_email"]
+        )
+        send_email_change_link(self.request, new_email.email)
+        return super().form_valid(form)
 
 
 class UserLoginView(LoginView):
