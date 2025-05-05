@@ -21,8 +21,12 @@
         {{ profile_form|crispy }}
       </div>
     </fieldset>
-    <div class="form-group">
-      <button class="btn btn-success" type="submit">Update</button>
+    <div class="form-group d-flex flex-column flex-sm-row justify-content-start">
+      <button class="btn btn-success mb-3 mb-sm-0 me-sm-2" type="submit">
+        Update Profile
+      </button>
+      <a href="{% url 'email-change' %}"
+         class="btn btn-secondary mb-3 mb-sm-0 me-sm-2">Change Email</a>
     </div>
   </form>
 {% endblock form %}
