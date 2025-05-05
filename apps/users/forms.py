@@ -6,7 +6,11 @@ from hcaptcha_field import hCaptchaField
 
 from users.models import Profile, User
 
-from .services.services import enforce_unique_email_type_per_user
+from .services.services import (
+    enforce_unique_email_type_per_user,
+    get_pending_email_address,
+)
+from .services.tokens import email_change_token_generator
 
 
 class AuthenticationForm(DefaultAuthenticationForm):
@@ -97,4 +101,30 @@ class EmailChangeForm(forms.Form):
                     "Cancel it to start a new one."
                 )
             ) from e
+        return cleaned_data
+
+
+class EmailChangeConfirmationForm(forms.Form):
+    token = forms.CharField(label="Token", widget=forms.HiddenInput())
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if self.user is None:
+            raise forms.ValidationError(
+                "You must be logged in to change the email address."
+            )
+
+        email = get_pending_email_address(self.user)
+        if email is None:
+            raise forms.ValidationError("You don't have any pending email addresses.")
+
+        token = cleaned_data.get("token")
+        if not email_change_token_generator.check_token(self.user, token):
+            raise forms.ValidationError("Invalid token.")
+
         return cleaned_data

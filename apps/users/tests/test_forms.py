@@ -6,6 +6,7 @@ from django.test import TestCase
 
 from users.forms import (
     EmailAddressModelForm,
+    EmailChangeConfirmationForm,
     EmailChangeForm,
     UserUpdateForm,
 )
@@ -164,3 +165,46 @@ class TestEmailChangeForm(TestCase):
         form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data["new_email"], "new@test.com")
+
+
+class TestEmailChangeConfirmationForm(TestCase):
+    def setUp(self):
+        self.user = User(username="user")
+        self.data = {"token": "test-token"}
+
+    @patch("users.forms.get_pending_email_address")
+    @patch("users.forms.email_change_token_generator.check_token")
+    def test_valid_form(self, mock_check_token, mock_get_pending_email):
+        mock_get_pending_email.return_value = "pending@test.com"
+        mock_check_token.return_value = True
+
+        form = EmailChangeConfirmationForm(data=self.data, user=self.user)
+        self.assertTrue(form.is_valid())
+
+    def test_missing_user(self):
+        form = EmailChangeConfirmationForm(data=self.data)
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            "You must be logged in to change the email address.",
+            form.non_field_errors(),
+        )
+
+    @patch("users.forms.get_pending_email_address")
+    def test_no_pending_email(self, mock_get_pending_email):
+        mock_get_pending_email.return_value = None
+
+        form = EmailChangeConfirmationForm(data=self.data, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            "You don't have any pending email addresses.", form.non_field_errors()
+        )
+
+    @patch("users.forms.get_pending_email_address")
+    @patch("users.forms.email_change_token_generator.check_token")
+    def test_invalid_token(self, mock_check_token, mock_get_pending_email):
+        mock_get_pending_email.return_value = "pending@test.com"
+        mock_check_token.return_value = False
+
+        form = EmailChangeConfirmationForm(data=self.data, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid token.", form.non_field_errors())
