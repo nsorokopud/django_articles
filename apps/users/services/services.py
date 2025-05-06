@@ -109,8 +109,8 @@ def send_email_change_link(request: HttpRequest, new_email: str) -> None:
     token = email_change_token_generator.make_token(request.user)
     url = request.build_absolute_uri(reverse("email-change-confirm", args=[token]))
     context = {"username": request.user.get_username(), "url": url}
-    html_content = render_to_string("users/email_change_email.html", context)
-    text_content = render_to_string("users/email_change_email.txt", context)
+    html_content = render_to_string("users/emails/email_change.html", context)
+    text_content = render_to_string("users/emails/email_change.txt", context)
 
     email = EmailMultiAlternatives(
         subject="Confirm email change", body=text_content, to=[new_email]
