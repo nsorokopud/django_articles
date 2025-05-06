@@ -126,6 +126,10 @@ class EmailChangeView(LoginRequiredMixin, FormView):
             self.request.user, form.cleaned_data["new_email"]
         )
         send_email_change_link(self.request, new_email.email)
+        messages.success(
+            self.request,
+            "Email change confirmation sent. Please check your new email address.",
+        )
         return super().form_valid(form)
 
 
