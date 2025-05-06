@@ -198,6 +198,7 @@ class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
 
     def form_valid(self, form):
         change_email_address(self.request.user.id)
+        messages.success(self.request, "Your email address was changed successfully.")
         return super().form_valid(form)
 
 
