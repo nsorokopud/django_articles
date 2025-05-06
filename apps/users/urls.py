@@ -16,6 +16,9 @@ urlpatterns = [
         name="account-activate",
     ),
     path("set_password/", views.PasswordSetView.as_view(), name="password-set"),
+    path(
+        "change_password/", views.PasswordChangeView.as_view(), name="password-change"
+    ),
     path("change_email/", views.EmailChangeView.as_view(), name="email-change"),
     path(
         "change_email_resend/",

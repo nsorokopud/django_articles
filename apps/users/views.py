@@ -1,5 +1,6 @@
 import logging
 
+from allauth.account.views import PasswordChangeView as AllauthPasswordChangeView
 from allauth.account.views import PasswordSetView as AllauthPasswordSetView
 from allauth.account.views import (
     sensitive_post_parameters_m,
@@ -94,6 +95,15 @@ class AccountActivationView(View):
         activate_user(user)
         context = {"is_activation_successful": True}
         return render(request, "users/account_activation.html", context)
+
+
+class PasswordChangeView(AllauthPasswordChangeView):
+    template_name = "users/password_change.html"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info("Password changed for User(id=%s).", self.request.user.pk)
+        return response
 
 
 class PasswordSetView(AllauthPasswordSetView):

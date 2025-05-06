@@ -27,6 +27,13 @@
       </button>
       <a href="{% url 'email-change' %}"
          class="btn btn-secondary mb-3 mb-sm-0 me-sm-2">Change Email</a>
+      {% if request.user.has_usable_password %}
+        <a href="{% url 'password-change' %}"
+           class="btn btn-secondary mb-3 mb-sm-0 me-sm-2">Change Password</a>
+      {% else %}
+        <a href="{% url 'password-set' %}"
+           class="btn btn-secondary mb-3 mb-sm-0 me-sm-2">Set Password</a>
+      {% endif %}
     </div>
   </form>
 {% endblock form %}
