@@ -4,7 +4,7 @@ from django.urls import reverse
 
 class AccountAdapter(DefaultAccountAdapter):
     def get_password_change_redirect_url(self, request):
-        return reverse("articles")
+        return reverse("user-profile")
 
     def get_login_redirect_url(self, request):
         user = request.user

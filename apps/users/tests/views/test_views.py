@@ -334,7 +334,7 @@ class TestViews(TestCase):
         )
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertRedirects(
-            response, reverse("articles"), status_code=302, target_status_code=200
+            response, reverse("user-profile"), status_code=302, target_status_code=200
         )
         user.refresh_from_db()
         self.assertTrue(user.has_usable_password())
