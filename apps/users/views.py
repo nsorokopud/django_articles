@@ -134,6 +134,13 @@ class EmailChangeResendView(LoginRequiredMixin, View):
         email = get_pending_email_address(request.user)
         if email:
             send_email_change_link(request, email.email)
+            messages.info(
+                self.request,
+                (
+                    "Email change confirmation re-sent. "
+                    "Please check your new email address."
+                ),
+            )
             logger.info(
                 "User(id=%s) requested a resend of the email change letter.",
                 request.user.id,
@@ -143,6 +150,10 @@ class EmailChangeResendView(LoginRequiredMixin, View):
                 "User(id=%s) asked to resend email change letter, but no "
                 "pending address was found.",
                 request.user.id,
+            )
+            messages.info(
+                request,
+                "There is no pending email change to re-send a confirmation for.",
             )
         return redirect("email-change")
 
