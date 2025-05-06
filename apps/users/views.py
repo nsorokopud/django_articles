@@ -4,6 +4,7 @@ from allauth.account.views import PasswordSetView as AllauthPasswordSetView
 from allauth.account.views import (
     sensitive_post_parameters_m,
 )
+from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
@@ -158,12 +159,14 @@ class EmailChangeCancelView(LoginRequiredMixin, View):
                 email.id,
                 email.user_id,
             )
+            messages.info(request, "Email change cancelled.")
         else:
             logger.warning(
                 "User(id=%s) attempted to cancel email change, but no pending "
                 "EmailAddress was found.",
                 request.user.id,
             )
+            messages.info(request, "No pending email change to cancel.")
         return redirect("email-change")
 
 
