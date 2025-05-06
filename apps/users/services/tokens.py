@@ -83,4 +83,23 @@ class AccountActivationTokenGenerator(BaseTokenGenerator):
         return base_hash + str(user.is_active)
 
 
+class EmailChangeTokenGenerator(BaseTokenGenerator):
+    """Token generator for confirming email address changes. Token
+    becomes invalid if the pending email changes, or if other conditions
+    defined in the base token generator apply (e.g. timestamp
+    expiration, user state changes).
+    """
+
+    token_type: ClassVar[TokenType] = TokenType.EMAIL_CHANGE
+
+    def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
+        from .services import get_pending_email_address
+
+        email = get_pending_email_address(user)
+        email_value = getattr(email, "email", "__no_email__")
+        base_hash = super()._make_hash_value(user, timestamp)
+        return f"{base_hash}{email_value}"
+
+
 activation_token_generator = AccountActivationTokenGenerator()
+email_change_token_generator = EmailChangeTokenGenerator()

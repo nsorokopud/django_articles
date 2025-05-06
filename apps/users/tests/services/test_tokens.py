@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from allauth.account.models import EmailAddress
 from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
@@ -8,7 +9,9 @@ from users.models import TokenCounter, TokenType, User
 from users.services.tokens import (
     AccountActivationTokenGenerator,
     BaseTokenGenerator,
+    EmailChangeTokenGenerator,
     activation_token_generator,
+    email_change_token_generator,
 )
 
 
@@ -195,3 +198,73 @@ class TestAccountActivationTokenGenerator(TestCase):
         self.user.is_active = True
         self.user.save()
         self.assertFalse(activation_token_generator.check_token(self.user, token))
+
+
+class TestEmailChangeTokenGenerator(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.user_login_timestamp = (
+            ""
+            if self.user.last_login is None
+            else self.user.last_login.replace(microsecond=0, tzinfo=None)
+        )
+        self.pending_email = EmailAddress.objects.create(
+            user=self.user,
+            email="user@test.com",
+            primary=False,
+            verified=False,
+        )
+
+    def test__make_hash_value_with_pending_email(self):
+        generator = EmailChangeTokenGenerator()
+        timestamp = int(timezone.now().timestamp())
+        hash_value = generator._make_hash_value(self.user, timestamp)
+        expected_hash_value = (
+            f"{self.user.pk}{self.user.password}{self.user_login_timestamp}"
+            f"{timestamp}{self.user.email}{generator.token_type}0"
+            f"{self.pending_email.email}"
+        )
+        self.assertEqual(hash_value, expected_hash_value)
+
+    def test__make_hash_value_without_pending_email(self):
+        self.pending_email.delete()
+        generator = EmailChangeTokenGenerator()
+        timestamp = int(timezone.now().timestamp())
+        hash_value = generator._make_hash_value(self.user, timestamp)
+        expected_hash_value = (
+            f"{self.user.pk}{self.user.password}{self.user_login_timestamp}"
+            f"{timestamp}{self.user.email}{generator.token_type}0__no_email__"
+        )
+        self.assertEqual(hash_value, expected_hash_value)
+
+    def test_token_valid_after_creation(self):
+        token = email_change_token_generator.make_token(self.user)
+        self.assertTrue(email_change_token_generator.check_token(self.user, token))
+
+    def test_token_invalid_if_email_verified(self):
+        token = email_change_token_generator.make_token(self.user)
+        self.assertTrue(email_change_token_generator.check_token(self.user, token))
+        self.pending_email.set_verified()
+        self.assertFalse(email_change_token_generator.check_token(self.user, token))
+
+    def test_token_invalid_if_email_primary(self):
+        token = email_change_token_generator.make_token(self.user)
+        self.assertTrue(email_change_token_generator.check_token(self.user, token))
+        self.pending_email.set_as_primary()
+        self.assertFalse(email_change_token_generator.check_token(self.user, token))
+
+    def test_token_invalid_after_pending_email_change(self):
+        token = email_change_token_generator.make_token(self.user)
+        self.pending_email.email = "another@test.com"
+        self.pending_email.save()
+        self.assertFalse(email_change_token_generator.check_token(self.user, token))
+
+    def test_token_invalid_after_counter_increment(self):
+        counter = TokenCounter.objects.create(
+            user=self.user, token_type=TokenType.EMAIL_CHANGE, token_count=0
+        )
+        token = email_change_token_generator.make_token(self.user)
+        counter.refresh_from_db()
+        counter.token_count += 1
+        counter.save()
+        self.assertFalse(email_change_token_generator.check_token(self.user, token))
