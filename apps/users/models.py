@@ -17,3 +17,30 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s profile"
+
+
+class TokenType(models.TextChoices):
+    ACCOUNT_ACTIVATION = "account activation"
+    EMAIL_CHANGE = "email change"
+    PASSWORD_CHANGE = "password change"  # nosec
+
+
+class TokenCounter(models.Model):
+    user = models.ForeignKey("User", on_delete=models.CASCADE)
+    token_type = models.CharField(max_length=32, choices=TokenType.choices)
+    token_count = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ["user", "token_type"]
+        indexes = [
+            models.Index(fields=["user", "token_type"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(token_type__in=TokenType.values),
+                name="%(app_label)s_%(class)s_token_type_valid",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token_type} - {self.token_count}"

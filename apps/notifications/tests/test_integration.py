@@ -6,7 +6,7 @@ from django.test import TransactionTestCase
 from articles.models import Article, ArticleComment
 from config.celery import app
 from notifications.models import Notification
-from users.models import User
+from users.models import Profile, User
 
 from ..consumers import NotificationConsumer
 
@@ -29,15 +29,18 @@ class TestNotificationIntegration(TransactionTestCase):
         user1 = await database_sync_to_async(User.objects.create_user)(
             username="u1", email="u1@test.com"
         )
+        await database_sync_to_async(Profile.objects.get_or_create)(user=user1)
         user2 = await database_sync_to_async(User.objects.create_user)(
             username="u2", email="u2@test.com"
         )
+        await database_sync_to_async(Profile.objects.get_or_create)(user=user2)
         user3 = await database_sync_to_async(User.objects.create_user)(
             username="u3", email="u3@test.com"
         )
         author = await database_sync_to_async(User.objects.create_user)(
             username="author", email="author@test.com"
         )
+        await database_sync_to_async(Profile.objects.get_or_create)(user=author)
 
         communicator1 = WebsocketCommunicator(
             NotificationConsumer.as_asgi(), "GET", "notifications"
@@ -106,6 +109,7 @@ class TestNotificationIntegration(TransactionTestCase):
         author = await database_sync_to_async(User.objects.create_user)(
             username="author"
         )
+        await database_sync_to_async(Profile.objects.get_or_create)(user=author)
 
         article = await database_sync_to_async(Article.objects.create)(
             title="a",
