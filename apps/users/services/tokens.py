@@ -12,7 +12,7 @@ logger = logging.getLogger("default_logger")
 
 
 class BaseTokenGenerator(PasswordResetTokenGenerator):
-    token_type: ClassVar[Optional[TokenType]] = None
+    token_type: ClassVar[Optional[str]] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -76,7 +76,7 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
 
 
 class AccountActivationTokenGenerator(BaseTokenGenerator):
-    token_type: ClassVar[TokenType] = TokenType.ACCOUNT_ACTIVATION
+    token_type: ClassVar[str] = TokenType.ACCOUNT_ACTIVATION
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
         base_hash = super()._make_hash_value(user, timestamp)
@@ -90,7 +90,7 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
     expiration, user state changes).
     """
 
-    token_type: ClassVar[TokenType] = TokenType.EMAIL_CHANGE
+    token_type: ClassVar[str] = TokenType.EMAIL_CHANGE
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
         from .services import get_pending_email_address
