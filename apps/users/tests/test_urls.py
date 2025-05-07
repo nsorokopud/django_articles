@@ -12,6 +12,8 @@ from users.views import (
     EmailChangeResendView,
     EmailChangeView,
     PasswordChangeView,
+    PasswordResetConfirmView,
+    PasswordResetView,
     PasswordSetView,
     PostUserRegistrationView,
     UserLoginView,
@@ -52,6 +54,14 @@ class TestURLs(SimpleTestCase):
     def test_password_change_url_is_resolved(self):
         url = reverse("password-change")
         self.assertEqual(resolve(url).func.view_class, PasswordChangeView)
+
+    def test_password_reset_confirm_url_is_resolved(self):
+        url = reverse("password_reset_confirm", args=["uidb64", "token"])
+        self.assertEqual(resolve(url).func.view_class, PasswordResetConfirmView)
+
+    def test_password_reset_url_is_resolved(self):
+        url = reverse("password-reset")
+        self.assertEqual(resolve(url).func.view_class, PasswordResetView)
 
     def test_password_set_url_is_resolved(self):
         url = reverse("password-set")

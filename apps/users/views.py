@@ -9,6 +9,10 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import (
+    PasswordResetConfirmView as DjangoPasswordResetConfirmView,
+)
+from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
@@ -40,7 +44,7 @@ from .services.services import (
     send_email_change_link,
     toggle_user_supscription,
 )
-from .services.tokens import activation_token_generator
+from .services.tokens import activation_token_generator, password_reset_token_generator
 
 
 logger = logging.getLogger("default_logger")
@@ -114,6 +118,28 @@ class PasswordSetView(AllauthPasswordSetView):
         if not request.user.is_authenticated or request.user.has_usable_password():
             raise PermissionDenied
         return View.dispatch(self, request, *args, **kwargs)
+
+
+class PasswordResetView(DjangoPasswordResetView):
+    template_name = "users/password_reset.html"
+    token_generator = password_reset_token_generator
+    success_url = reverse_lazy("login")
+
+    def form_valid(self, form):
+        messages.success(
+            self.request, "We've emailed you a link to reset your password."
+        )
+        return super().form_valid(form)
+
+
+class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
+    template_name = "users/password_reset_confirm.html"
+    token_generator = password_reset_token_generator
+    success_url = reverse_lazy("login")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Your password was reset successfully.")
+        return super().form_valid(form)
 
 
 class EmailChangeView(LoginRequiredMixin, FormView):
