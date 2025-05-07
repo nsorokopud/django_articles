@@ -12,6 +12,16 @@ logger = logging.getLogger("default_logger")
 
 
 class BaseTokenGenerator(PasswordResetTokenGenerator):
+    """Base class for token generators that invalidates previous tokens
+    by tracking a per-user/token-type counter. Each time a new token is
+    generated, the counter is incremented, which invalidates all
+    previously issued tokens of the same type for that user.
+
+    Tokens also get invalidated if other conditions defined in
+    PasswordResetTokenGenerator apply (e.g. timestamp expiration,
+    user state changes).
+    """
+
     token_type: ClassVar[Optional[str]] = None
 
     def __init_subclass__(cls, **kwargs):
