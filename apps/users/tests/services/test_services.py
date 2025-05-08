@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
@@ -6,7 +6,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.core import mail
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import signals
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -164,16 +164,27 @@ class TestServices(TestCase):
         new_user.delete()
         self.assertCountEqual(get_all_users(), [self.test_user])
 
-    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_send_account_activation_email(self):
+        html_template = (
+            "\n  Hello, {username}.\n  <br>\n  <br>\n"
+            "  Please follow the link to finish your registration:\n"
+            '  <a href="{url}">'
+            "Finish registration</a>\n\n"
+        )
+        plain_template = (
+            "Hello, {username}.\n\nPlease follow the link to finish your registration:"
+            "\n{url}\n"
+        )
+
         user1 = User.objects.create_user(username="user1", email="user1@test.com")
         user2 = User.objects.create_user(username="user2", email="user2@test.com")
 
         self.assertEqual(len(mail.outbox), 0)
 
-        request = Mock()
-        request.is_secure = lambda: True
-        request.get_host = lambda: "www.site.com"
+        factory = RequestFactory()
+        request = factory.get(reverse("post-registration"), secure=True)
+        request.META["HTTP_HOST"] = "testserver"
+        request.user = user1
 
         with patch(
             "users.services.tokens.activation_token_generator.make_token",
@@ -184,16 +195,21 @@ class TestServices(TestCase):
         self.assertEqual(mail.outbox[0].recipients(), ["user1@test.com"])
         self.assertEqual(mail.outbox[0].subject, "User account activation")
         uid = urlsafe_base64_encode(force_bytes(user1.pk))
-        expected_body = (
-            f"\n  Hello, user1.\n  <br>\n  <br>\n"
-            "  Please follow the link to finish your registration:\n"
-            f'  <a href="https://www.site.com/activate_account/{uid}/token1/">'
-            "Finish registration</a>\n\n"
+        expected_url = f"https://testserver/activate_account/{uid}/token1/"
+        self.assertEqual(
+            mail.outbox[0].alternatives[0][0],
+            html_template.format(username=user1.username, url=expected_url),
         )
-        self.assertEqual(mail.outbox[0].body, expected_body)
+        self.assertEqual(
+            mail.outbox[0].body,
+            plain_template.format(username=user1.username, url=expected_url),
+        )
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
 
-        request.is_secure = lambda: False
+        request = factory.get(reverse("post-registration"), secure=False)
+        request.META["HTTP_HOST"] = "testserver"
+        request.user = user2
+
         with patch(
             "users.services.tokens.activation_token_generator.make_token",
             return_value="token2",
@@ -202,13 +218,16 @@ class TestServices(TestCase):
         self.assertEqual(len(mail.outbox), 2)
         self.assertEqual(mail.outbox[1].recipients(), ["user2@test.com"])
         uid = urlsafe_base64_encode(force_bytes(user2.pk))
-        expected_body = (
-            "\n  Hello, user2.\n  <br>\n  <br>\n"
-            "  Please follow the link to finish your registration:\n"
-            f'  <a href="http://www.site.com/activate_account/{uid}/token2/">'
-            "Finish registration</a>\n\n"
+        expected_url = f"http://testserver/activate_account/{uid}/token2/"
+        self.assertEqual(
+            mail.outbox[1].alternatives[0][0],
+            html_template.format(username=user2.username, url=expected_url),
         )
-        self.assertEqual(mail.outbox[1].body, expected_body)
+        self.assertEqual(
+            mail.outbox[1].body,
+            plain_template.format(username=user2.username, url=expected_url),
+        )
+        self.assertEqual(len(mail.outbox[1].alternatives), 1)
 
     def test_send_email_change_link(self):
         html_template = (

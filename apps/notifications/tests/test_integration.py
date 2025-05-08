@@ -1,3 +1,5 @@
+from contextlib import ExitStack
+
 from celery.contrib.testing.worker import start_worker
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
@@ -15,15 +17,15 @@ class TestNotificationIntegration(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-
-        cls.celery_worker = start_worker(app, perform_ping_check=False)
-        cls.celery_worker.__enter__()
+        cls._exit_stack = ExitStack()
+        cls.celery_worker = cls._exit_stack.enter_context(
+            start_worker(app, perform_ping_check=False)
+        )
 
     @classmethod
     def tearDownClass(cls):
+        cls._exit_stack.close()
         super().tearDownClass()
-
-        cls.celery_worker.__exit__(None, None, None)
 
     async def test_client_receives_notification_upon_new_article_creation(self):
         user1 = await database_sync_to_async(User.objects.create_user)(
@@ -43,21 +45,21 @@ class TestNotificationIntegration(TransactionTestCase):
         await database_sync_to_async(Profile.objects.get_or_create)(user=author)
 
         communicator1 = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "GET", "notifications"
+            NotificationConsumer.as_asgi(), "/ws/notifications/"
         )
         communicator1.scope["user"] = user1
         connected1, _ = await communicator1.connect()
         self.assertTrue(connected1)
 
         communicator2 = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "GET", "notifications"
+            NotificationConsumer.as_asgi(), "/ws/notifications/"
         )
         communicator2.scope["user"] = user2
         connected2, _ = await communicator2.connect()
         self.assertTrue(connected2)
 
         communicator3 = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "GET", "notifications"
+            NotificationConsumer.as_asgi(), "/ws/notifications/"
         )
         communicator3.scope["user"] = user3
         connected3, _ = await communicator3.connect()
@@ -74,10 +76,10 @@ class TestNotificationIntegration(TransactionTestCase):
             content="content1",
         )
 
-        response1 = await communicator1.receive_json_from()
-        response2 = await communicator2.receive_json_from()
+        response1 = await communicator1.receive_json_from(timeout=2)
+        response2 = await communicator2.receive_json_from(timeout=2)
         response3 = await communicator3.receive_nothing()
-        self.assertEqual(response3, True)
+        self.assertTrue(response3)
 
         self.assertEqual(response1["title"], "New Article")
         self.assertEqual(
@@ -120,7 +122,7 @@ class TestNotificationIntegration(TransactionTestCase):
         )
 
         communicator = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "GET", "notifications"
+            NotificationConsumer.as_asgi(), "/ws/notifications/"
         )
         communicator.scope["user"] = author
         connected, _ = await communicator.connect()
@@ -130,7 +132,7 @@ class TestNotificationIntegration(TransactionTestCase):
             article=article, author=author, text="1"
         )
 
-        response = await communicator.receive_json_from()
+        response = await communicator.receive_json_from(timeout=2)
 
         last_notification = await database_sync_to_async(Notification.objects.last)()
 

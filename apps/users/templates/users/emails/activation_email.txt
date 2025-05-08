@@ -1,0 +1,4 @@
+Hello, {{ username }}.
+
+Please follow the link to finish your registration:
+{{ url }}

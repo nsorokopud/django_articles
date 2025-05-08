@@ -3,7 +3,6 @@ from typing import Optional
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
-from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import validate_email
@@ -82,21 +81,20 @@ def toggle_user_supscription(user: User, author: User) -> None:
 
 
 def send_account_activation_email(request: HttpRequest, user: User):
-    subject = "User account activation"
     encoded_user_id = urlsafe_base64_encode(force_bytes(user.pk))
-    domain = get_current_site(request)
     token = activation_token_generator.make_token(user)
-    protocol = "https" if request.is_secure() else "http"
-    message = render_to_string(
-        "users/activation_email.html",
-        {
-            "username": user.username,
-            "url": f"{protocol}://{domain}"
-            + reverse("account-activate", args=[encoded_user_id, token]),
-        },
+    url = request.build_absolute_uri(
+        reverse("account-activate", args=[encoded_user_id, token])
     )
-    email = EmailMultiAlternatives(subject, message, to=[user.email])
-    email.attach_alternative(message, "text/html")
+
+    context = {"username": request.user.get_username(), "url": url}
+    html_content = render_to_string("users/emails/activation_email.html", context)
+    text_content = render_to_string("users/emails/activation_email.txt", context)
+
+    email = EmailMultiAlternatives(
+        subject="User account activation", body=text_content, to=[user.email]
+    )
+    email.attach_alternative(html_content, "text/html")
     email.send()
 
 

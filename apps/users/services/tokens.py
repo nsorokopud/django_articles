@@ -12,6 +12,16 @@ logger = logging.getLogger("default_logger")
 
 
 class BaseTokenGenerator(PasswordResetTokenGenerator):
+    """Base class for token generators that invalidates previous tokens
+    by tracking a per-user/token-type counter. Each time a new token is
+    generated, the counter is incremented, which invalidates all
+    previously issued tokens of the same type for that user.
+
+    Tokens also get invalidated if other conditions defined in
+    PasswordResetTokenGenerator apply (e.g. timestamp expiration,
+    user state changes).
+    """
+
     token_type: ClassVar[Optional[str]] = None
 
     def __init_subclass__(cls, **kwargs):
@@ -101,5 +111,15 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
         return f"{base_hash}{email_value}"
 
 
+class CustomPasswordResetTokenGenerator(BaseTokenGenerator):
+    """Token generator for resetting passwords. Token becomes invalid if
+    conditions defined in the base token generator apply (e.g. timestamp
+    expiration, user state changes).
+    """
+
+    token_type: ClassVar[str] = TokenType.PASSWORD_CHANGE
+
+
 activation_token_generator = AccountActivationTokenGenerator()
 email_change_token_generator = EmailChangeTokenGenerator()
+password_reset_token_generator = CustomPasswordResetTokenGenerator()

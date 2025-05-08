@@ -1,14 +1,12 @@
-from unittest.mock import patch
-
-from celery.contrib.testing.worker import start_worker
+from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
+from django.core import mail
 from django.db.models import signals
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 
 from articles.models import Article, ArticleComment
 from articles.signals import send_article_notification, send_comment_notification
-from config.celery import app
 from users.models import User
 
 from ..consumers import NotificationConsumer
@@ -20,20 +18,19 @@ from ..tasks import (
 )
 
 
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class TestTasks(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-
         signals.post_save.disconnect(send_article_notification, sender=Article)
         signals.post_save.disconnect(send_comment_notification, sender=ArticleComment)
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
-
         signals.post_save.connect(send_article_notification, sender=Article)
         signals.post_save.connect(send_comment_notification, sender=ArticleComment)
+        super().tearDownClass()
 
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="user@test.com")
@@ -54,18 +51,17 @@ class TestTasks(TransactionTestCase):
 
     async def test_send_new_article_notification(self):
         communicator = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "GET", "notifications"
+            NotificationConsumer.as_asgi(), "/ws/notifications/"
         )
         communicator.scope["user"] = self.user
-        await communicator.connect()
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
 
-        with start_worker(app, perform_ping_check=False):
-            result = send_new_article_notification.delay(self.article.slug)
-            self.assertEqual(result.get(), None)
-            self.assertEqual(result.state, "SUCCESS")
-
-        response = await communicator.receive_nothing()
-        self.assertEqual(response, False)
+        result = await sync_to_async(send_new_article_notification.delay)(
+            self.article.slug
+        )
+        await sync_to_async(result.get)(timeout=5)
+        self.assertEqual(result.state, "SUCCESS")
 
         response = await communicator.receive_json_from()
         self.assertEqual(response["title"], "New Article")
@@ -82,18 +78,17 @@ class TestTasks(TransactionTestCase):
 
     async def test_send_new_comment_notification(self):
         communicator = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "GET", "notifications"
+            NotificationConsumer.as_asgi(), "/ws/notifications/"
         )
         communicator.scope["user"] = self.user
-        await communicator.connect()
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
 
-        with start_worker(app, perform_ping_check=False):
-            result = send_new_comment_notification.delay(self.comment.id, self.user.id)
-            self.assertEqual(result.get(), None)
-            self.assertEqual(result.state, "SUCCESS")
-
-        response = await communicator.receive_nothing()
-        self.assertEqual(response, False)
+        result = await sync_to_async(send_new_comment_notification.delay)(
+            self.comment.id, self.user.id
+        )
+        await sync_to_async(result.get)(timeout=5)
+        self.assertEqual(result.state, "SUCCESS")
 
         response = await communicator.receive_json_from()
         self.assertEqual(response["title"], "New Comment")
@@ -117,14 +112,10 @@ class TestTasks(TransactionTestCase):
             sender=self.author,
             recipient=self.user,
         )
+        self.assertEqual(len(mail.outbox), 0)
 
-        with (
-            patch(
-                "notifications.services.send_notification_email"
-            ) as send_notification_email__mock,
-            start_worker(app, perform_ping_check=False),
-        ):
-            result = send_notification_email.delay(notification.id)
-            self.assertEqual(result.get(), None)
-            self.assertEqual(result.state, "SUCCESS")
-            send_notification_email__mock.assert_called_once_with(notification)
+        result = send_notification_email.delay(notification.id)
+        self.assertIsNone(result.get(timeout=5))
+        self.assertEqual(result.state, "SUCCESS")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].recipients(), [self.user.email])
