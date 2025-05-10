@@ -78,7 +78,7 @@ INSTALLED_APPS = [
     "articles",
     "users",
     "notifications",
-    "management",
+    "core",
 ]
 
 if DEBUG:

@@ -31,7 +31,7 @@ per-file-ignores = """
 profile = "black"
 line_length = 88
 lines_after_imports = 2
-known_first_party = "articles,notifications,management,tests,users"
+known_first_party = "articles,notifications,core,tests,users"
 
 [tool.mypy]
 ignore_missing_imports = true
