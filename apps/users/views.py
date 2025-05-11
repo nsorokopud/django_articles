@@ -31,7 +31,7 @@ from users.forms import (
 )
 
 from .models import User
-from .services.services import (
+from .services import (
     activate_user,
     change_email_address,
     create_pending_email_address,

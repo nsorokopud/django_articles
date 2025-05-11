@@ -103,7 +103,7 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
     token_type: ClassVar[str] = TokenType.EMAIL_CHANGE
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
-        from .services import get_pending_email_address
+        from .base import get_pending_email_address
 
         email = get_pending_email_address(user)
         email_value = getattr(email, "email", "__no_email__")

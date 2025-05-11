@@ -6,10 +6,7 @@ from hcaptcha_field import hCaptchaField
 
 from users.models import Profile, User
 
-from .services.services import (
-    enforce_unique_email_type_per_user,
-    get_pending_email_address,
-)
+from .services import enforce_unique_email_type_per_user, get_pending_email_address
 from .services.tokens import email_change_token_generator
 
 
