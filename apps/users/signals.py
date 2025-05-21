@@ -2,7 +2,7 @@ from allauth.account.models import EmailAddress
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
-from .services.services import create_user_profile, enforce_unique_email_type_per_user
+from .services import create_user_profile, enforce_unique_email_type_per_user
 
 
 def create_profile(sender, instance, created, **kwargs):
