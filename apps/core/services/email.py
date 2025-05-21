@@ -1,6 +1,6 @@
 import logging
 from dataclasses import asdict, dataclass
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, TypedDict
 
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -10,6 +10,21 @@ from django.template.loader import get_template, render_to_string
 
 
 logger = logging.getLogger("default_logger")
+
+
+class EmailConfigDict(TypedDict, total=False):
+    """A dictionary representation of the EmailConfig class."""
+
+    recipients: Sequence[str]
+    subject: str
+    subject_template: Optional[str]
+    text_content: Optional[str]
+    text_template: Optional[str]
+    html_content: Optional[str]
+    html_template: Optional[str]
+    context: Optional[dict]
+    from_email: Optional[str]
+    fail_silently: bool
 
 
 @dataclass
@@ -52,7 +67,7 @@ class EmailConfig:  # pylint: disable=too-many-instance-attributes
         return asdict(self)
 
     @staticmethod
-    def from_dict(data: dict) -> "EmailConfig":
+    def from_dict(data: EmailConfigDict) -> "EmailConfig":
         return EmailConfig(**data)
 
     def _validate_email_addresses(self) -> None:
