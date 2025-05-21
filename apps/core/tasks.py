@@ -9,6 +9,7 @@ from .services.email import EmailConfig, EmailConfigDict, mask_email, send_email
 from .settings import (
     EMAIL_PERMANENT_ERRORS,
     EMAIL_TASK_BASE_RETRY_DELAY,
+    EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR,
     EMAIL_TASK_MAX_RETRIES,
     EMAIL_TRANSIENT_ERRORS,
 )
@@ -65,7 +66,9 @@ def _handle_transient_error(
     masked_recipients: list[str],
 ) -> None:
     if task.request.retries < task.max_retries:
-        delay = EMAIL_TASK_BASE_RETRY_DELAY * (2**task.request.retries)
+        delay = EMAIL_TASK_BASE_RETRY_DELAY * (
+            EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**task.request.retries
+        )
         logger.warning(
             "Failed to send email, retrying in %s seconds.",
             delay,
