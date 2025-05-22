@@ -32,7 +32,11 @@ def get_all_subscriptions_of_user(user: User) -> list[str]:
     """Returns a list of usernames of all authors the specified user is
     subscribed to.
     """
-    return [p.user.username for p in user.subscribed_profiles.all()]
+    return list(
+        user.subscribed_profiles.select_related("user").values_list(
+            "user__username", flat=True
+        )
+    )
 
 
 def get_pending_email_address(user: User) -> Optional[EmailAddress]:
