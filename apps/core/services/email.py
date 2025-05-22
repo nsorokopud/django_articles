@@ -16,7 +16,7 @@ class EmailConfigDict(TypedDict, total=False):
     """A dictionary representation of the EmailConfig class."""
 
     recipients: Sequence[str]
-    subject: str
+    subject: Optional[str]
     subject_template: Optional[str]
     text_content: Optional[str]
     text_template: Optional[str]
@@ -106,9 +106,12 @@ def send_email(config: EmailConfig) -> None:
     """Sends an email based on the given EmailConfig, handling subject,
     plain text, and optional HTML rendering."""
     try:
-        subject = render_content(
-            config.subject, config.subject_template, config.context
-        )
+        subject = ""
+        if config.subject or config.subject_template:
+            subject = render_content(
+                config.subject, config.subject_template, config.context
+            )
+
         text_content = render_content(
             config.text_content, config.text_template, config.context
         )
