@@ -2,16 +2,11 @@ import logging
 
 from allauth.account.views import PasswordChangeView as AllauthPasswordChangeView
 from allauth.account.views import PasswordSetView as AllauthPasswordSetView
-from allauth.account.views import (
-    sensitive_post_parameters_m,
-)
+from allauth.account.views import sensitive_post_parameters_m
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView
-from django.contrib.auth.views import (
-    PasswordResetConfirmView as DjangoPasswordResetConfirmView,
-)
+from django.contrib.auth.views import LoginView, PasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
@@ -31,18 +26,20 @@ from users.forms import (
 )
 
 from .models import User
+from .selectors import (
+    get_all_subscriptions_of_user,
+    get_pending_email_address,
+    get_user_by_id,
+    get_user_by_username,
+)
 from .services import (
     activate_user,
     change_email_address,
     create_pending_email_address,
     deactivate_user,
-    get_all_supscriptions_of_user,
-    get_pending_email_address,
-    get_user_by_id,
-    get_user_by_username,
     send_account_activation_email,
     send_email_change_link,
-    toggle_user_supscription,
+    toggle_user_subscription,
 )
 from .services.tokens import activation_token_generator, password_reset_token_generator
 
@@ -59,7 +56,7 @@ class UserRegistrationView(CreateView):
     def post(self, request):
         form = self.get_form()
         if form.is_valid():
-            user = form.save(commit=False)
+            user = form.save()
             deactivate_user(user)
             send_account_activation_email(request, user)
             return redirect(reverse("post-registration"))
@@ -132,7 +129,7 @@ class PasswordResetView(DjangoPasswordResetView):
         return super().form_valid(form)
 
 
-class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
+class UserPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = "users/password_reset_confirm.html"
     token_generator = password_reset_token_generator
     success_url = reverse_lazy("login")
@@ -250,7 +247,7 @@ class UserProfileView(LoginRequiredMixin, View):
     def get(self, request):
         user_form = UserUpdateForm(instance=request.user)
         profile_form = ProfileUpdateForm(instance=request.user.profile)
-        subscribed_authors = get_all_supscriptions_of_user(request.user)
+        subscribed_authors = get_all_subscriptions_of_user(request.user)
 
         context = {
             "user_form": user_form,
@@ -267,11 +264,12 @@ class UserProfileView(LoginRequiredMixin, View):
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
+            messages.success(request, "Profile updated successfully.")
             return redirect(reverse("user-profile"))
         context = {
             "user_form": user_form,
             "profile_form": profile_form,
-            "subscribed_authors": get_all_supscriptions_of_user(request.user),
+            "subscribed_authors": get_all_subscriptions_of_user(request.user),
         }
         return render(request, self.template_name, context)
 
@@ -291,5 +289,5 @@ class AuthorPageView(View):
 class AuthorSubscribeView(LoginRequiredMixin, View):
     def post(self, request, author_username):
         author = get_user_by_username(author_username)
-        toggle_user_supscription(request.user, author)
+        toggle_user_subscription(request.user, author)
         return redirect(reverse("author-page", args=(author_username,)))

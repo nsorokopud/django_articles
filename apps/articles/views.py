@@ -8,10 +8,10 @@ from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 
 from articles import services
-from articles.constants import ARTICLES_PER_PAGE_COUNT
 from articles.filters import ArticleFilter
 from articles.forms import ArticleCommentForm, ArticleCreateForm, ArticleUpdateForm
 from articles.models import Article
+from articles.settings import ARTICLES_PER_PAGE_COUNT
 from articles.utils import AllowOnlyAuthorMixin
 
 

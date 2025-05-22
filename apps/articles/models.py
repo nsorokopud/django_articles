@@ -5,7 +5,7 @@ from tinymce.models import HTMLField
 
 from users.models import User
 
-from .constants import DISPLAYED_COMMENT_LENGTH
+from .settings import DISPLAYED_COMMENT_LENGTH
 
 
 class Article(models.Model):

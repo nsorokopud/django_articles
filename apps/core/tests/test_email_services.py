@@ -158,6 +158,18 @@ class TestSendEmail(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].alternatives[0][0], "<p>Test HTML</p>")
 
+    def test_send_email_empty_subject(self):
+        config = EmailConfig(
+            recipients=["test@test.com"],
+            text_content="Test Content",
+        )
+        send_email(config)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_mail = mail.outbox[0]
+        self.assertEqual(sent_mail.subject, "")
+        self.assertEqual(sent_mail.body, "Test Content")
+        self.assertEqual(sent_mail.to, ["test@test.com"])
+
     @patch("core.services.email.render_content", side_effect=ValueError)
     def test_send_email_fail_silently(self, mock_render):
         config = EmailConfig(
