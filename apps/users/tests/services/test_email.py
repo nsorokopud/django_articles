@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import AnonymousUser
 from django.core import mail
 from django.core.exceptions import PermissionDenied
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -12,16 +12,18 @@ from users.services import User, send_account_activation_email, send_email_chang
 
 
 class TestEmailServices(TestCase):
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
     def test_send_account_activation_email(self):
         html_template = (
-            "\n  Hello, {username}.\n  <br>\n  <br>\n"
+            "Hello, {username}.\n  <br>\n  <br>\n"
             "  Please follow the link to finish your registration:\n"
             '  <a href="{url}">'
-            "Finish registration</a>\n\n"
+            "Finish registration</a>"
         )
         plain_template = (
             "Hello, {username}.\n\nPlease follow the link to finish your registration:"
-            "\n{url}\n"
+            "\n{url}"
         )
 
         user1 = User.objects.create_user(username="user1", email="user1@test.com")
@@ -77,16 +79,17 @@ class TestEmailServices(TestCase):
         )
         self.assertEqual(len(mail.outbox[1].alternatives), 1)
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
     def test_send_email_change_link(self):
         html_template = (
-            "\n  Hello, {username}.\n  <br>\n  <br>\n"
+            "Hello, {username}.\n  <br>\n  <br>\n"
             "  Please follow the link to confirm this email address as your new one:\n"
             '  <a href="{url}">'
-            "Change email</a>\n\n"
+            "Change email</a>"
         )
         plain_template = (
             "Hello, {username}.\n\nPlease follow the link to confirm this "
-            "email address as your new one:\n{url}\n"
+            "email address as your new one:\n{url}"
         )
 
         user1 = User.objects.create_user(username="user1", email="user1@test.com")
@@ -99,7 +102,7 @@ class TestEmailServices(TestCase):
         request.META["HTTP_HOST"] = "testserver"
 
         request.user = AnonymousUser()
-        with self.assertRaises(PermissionDenied):  # change exception type
+        with self.assertRaises(PermissionDenied):
             send_email_change_link(request, user1)
         self.assertEqual(len(mail.outbox), 0)
 
