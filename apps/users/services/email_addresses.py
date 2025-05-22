@@ -7,7 +7,7 @@ from django.db import transaction
 from users.models import User
 
 from ..selectors import get_pending_email_address
-from .base import delete_social_accounts_with_email
+from .users import delete_social_accounts_with_email
 
 
 logger = logging.getLogger("default_logger")

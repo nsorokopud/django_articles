@@ -14,7 +14,7 @@ from users.services import (
 from users.signals import create_profile
 
 
-class TestServices(TestCase):
+class TestUserServices(TestCase):
     def setUp(self):
         self.test_user = User.objects.create_user(
             username="test_user", email="test@test.com"

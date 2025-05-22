@@ -10,9 +10,12 @@ from users.models import Profile, User
 logger = logging.getLogger("default_logger")
 
 
-def create_user_profile(user: User) -> Profile:
-    profile = Profile.objects.create(user=user)
-    return profile
+def activate_user(user):
+    user.is_active = True
+    user.save()
+    EmailAddress.objects.create(
+        user=user, email=user.email, verified=True, primary=True
+    )
 
 
 def deactivate_user(user: User) -> None:
@@ -20,12 +23,9 @@ def deactivate_user(user: User) -> None:
     user.save()
 
 
-def activate_user(user):
-    user.is_active = True
-    user.save()
-    EmailAddress.objects.create(
-        user=user, email=user.email, verified=True, primary=True
-    )
+def create_user_profile(user: User) -> Profile:
+    profile = Profile.objects.create(user=user)
+    return profile
 
 
 def toggle_user_supscription(user: User, author: User) -> None:
