@@ -27,7 +27,7 @@ from users.forms import (
 
 from .models import User
 from .selectors import (
-    get_all_supscriptions_of_user,
+    get_all_subscriptions_of_user,
     get_pending_email_address,
     get_user_by_id,
     get_user_by_username,
@@ -247,7 +247,7 @@ class UserProfileView(LoginRequiredMixin, View):
     def get(self, request):
         user_form = UserUpdateForm(instance=request.user)
         profile_form = ProfileUpdateForm(instance=request.user.profile)
-        subscribed_authors = get_all_supscriptions_of_user(request.user)
+        subscribed_authors = get_all_subscriptions_of_user(request.user)
 
         context = {
             "user_form": user_form,
@@ -268,7 +268,7 @@ class UserProfileView(LoginRequiredMixin, View):
         context = {
             "user_form": user_form,
             "profile_form": profile_form,
-            "subscribed_authors": get_all_supscriptions_of_user(request.user),
+            "subscribed_authors": get_all_subscriptions_of_user(request.user),
         }
         return render(request, self.template_name, context)
 

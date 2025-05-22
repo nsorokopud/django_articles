@@ -28,7 +28,7 @@ def find_user_profiles_with_subscribers() -> QuerySet[Profile]:
     )
 
 
-def get_all_supscriptions_of_user(user: User) -> list[str]:
+def get_all_subscriptions_of_user(user: User) -> list[str]:
     """Returns a list of usernames of all authors the specified user is
     subscribed to.
     """

@@ -5,7 +5,7 @@ from django.test import TestCase
 from users.models import Profile, User
 from users.selectors import (
     find_user_profiles_with_subscribers,
-    get_all_supscriptions_of_user,
+    get_all_subscriptions_of_user,
     get_all_users,
     get_pending_email_address,
     get_user_by_id,
@@ -75,27 +75,27 @@ class TestSelectors(TestCase):
         with self.assertRaises(User.DoesNotExist):
             get_user_by_username("non_existent_user")
 
-    def test_get_all_supscriptions_of_user(self):
+    def test_get_all_subscriptions_of_user(self):
         a1 = User.objects.create_user(username="author1", email="author1@test.com")
         a2 = User.objects.create_user(username="author2", email="author2@test.com")
 
-        res = get_all_supscriptions_of_user(self.test_user)
+        res = get_all_subscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [])
 
         a1.profile.subscribers.add(self.test_user)
-        res = get_all_supscriptions_of_user(self.test_user)
+        res = get_all_subscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [a1.username])
 
         a2.profile.subscribers.add(self.test_user)
-        res = get_all_supscriptions_of_user(self.test_user)
+        res = get_all_subscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [a1.username, a2.username])
 
         a2.profile.subscribers.remove(self.test_user)
-        res = get_all_supscriptions_of_user(self.test_user)
+        res = get_all_subscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [a1.username])
 
         a1.profile.subscribers.remove(self.test_user)
-        res = get_all_supscriptions_of_user(self.test_user)
+        res = get_all_subscriptions_of_user(self.test_user)
         self.assertCountEqual(res, [])
 
     def test_get_all_users(self):
