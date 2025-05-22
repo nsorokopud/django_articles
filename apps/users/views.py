@@ -26,15 +26,17 @@ from users.forms import (
 )
 
 from .models import User
+from .selectors import (
+    get_all_supscriptions_of_user,
+    get_pending_email_address,
+    get_user_by_id,
+    get_user_by_username,
+)
 from .services import (
     activate_user,
     change_email_address,
     create_pending_email_address,
     deactivate_user,
-    get_all_supscriptions_of_user,
-    get_pending_email_address,
-    get_user_by_id,
-    get_user_by_username,
     send_account_activation_email,
     send_email_change_link,
     toggle_user_supscription,
