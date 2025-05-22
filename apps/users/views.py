@@ -6,10 +6,7 @@ from allauth.account.views import sensitive_post_parameters_m
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView
-from django.contrib.auth.views import (
-    PasswordResetConfirmView as DjangoPasswordResetConfirmView,
-)
+from django.contrib.auth.views import LoginView, PasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
@@ -130,7 +127,7 @@ class PasswordResetView(DjangoPasswordResetView):
         return super().form_valid(form)
 
 
-class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
+class UserPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = "users/password_reset_confirm.html"
     token_generator = password_reset_token_generator
     success_url = reverse_lazy("login")
