@@ -264,6 +264,7 @@ class UserProfileView(LoginRequiredMixin, View):
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
+            messages.success(request, "Profile updated successfully.")
             return redirect(reverse("user-profile"))
         context = {
             "user_form": user_form,
