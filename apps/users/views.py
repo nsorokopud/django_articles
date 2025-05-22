@@ -39,7 +39,7 @@ from .services import (
     deactivate_user,
     send_account_activation_email,
     send_email_change_link,
-    toggle_user_supscription,
+    toggle_user_subscription,
 )
 from .services.tokens import activation_token_generator, password_reset_token_generator
 
@@ -288,5 +288,5 @@ class AuthorPageView(View):
 class AuthorSubscribeView(LoginRequiredMixin, View):
     def post(self, request, author_username):
         author = get_user_by_username(author_username)
-        toggle_user_supscription(request.user, author)
+        toggle_user_subscription(request.user, author)
         return redirect(reverse("author-page", args=(author_username,)))

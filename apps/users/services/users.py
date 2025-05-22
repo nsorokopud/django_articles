@@ -2,6 +2,7 @@ import logging
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
+from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 
 from users.models import Profile, User
@@ -28,15 +29,32 @@ def create_user_profile(user: User) -> Profile:
     return profile
 
 
-def toggle_user_supscription(user: User, author: User) -> None:
+@transaction.atomic
+def toggle_user_subscription(user: User, author: User) -> None:
     """Adds user to the list of author's subscribers if that user is not
     in the list. Otherwise removes the user from the list.
     """
-    if user.pk != author.pk:
-        if user not in author.profile.subscribers.all():
-            author.profile.subscribers.add(user)
-        else:
-            author.profile.subscribers.remove(user)
+    if not user.is_authenticated:
+        raise ValidationError("Anonymous users cannot subscribe to authors")
+    if not user.is_active:
+        raise ValidationError("Inactive users cannot subscribe to authors")
+    if user.pk == author.pk:
+        raise ValidationError("Users cannot subscribe to themselves")
+    if not author.is_active:
+        raise ValidationError("Cannot subscribe to non-active authors")
+
+    try:
+        author_profile = Profile.objects.select_for_update().get(user=author)
+    except Profile.DoesNotExist as e:
+        raise ValidationError("Author does not have a profile") from e
+
+    subscribers = author_profile.subscribers
+    if not subscribers.filter(pk=user.pk).exists():
+        subscribers.add(user)
+        logger.info("User %s subscribed to author %s", user.id, author.id)
+    else:
+        subscribers.remove(user)
+        logger.info("User %s unsubscribed from author %s", user.id, author.id)
 
 
 def delete_social_accounts_with_email(email: str) -> None:
