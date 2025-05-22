@@ -36,6 +36,7 @@ class TestUserServices(TestCase):
             EmailAddress.objects.get(user=user, email=user.email)
 
         activate_user(user)
+        user.refresh_from_db()
         self.assertTrue(user.is_active)
 
         self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
@@ -48,6 +49,7 @@ class TestUserServices(TestCase):
         user = User.objects.create_user(username="user", email="user@test.com")
         self.assertTrue(user.is_active)
         deactivate_user(user)
+        user.refresh_from_db()
         self.assertFalse(user.is_active)
 
     def test_create_user_profile(self):
@@ -119,30 +121,34 @@ class TestToggleUserSubscription(TestCase):
         anon_user = AnonymousUser()
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(anon_user, self.author)
-        self.assertIn("Anonymous users cannot subscribe", str(context.exception))
+        self.assertIn(
+            "Anonymous users cannot subscribe to authors.", str(context.exception)
+        )
 
     def test_inactive_user(self):
         self.user.is_active = False
         self.user.save()
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(self.user, self.author)
-        self.assertIn("Inactive users cannot subscribe", str(context.exception))
+        self.assertIn(
+            "Inactive users cannot subscribe to authors.", str(context.exception)
+        )
 
     def test_subscribe_self(self):
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(self.user, self.user)
-        self.assertIn("Users cannot subscribe to themselves", str(context.exception))
+        self.assertIn("Users cannot subscribe to themselves.", str(context.exception))
 
     def test_inactive_author(self):
         self.author.is_active = False
         self.author.save()
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(self.user, self.author)
-        self.assertIn("Cannot subscribe to non-active authors", str(context.exception))
+        self.assertIn("Cannot subscribe to inactive authors.", str(context.exception))
 
     def test_author_without_profile(self):
         self.author.profile.delete()
         self.author.refresh_from_db()
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(self.user, self.author)
-        self.assertIn("Author does not have a profile", str(context.exception))
+        self.assertIn("Author does not have a profile.", str(context.exception))

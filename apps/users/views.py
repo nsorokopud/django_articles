@@ -56,7 +56,7 @@ class UserRegistrationView(CreateView):
     def post(self, request):
         form = self.get_form()
         if form.is_valid():
-            user = form.save(commit=False)
+            user = form.save()
             deactivate_user(user)
             send_account_activation_email(request, user)
             return redirect(reverse("post-registration"))

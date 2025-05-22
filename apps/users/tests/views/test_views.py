@@ -55,8 +55,7 @@ class TestViews(TestCase):
             patch("users.views.send_account_activation_email") as send_email__mock,
         ):
             response = self.client.post(reverse("registration"), user_data)
-            user = User.objects.order_by("id").last()
-            self.assertEqual(user.username, user_data["username"])
+            user = User.objects.get(username=user_data["username"])
             self.assertFalse(user.is_active)
             self.assertCountEqual(send_email__mock.call_args_list, [call(ANY, user)])
 
