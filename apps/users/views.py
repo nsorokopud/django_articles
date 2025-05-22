@@ -2,9 +2,7 @@ import logging
 
 from allauth.account.views import PasswordChangeView as AllauthPasswordChangeView
 from allauth.account.views import PasswordSetView as AllauthPasswordSetView
-from allauth.account.views import (
-    sensitive_post_parameters_m,
-)
+from allauth.account.views import sensitive_post_parameters_m
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
