@@ -8,8 +8,8 @@ from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, PasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect, render
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
@@ -288,6 +288,27 @@ class AuthorPageView(View):
 
 class AuthorSubscribeView(LoginRequiredMixin, View):
     def post(self, request, author_username):
-        author = get_user_by_username(author_username)
-        toggle_user_subscription(request.user, author)
-        return redirect(reverse("author-page", args=(author_username,)))
+        author = get_object_or_404(User, username=author_username)
+
+        if request.user == author:
+            messages.error(request, "You cannot subscribe to yourself.")
+            return redirect("author-page", author_username=author_username)
+
+        try:
+            subscribed = toggle_user_subscription(request.user, author)
+            message = (
+                f"You are now subscribed to {author_username}."
+                if subscribed
+                else f"You unsubscribed from {author_username}."
+            )
+            messages.success(request, message)
+        except ValidationError:
+            logger.exception(
+                "Error while subscribing user %s to author %s",
+                request.user.username,
+                author_username,
+            )
+            messages.error(
+                request, "Something went wrong while managing your subscription."
+            )
+        return redirect("author-page", author_username=author_username)
