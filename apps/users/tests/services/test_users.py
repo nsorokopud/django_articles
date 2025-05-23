@@ -112,9 +112,11 @@ class TestToggleUserSubscription(TestCase):
 
     def test_subscribe_unsubscribe(self):
         self.assertNotIn(self.user, self.author.profile.subscribers.all())
-        toggle_user_subscription(self.user, self.author)
+        res = toggle_user_subscription(self.user, self.author)
+        self.assertTrue(res)
         self.assertIn(self.user, self.author.profile.subscribers.all())
-        toggle_user_subscription(self.user, self.author)
+        res = toggle_user_subscription(self.user, self.author)
+        self.assertFalse(res)
         self.assertNotIn(self.user, self.author.profile.subscribers.all())
 
     def test_anonymous_user(self):

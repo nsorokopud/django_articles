@@ -48,9 +48,12 @@ def create_user_profile(user: User) -> Profile:
 
 
 @transaction.atomic
-def toggle_user_subscription(user: User, author: User) -> None:
+def toggle_user_subscription(user: User, author: User) -> bool:
     """Adds user to the list of author's subscribers if that user is not
     in the list. Otherwise removes the user from the list.
+
+    Returns:
+        True if the user was subscribed, False if unsubscribed.
     """
     if not user.is_authenticated:
         raise ValidationError("Anonymous users cannot subscribe to authors.")
@@ -67,12 +70,13 @@ def toggle_user_subscription(user: User, author: User) -> None:
         raise ValidationError("Author does not have a profile.") from e
 
     subscribers = author_profile.subscribers
-    if not subscribers.filter(pk=user.pk).exists():
-        subscribers.add(user)
-        logger.info("User %s subscribed to author %s", user.id, author.id)
-    else:
+    if subscribers.filter(pk=user.pk).exists():
         subscribers.remove(user)
         logger.info("User %s unsubscribed from author %s", user.id, author.id)
+        return False
+    subscribers.add(user)
+    logger.info("User %s subscribed to author %s", user.id, author.id)
+    return True
 
 
 def delete_social_accounts_with_email(email: str) -> None:
