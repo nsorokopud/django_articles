@@ -15,10 +15,6 @@ def get_user_by_id(user_id: int) -> User:
     return User.objects.get(id=user_id)
 
 
-def get_user_by_username(username: str) -> User:
-    return User.objects.get(username=username)
-
-
 def find_user_profiles_with_subscribers() -> QuerySet[Profile]:
     """Returns a queryset of profiles belonging to users that have at
     least 1 subscriber.
