@@ -53,7 +53,7 @@ urlpatterns = [
         name="author-page",
     ),
     path(
-        "author/<str:author_username>/subscribe/",
+        "author/<int:author_id>/subscribe/",
         views.AuthorSubscribeView.as_view(),
         name="author-subscribe",
     ),

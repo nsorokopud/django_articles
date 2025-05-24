@@ -133,7 +133,7 @@ class TestViews(TestCase):
     def test_author_subscribe_view(self):
         author = User.objects.create_user(username="author1")
 
-        target_url = reverse("author-subscribe", args=(author.username,))
+        target_url = reverse("author-subscribe", kwargs={"author_id": author.id})
         response = self.client.post(target_url)
 
         redirect_url = f"{reverse('login')}?next={target_url}"

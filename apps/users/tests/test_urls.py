@@ -32,7 +32,7 @@ class TestURLs(SimpleTestCase):
         self.assertEqual(resolve(url).func.view_class, AuthorPageView)
 
     def test_author_subscribe_url_is_resolved(self):
-        url = reverse("author-subscribe", args=["a"])
+        url = reverse("author-subscribe", kwargs={"author_id": 1})
         self.assertEqual(resolve(url).func.view_class, AuthorSubscribeView)
 
     def test_email_change_cancel_url_is_resolved(self):
