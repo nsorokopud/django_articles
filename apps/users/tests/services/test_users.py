@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase
 
-from users.cache_keys import get_subscribers_count_cache_key
+from apps.users.cache import get_subscribers_count_cache_key
 from users.models import Profile, User
 from users.services import (
     activate_user,

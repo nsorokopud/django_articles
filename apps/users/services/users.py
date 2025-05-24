@@ -8,7 +8,7 @@ from django.db import connection, transaction
 
 from users.models import Profile, User
 
-from ..cache_keys import get_subscribers_count_cache_key
+from ..cache import get_subscribers_count_cache_key
 
 
 logger = logging.getLogger("default_logger")

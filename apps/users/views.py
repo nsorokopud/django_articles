@@ -27,7 +27,7 @@ from users.forms import (
     UserUpdateForm,
 )
 
-from .cache_keys import get_subscribers_count_cache_key
+from .cache import get_subscribers_count_cache_key
 from .models import User
 from .selectors import (
     get_all_subscriptions_of_user,
