@@ -48,7 +48,7 @@ urlpatterns = [
     path("login/", views.UserLoginView.as_view(), name="login"),
     path("user/profile/", views.UserProfileView.as_view(), name="user-profile"),
     path(
-        "author/<str:author_username>/",
+        "author/<int:author_id>/",
         views.AuthorPageView.as_view(),
         name="author-page",
     ),

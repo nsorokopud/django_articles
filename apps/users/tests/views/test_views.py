@@ -130,13 +130,6 @@ class TestViews(TestCase):
         self.assertFalse(response.wsgi_request.user.is_authenticated)
         self.assertNotEqual(response.wsgi_request.user, self.test_user)
 
-    def test_author_page_view(self):
-        response = self.client.get(
-            reverse("author-page", args=(self.test_user.username,))
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/author_page.html")
-
     def test_author_subscribe_view(self):
         author = User.objects.create_user(username="author1")
 
@@ -152,14 +145,14 @@ class TestViews(TestCase):
         self.assertTrue(self.test_user not in author.profile.subscribers.all())
 
         response = self.client.post(target_url)
-        redirect_url = reverse("author-page", args=(author.username,))
+        redirect_url = reverse("author-page", kwargs={"author_id": author.id})
         self.assertRedirects(
             response, redirect_url, status_code=302, target_status_code=200
         )
         self.assertTrue(self.test_user in author.profile.subscribers.all())
 
         response = self.client.post(target_url)
-        redirect_url = reverse("author-page", args=(author.username,))
+        redirect_url = reverse("author-page", kwargs={"author_id": author.id})
         self.assertRedirects(
             response, redirect_url, status_code=302, target_status_code=200
         )

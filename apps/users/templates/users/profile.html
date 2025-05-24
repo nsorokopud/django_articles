@@ -43,11 +43,11 @@
     {% if subscribed_authors %}
       <h4>Your subscriptions ({{ subscribed_authors|length }}):</h4>
       <ul>
-        {% for author_username in subscribed_authors %}
+        {% for author in subscribed_authors %}
           <li>
             <a class="subscription-link link-green"
-               href="{% url 'author-page' author_username %}">
-              {{ author_username }}
+               href="{% url 'author-page' author.id %}">
+              {{ author.username }}
             </a>
           </li>
         {% endfor %}

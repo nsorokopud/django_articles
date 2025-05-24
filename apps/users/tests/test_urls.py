@@ -28,7 +28,7 @@ class TestURLs(SimpleTestCase):
         self.assertEqual(resolve(url).func.view_class, AccountActivationView)
 
     def test_author_page_url_is_resolved(self):
-        url = reverse("author-page", args=["a"])
+        url = reverse("author-page", kwargs={"author_id": 1})
         self.assertEqual(resolve(url).func.view_class, AuthorPageView)
 
     def test_author_subscribe_url_is_resolved(self):

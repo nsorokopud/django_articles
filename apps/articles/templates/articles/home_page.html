@@ -27,7 +27,7 @@
                      src="{{ article.author.profile.image.url }}"
                      alt="Article author's image" />
                 <div class="article-preview-author-right">
-                  <a href="{% url 'author-page' article.author.username %}"
+                  <a href="{% url 'author-page' article.author.id %}"
                      class="article-author-name">{{ article.author.username }}</a>
                   <time class="article-preview-date"
                         datetime="{{ article.created_at.isoformat }}">
