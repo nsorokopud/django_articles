@@ -2,10 +2,13 @@ import logging
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 
 from users.models import Profile, User
+
+from ..cache_keys import get_subscribers_count_cache_key
 
 
 logger = logging.getLogger("default_logger")
@@ -76,6 +79,9 @@ def toggle_user_subscription(user: User, author: User) -> bool:
         return False
     subscribers.add(user)
     logger.info("User %s subscribed to author %s", user.id, author.id)
+
+    cache.delete(get_subscribers_count_cache_key(author.id))
+
     return True
 
 

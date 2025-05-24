@@ -1,10 +1,12 @@
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase
 
+from users.cache_keys import get_subscribers_count_cache_key
 from users.models import Profile, User
 from users.services import (
     activate_user,
@@ -154,3 +156,11 @@ class TestToggleUserSubscription(TestCase):
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(self.user, self.author)
         self.assertIn("Author does not have a profile.", str(context.exception))
+
+    def test_cache_invalidation(self):
+        cache.set(get_subscribers_count_cache_key(self.author.id), 42)
+        self.assertEqual(cache.get(get_subscribers_count_cache_key(self.author.id)), 42)
+
+        toggle_user_subscription(self.user, self.author)
+
+        self.assertIsNone(cache.get(get_subscribers_count_cache_key(self.author.id)))
