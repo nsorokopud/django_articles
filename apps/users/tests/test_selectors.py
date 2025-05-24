@@ -84,15 +84,15 @@ class TestSelectors(TestCase):
 
         a1.profile.subscribers.add(self.test_user)
         res = get_all_subscriptions_of_user(self.test_user)
-        self.assertCountEqual(res, [a1.username])
+        self.assertCountEqual(res, [(a1.id, a1.username)])
 
         a2.profile.subscribers.add(self.test_user)
         res = get_all_subscriptions_of_user(self.test_user)
-        self.assertCountEqual(res, [a1.username, a2.username])
+        self.assertCountEqual(res, [(a1.id, a1.username), (a2.id, a2.username)])
 
         a2.profile.subscribers.remove(self.test_user)
         res = get_all_subscriptions_of_user(self.test_user)
-        self.assertCountEqual(res, [a1.username])
+        self.assertCountEqual(res, [(a1.id, a1.username)])
 
         a1.profile.subscribers.remove(self.test_user)
         res = get_all_subscriptions_of_user(self.test_user)

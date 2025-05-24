@@ -28,15 +28,11 @@ def find_user_profiles_with_subscribers() -> QuerySet[Profile]:
     )
 
 
-def get_all_subscriptions_of_user(user: User) -> list[str]:
-    """Returns a list of usernames of all authors the specified user is
-    subscribed to.
+def get_all_subscriptions_of_user(user: User) -> QuerySet[tuple[int, str]]:
+    """Returns a QuerySet of (user_id, username) tuples for all authors
+    the specified user is subscribed to.
     """
-    return list(
-        user.subscribed_profiles.select_related("user").values_list(
-            "user__username", flat=True
-        )
-    )
+    return user.subscribed_profiles.values_list("user__id", "user__username")
 
 
 def get_pending_email_address(user: User) -> Optional[EmailAddress]:
