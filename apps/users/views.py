@@ -291,7 +291,7 @@ class AuthorPageView(View):
                 timeout=SUBSCRIBERS_COUNT_CACHE_TIMEOUT,
             )
 
-        is_subscribed = (
+        is_viewer_subscribed = (
             request.user.is_authenticated
             and author.subscribers.filter(id=request.user.id).exists()
         )
@@ -300,7 +300,7 @@ class AuthorPageView(View):
             "author": author,
             "author_image_url": author.profile.image.url,
             "subscribers_count": subscribers_count,
-            "is_subscribed": is_subscribed,
+            "is_viewer_subscribed": is_viewer_subscribed,
         }
         return render(request, "users/author_page.html", context)
 
