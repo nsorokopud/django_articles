@@ -2,7 +2,7 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from apps.users.cache import get_subscribers_count_cache_key
+from users.cache import get_subscribers_count_cache_key
 from users.models import User
 
 
