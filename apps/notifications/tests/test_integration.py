@@ -65,8 +65,8 @@ class TestNotificationIntegration(TransactionTestCase):
         connected3, _ = await communicator3.connect()
         self.assertTrue(connected3)
 
-        await database_sync_to_async(author.profile.subscribers.add)(user1)
-        await database_sync_to_async(author.profile.subscribers.add)(user2)
+        await database_sync_to_async(author.subscribers.add)(user1)
+        await database_sync_to_async(author.subscribers.add)(user2)
 
         a = await database_sync_to_async(Article.objects.create)(
             title="a1",

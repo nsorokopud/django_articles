@@ -4,6 +4,12 @@ from django.db import models
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
+    subscribed_to_authors = models.ManyToManyField(
+        "self",
+        through="AuthorSubscription",
+        symmetrical=False,
+        related_name="subscribers",
+    )
 
 
 class Profile(models.Model):
@@ -12,7 +18,6 @@ class Profile(models.Model):
         default="users/profile_images/default_avatar.jpg",
         upload_to="users/profile_images/",
     )
-    subscribers = models.ManyToManyField(User, related_name="subscribed_profiles")
     notification_emails_allowed = models.BooleanField(default=True)
 
     def __str__(self):

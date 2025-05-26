@@ -113,13 +113,13 @@ class TestToggleUserSubscription(TestCase):
         )
 
     def test_subscribe_unsubscribe(self):
-        self.assertNotIn(self.user, self.author.profile.subscribers.all())
+        self.assertNotIn(self.user, self.author.subscribers.all())
         res = toggle_user_subscription(self.user, self.author)
         self.assertTrue(res)
-        self.assertIn(self.user, self.author.profile.subscribers.all())
+        self.assertIn(self.user, self.author.subscribers.all())
         res = toggle_user_subscription(self.user, self.author)
         self.assertFalse(res)
-        self.assertNotIn(self.user, self.author.profile.subscribers.all())
+        self.assertNotIn(self.user, self.author.subscribers.all())
 
     def test_anonymous_user(self):
         anon_user = AnonymousUser()
@@ -149,13 +149,6 @@ class TestToggleUserSubscription(TestCase):
         with self.assertRaises(ValidationError) as context:
             toggle_user_subscription(self.user, self.author)
         self.assertIn("Cannot subscribe to inactive authors.", str(context.exception))
-
-    def test_author_without_profile(self):
-        self.author.profile.delete()
-        self.author.refresh_from_db()
-        with self.assertRaises(ValidationError) as context:
-            toggle_user_subscription(self.user, self.author)
-        self.assertIn("Author does not have a profile.", str(context.exception))
 
     def test_cache_invalidation(self):
         cache.set(get_subscribers_count_cache_key(self.author.id), 42)

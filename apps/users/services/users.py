@@ -67,17 +67,11 @@ def toggle_user_subscription(user: User, author: User) -> bool:
     if not author.is_active:
         raise ValidationError("Cannot subscribe to inactive authors.")
 
-    try:
-        author_profile = Profile.objects.select_for_update().get(user=author)
-    except Profile.DoesNotExist as e:
-        raise ValidationError("Author does not have a profile.") from e
-
-    subscribers = author_profile.subscribers
-    if subscribers.filter(pk=user.pk).exists():
-        subscribers.remove(user)
+    if author.subscribers.filter(pk=user.pk).exists():
+        author.subscribers.remove(user)
         logger.info("User %s unsubscribed from author %s", user.id, author.id)
         return False
-    subscribers.add(user)
+    author.subscribers.add(user)
     logger.info("User %s subscribed to author %s", user.id, author.id)
 
     cache.delete(get_subscribers_count_cache_key(author.id))

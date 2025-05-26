@@ -37,7 +37,7 @@ class TestTasks(TransactionTestCase):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
         )
-        self.author.profile.subscribers.add(self.user)
+        self.author.subscribers.add(self.user)
         self.article = Article.objects.create(
             title="a1",
             slug="a1",

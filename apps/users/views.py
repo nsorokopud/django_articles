@@ -284,7 +284,7 @@ class AuthorPageView(View):
         cache_key = get_subscribers_count_cache_key(author.id)
         subscribers_count = cache.get(cache_key)
         if subscribers_count is None:
-            subscribers_count = author.profile.subscribers.count()
+            subscribers_count = author.subscribers.count()
             cache.set(
                 cache_key,
                 subscribers_count,
@@ -293,7 +293,7 @@ class AuthorPageView(View):
 
         is_subscribed = (
             request.user.is_authenticated
-            and author.profile.subscribers.filter(id=request.user.id).exists()
+            and author.subscribers.filter(id=request.user.id).exists()
         )
 
         context = {
