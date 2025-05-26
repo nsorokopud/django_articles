@@ -1,11 +1,14 @@
 from allauth.account.models import EmailAddress
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import signals
+from django.http.response import Http404
 from django.test import TestCase
 
 from users.models import User
 from users.selectors import (
     get_all_subscriptions_of_user,
     get_all_users,
+    get_author_with_viewer_subscription_status,
     get_pending_email_address,
     get_user_by_id,
 )
@@ -100,3 +103,31 @@ class TestSelectors(TestCase):
         email.save()
         res = get_pending_email_address(self.test_user)
         self.assertEqual(res.pk, email.pk)
+
+
+class TestGetAuthorWithViewerSubscriptionStatus(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+
+    def test_viewer_is_subscribed(self):
+        self.author.subscribers.add(self.user)
+        result = get_author_with_viewer_subscription_status(self.author.id, self.user)
+        self.assertEqual(result, self.author)
+        self.assertTrue(result.is_subscribed_by_viewer)
+
+    def test_viewer_not_subscribed(self):
+        result = get_author_with_viewer_subscription_status(self.author.id, self.user)
+        self.assertEqual(result, self.author)
+        self.assertFalse(result.is_subscribed_by_viewer)
+
+    def test_anonymous_user(self):
+        anonymous = AnonymousUser()
+        author = get_author_with_viewer_subscription_status(self.author.id, anonymous)
+        self.assertFalse(author.is_subscribed_by_viewer)
+
+    def test_author_does_not_exist(self):
+        with self.assertRaises(Http404):
+            get_author_with_viewer_subscription_status(9999, self.user)
