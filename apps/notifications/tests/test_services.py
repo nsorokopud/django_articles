@@ -50,8 +50,8 @@ class TestServices(TransactionTestCase):
         user2 = User.objects.create_user(username="user2", email="user2@test.com")
         user2.profile.notification_emails_allowed = False
         user2.profile.save()
-        self.author.profile.subscribers.add(user1)
-        self.author.profile.subscribers.add(user2)
+        self.author.subscribers.add(user1)
+        self.author.subscribers.add(user2)
         n1 = Notification.objects.create(
             type=Notification.Type.NEW_ARTICLE,
             title="New Article",

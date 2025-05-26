@@ -12,7 +12,7 @@
                    class="article-author-avatar rounded-circle"
                    alt="Avatar" />
               <div class="article-preview-author-right">
-                <a href="{% url 'author-page' article.author.username %}"
+                <a href="{% url 'author-page' article.author.id %}"
                    class="article-author-name">{{ article.author.username }}</a>
                 <time datetime="{{ article.created_at.isoformat }}"
                       class="article-preview-date">

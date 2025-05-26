@@ -1,10 +1,12 @@
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase
 
+from users.cache import get_subscribers_count_cache_key
 from users.models import Profile, User
 from users.services import (
     activate_user,
@@ -111,11 +113,13 @@ class TestToggleUserSubscription(TestCase):
         )
 
     def test_subscribe_unsubscribe(self):
-        self.assertNotIn(self.user, self.author.profile.subscribers.all())
-        toggle_user_subscription(self.user, self.author)
-        self.assertIn(self.user, self.author.profile.subscribers.all())
-        toggle_user_subscription(self.user, self.author)
-        self.assertNotIn(self.user, self.author.profile.subscribers.all())
+        self.assertNotIn(self.user, self.author.subscribers.all())
+        res = toggle_user_subscription(self.user, self.author)
+        self.assertTrue(res)
+        self.assertIn(self.user, self.author.subscribers.all())
+        res = toggle_user_subscription(self.user, self.author)
+        self.assertFalse(res)
+        self.assertNotIn(self.user, self.author.subscribers.all())
 
     def test_anonymous_user(self):
         anon_user = AnonymousUser()
@@ -146,9 +150,10 @@ class TestToggleUserSubscription(TestCase):
             toggle_user_subscription(self.user, self.author)
         self.assertIn("Cannot subscribe to inactive authors.", str(context.exception))
 
-    def test_author_without_profile(self):
-        self.author.profile.delete()
-        self.author.refresh_from_db()
-        with self.assertRaises(ValidationError) as context:
-            toggle_user_subscription(self.user, self.author)
-        self.assertIn("Author does not have a profile.", str(context.exception))
+    def test_cache_invalidation(self):
+        cache.set(get_subscribers_count_cache_key(self.author.id), 42)
+        self.assertEqual(cache.get(get_subscribers_count_cache_key(self.author.id)), 42)
+
+        toggle_user_subscription(self.user, self.author)
+
+        self.assertIsNone(cache.get(get_subscribers_count_cache_key(self.author.id)))

@@ -28,7 +28,7 @@ def send_new_comment_notification(comment: ArticleComment, recipient: User) -> N
 
 
 def send_new_article_notification(article: Article) -> None:
-    subscribers = article.author.profile.subscribers.all()
+    subscribers = article.author.subscribers.all()
     subscriber_count = subscribers.count()
     logger.info(
         "Found %d subscribers for article with ID=%d", subscriber_count, article.id

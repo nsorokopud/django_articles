@@ -19,7 +19,7 @@
           {% if user != author %}
             <form class="author-subscribe-form"
                   method="post"
-                  action="{% url 'author-subscribe' author.username %}">
+                  action="{% url 'author-subscribe' author.id %}">
               {% csrf_token %}
 
               {% if is_subscribed %}

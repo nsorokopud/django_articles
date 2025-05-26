@@ -8,8 +8,10 @@ from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, PasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect, render
+from django.core.cache import cache
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
@@ -25,12 +27,12 @@ from users.forms import (
     UserUpdateForm,
 )
 
+from .cache import get_subscribers_count_cache_key
 from .models import User
 from .selectors import (
     get_all_subscriptions_of_user,
     get_pending_email_address,
     get_user_by_id,
-    get_user_by_username,
 )
 from .services import (
     activate_user,
@@ -42,6 +44,7 @@ from .services import (
     toggle_user_subscription,
 )
 from .services.tokens import activation_token_generator, password_reset_token_generator
+from .settings import SUBSCRIBERS_COUNT_CACHE_TIMEOUT
 
 
 logger = logging.getLogger("default_logger")
@@ -275,19 +278,56 @@ class UserProfileView(LoginRequiredMixin, View):
 
 
 class AuthorPageView(View):
-    def get(self, request, author_username):
-        author = get_user_by_username(author_username)
+    def get(self, request, author_id: int) -> HttpResponse:
+        author = get_object_or_404(User.objects.select_related("profile"), pk=author_id)
+
+        cache_key = get_subscribers_count_cache_key(author.id)
+        subscribers_count = cache.get(cache_key)
+        if subscribers_count is None:
+            subscribers_count = author.subscribers.count()
+            cache.set(
+                cache_key,
+                subscribers_count,
+                timeout=SUBSCRIBERS_COUNT_CACHE_TIMEOUT,
+            )
+
+        is_subscribed = (
+            request.user.is_authenticated
+            and author.subscribers.filter(id=request.user.id).exists()
+        )
+
         context = {
             "author": author,
             "author_image_url": author.profile.image.url,
-            "subscribers_count": author.profile.subscribers.count(),
-            "is_subscribed": request.user in author.profile.subscribers.all(),
+            "subscribers_count": subscribers_count,
+            "is_subscribed": is_subscribed,
         }
         return render(request, "users/author_page.html", context)
 
 
 class AuthorSubscribeView(LoginRequiredMixin, View):
-    def post(self, request, author_username):
-        author = get_user_by_username(author_username)
-        toggle_user_subscription(request.user, author)
-        return redirect(reverse("author-page", args=(author_username,)))
+    def post(self, request, author_id: int) -> HttpResponseRedirect:
+        author = get_object_or_404(User, pk=author_id)
+
+        if request.user == author:
+            messages.error(request, "You cannot subscribe to yourself.")
+            return redirect("author-page", author_id=author.id)
+
+        try:
+            subscribed = toggle_user_subscription(request.user, author)
+            message = (
+                f"You are now subscribed to {author.username}."
+                if subscribed
+                else f"You unsubscribed from {author.username}."
+            )
+            messages.success(request, message)
+        except ValidationError:
+            logger.exception(
+                "Error while subscribing user %s to author %s",
+                request.user.username,
+                author.username,
+            )
+            messages.error(
+                request, "Something went wrong while managing your subscription."
+            )
+        return redirect("author-page", author_id=author_id)
