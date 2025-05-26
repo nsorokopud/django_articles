@@ -4,8 +4,7 @@ from unittest.mock import MagicMock, patch
 from celery.exceptions import Retry
 from django.test import TestCase, override_settings
 
-from apps.core.services.email import EmailConfig
-from core.services.email import mask_email
+from core.services.email import EmailConfig, mask_email
 from core.settings import (
     EMAIL_PERMANENT_ERRORS,
     EMAIL_TASK_BASE_RETRY_DELAY,
