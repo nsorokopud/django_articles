@@ -19,6 +19,35 @@ class Profile(models.Model):
         return f"{self.user.username}'s profile"
 
 
+class AuthorSubscription(models.Model):
+    subscriber = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="subscriptions_made"
+    )
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="subscriptions_received"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    notifications_enabled = models.BooleanField(default=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["subscriber"]),
+            models.Index(fields=["author"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(subscriber=models.F("author")),
+                name="prevent_self_subscription",
+            ),
+            models.UniqueConstraint(
+                fields=["subscriber", "author"], name="unique_subscription"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.subscriber} -> {self.author}"
+
+
 class TokenType(models.TextChoices):
     ACCOUNT_ACTIVATION = "account activation"
     EMAIL_CHANGE = "email change"
