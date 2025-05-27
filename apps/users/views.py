@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from allauth.account.views import PasswordChangeView as AllauthPasswordChangeView
 from allauth.account.views import PasswordSetView as AllauthPasswordSetView
@@ -8,15 +9,14 @@ from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, PasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
-from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.views import View
-from django.views.generic import CreateView, FormView
+from django.views.generic import CreateView, FormView, TemplateView
 
 from users.forms import (
     AuthenticationForm,
@@ -27,10 +27,11 @@ from users.forms import (
     UserUpdateForm,
 )
 
-from .cache import get_subscribers_count_cache_key
+from .cache import get_cached_subscribers_count
 from .models import User
 from .selectors import (
     get_all_subscriptions_of_user,
+    get_author_with_viewer_subscription_status,
     get_pending_email_address,
     get_user_by_id,
 )
@@ -44,7 +45,6 @@ from .services import (
     toggle_user_subscription,
 )
 from .services.tokens import activation_token_generator, password_reset_token_generator
-from .settings import SUBSCRIBERS_COUNT_CACHE_TIMEOUT
 
 
 logger = logging.getLogger("default_logger")
@@ -277,32 +277,25 @@ class UserProfileView(LoginRequiredMixin, View):
         return render(request, self.template_name, context)
 
 
-class AuthorPageView(View):
-    def get(self, request, author_id: int) -> HttpResponse:
-        author = get_object_or_404(User.objects.select_related("profile"), pk=author_id)
+class AuthorPageView(TemplateView):
+    template_name = "users/author_page.html"
 
-        cache_key = get_subscribers_count_cache_key(author.id)
-        subscribers_count = cache.get(cache_key)
-        if subscribers_count is None:
-            subscribers_count = author.subscribers.count()
-            cache.set(
-                cache_key,
-                subscribers_count,
-                timeout=SUBSCRIBERS_COUNT_CACHE_TIMEOUT,
-            )
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
 
-        is_viewer_subscribed = (
-            request.user.is_authenticated
-            and author.subscribers.filter(id=request.user.id).exists()
+        author = get_author_with_viewer_subscription_status(
+            self.kwargs.get("author_id"), self.request.user
         )
+        subscribers_count = get_cached_subscribers_count(author)
 
-        context = {
-            "author": author,
-            "author_image_url": author.profile.image.url,
-            "subscribers_count": subscribers_count,
-            "is_viewer_subscribed": is_viewer_subscribed,
-        }
-        return render(request, "users/author_page.html", context)
+        user = self.request.user
+        context["author"] = author
+        context["author_image_url"] = author.profile.image.url
+        context["subscribers_count"] = subscribers_count
+        context["is_viewer_subscribed"] = (
+            author.is_subscribed_by_viewer if user.is_authenticated else False
+        )
+        return context
 
 
 class AuthorSubscribeView(LoginRequiredMixin, View):
