@@ -67,7 +67,7 @@ class UserRegistrationView(CreateView):
 
 
 class PostUserRegistrationView(View):
-    def get(self, request):
+    def get(self, request) -> HttpResponse:
         return render(request, "users/post_registration.html")
 
 
