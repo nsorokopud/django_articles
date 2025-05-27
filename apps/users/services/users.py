@@ -34,6 +34,7 @@ def deactivate_user(user: User) -> None:
     updated = User.objects.filter(pk=user.pk).update(is_active=False)
     if updated:
         logger.info("User %s was deactivated", user.id)
+        user.refresh_from_db()
     else:
         logger.warning(
             "Tried to deactivate user %s but no matching user found", user.id

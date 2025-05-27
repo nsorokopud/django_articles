@@ -36,7 +36,7 @@ class EmailChangeConfirmationViewTests(TestCase):
 
     @patch("users.forms.get_pending_email_address")
     @patch("users.forms.email_change_token_generator.check_token")
-    @patch("users.views.change_email_address")
+    @patch("users.views.email.change_email_address")
     def test_post_valid_token(
         self, mock_change_email, mock_check_token, mock_get_pending_email
     ):

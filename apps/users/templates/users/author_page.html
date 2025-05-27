@@ -22,7 +22,7 @@
                   action="{% url 'author-subscribe' author.id %}">
               {% csrf_token %}
 
-              {% if is_subscribed %}
+              {% if is_viewer_subscribed %}
                 <button id="authorSubscribeButton"
                         class="btn btn-danger p-1"
                         {% if user.is_authenticated %}isLoggedIn{% endif %}

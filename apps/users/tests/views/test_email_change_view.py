@@ -49,7 +49,7 @@ class TestEmailChangeView(TestCase):
         self.assertFalse(response.context["form"].is_valid())
         mock_send_email.assert_not_called()
 
-    @patch("users.views.send_email_change_link")
+    @patch("users.views.email.send_email_change_link")
     def test_post_valid_data(self, mock_send_email):
         data = {"new_email": "new@test.com"}
 

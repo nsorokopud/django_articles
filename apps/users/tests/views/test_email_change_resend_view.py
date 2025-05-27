@@ -32,8 +32,8 @@ class TestEmailChangeResendView(TestCase):
         )
         mock_send_email.assert_not_called()
 
-    @patch("users.views.get_pending_email_address")
-    @patch("users.views.send_email_change_link")
+    @patch("users.views.email.get_pending_email_address")
+    @patch("users.views.email.send_email_change_link")
     def test_post_with_pending_email(self, mock_send_email, mock_get_pending_email):
         email = EmailAddress(
             user=self.user, email=self.user.email, primary=False, verified=False

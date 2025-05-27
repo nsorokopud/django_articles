@@ -14,16 +14,36 @@ class TestAuthorPageView(TestCase):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
         )
+        self.url = reverse("author-page", kwargs={"author_id": self.author.id})
 
     def test_author_page_loads(self):
-        response = self.client.get(
-            reverse("author-page", kwargs={"author_id": self.author.id})
-        )
+        response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/author_page.html")
 
+    def test_context_subscribed_viewer(self):
+        self.author.subscribers.add(self.user)
+        self.client.force_login(self.user)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["author"], self.author)
+        self.assertEqual(
+            response.context["author_image_url"], self.author.profile.image.url
+        )
+        self.assertEqual(response.context["subscribers_count"], 1)
+        self.assertTrue(response.context["is_viewer_subscribed"])
+
+    def test_context_anonymous_viewer(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["author"], self.author)
+        self.assertEqual(
+            response.context["author_image_url"], self.author.profile.image.url
+        )
+        self.assertEqual(response.context["subscribers_count"], 0)
+        self.assertFalse(response.context["is_viewer_subscribed"])
+
     def test_subscriber_count_cached(self):
         cache.clear()
-        self.client.get(reverse("author-page", kwargs={"author_id": self.author.id}))
+        self.client.get(self.url)
         cache_key = get_subscribers_count_cache_key(self.author.id)
         self.assertEqual(cache.get(cache_key), 0)

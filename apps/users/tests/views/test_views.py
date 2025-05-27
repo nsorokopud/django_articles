@@ -52,12 +52,20 @@ class TestViews(TestCase):
 
         with (
             patch("hcaptcha_field.hCaptchaField.validate", return_value=True),
-            patch("users.views.send_account_activation_email") as send_email__mock,
+            patch(
+                "users.views.registration.send_account_activation_email"
+            ) as send_email__mock,
         ):
             response = self.client.post(reverse("registration"), user_data)
             user = User.objects.get(username=user_data["username"])
             self.assertFalse(user.is_active)
             self.assertCountEqual(send_email__mock.call_args_list, [call(ANY, user)])
+
+            # Ensure user object is deactivated before making token
+            # (otherwise token will get invalidated)
+            args = send_email__mock.call_args_list[0][0]
+            passed_user = args[1]
+            self.assertFalse(passed_user.is_active)
 
         self.assertRedirects(
             response,
@@ -180,13 +188,11 @@ class TestViews(TestCase):
         # correct case
         self.client.force_login(user3)
         response = self.client.get(
-            reverse("account-activate", args=[user1_encoded_id, token1])
+            reverse("account-activate", args=[user1_encoded_id, token1]), follow=True
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/account_activation.html")
-        self.assertTrue(response.context["is_activation_successful"])
-        with self.assertRaises(KeyError):
-            response.context["error_message"]
+        self.assertRedirects(
+            response, reverse("login"), status_code=302, target_status_code=200
+        )
         user1.refresh_from_db()
         user2.refresh_from_db()
         self.assertTrue(user1.is_active)
@@ -198,24 +204,23 @@ class TestViews(TestCase):
         response = self.client.get(
             reverse("account-activate", args=[user1_encoded_id, token1])
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/account_activation.html")
-        self.assertFalse(response.context["is_activation_successful"])
-        self.assertEqual(
-            response.context["error_message"], "This account is already activated"
+        self.assertRedirects(
+            response, reverse("login"), status_code=302, target_status_code=200
         )
         user1.refresh_from_db()
         self.assertTrue(user1.is_active)
 
+        # invalid user_id
         user1.is_active = False
         user1.save()
-
-        # invalid user_id
         response = self.client.get(reverse("account-activate", args=["abc", token1]))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertTemplateUsed(response, "users/account_activation.html")
         self.assertFalse(response.context["is_activation_successful"])
-        self.assertEqual(response.context["error_message"], "Invalid user id")
+        self.assertEqual(
+            response.context["error_message"],
+            "The activation link is invalid or has expired",
+        )
         user1.refresh_from_db()
         user2.refresh_from_db()
         self.assertFalse(user1.is_active)
@@ -223,10 +228,13 @@ class TestViews(TestCase):
 
         # unencoded user_id
         response = self.client.get(reverse("account-activate", args=[user1.id, token1]))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertTemplateUsed(response, "users/account_activation.html")
         self.assertFalse(response.context["is_activation_successful"])
-        self.assertEqual(response.context["error_message"], "Invalid user id")
+        self.assertEqual(
+            response.context["error_message"],
+            "The activation link is invalid or has expired",
+        )
         user1.refresh_from_db()
         user2.refresh_from_db()
         self.assertFalse(user1.is_active)
@@ -237,10 +245,8 @@ class TestViews(TestCase):
         response = self.client.get(
             reverse("account-activate", args=[nonexistent_user_id, token1])
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/account_activation.html")
-        self.assertFalse(response.context["is_activation_successful"])
-        self.assertEqual(response.context["error_message"], "Invalid user id")
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "error.html")
         user1.refresh_from_db()
         self.assertFalse(user1.is_active)
 
@@ -248,10 +254,13 @@ class TestViews(TestCase):
         response = self.client.get(
             reverse("account-activate", args=[user1_encoded_id, token2])
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertTemplateUsed(response, "users/account_activation.html")
         self.assertFalse(response.context["is_activation_successful"])
-        self.assertEqual(response.context["error_message"], "Invalid token")
+        self.assertEqual(
+            response.context["error_message"],
+            "The activation link is invalid or has expired",
+        )
         user1.refresh_from_db()
         user2.refresh_from_db()
         self.assertFalse(user1.is_active)
