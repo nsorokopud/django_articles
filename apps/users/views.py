@@ -303,7 +303,9 @@ class AuthorSubscribeView(LoginRequiredMixin, View):
         author = get_object_or_404(User, pk=author_id)
 
         if request.user == author:
-            messages.error(request, "You cannot subscribe to yourself.")
+            messages.error(
+                request, "You cannot subscribe to or unsubscribe from yourself."
+            )
             return redirect("author-page", author_id=author.id)
 
         try:
@@ -316,7 +318,7 @@ class AuthorSubscribeView(LoginRequiredMixin, View):
             messages.success(request, message)
         except ValidationError:
             logger.exception(
-                "Error while subscribing user %s to author %s",
+                "Error while toggling subscription of user %s to author %s",
                 request.user.username,
                 author.username,
             )
