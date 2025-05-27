@@ -59,6 +59,12 @@ class TestViews(TestCase):
             self.assertFalse(user.is_active)
             self.assertCountEqual(send_email__mock.call_args_list, [call(ANY, user)])
 
+            # Ensure user object is deactivated before making token
+            # (otherwise token will get invalidated)
+            args = send_email__mock.call_args_list[0][0]
+            passed_user = args[1]
+            self.assertFalse(passed_user.is_active)
+
         self.assertRedirects(
             response,
             reverse("post-registration"),
