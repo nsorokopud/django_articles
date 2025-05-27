@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from allauth.account.views import PasswordChangeView as AllauthPasswordChangeView
 from allauth.account.views import PasswordSetView as AllauthPasswordSetView
@@ -18,6 +18,7 @@ from django.utils.http import urlsafe_base64_decode
 from django.views import View
 from django.views.generic import CreateView, FormView, TemplateView
 
+from config.settings import LOGIN_URL
 from users.forms import (
     AuthenticationForm,
     EmailChangeConfirmationForm,
@@ -33,7 +34,6 @@ from .selectors import (
     get_all_subscriptions_of_user,
     get_author_with_viewer_subscription_status,
     get_pending_email_address,
-    get_user_by_id,
 )
 from .services import (
     activate_user,
@@ -72,33 +72,46 @@ class PostUserRegistrationView(View):
 
 
 class AccountActivationView(View):
-    def get(self, request, user_id_b64: str, token: str):
+    template_name = "users/account_activation.html"
+    expired_link_message = "The activation link is invalid or has expired"
+
+    def get(self, request, user_id_b64: str, token: str) -> HttpResponse:
+        user = self._get_user_from_b64(user_id_b64)
+        if user is None:
+            return self._render_failure(self.expired_link_message)
+
+        if user.is_active:
+            messages.info(request, "Your account is already activated.")
+            return redirect(reverse("login"))
+
+        if not activation_token_generator.check_token(user, token):
+            logger.warning(
+                "Account activation attempt with invalid token for user_id_b64=%s.",
+                user_id_b64,
+            )
+            return self._render_failure(self.expired_link_message)
+
+        activate_user(user)
         if request.user.is_authenticated:
             logout(request)
+        logger.info("User %s activated their account via link", user.id)
+        messages.success(self.request, "Your account was successfully activated.")
+        return redirect(LOGIN_URL)
+
+    def _get_user_from_b64(self, user_id_b64: str) -> Optional[User]:
         try:
             user_id = force_str(urlsafe_base64_decode(user_id_b64))
-            user = get_user_by_id(user_id)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            context = {
-                "is_activation_successful": False,
-                "error_message": "Invalid user id",
-            }
-            return render(request, "users/account_activation.html", context)
-        if user.is_active:
-            context = {
-                "is_activation_successful": False,
-                "error_message": "This account is already activated",
-            }
-            return render(request, "users/account_activation.html", context)
-        if not activation_token_generator.check_token(user, token):
-            context = {
-                "is_activation_successful": False,
-                "error_message": "Invalid token",
-            }
-            return render(request, "users/account_activation.html", context)
-        activate_user(user)
-        context = {"is_activation_successful": True}
-        return render(request, "users/account_activation.html", context)
+            return get_object_or_404(User, pk=user_id)
+        except (TypeError, ValueError, OverflowError):
+            logger.warning("Invalid base64 user ID (%s).", user_id_b64)
+            return None
+
+    def _render_failure(self, message: str) -> HttpResponse:
+        context = {
+            "is_activation_successful": False,
+            "error_message": message,
+        }
+        return render(self.request, self.template_name, context, status=400)
 
 
 class PasswordChangeView(AllauthPasswordChangeView):
