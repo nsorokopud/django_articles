@@ -170,20 +170,24 @@ class EmailChangeView(LoginRequiredMixin, FormView):
 
 
 class EmailChangeResendView(LoginRequiredMixin, View):
-    def post(self, request):
+    def post(self, request) -> HttpResponseRedirect:
         email = get_pending_email_address(request.user)
         if email:
             send_email_change_link(request, email.email)
             messages.info(
-                self.request,
+                request,
                 (
                     "Email change confirmation re-sent. "
                     "Please check your new email address."
                 ),
             )
             logger.info(
-                "User(id=%s) requested a resend of the email change letter.",
+                (
+                    "User(id=%s) requested a resend of the email change letter for "
+                    "EmailAddress(id=%s)."
+                ),
                 request.user.id,
+                email.id,
             )
         else:
             logger.warning(
