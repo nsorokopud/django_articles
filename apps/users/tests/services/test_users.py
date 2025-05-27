@@ -51,7 +51,6 @@ class TestUserServices(TestCase):
         user = User.objects.create_user(username="user", email="user@test.com")
         self.assertTrue(user.is_active)
         deactivate_user(user)
-        user.refresh_from_db()
         self.assertFalse(user.is_active)
 
     def test_create_user_profile(self):
