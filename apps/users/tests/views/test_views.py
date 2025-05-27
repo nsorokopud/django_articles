@@ -52,7 +52,9 @@ class TestViews(TestCase):
 
         with (
             patch("hcaptcha_field.hCaptchaField.validate", return_value=True),
-            patch("users.views.send_account_activation_email") as send_email__mock,
+            patch(
+                "users.views.registration.send_account_activation_email"
+            ) as send_email__mock,
         ):
             response = self.client.post(reverse("registration"), user_data)
             user = User.objects.get(username=user_data["username"])
