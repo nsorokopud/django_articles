@@ -54,16 +54,13 @@ class UserRegistrationView(CreateView):
     model = User
     form_class = UserCreationForm
     template_name = "users/registration.html"
-    success_url = reverse_lazy("login")
+    success_url = reverse_lazy("post-registration")
 
-    def post(self, request):
-        form = self.get_form()
-        if form.is_valid():
-            user = form.save()
-            deactivate_user(user)
-            send_account_activation_email(request, user)
-            return redirect(reverse("post-registration"))
-        return render(request, self.template_name, {"form": form})
+    def form_valid(self, form) -> HttpResponseRedirect:
+        user = form.save()
+        deactivate_user(user)
+        send_account_activation_email(self.request, user)
+        return redirect(self.success_url)
 
 
 class PostUserRegistrationView(View):
