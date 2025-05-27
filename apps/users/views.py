@@ -10,7 +10,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, PasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
@@ -247,19 +247,11 @@ class UserProfileView(LoginRequiredMixin, View):
     login_url = reverse_lazy("login")
     template_name = "users/profile.html"
 
-    def get(self, request):
-        user_form = UserUpdateForm(instance=request.user)
-        profile_form = ProfileUpdateForm(instance=request.user.profile)
-        subscribed_authors = get_all_subscriptions_of_user(request.user)
-
-        context = {
-            "user_form": user_form,
-            "profile_form": profile_form,
-            "subscribed_authors": subscribed_authors,
-        }
+    def get(self, request) -> HttpResponse:
+        context = self.get_context_data()
         return render(request, self.template_name, context)
 
-    def post(self, request):
+    def post(self, request) -> HttpResponse | HttpResponseRedirect:
         user_form = UserUpdateForm(request.POST, instance=request.user)
         profile_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.profile
@@ -268,13 +260,18 @@ class UserProfileView(LoginRequiredMixin, View):
             user_form.save()
             profile_form.save()
             messages.success(request, "Profile updated successfully.")
-            return redirect(reverse("user-profile"))
-        context = {
-            "user_form": user_form,
-            "profile_form": profile_form,
-            "subscribed_authors": get_all_subscriptions_of_user(request.user),
-        }
+            return redirect(request.path)
+
+        context = self.get_context_data(user_form=user_form, profile_form=profile_form)
         return render(request, self.template_name, context)
+
+    def get_context_data(self, user_form=None, profile_form=None) -> dict[str, Any]:
+        return {
+            "user_form": user_form or UserUpdateForm(instance=self.request.user),
+            "profile_form": profile_form
+            or ProfileUpdateForm(instance=self.request.user.profile),
+            "subscribed_authors": get_all_subscriptions_of_user(self.request.user),
+        }
 
 
 class AuthorPageView(TemplateView):
