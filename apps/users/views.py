@@ -199,7 +199,7 @@ class EmailChangeResendView(LoginRequiredMixin, View):
 
 
 class EmailChangeCancelView(LoginRequiredMixin, View):
-    def post(self, request):
+    def post(self, request) -> HttpResponseRedirect:
         email = get_pending_email_address(request.user)
         if email:
             email.delete()
