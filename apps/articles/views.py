@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
 from django.db.models import QuerySet
-from django.http import JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
@@ -27,7 +27,7 @@ class ArticleListFilterView(FilterView):
 
 
 class HomePageView(View):
-    def get(self, request):
+    def get(self, request) -> HttpResponseRedirect:
         return redirect("articles")
 
 
