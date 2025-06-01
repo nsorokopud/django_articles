@@ -41,7 +41,8 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         new_email = create_pending_email_address(
             self.request.user, form.cleaned_data["new_email"]
         )
-        send_email_change_link(self.request, new_email.email)
+        base_url = self.request.build_absolute_uri("/")
+        send_email_change_link(self.request.user, new_email.email, base_url)
         messages.success(
             self.request,
             "Email change confirmation sent. Please check your new email address.",
@@ -53,7 +54,8 @@ class EmailChangeResendView(LoginRequiredMixin, View):
     def post(self, request) -> HttpResponseRedirect:
         email = get_pending_email_address(request.user)
         if email:
-            send_email_change_link(request, email.email)
+            base_url = request.build_absolute_uri("/")
+            send_email_change_link(self.request.user, email.email, base_url)
             messages.info(
                 request,
                 (

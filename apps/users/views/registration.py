@@ -31,7 +31,8 @@ class UserRegistrationView(CreateView):
     def form_valid(self, form) -> HttpResponseRedirect:
         user = form.save()
         deactivate_user(user)
-        send_account_activation_email(self.request, user)
+        base_url = self.request.build_absolute_uri("/")
+        send_account_activation_email(user, base_url)
         return redirect(self.success_url)
 
 

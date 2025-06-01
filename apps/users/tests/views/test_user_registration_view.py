@@ -1,4 +1,4 @@
-from unittest.mock import ANY, call, patch
+from unittest.mock import call, patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -51,12 +51,15 @@ class TestUserRegistrationView(TestCase):
             response = self.client.post(reverse("registration"), user_data)
             user = User.objects.get(username=user_data["username"])
             self.assertFalse(user.is_active)
-            self.assertCountEqual(send_email__mock.call_args_list, [call(ANY, user)])
+            self.assertCountEqual(
+                send_email__mock.call_args_list,
+                [call(user, response.wsgi_request.build_absolute_uri("/"))],
+            )
 
             # Ensure user object is deactivated before making token
             # (otherwise token will get invalidated)
             args = send_email__mock.call_args_list[0][0]
-            passed_user = args[1]
+            passed_user = args[0]
             self.assertFalse(passed_user.is_active)
 
         self.assertRedirects(

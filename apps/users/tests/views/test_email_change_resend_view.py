@@ -47,7 +47,8 @@ class TestEmailChangeResendView(TestCase):
         )
         mock_send_email.assert_called_once()
         args, kwargs = mock_send_email.call_args
-        self.assertEqual(len(args), 2)
-        self.assertEqual(args[0].user, self.user)
+        self.assertEqual(len(args), 3)
+        self.assertEqual(args[0], self.user)
         self.assertEqual(args[1], email.email)
+        self.assertEqual(args[2], response.wsgi_request.build_absolute_uri("/"))
         self.assertEqual(kwargs, {})
