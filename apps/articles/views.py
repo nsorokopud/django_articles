@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
+from django.db.models import QuerySet
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -16,13 +17,12 @@ from articles.utils import AllowOnlyAuthorMixin
 
 
 class ArticleListFilterView(FilterView):
-    model = Article
     filterset_class = ArticleFilter
     context_object_name = "articles"
     paginate_by = ARTICLES_PER_PAGE_COUNT
     template_name = "articles/home_page.html"
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Article]:
         return selectors.find_published_articles()
 
 
