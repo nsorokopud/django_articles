@@ -1,6 +1,7 @@
+import logging
 from typing import Iterable, Optional
 
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Subquery
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from sql_util.utils import SubqueryAggregate
@@ -8,6 +9,9 @@ from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from users.models import User
+
+
+logger = logging.getLogger("default_logger")
 
 
 def find_published_articles() -> QuerySet[Article]:
@@ -30,12 +34,35 @@ def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
 def find_articles_with_tags(
     tags: Iterable[str], queryset: Optional[QuerySet[Article]] = None
 ) -> QuerySet[Article]:
+    """Returns articles that have all the specified tags.
+    If no tags are provided, returns an empty queryset.
+    If no queryset is provided, uses the default published articles queryset.
+    """
+    if not tags:
+        return Article.objects.none()
+
     if queryset is None:
         queryset = find_published_articles()
 
-    for tag in tags:
-        queryset = queryset.filter(tags__name=tag)
-    return queryset
+    tag_names = set(tags)
+    tag_ids = list(Tag.objects.filter(name__in=tag_names).values_list("id", flat=True))
+    if len(tag_ids) != len(tag_names):
+        logger.warning(
+            "Some article tags not found. tag_names: %s; tag_ids: %s",
+            tag_names,
+            tag_ids,
+        )
+        return queryset.none()
+
+    tag_count = len(tag_ids)
+    matching_ids_subquery = (
+        queryset.filter(tags__id__in=tag_ids)
+        .values("id")
+        .annotate(tag_match_count=Count("tags", distinct=True))
+        .filter(tag_match_count=tag_count)
+        .values("id")
+    )
+    return queryset.filter(id__in=Subquery(matching_ids_subquery))
 
 
 def find_articles_by_query(
