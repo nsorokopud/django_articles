@@ -38,15 +38,11 @@ class TestSendEmailTask(TestCase):
         )
 
         mock_logger.info.assert_called_once()
-        log_args, log_kwargs = mock_logger.info.call_args
+        log_args, _ = mock_logger.info.call_args
 
-        self.assertIn("Email sent successfully.", log_args[0])
-        extra_data = log_kwargs["extra"]
-        self.assertIn("task_id", extra_data)
-        self.assertEqual(
-            extra_data["recipients"],
-            [mask_email(r) for r in self.valid_config["recipients"]],
-        )
+        masked_recipients = [mask_email(r) for r in self.valid_config["recipients"]]
+        self.assertEqual(log_args[0], "Email sent successfully. Recipients: %s")
+        self.assertEqual(log_args[1], masked_recipients)
 
     @patch("core.tasks.send_email")
     def test_invalid_config(self, mock_send_email):
@@ -68,6 +64,7 @@ class TestSendEmailTask(TestCase):
     @patch("core.tasks.send_email")
     def test_permanent_error(self, mock_send_email, mock_request):
         mock_send_email.side_effect = EMAIL_PERMANENT_ERRORS[0](1, "Permanent error")
+        mock_request.id = 12345
         mock_request.retries = 0
         mock_request.called_directly = False
 
@@ -81,20 +78,21 @@ class TestSendEmailTask(TestCase):
 
         mock_retry.assert_not_called()
         mock_logger.exception.assert_called_once()
-        log_args, log_kwargs = mock_logger.exception.call_args
+        log_args, _ = mock_logger.exception.call_args
 
-        self.assertIn("Failed to send email, not retrying.", log_args[0])
-        extra_data = log_kwargs["extra"]
-        self.assertIn("task_id", extra_data)
         self.assertEqual(
-            extra_data["recipients"],
-            [mask_email(r) for r in self.valid_config["recipients"]],
+            log_args[0],
+            "Failed to send email, not retrying. Task ID: %s; recipients: %s",
         )
+        self.assertEqual(log_args[1], mock_request.id)
+        masked_recipients = [mask_email(r) for r in self.valid_config["recipients"]]
+        self.assertEqual(log_args[2], masked_recipients)
 
     @patch("celery.app.task.Task.request")
     @patch("core.tasks.send_email")
     def test_transient_error_before_max_retries(self, mock_send_email, mock_request):
         mock_send_email.side_effect = EMAIL_TRANSIENT_ERRORS[0]("Transient error")
+        mock_request.id = 12345
         mock_request.retries = 0
         mock_request.called_directly = False
 
@@ -110,25 +108,20 @@ class TestSendEmailTask(TestCase):
         )
 
         mock_logger.warning.assert_called_once()
-        log_args, log_kwargs = mock_logger.warning.call_args
+        log_args, _ = mock_logger.warning.call_args
 
         self.assertEqual(
-            log_args,
-            (
-                "Failed to send email, retrying in %s seconds.",
-                EMAIL_TASK_BASE_RETRY_DELAY,
-            ),
+            log_args[0],
+            "Failed to send email, retrying in %s seconds. Task ID: %s; error: %s",
         )
-        extra_data = log_kwargs["extra"]
-        self.assertIn("task_id", extra_data)
-        self.assertEqual(
-            extra_data["error"],
-            str(mock_send_email.side_effect),
-        )
+        self.assertEqual(log_args[1], EMAIL_TASK_BASE_RETRY_DELAY)
+        self.assertEqual(log_args[2], mock_request.id)
+        self.assertEqual(log_args[3], mock_send_email.side_effect)
 
     @patch("celery.app.task.Task.request")
     @patch("core.tasks.send_email")
     def test_transient_error_after_max_retries(self, mock_send_email, mock_request):
+        mock_request.id = 12345
         mock_send_email.side_effect = EMAIL_TRANSIENT_ERRORS[0]("Transient error")
         mock_request.retries = EMAIL_TASK_MAX_RETRIES
         mock_request.called_directly = False
@@ -143,18 +136,19 @@ class TestSendEmailTask(TestCase):
 
         mock_retry.assert_not_called()
         mock_logger.exception.assert_called_once()
-        log_args, log_kwargs = mock_logger.exception.call_args
+        log_args, _ = mock_logger.exception.call_args
 
-        self.assertIn("Failed to send email after max retries.", log_args[0])
-        extra_data = log_kwargs["extra"]
-        self.assertIn("task_id", extra_data)
         self.assertEqual(
-            extra_data["recipients"],
-            [mask_email(r) for r in self.valid_config["recipients"]],
+            log_args[0],
+            (
+                "Failed to send email after max retries (%s). "
+                "Task ID: %s; recipients: %s"
+            ),
         )
+        self.assertEqual(log_args[1], EMAIL_TASK_MAX_RETRIES)
+        self.assertEqual(log_args[2], mock_request.id)
         self.assertEqual(
-            extra_data["max_retries"],
-            EMAIL_TASK_MAX_RETRIES,
+            log_args[3], [mask_email(r) for r in self.valid_config["recipients"]]
         )
 
     @patch("core.tasks.logger")
@@ -163,9 +157,10 @@ class TestSendEmailTask(TestCase):
     def test_exponential_retry_backoff(
         self, mock_send_email, mock_request, mock_logger
     ):
+        mock_request.id = 12345
         mock_request.retries = 0
         mock_request.called_directly = False
-        mock_send_email.side_effect = EMAIL_TRANSIENT_ERRORS[0]
+        mock_send_email.side_effect = EMAIL_TRANSIENT_ERRORS[0]("Transient error")
         mock_logger.warning = MagicMock()
 
         for _ in range(EMAIL_TASK_MAX_RETRIES):
@@ -177,15 +172,27 @@ class TestSendEmailTask(TestCase):
             send_email_task.delay(self.valid_config)
 
         self.assertEqual(len(mock_logger.warning.mock_calls), EMAIL_TASK_MAX_RETRIES)
-        expected_log_message = "Failed to send email, retrying in %s seconds."
+        expected_message = (
+            "Failed to send email, retrying in %s seconds. Task ID: %s; error: %s"
+        )
         delay = EMAIL_TASK_BASE_RETRY_DELAY
         call_args = [c[0] for c in mock_logger.warning.call_args_list]
         self.assertEqual(
             call_args,
             [
-                (expected_log_message, delay),
-                (expected_log_message, delay * 2**1),
-                (expected_log_message, delay * 2**2),
+                (expected_message, delay, 12345, mock_send_email.side_effect),
+                (
+                    expected_message,
+                    delay * 2**1,
+                    12345,
+                    mock_send_email.side_effect,
+                ),
+                (
+                    expected_message,
+                    delay * 2**2,
+                    12345,
+                    mock_send_email.side_effect,
+                ),
             ],
         )
 
@@ -197,6 +204,7 @@ class TestSendEmailTask(TestCase):
         self.assertNotIn(unexpected_error_type, EMAIL_TRANSIENT_ERRORS)
 
         mock_send_email.side_effect = unexpected_error_type("Unexpected error")
+        mock_request.id = 12345
         mock_request.retries = 0
         mock_request.called_directly = False
 
@@ -212,6 +220,7 @@ class TestSendEmailTask(TestCase):
         mock_logger.exception.assert_called_once()
         log_args, log_kwargs = mock_logger.exception.call_args
 
-        self.assertIn("Unexpected error while sending email.", log_args[0])
-        extra_data = log_kwargs["extra"]
-        self.assertIn("task_id", extra_data)
+        self.assertEqual(
+            log_args[0], "Unexpected error while sending email. Task ID: %s"
+        )
+        self.assertEqual(log_args[1], mock_request.id)
