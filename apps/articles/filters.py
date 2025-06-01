@@ -15,7 +15,7 @@ from users.selectors import get_all_users
 from .models import Article
 from .selectors import (
     find_articles_by_query,
-    find_articles_with_tags,
+    find_articles_with_all_tags,
     get_all_categories,
     get_all_tags,
 )
@@ -56,4 +56,4 @@ class ArticleFilter(FilterSet):
         return find_articles_by_query(value, queryset)
 
     def tags_filter(self, queryset, name, value):
-        return find_articles_with_tags(value, queryset)
+        return find_articles_with_all_tags(value, queryset)

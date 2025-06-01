@@ -5,7 +5,7 @@ from articles.selectors import (
     find_article_comments_liked_by_user,
     find_articles_by_query,
     find_articles_of_category,
-    find_articles_with_tags,
+    find_articles_with_all_tags,
     find_comments_to_article,
     find_published_articles,
     get_all_categories,
@@ -90,7 +90,7 @@ class TestSelectors(TestCase):
         )
         self.assertCountEqual(find_articles_of_category(self.test_category.slug), [a1])
 
-    def test_find_articles_with_tags(self):
+    def test_find_articles_with_all_tags(self):
         a1 = Article.objects.create(
             title="a1",
             slug="a1",
@@ -127,11 +127,11 @@ class TestSelectors(TestCase):
         a3.tags.add("tag2", "tag7")
         a3.save()
 
-        self.assertCountEqual(find_articles_with_tags(["ehjnrkhn"]), [])
-        self.assertCountEqual(find_articles_with_tags(["tag2"]), [a1, a3])
-        self.assertCountEqual(find_articles_with_tags(["tag7", "tag2"]), [a3])
+        self.assertCountEqual(find_articles_with_all_tags(["ehjnrkhn"]), [])
+        self.assertCountEqual(find_articles_with_all_tags(["tag2"]), [a1, a3])
+        self.assertCountEqual(find_articles_with_all_tags(["tag7", "tag2"]), [a3])
         queryset = Article.objects.filter(id__in=[a1.id, a2.id])
-        self.assertCountEqual(find_articles_with_tags(["tag2"], queryset), [a1])
+        self.assertCountEqual(find_articles_with_all_tags(["tag2"], queryset), [a1])
 
     def test_find_articles_by_query(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")

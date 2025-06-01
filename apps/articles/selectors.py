@@ -31,7 +31,7 @@ def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
     return find_published_articles().filter(category__slug=category_slug)
 
 
-def find_articles_with_tags(
+def find_articles_with_all_tags(
     tags: Iterable[str], queryset: Optional[QuerySet[Article]] = None
 ) -> QuerySet[Article]:
     """Returns articles that have all the specified tags.
