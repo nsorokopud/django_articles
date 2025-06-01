@@ -13,7 +13,7 @@ from django_select2.forms import Select2TagWidget
 from users.selectors import get_all_users
 
 from .models import Article
-from .services import (
+from .selectors import (
     find_articles_by_query,
     find_articles_with_tags,
     get_all_categories,

@@ -1,6 +1,6 @@
 from django.http import Http404
 
-from articles.services import get_all_categories
+from articles.selectors import get_all_categories
 
 
 class AllowOnlyAuthorMixin:

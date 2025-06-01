@@ -6,10 +6,7 @@ from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from articles.models import Article, ArticleCategory, ArticleComment
-from articles.services import (
-    _generate_unique_article_slug,
-    create_article,
-    delete_media_files_attached_to_article,
+from articles.selectors import (
     find_article_comments_liked_by_user,
     find_articles_by_query,
     find_articles_of_category,
@@ -22,6 +19,11 @@ from articles.services import (
     get_article_by_id,
     get_article_by_slug,
     get_comment_by_id,
+)
+from articles.services import (
+    _generate_unique_article_slug,
+    create_article,
+    delete_media_files_attached_to_article,
     increment_article_views_counter,
     save_media_file_attached_to_article,
     toggle_article_like,

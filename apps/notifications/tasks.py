@@ -1,4 +1,4 @@
-from articles.services import get_article_by_slug, get_comment_by_id
+from articles.selectors import get_article_by_slug, get_comment_by_id
 from config.celery import app
 from users.selectors import get_user_by_id
 
