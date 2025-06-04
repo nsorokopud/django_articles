@@ -1774,8 +1774,7 @@
     "fields": {
       "user": 1,
       "image": "users/profile_images/default_avatar.jpg",
-      "notification_emails_allowed": true,
-      "subscribers": []
+      "notification_emails_allowed": true
     }
   },
   {
@@ -1784,8 +1783,7 @@
     "fields": {
       "user": 2,
       "image": "users/profile_images/default_avatar.jpg",
-      "notification_emails_allowed": true,
-      "subscribers": []
+      "notification_emails_allowed": true
     }
   },
   {
@@ -1794,8 +1792,7 @@
     "fields": {
       "user": 3,
       "image": "users/profile_images/default_avatar.jpg",
-      "notification_emails_allowed": true,
-      "subscribers": []
+      "notification_emails_allowed": true
     }
   },
   {
@@ -1804,8 +1801,7 @@
     "fields": {
       "user": 4,
       "image": "users/profile_images/default_avatar.jpg",
-      "notification_emails_allowed": true,
-      "subscribers": []
+      "notification_emails_allowed": true
     }
   }
 ]
