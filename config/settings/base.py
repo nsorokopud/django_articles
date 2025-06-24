@@ -49,6 +49,9 @@ if SCHEME.lower() == "https":
     SECURE_HSTS_PRELOAD = True
 
 
+ALLOW_NON_ROUTABLE_IPS = bool(int(os.getenv("ALLOW_NON_ROUTABLE_IPS", "0")))
+
+
 # Application definition
 
 INSTALLED_APPS = [
