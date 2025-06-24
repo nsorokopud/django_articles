@@ -61,4 +61,6 @@ class TestEmailChangeView(TestCase):
             user=self.user, primary=False, verified=False
         ).email
         self.assertEqual(email, "new@test.com")
-        mock_send_email.assert_called_once_with(response.wsgi_request, email)
+        mock_send_email.assert_called_once_with(
+            self.user, email, response.wsgi_request.build_absolute_uri("/")
+        )

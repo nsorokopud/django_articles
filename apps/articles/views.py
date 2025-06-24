@@ -1,13 +1,14 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
-from django.http import JsonResponse
+from django.db.models import QuerySet
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 
-from articles import services
+from articles import selectors, services
 from articles.filters import ArticleFilter
 from articles.forms import ArticleCommentForm, ArticleCreateForm, ArticleUpdateForm
 from articles.models import Article
@@ -16,18 +17,17 @@ from articles.utils import AllowOnlyAuthorMixin
 
 
 class ArticleListFilterView(FilterView):
-    model = Article
     filterset_class = ArticleFilter
     context_object_name = "articles"
     paginate_by = ARTICLES_PER_PAGE_COUNT
     template_name = "articles/home_page.html"
 
-    def get_queryset(self):
-        return services.find_published_articles()
+    def get_queryset(self) -> QuerySet[Article]:
+        return selectors.find_published_articles()
 
 
 class HomePageView(View):
-    def get(self, request):
+    def get(self, request) -> HttpResponseRedirect:
         return redirect("articles")
 
 
@@ -39,7 +39,7 @@ class ArticleDetailView(DetailView):
 
     def get_object(self):
         article_slug = self.kwargs.get(self.slug_url_kwarg)
-        article = services.get_article_by_slug(article_slug)
+        article = selectors.get_article_by_slug(article_slug)
         session_key = f"viewed_article_{article_slug}"
         if not self.request.session.get(session_key):
             services.increment_article_views_counter(article)
@@ -50,7 +50,7 @@ class ArticleDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context["form"] = ArticleCommentForm()
         article_slug = self.kwargs["article_slug"]
-        context["comments"] = services.find_comments_to_article(article_slug)
+        context["comments"] = selectors.find_comments_to_article(article_slug)
         context["comments_count"] = len(context["comments"])
         article = context["article"]
         context["user_liked"] = (
@@ -58,7 +58,7 @@ class ArticleDetailView(DetailView):
             and self.request.user in article.users_that_liked.all()
         )
         if self.request.user.is_authenticated:
-            context["liked_comments"] = services.find_article_comments_liked_by_user(
+            context["liked_comments"] = selectors.find_article_comments_liked_by_user(
                 article_slug, self.request.user
             )
         return context
@@ -100,7 +100,7 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
         return context
 
     def get_object(self):
-        return services.get_article_by_slug(self.kwargs["article_slug"])
+        return selectors.get_article_by_slug(self.kwargs["article_slug"])
 
     def post(self, request, *args, **kwargs):
         article = self.get_object()

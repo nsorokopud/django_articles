@@ -2,13 +2,13 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
 from django.core import mail
-from django.core.exceptions import PermissionDenied
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from users.services import User, send_account_activation_email, send_email_change_link
+from users.settings import ACTIVATION_EMAIL_SUBJECT, EMAIL_CHANGE_SUBJECT
 
 
 class TestEmailServices(TestCase):
@@ -40,10 +40,10 @@ class TestEmailServices(TestCase):
             "users.services.tokens.activation_token_generator.make_token",
             return_value="token1",
         ):
-            send_account_activation_email(request, user1)
+            send_account_activation_email(user1, request.build_absolute_uri("/"))
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].recipients(), ["user1@test.com"])
-        self.assertEqual(mail.outbox[0].subject, "User account activation")
+        self.assertEqual(mail.outbox[0].subject, ACTIVATION_EMAIL_SUBJECT)
         uid = urlsafe_base64_encode(force_bytes(user1.pk))
         expected_url = f"https://testserver/activate_account/{uid}/token1/"
         self.assertEqual(
@@ -64,7 +64,7 @@ class TestEmailServices(TestCase):
             "users.services.tokens.activation_token_generator.make_token",
             return_value="token2",
         ):
-            send_account_activation_email(request, user2)
+            send_account_activation_email(user2, request.build_absolute_uri("/"))
         self.assertEqual(len(mail.outbox), 2)
         self.assertEqual(mail.outbox[1].recipients(), ["user2@test.com"])
         uid = urlsafe_base64_encode(force_bytes(user2.pk))
@@ -101,21 +101,23 @@ class TestEmailServices(TestCase):
         )
         request.META["HTTP_HOST"] = "testserver"
 
-        request.user = AnonymousUser()
-        with self.assertRaises(PermissionDenied):
-            send_email_change_link(request, user1)
+        with self.assertRaises(TypeError):
+            send_email_change_link(
+                AnonymousUser(), "u1@test.com", request.build_absolute_uri("/")
+            )
         self.assertEqual(len(mail.outbox), 0)
 
-        request.user = user1
         with patch(
             "users.services.tokens.email_change_token_generator.make_token",
             return_value="token1",
         ):
-            send_email_change_link(request, "u1@test.com")
+            send_email_change_link(
+                user1, "u1@test.com", request.build_absolute_uri("/")
+            )
 
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].recipients(), ["u1@test.com"])
-        self.assertEqual(mail.outbox[0].subject, "Confirm email change")
+        self.assertEqual(mail.outbox[0].subject, EMAIL_CHANGE_SUBJECT)
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         expected_url = "https://testserver/confirm_email_change/token1/"
         self.assertEqual(
@@ -131,13 +133,14 @@ class TestEmailServices(TestCase):
             reverse("email-change-confirm", args=["token2"]), secure=False
         )
         request.META["HTTP_HOST"] = "testserver"
-        request.user = user2
 
         with patch(
             "users.services.tokens.email_change_token_generator.make_token",
             return_value="token2",
         ):
-            send_email_change_link(request, "u2@test.com")
+            send_email_change_link(
+                user2, "u2@test.com", request.build_absolute_uri("/")
+            )
 
         self.assertEqual(len(mail.outbox), 2)
         self.assertEqual(mail.outbox[1].recipients(), ["u2@test.com"])

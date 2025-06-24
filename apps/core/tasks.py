@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 from celery import Task
 
@@ -27,26 +26,25 @@ logger = logging.getLogger("default_logger")
 def send_email_task(self, config_data: EmailConfigDict) -> None:
     email_config = _create_email_config(config_data)
     masked_recipients = [mask_email(r) for r in email_config.recipients]
-    base_extra = {"task_id": self.request.id}
 
     try:
         send_email(email_config)
         logger.info(
-            "Email sent successfully.",
-            extra=base_extra | {"recipients": masked_recipients},
+            "Email sent successfully. Recipients: %s",
+            masked_recipients,
         )
     except EMAIL_PERMANENT_ERRORS:
         logger.exception(
-            "Failed to send email, not retrying.",
-            extra=base_extra | {"recipients": masked_recipients},
+            "Failed to send email, not retrying. Task ID: %s; recipients: %s",
+            self.request.id,
+            masked_recipients,
         )
         raise
     except EMAIL_TRANSIENT_ERRORS as e:
-        _handle_transient_error(self, e, base_extra, masked_recipients)
+        _handle_transient_error(self, e, masked_recipients)
     except Exception:
         logger.exception(
-            "Unexpected error while sending email.",
-            extra=base_extra,
+            "Unexpected error while sending email. Task ID: %s", self.request.id
         )
         raise
 
@@ -62,7 +60,6 @@ def _create_email_config(config_data: EmailConfigDict) -> EmailConfig:
 def _handle_transient_error(
     task: Task,
     error: Exception,
-    base_extra: dict[str, Any],
     masked_recipients: list[str],
 ) -> None:
     if task.request.retries < task.max_retries:
@@ -70,18 +67,20 @@ def _handle_transient_error(
             EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**task.request.retries
         )
         logger.warning(
-            "Failed to send email, retrying in %s seconds.",
+            "Failed to send email, retrying in %s seconds. Task ID: %s; error: %s",
             delay,
-            extra=base_extra | {"error": str(error)},
+            task.request.id,
+            error,
         )
         task.retry(exc=error, countdown=delay)
     else:
         logger.exception(
-            "Failed to send email after max retries.",
-            extra={
-                **base_extra,
-                "recipients": masked_recipients,
-                "max_retries": task.max_retries,
-            },
+            (
+                "Failed to send email after max retries (%s). "
+                "Task ID: %s; recipients: %s"
+            ),
+            EMAIL_TASK_MAX_RETRIES,
+            task.request.id,
+            masked_recipients,
         )
         raise error
