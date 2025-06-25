@@ -1,12 +1,16 @@
+import logging
 from typing import Any
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import QuerySet
-from django.http import JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
+
+from core.decorators import cache_page_for_anonymous
 
 from ..filters import ArticleFilter
 from ..forms import ArticleCommentForm, ArticleCreateForm, ArticleUpdateForm
@@ -17,9 +21,13 @@ from ..selectors import (
     find_published_articles,
     get_article_by_slug,
 )
-from ..services import increment_article_views_counter, toggle_article_like
-from ..settings import ARTICLES_PER_PAGE_COUNT
+from ..services import toggle_article_like
+from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
 from ..utils import AllowOnlyAuthorMixin
+from .decorators import increment_article_view_counter
+
+
+logger = logging.getLogger("default_logger")
 
 
 class ArticleListFilterView(FilterView):
@@ -38,29 +46,33 @@ class ArticleDetailView(DetailView):
     context_object_name = "article"
     template_name = "articles/article.html"
 
+    @method_decorator(increment_article_view_counter)
+    @method_decorator(cache_page_for_anonymous(ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT))
+    def dispatch(self, request, *args, **kwargs) -> HttpResponse:
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self) -> Article:
         article_slug = self.kwargs.get(self.slug_url_kwarg)
-        article = get_article_by_slug(article_slug)
-        session_key = f"viewed_article_{article_slug}"
-        if not self.request.session.get(session_key):
-            increment_article_views_counter(article)
-            self.request.session[session_key] = True
+        try:
+            article = get_article_by_slug(article_slug)
+        except Article.DoesNotExist as e:
+            logger.warning("Article with '%s' slug not found.", article_slug)
+            raise Http404("Article not found") from e
         return article
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
+        article = self.object
         context = super().get_context_data(**kwargs)
-        context["form"] = ArticleCommentForm()
-        article_slug = self.kwargs["article_slug"]
-        context["comments"] = find_comments_to_article(article_slug)
+        context["comments"] = find_comments_to_article(article)
         context["comments_count"] = len(context["comments"])
-        article = context["article"]
         context["user_liked"] = (
             self.request.user.is_authenticated
-            and self.request.user in article.users_that_liked.all()
+            and article.users_that_liked.filter(id=self.request.user.id).exists()
         )
         if self.request.user.is_authenticated:
+            context["form"] = ArticleCommentForm()
             context["liked_comments"] = find_article_comments_liked_by_user(
-                article_slug, self.request.user
+                article, self.request.user
             )
         return context
 

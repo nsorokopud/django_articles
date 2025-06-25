@@ -13,6 +13,11 @@ ARTICLE_UNIQUE_VIEW_TIMEOUT = int(
     os.getenv("ARTICLE_UNIQUE_VIEW_TIMEOUT", "3600")  # 1 hour
 )
 
+# Article details page cache timeout (for anonymous users only) in seconds.
+ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT = int(
+    os.getenv("ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT", "300")  # 5 minutes
+)
+
 # Max number of iterations when syncing article views from cache to database.
 ARTICLE_VIEW_SYNC_MAX_ITERATIONS = int(
     os.getenv("ARTICLE_VIEW_SYNC_MAX_ITERATIONS", "20")
