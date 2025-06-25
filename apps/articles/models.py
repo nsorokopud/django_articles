@@ -37,6 +37,14 @@ class Article(models.Model):
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
 
+    @property
+    def views(self) -> int:
+        """Returns current total (DB + cache) view count."""
+        from .cache import get_cached_article_views
+
+        views_delta = get_cached_article_views(self.id)
+        return self.views_count + views_delta
+
 
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
