@@ -103,6 +103,8 @@ django-filter==24.3
     # via -r requirements.in
 django-hcaptcha-field==1.4.0
     # via -r requirements.in
+django-ipware==7.0.1
+    # via -r requirements.in
 django-minify-html==1.9.0
     # via -r requirements.in
 django-redis==5.4.0
@@ -168,6 +170,8 @@ python-dateutil==2.9.0.post0
     #   celery
 python-dotenv==1.0.1
     # via -r requirements.in
+python-ipware==3.0.0
+    # via django-ipware
 pytz==2025.1
     # via flower
 redis==5.2.1
