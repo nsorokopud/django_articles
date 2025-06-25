@@ -21,6 +21,7 @@ django-redis==5.4.0
 
 # Celery
 celery==5.4.0
+django-celery-beat==2.8.1
 flower==2.0.1
 
 # Django Channels
