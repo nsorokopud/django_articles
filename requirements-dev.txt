@@ -40,6 +40,7 @@ build==1.2.2.post1
 celery==5.4.0
     # via
     #   -r requirements.in
+    #   django-celery-beat
     #   flower
 certifi==2025.1.31
     # via
@@ -78,6 +79,8 @@ constantly==23.10.4
     # via twisted
 crispy-bootstrap4==2024.1
     # via -r requirements.in
+cron-descriptor==1.4.5
+    # via django-celery-beat
 cryptography==44.0.2
     # via
     #   autobahn
@@ -101,6 +104,7 @@ django==5.1.1
     #   django-allauth
     #   django-appconf
     #   django-cachalot
+    #   django-celery-beat
     #   django-crispy-forms
     #   django-debug-toolbar
     #   django-filter
@@ -111,6 +115,7 @@ django==5.1.1
     #   django-sql-utils
     #   django-storages
     #   django-taggit
+    #   django-timezone-field
     #   django-tinymce
     #   sentry-sdk
 django-allauth==65.0.2
@@ -118,6 +123,8 @@ django-allauth==65.0.2
 django-appconf==1.1.0
     # via django-select2
 django-cachalot==2.6.3
+    # via -r requirements.in
+django-celery-beat==2.8.1
     # via -r requirements.in
 django-crispy-forms==2.3
     # via
@@ -128,6 +135,8 @@ django-debug-toolbar==4.4.6
 django-filter==24.3
     # via -r requirements.in
 django-hcaptcha-field==1.4.0
+    # via -r requirements.in
+django-ipware==7.0.1
     # via -r requirements.in
 django-minify-html==1.9.0
     # via -r requirements.in
@@ -141,6 +150,8 @@ django-storages==1.14.4
     # via -r requirements.in
 django-taggit==6.1.0
     # via -r requirements.in
+django-timezone-field==7.1
+    # via django-celery-beat
 django-tinymce==4.1.0
     # via -r requirements.in
 djlint==1.35.2
@@ -293,12 +304,17 @@ pytest-django==4.9.0
     # via -r requirements-dev.in
 pytest-xdist==3.6.1
     # via -r requirements-dev.in
+python-crontab==3.2.0
+    # via django-celery-beat
 python-dateutil==2.9.0.post0
     # via
     #   botocore
     #   celery
+    #   python-crontab
 python-dotenv==1.0.1
     # via -r requirements.in
+python-ipware==3.0.0
+    # via django-ipware
 pytz==2025.1
     # via flower
 pyyaml==6.0.2
@@ -352,6 +368,7 @@ typing-extensions==4.12.2
 tzdata==2025.1
     # via
     #   celery
+    #   django-celery-beat
     #   kombu
 urllib3==2.3.0
     # via
