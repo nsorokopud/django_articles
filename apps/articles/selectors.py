@@ -86,9 +86,9 @@ def find_article_comments_liked_by_user(article: Article, user: User) -> QuerySe
     ).values_list("id", flat=True)
 
 
-def find_comments_to_article(article_slug: str) -> QuerySet[ArticleComment]:
+def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
     return (
-        ArticleComment.objects.filter(article__slug=article_slug)
+        ArticleComment.objects.filter(article=article)
         .select_related("author")
         .select_related("author__profile")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
