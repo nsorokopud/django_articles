@@ -233,7 +233,7 @@ class TestSelectors(TestCase):
         comment3 = ArticleComment.objects.create(
             article=a1, author=self.test_user, text="text"
         )
-        self.assertCountEqual(find_comments_to_article(a1.slug), [comment1, comment3])
+        self.assertCountEqual(find_comments_to_article(a1), [comment1, comment3])
 
     def test_get_all_categories(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
@@ -349,7 +349,7 @@ class TestSelectors(TestCase):
         comment3.users_that_liked.add(self.test_user)
 
         self.assertCountEqual(
-            find_article_comments_liked_by_user(a1.slug, self.test_user),
+            find_article_comments_liked_by_user(a1, self.test_user),
             [comment1.id, comment3.id],
         )
 

@@ -49,6 +49,9 @@ if SCHEME.lower() == "https":
     SECURE_HSTS_PRELOAD = True
 
 
+ALLOW_NON_ROUTABLE_IPS = bool(int(os.getenv("ALLOW_NON_ROUTABLE_IPS", "0")))
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -75,6 +78,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "cachalot",
+    "django_celery_beat",
     "articles",
     "users",
     "notifications",
@@ -411,14 +415,14 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/2",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
     },
     "select2": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/2",
+        "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
@@ -443,6 +447,7 @@ CHANNEL_LAYERS = {
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 # Select2
 

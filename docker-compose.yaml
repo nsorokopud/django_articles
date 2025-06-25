@@ -39,6 +39,18 @@ services:
       - redis
       - db
 
+  celery-beat:
+    image: nsorokopud/django_articles:web-app
+    build: .
+    restart: 'unless-stopped'
+    env_file:
+      - .env
+    entrypoint: celery
+    command: -A config beat -l INFO
+    depends_on:
+      - redis
+      - db
+
   redis:
     image: redis:7.4-alpine
     restart: 'unless-stopped'
