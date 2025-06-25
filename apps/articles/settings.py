@@ -7,6 +7,11 @@ ARTICLES_PER_PAGE_COUNT = int(os.getenv("ARTICLES_PER_PAGE_COUNT", "5"))
 # Indicates how many chars of a long comment will be displayed by __str__ method
 DISPLAYED_COMMENT_LENGTH = int(os.getenv("DISPLAYED_COMMENT_LENGTH", "25"))
 
+# Sets a time period (in seconds) during which the article view counter
+# will be incremented only once per unique viewer.
+ARTICLE_UNIQUE_VIEW_TIMEOUT = int(
+    os.getenv("ARTICLE_UNIQUE_VIEW_TIMEOUT", "3600")  # 1 hour
+)
 
 # Max number of iterations when syncing article views from cache to database.
 ARTICLE_VIEW_SYNC_MAX_ITERATIONS = int(
