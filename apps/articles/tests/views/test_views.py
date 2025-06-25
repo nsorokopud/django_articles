@@ -34,17 +34,19 @@ class TestViews(TestCase):
         )
 
     def test_homepage_view(self):
-        response = self.client.get(reverse("home"))
+        with patch("articles.cache.get_redis_connection"):
+            response = self.client.get(reverse("home"))
 
-        self.assertRedirects(
-            response,
-            reverse("articles"),
-            status_code=302,
-            target_status_code=200,
-        )
+            self.assertRedirects(
+                response,
+                reverse("articles"),
+                status_code=302,
+                target_status_code=200,
+            )
 
     def test_article_list_filter_view(self):
-        response = self.client.get(reverse("articles"))
+        with patch("articles.cache.get_redis_connection"):
+            response = self.client.get(reverse("articles"))
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/home_page.html")
@@ -299,14 +301,15 @@ class TestViews(TestCase):
         )
 
         self.client.force_login(self.test_user)
-        response = self.client.post(reverse("article-delete", args=[a.slug]))
+        with patch("articles.cache.get_redis_connection"):
+            response = self.client.post(reverse("article-delete", args=[a.slug]))
+
+            self.assertRedirects(
+                response, reverse("articles"), status_code=302, target_status_code=200
+            )
 
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)
-
-        self.assertRedirects(
-            response, reverse("articles"), status_code=302, target_status_code=200
-        )
 
     def test_article_comment_view_unauthorized(self):
         url = reverse("article-comment", args=[self.test_article.slug])
@@ -323,13 +326,17 @@ class TestViews(TestCase):
         comment_data = {"text": "text"}
 
         self.client.force_login(self.test_user)
-        response = self.client.post(url, comment_data)
-        self.assertRedirects(
-            response,
-            reverse("article-details", args=[self.test_article.slug]),
-            status_code=302,
-            target_status_code=200,
-        )
+        with (
+            patch("articles.cache.get_redis_connection"),
+            patch("articles.views.decorators.get_redis_connection"),
+        ):
+            response = self.client.post(url, comment_data)
+            self.assertRedirects(
+                response,
+                reverse("article-details", args=[self.test_article.slug]),
+                status_code=302,
+                target_status_code=200,
+            )
 
         article_comments = ArticleComment.objects.filter(article=self.test_article)
         self.assertEqual(len(article_comments), 2)
