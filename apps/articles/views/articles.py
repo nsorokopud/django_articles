@@ -103,7 +103,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
 
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     model = Article
-    fields = ["title", "category", "tags", "preview_text", "preview_image", "content"]
+    form_class = ArticleUpdateForm
     login_url = reverse_lazy("login")
     template_name_suffix = "_form"
 
@@ -115,13 +115,12 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     def get_object(self) -> Article:
         return get_article_by_slug(self.kwargs["article_slug"])
 
-    def post(self, request, *args, **kwargs) -> JsonResponse:
-        article = self.get_object()
-        form = ArticleUpdateForm(request.POST, request.FILES, instance=article)
-        if form.is_valid():
-            article = form.save()
-            data = {"articleUrl": article.get_absolute_url()}
-            return JsonResponse({"status": "success", "data": data})
+    def form_valid(self, form) -> JsonResponse:
+        article = form.save()
+        data = {"articleUrl": article.get_absolute_url()}
+        return JsonResponse({"status": "success", "data": data})
+
+    def form_invalid(self, form) -> JsonResponse:
         return JsonResponse({"status": "fail", "data": form.errors})
 
 
