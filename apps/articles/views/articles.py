@@ -88,16 +88,16 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         kwargs["request"] = self.request
         return kwargs
 
-    def post(self, request) -> JsonResponse:
-        form = ArticleCreateForm(request.POST, request.FILES, request=request)
-        if form.is_valid():
-            article = form.save()
-            data = {
-                "articleId": article.id,
-                "articleSlug": article.slug,
-                "articleUrl": article.get_absolute_url(),
-            }
-            return JsonResponse({"status": "success", "data": data})
+    def form_valid(self, form) -> JsonResponse:
+        article = form.save()
+        data = {
+            "articleId": article.id,
+            "articleSlug": article.slug,
+            "articleUrl": article.get_absolute_url(),
+        }
+        return JsonResponse({"status": "success", "data": data})
+
+    def form_invalid(self, form) -> JsonResponse:
         return JsonResponse({"status": "fail", "data": form.errors})
 
 
