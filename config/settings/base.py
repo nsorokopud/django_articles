@@ -316,6 +316,10 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+MAX_UPLOAD_FILE_SIZE = int(
+    int(os.getenv("MAX_UPLOAD_FILE_SIZE", str(10 * 1024 * 1024)))
+)  # 10MB default
+
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
