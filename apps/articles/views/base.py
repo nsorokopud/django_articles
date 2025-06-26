@@ -1,15 +1,14 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
-from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import redirect
+from django.http import JsonResponse
 from django.views import View
+from django.views.generic.base import RedirectView
 
 from ..services import save_media_file_attached_to_article
 
 
-class HomePageView(View):
-    def get(self, request) -> HttpResponseRedirect:
-        return redirect("articles")
+class HomePageView(RedirectView):
+    pattern_name = "articles"
 
 
 class AttachedFileUploadView(LoginRequiredMixin, View):
