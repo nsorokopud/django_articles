@@ -327,8 +327,8 @@ ALLOWED_UPLOAD_FILE_TYPES = {
 }
 
 MAX_UPLOAD_FILE_SIZE = int(
-    int(os.getenv("MAX_UPLOAD_FILE_SIZE", str(10 * 1024 * 1024)))
-)  # 10MB default
+    int(os.getenv("MAX_UPLOAD_FILE_SIZE", str(5 * 1024 * 1024)))
+)  # 5MB default
 
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
