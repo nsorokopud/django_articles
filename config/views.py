@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.generic import View
 
@@ -8,7 +8,7 @@ class BasicErrorView(View):
     error_message = ""
     template = "error.html"
 
-    def dispatch(self, *args, **kwargs):
+    def dispatch(self, *args, **kwargs) -> JsonResponse | HttpResponse:
         if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse(
                 {
