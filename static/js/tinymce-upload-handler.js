@@ -1,54 +1,99 @@
 function tinymceUploadHandler(blobInfo, progress) {
-  return new Promise((resolve, reject) => {
+  const uploadPromise = new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.withCredentials = false;
-    xhr.open('POST', '/tinymce/upload');
-    xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
-    xhr.upload.onprogress = (e) => {
-      progress((e.loaded / e.total) * 100);
-    };
-    xhr.onload = () => {
-      if (xhr.status === 403) {
-        reject({ message: 'HTTP Error: ' + xhr.status, remove: true });
-        return;
-      }
-
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject('HTTP Error: ' + xhr.status);
-        return;
-      }
-
-      const response = JSON.parse(xhr.responseText);
-
-      if (!response || typeof response.data.location != 'string') {
-        reject('Invalid JSON: ' + xhr.responseText);
-        return;
-      }
-
-      if (response.status == 'success') {
-        resolve(response.data.location);
-      } else {
-        reject(`Error while uploading images! ${response.message}`);
-        console.log(response.message);
-      }
-    };
-
-    xhr.onerror = () => {
-      reject(
-        'Image upload failed due to a XHR Transport error. Code: ' + xhr.status,
-      );
-    };
-
     const formData = new FormData();
+
+    xhr.open('POST', '/tinymce/upload');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
+    xhr.withCredentials = false;
+
     formData.append('file', blobInfo.blob(), blobInfo.filename());
 
     try {
-      let articleId = localStorage.getItem('createdArticleId');
-      formData.append('articleId', articleId);
-    } catch (e) {
-      console.log(e);
+      const articleId = localStorage.getItem('createdArticleId');
+      if (articleId) {
+        formData.append('articleId', articleId);
+      }
+    } catch (err) {
+      console.warn('Failed to get article ID from localStorage', err);
     }
 
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        progress((e.loaded / e.total) * 100);
+      }
+    };
+
+    xhr.timeout = 30000; // 30 seconds
+    xhr.ontimeout = () => {
+      reject({ message: 'Upload timed out. Try again.', remove: true });
+    };
+
+    xhr.onerror = () => {
+      console.error('Network or transport error during upload:', xhr.status);
+      reject({
+        message: 'Network error while uploading the file. Please try again.',
+        remove: true,
+      });
+    };
+
+    xhr.onload = () => {
+      let response = null;
+
+      try {
+        response = JSON.parse(xhr.responseText);
+      } catch (err) {
+        console.error(
+          'Invalid JSON response from file upload endpoint',
+          xhr.responseText,
+        );
+        if (xhr.status === 413) {
+          return reject({
+            message: 'The file is too big.',
+            remove: true,
+          });
+        } else {
+          return reject({
+            message: 'Unexpected server response format.',
+            remove: true,
+          });
+        }
+      }
+
+      const errorMessages = {
+        400: response?.message || 'Invalid media file.',
+        403: 'You have no permission to edit this article.',
+        404: 'That article does not exist.',
+        500: 'Server error while saving the file. Please try again.',
+      };
+
+      if (xhr.status === 200 && response.status === 'success') {
+        const location = response?.data?.location;
+        if (typeof location === 'string') {
+          return resolve(location);
+        }
+        return reject({
+          message: 'Upload succeeded but response format was invalid.',
+          remove: true,
+        });
+      } else if (errorMessages[xhr.status]) {
+        return reject({ message: errorMessages[xhr.status], remove: true });
+      } else {
+        return reject({
+          message: 'Unexpected server response. Please try again.',
+          remove: true,
+        });
+      }
+    };
+
     xhr.send(formData);
+  });
+  return uploadPromise.catch((error) => {
+    alert(
+      `${error.message || 'Unknown upload error'} ` +
+        'You will now be redirected back to the article page.',
+    );
+    return Promise.reject(error);
   });
 }
