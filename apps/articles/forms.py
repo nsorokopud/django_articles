@@ -1,7 +1,10 @@
 from django import forms
+from django.core.exceptions import ValidationError
 
 from articles.models import Article, ArticleComment
 from articles.services import _generate_unique_article_slug, create_article
+from core.exceptions import InvalidUpload
+from core.validators import validate_uploaded_file
 
 
 class ArticleCreateForm(forms.ModelForm):
@@ -57,6 +60,18 @@ class ArticleUpdateForm(forms.ModelForm):
         instance.save()
         self.save_m2m()
         return instance
+
+
+class AttachedFileUploadForm(forms.Form):
+    file = forms.FileField(error_messages={"required": "File is required."})
+
+    def clean_file(self):
+        uploaded_file = self.cleaned_data["file"]
+        try:
+            validate_uploaded_file(uploaded_file)
+        except InvalidUpload as e:
+            raise ValidationError(str(e)) from e
+        return uploaded_file
 
 
 class ArticleCommentForm(forms.ModelForm):
