@@ -1,10 +1,11 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from articles.models import Article, ArticleComment
-from articles.services import _generate_unique_article_slug, create_article
 from core.exceptions import InvalidUpload
 from core.validators import validate_uploaded_file
+
+from .models import Article, ArticleComment
+from .services import _generate_unique_article_slug, create_article
 
 
 class ArticleCreateForm(forms.ModelForm):
