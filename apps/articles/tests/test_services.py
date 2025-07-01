@@ -1,6 +1,6 @@
 import os
 import re
-from unittest.mock import Mock, call, patch
+from unittest.mock import ANY, Mock, call, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import DatabaseError
@@ -18,6 +18,7 @@ from articles.services import (
     toggle_article_like,
     toggle_comment_like,
 )
+from core.exceptions import MediaSaveError
 from users.models import User
 
 
@@ -215,36 +216,6 @@ class TestServices(TestCase):
         self.assertEqual(new_views_count, 2)
         self.assertEqual(a1.views_count, 2)
 
-    def test_save_media_file_attached_to_article(self):
-        a = Article.objects.create(
-            title="a1",
-            slug="a1",
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-
-        file_name = "file.jpg"
-        file_path = (
-            f"articles/uploads/{self.test_user.username}/{a.id}/file_xyz-xyz.jpg"
-        )
-        file = SimpleUploadedFile(file_name, b"file_content", content_type="image/jpg")
-
-        with self.assertRaises(Article.DoesNotExist):
-            save_media_file_attached_to_article(file, -1)
-
-        with (
-            patch("articles.services.uuid4", return_value="xyz-xyz") as uuid_mock,
-            patch(
-                "articles.services.default_storage.save", side_effect=[file_name]
-            ) as save_mock,
-        ):
-            res = save_media_file_attached_to_article(file, a.id)
-            uuid_mock.assert_called_once()
-            save_mock.assert_called_once_with(file_path, file)
-            self.assertEqual(res[0], file_path)
-            self.assertEqual(res[1], a.get_absolute_url())
-
     def test_delete_media_files_attached_to_article(self):
         a = Article.objects.create(
             title="a1",
@@ -370,3 +341,62 @@ class TestBulkIncrementArticleViewCounts(TestCase):
         with patch("articles.services.logger.exception") as mock_exc:
             bulk_increment_article_view_counts({1: 5})
             mock_exc.assert_called_once()
+
+
+class TestSaveMediaFileAttachedToArticle(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester")
+        self.article = Article.objects.create(
+            title="a1", slug="a1", content="content", author=self.user
+        )
+
+    @patch("articles.services.logger")
+    @patch("articles.services.default_storage.save")
+    def test_successful_file_save(self, mock_save, mock_logger):
+        file = SimpleUploadedFile("img.jpeg", b"jpeg data", content_type="image/jpeg")
+        mock_save.return_value = "articles/uploads/img.jpeg"
+        file_path, url = save_media_file_attached_to_article(file, self.article)
+        self.assertEqual(file_path, "articles/uploads/img.jpeg")
+        self.assertEqual(url, self.article.get_absolute_url())
+
+        mock_save.assert_called_once()
+        path_arg_value = mock_save.call_args_list[0][0][0]
+        *_, file_name = path_arg_value.split("/")
+        folder_path = path_arg_value.rsplit("/", 1)[0]
+        file_base, file_ext = file_name.rsplit(".", 1)
+        self.assertEqual(
+            folder_path, f"articles/uploads/{self.user.username}/{self.article.id}"
+        )
+        self.assertIn("img", file_base)
+        self.assertEqual(file_ext, "jpeg")
+
+        mock_logger.warning.assert_not_called()
+        mock_logger.exception.assert_not_called()
+
+    @patch("articles.services.logger")
+    @patch("articles.services.default_storage.save")
+    def test_storage_save_failure(self, mock_save, mock_logger):
+        mock_save.side_effect = OSError("Disk error")
+        file = SimpleUploadedFile("file.jpeg", b"test", content_type="image/jpeg")
+
+        with self.assertRaises(MediaSaveError) as context:
+            save_media_file_attached_to_article(file, self.article)
+
+        self.assertEqual(str(context.exception), "Could not save the uploaded file.")
+        self.assertIsInstance(context.exception.__cause__, OSError)
+
+        mock_logger.exception.assert_called_once_with(
+            "Failed to save file for article %s: %s (%s)",
+            self.article.id,
+            ANY,
+            "OSError",
+        )
+        path_arg_value = mock_logger.exception.call_args_list[0][0][2]
+        *_, file_name = path_arg_value.split("/")
+        folder_path = path_arg_value.rsplit("/", 1)[0]
+        file_base, file_ext = file_name.rsplit(".", 1)
+        self.assertEqual(
+            folder_path, f"articles/uploads/{self.user.username}/{self.article.id}"
+        )
+        self.assertIn("file", file_base)
+        self.assertEqual(file_ext, "jpeg")

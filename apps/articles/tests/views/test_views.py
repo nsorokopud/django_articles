@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Count
 from django.http import Http404
@@ -7,6 +8,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from articles.models import Article, ArticleCategory, ArticleComment
+from core.exceptions import MediaSaveError
 from users.models import User
 
 
@@ -186,10 +188,10 @@ class TestViews(TestCase):
             updated_data,
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(
             response.json(),
-            {"status": "error", "message": "HTTP Error 404: Page not found"},
+            {"status": "error", "message": "Page not found"},
         )
 
         user = User.objects.create_user(username="user1")
@@ -199,10 +201,10 @@ class TestViews(TestCase):
             updated_data,
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(
             response.json(),
-            {"message": "HTTP Error 404: Page not found", "status": "error"},
+            {"message": "Page not found", "status": "error"},
         )
 
     def test_article_update_view_post_authorized(self):
@@ -243,10 +245,10 @@ class TestViews(TestCase):
         response = self.client.post(
             url, updated_data, headers={"X-Requested-With": "XMLHttpRequest"}
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 500)
         self.assertEqual(
             response.json(),
-            {"status": "error", "message": "HTTP Error 500: Internal server error"},
+            {"status": "error", "message": "Internal server error"},
         )
         self.client.raise_request_exception = True
 
@@ -446,65 +448,209 @@ class TestViews(TestCase):
         )
         self.assertEqual(likes_count, 0)
 
-    def test_attached_file_upload_view_unauthorized(self):
-        url = reverse("attached-file-upload")
-        response = self.client.post(url)
+
+class TestAttachedFileUploadView(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.user,
+            preview_text="text1",
+            content="content1",
+        )
+        self.client = Client()
+        self.url = reverse("attached-file-upload")
+
+    @patch("articles.views.default_storage.url")
+    @patch("articles.forms.validate_uploaded_file")
+    @patch("articles.views.save_media_file_attached_to_article")
+    def test_successful_upload(self, mock_save_media, mock_validate, mock_url):
+        mock_save_media.return_value = ("path/to/file", f"/article/{self.article.id}/")
+        mock_url.return_value = f"{self.article.id}-location"
+
+        self.client.force_login(self.user)
+        file = SimpleUploadedFile("test.jpg", b"hello")
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "success",
+                "data": {
+                    "articleUrl": f"/articles/{self.article.slug}",
+                    "location": mock_url.return_value,
+                },
+            },
+        )
+
+    def test_upload_without_login(self):
+        file = SimpleUploadedFile("test.txt", b"hello")
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": "123"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
         self.assertRedirects(
             response,
-            f"{reverse('login')}?next={url}",
-            status_code=302,
-            target_status_code=200,
+            f"{reverse('login')}?next={reverse('attached-file-upload')}",
+            302,
+            200,
         )
 
-    def test_attached_file_upload_view_incorrect_post_data(self):
-        url = reverse("attached-file-upload")
-        self.client.force_login(self.test_user)
+    def test_missing_article_id(self):
+        file = SimpleUploadedFile("test.jpg", b"hello")
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url, {"file": file}, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "error",
+                "message": "Invalid or missing article ID",
+            },
+        )
 
-        with self.assertRaises(Article.DoesNotExist):
-            response = self.client.post(url)
+    def test_invalid_article_id(self):
+        file = SimpleUploadedFile("test.jpg", b"hello")
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": "abc"},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "error",
+                "message": "Invalid or missing article ID",
+            },
+        )
 
-        self.client.raise_request_exception = False
+    def test_non_existent_article(self):
+        file = SimpleUploadedFile("test.jpg", b"hello")
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": 9999},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "error",
+                "message": "Page not found",
+            },
+        )
 
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 500)
+    def test_not_author(self):
+        user = User.objects.create_user(username="user2", email="user2@test.com")
+
+        self.client.force_login(user)
+        file = SimpleUploadedFile("test.jpg", b"hello")
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "error",
+                "message": "No permission to edit this article",
+            },
+        )
+
+    def test_no_file(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            {"articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "error",
+                "message": "File is required.",
+            },
+        )
+
+    @patch("articles.forms.AttachedFileUploadForm.clean_file")
+    def test_invalid_file(self, mock_clean):
+        mock_clean.side_effect = ValidationError("Some error")
+
+        self.client.force_login(self.user)
+        file = SimpleUploadedFile("test.jpg", b"hello")
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "error",
+                "message": "Some error",
+            },
+        )
+
+    @patch(
+        "articles.views.base.save_media_file_attached_to_article",
+        side_effect=MediaSaveError("Media save error"),
+    )
+    @patch("articles.views.base.logger")
+    @patch("articles.forms.validate_uploaded_file")
+    def test_file_save_error(self, mock_validate, mock_logger, mock_save):
+        self.client.force_login(self.user)
+        file = SimpleUploadedFile("test.jpg", b"hello")
 
         response = self.client.post(
-            url, {}, headers={"X-Requested-With": "XMLHttpRequest"}
+            self.url,
+            {"file": file, "articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
         )
-        self.assertEqual(response.status_code, 200)
-        response_json = response.json()
-        self.assertEqual(response_json["status"], "error")
+
+        mock_save.assert_called_once()
+        self.assertEqual(response.status_code, 500)
         self.assertEqual(
-            response_json["message"], "HTTP Error 500: Internal server error"
+            response.json(), {"status": "error", "message": "File saving error"}
+        )
+        mock_logger.exception.assert_called_once_with(
+            "Error while saving uploaded file."
         )
 
-        self.client.raise_request_exception = True
+    @patch(
+        "articles.views.base.save_media_file_attached_to_article",
+        side_effect=ZeroDivisionError("Unexpected error"),
+    )
+    @patch("articles.views.base.logger")
+    @patch("articles.forms.validate_uploaded_file")
+    def test_unexpected_error(self, mock_validate, mock_logger, mock_save):
+        self.client.force_login(self.user)
+        file = SimpleUploadedFile("test.jpg", b"hello")
 
-    def test_attached_file_upload_view_correct(self):
-        file_name = "file.jpg"
-        self.client.force_login(self.test_user)
+        self.client.raise_request_exception = False
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
 
-        with (
-            patch(
-                "django.core.files.storage.default_storage.save",
-                side_effect=[file_name],
-            ),
-            patch(
-                "django.core.files.storage.default_storage.url", side_effect=[file_name]
-            ),
-        ):
-            file = SimpleUploadedFile(
-                file_name, b"file_content", content_type="image/jpg"
-            )
-            response = self.client.post(
-                reverse("attached-file-upload"),
-                {"articleId": self.test_article.id, "file": file},
-                headers={"X-Requested-With": "XMLHttpRequest"},
-            )
-            self.assertEqual(response.status_code, 200)
-            response_json = response.json()
-            self.assertEqual(response_json["status"], "success")
-            self.assertEqual(
-                response_json["data"],
-                {"location": "file.jpg", "articleUrl": "/articles/test-article"},
-            )
+        mock_save.assert_called_once()
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json(), {"status": "error", "message": "Internal server error"}
+        )
