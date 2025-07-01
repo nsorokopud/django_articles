@@ -13,8 +13,9 @@ class BasicErrorView(View):
             return JsonResponse(
                 {
                     "status": "error",
-                    "message": f"HTTP Error {self.error_code}: {self.error_message}",
-                }
+                    "message": self.error_message,
+                },
+                status=self.error_code,
             )
         context = {"error_code": self.error_code, "error_message": self.error_message}
         return render(self.request, self.template, context, status=self.error_code)

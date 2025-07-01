@@ -186,10 +186,10 @@ class TestViews(TestCase):
             updated_data,
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(
             response.json(),
-            {"status": "error", "message": "HTTP Error 404: Page not found"},
+            {"status": "error", "message": "Page not found"},
         )
 
         user = User.objects.create_user(username="user1")
@@ -199,10 +199,10 @@ class TestViews(TestCase):
             updated_data,
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(
             response.json(),
-            {"message": "HTTP Error 404: Page not found", "status": "error"},
+            {"message": "Page not found", "status": "error"},
         )
 
     def test_article_update_view_post_authorized(self):
@@ -243,10 +243,10 @@ class TestViews(TestCase):
         response = self.client.post(
             url, updated_data, headers={"X-Requested-With": "XMLHttpRequest"}
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 500)
         self.assertEqual(
             response.json(),
-            {"status": "error", "message": "HTTP Error 500: Internal server error"},
+            {"status": "error", "message": "Internal server error"},
         )
         self.client.raise_request_exception = True
 
