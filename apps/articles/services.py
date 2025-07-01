@@ -1,18 +1,23 @@
 import logging
 import os
-from typing import IO, List, Optional
+import posixpath
+from typing import BinaryIO, List, Optional
 from uuid import uuid4
 
+from boto3.exceptions import S3UploadFailedError
+from botocore.exceptions import ClientError
+from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.storage import default_storage
 from django.db import DatabaseError, connection, transaction
 from django.db.models import Count, F
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
+from django.utils.text import get_valid_filename
 
+from core.exceptions import MediaSaveError
 from users.models import User
 
 from .models import Article, ArticleCategory, ArticleComment
-from .selectors import get_article_by_id
 
 
 logger = logging.getLogger("default_logger")
@@ -148,16 +153,37 @@ def _generate_unique_article_slug(article_title: str):
         return unique_slug
 
 
-def save_media_file_attached_to_article(file: IO, article_id: int) -> tuple[str, str]:
-    article = get_article_by_id(article_id)
-    name, extension = str(file).split(".")
-    filename = f"{name}_{uuid4()}.{extension}"
-    directory = os.path.join(
-        "articles", "uploads", article.author.username, str(article_id)
-    )
-    file_path = os.path.join(directory, filename)
-    default_storage.save(file_path, file)
+def save_media_file_attached_to_article(
+    file: BinaryIO, article: Article
+) -> tuple[str, str]:
+    file_path = _build_safe_file_path(file, article)
+
+    try:
+        file_path = default_storage.save(file_path, file)
+    except (
+        OSError,
+        SuspiciousFileOperation,
+        S3UploadFailedError,
+        ClientError,
+    ) as e:
+        logger.exception(
+            "Failed to save file for article %s: %s (%s)",
+            article.id,
+            file_path,
+            type(e).__name__,
+        )
+        raise MediaSaveError("Could not save the uploaded file.") from e
+
     return file_path, article.get_absolute_url()
+
+
+def _build_safe_file_path(file: BinaryIO, article: Article) -> str:
+    base_name, extension = os.path.splitext(file.name)
+    safe_base_name = get_valid_filename(base_name)
+    filename = f"{safe_base_name}_{uuid4().hex}.{extension.lower()}"
+    author_dir = get_valid_filename(article.author.get_username())
+    directory = posixpath.join("articles", "uploads", author_dir, str(article.pk))
+    return posixpath.join(directory, filename)
 
 
 def delete_media_files_attached_to_article(article: Article) -> None:
