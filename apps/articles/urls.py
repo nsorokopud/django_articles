@@ -13,7 +13,7 @@ urlpatterns = [
     path("articles/", views.ArticleListFilterView.as_view(), name="articles"),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
-        "articles/<slug:article_slug>/update",
+        "articles/<slug:article_slug>/edit",
         views.ArticleUpdateView.as_view(),
         name="article-update",
     ),

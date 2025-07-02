@@ -73,7 +73,7 @@
                 {% if article.author == request.user %}
                   <div class="mt-4">
                     <a class="btn btn-secondary btn-sm mx-2"
-                       href="{% url 'article-update' article.slug %}">Update</a>
+                       href="{% url 'article-update' article.slug %}">Edit</a>
                     <a class="btn btn-danger btn-sm"
                        href="{% url 'article-delete' article.slug %}">Delete</a>
                   </div>
