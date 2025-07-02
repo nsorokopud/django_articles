@@ -15,6 +15,7 @@ server {
     ssl_certificate ${SSL_CERT_PATH};
     ssl_certificate_key ${SSL_CERT_KEY_PATH};
     server_name ${DOMAIN_NAME} www.${DOMAIN_NAME};
+    client_max_body_size 5M;
 
     location /favicon.ico {
         access_log off;
