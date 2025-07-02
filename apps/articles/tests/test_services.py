@@ -373,8 +373,8 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
         mock_logger.warning.assert_not_called()
         mock_logger.exception.assert_not_called()
 
-    @patch("articles.services.logger")
-    @patch("articles.services.default_storage.save")
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.default_storage.save")
     def test_storage_save_failure(self, mock_save, mock_logger):
         mock_save.side_effect = OSError("Disk error")
         file = SimpleUploadedFile("file.jpeg", b"test", content_type="image/jpeg")
