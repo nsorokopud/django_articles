@@ -43,7 +43,7 @@ def create_article(
         content=content,
         is_published=True,
     )
-    article.slug = _generate_unique_article_slug(title)
+    article.slug = generate_unique_article_slug(title)
     article.save()
     if tags is not None:
         article.tags.add(*tags)
@@ -132,7 +132,7 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
     return likes_count
 
 
-def _generate_unique_article_slug(article_title: str):
+def generate_unique_article_slug(article_title: str):
     """Returns a unique slug for the specified article title. If an
     article with the specified title already exists, the corresponding
     slug is returned. Otherwise the next available unique slug is

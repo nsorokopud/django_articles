@@ -9,10 +9,10 @@ from django.test import TestCase
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
-    _generate_unique_article_slug,
     bulk_increment_article_view_counts,
     create_article,
     delete_media_files_attached_to_article,
+    generate_unique_article_slug,
     increment_article_views_counter,
     save_media_file_attached_to_article,
     toggle_article_like,
@@ -31,8 +31,8 @@ class TestServices(TestCase):
             title="test_cat", slug="test_cat"
         )
 
-    def test__generate_unique_article_slug(self):
-        self.assertEqual(_generate_unique_article_slug("abc"), "abc")
+    def test_generate_unique_article_slug(self):
+        self.assertEqual(generate_unique_article_slug("abc"), "abc")
 
         Article.objects.create(
             title="abc",
@@ -42,8 +42,8 @@ class TestServices(TestCase):
             content="1",
         )
 
-        self.assertEqual(_generate_unique_article_slug("abc"), "abc")
-        self.assertEqual(_generate_unique_article_slug("abc "), "abc-1")
+        self.assertEqual(generate_unique_article_slug("abc"), "abc")
+        self.assertEqual(generate_unique_article_slug("abc "), "abc-1")
 
         Article.objects.create(
             title="abc-",
@@ -52,9 +52,9 @@ class TestServices(TestCase):
             preview_text="1",
             content="1",
         )
-        self.assertEqual(_generate_unique_article_slug("abc"), "abc")
-        self.assertEqual(_generate_unique_article_slug("abc-"), "abc-1")
-        self.assertEqual(_generate_unique_article_slug("abc -"), "abc-2")
+        self.assertEqual(generate_unique_article_slug("abc"), "abc")
+        self.assertEqual(generate_unique_article_slug("abc-"), "abc-1")
+        self.assertEqual(generate_unique_article_slug("abc -"), "abc-2")
 
     def test_create_article(self):
         a1 = create_article(
