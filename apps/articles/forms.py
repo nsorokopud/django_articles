@@ -5,7 +5,7 @@ from core.exceptions import InvalidUpload
 from core.validators import validate_uploaded_file
 
 from .models import Article, ArticleComment
-from .services import _generate_unique_article_slug, create_article
+from .services import create_article, generate_unique_article_slug
 
 
 class ArticleCreateForm(forms.ModelForm):
@@ -57,7 +57,7 @@ class ArticleUpdateForm(forms.ModelForm):
 
     def save(self, **kwargs):
         instance = super().save(commit=False, **kwargs)
-        instance.slug = _generate_unique_article_slug(instance.title)
+        instance.slug = generate_unique_article_slug(instance.title)
         instance.save()
         self.save_m2m()
         return instance

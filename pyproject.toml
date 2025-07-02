@@ -53,7 +53,7 @@ per-file-ignores = [
   "filters.py:W0613",
   "commands/:W0718",
   "migrations/:C0103,C0301",
-  "services.py:R0913",
+  "services*:R0913",
   "tasks.py:W0621",
   "tests/:R0401,R0801,R0904,R0915,W0104,W0106,W0212,W0612,W0613",
   "users/auth_backends.py:C0103",
