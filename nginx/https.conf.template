@@ -7,7 +7,13 @@ server {
     server_name ${DOMAIN_NAME} www.${DOMAIN_NAME};
     client_max_body_size 5M;
 
-    return 301 https://$host/$request_uri;
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
