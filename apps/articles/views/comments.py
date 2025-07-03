@@ -22,7 +22,6 @@ class ArticleCommentView(LoginRequiredMixin, View):
 
 
 class CommentLikeView(LoginRequiredMixin, View):
-    def post(self, request, comment_id) -> JsonResponse:
-        user_id = request.user.id
-        likes_count = toggle_comment_like(comment_id, user_id)
-        return JsonResponse({"comment_likes_count": likes_count})
+    def post(self, request, comment_id: int) -> JsonResponse:
+        data = {"likes_count": toggle_comment_like(comment_id, request.user.id)}
+        return JsonResponse({"status": "success", "data": data}, status=200)
