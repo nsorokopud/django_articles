@@ -79,3 +79,24 @@ class ArticleCommentForm(forms.ModelForm):
     class Meta:
         model = ArticleComment
         fields = ["text"]
+
+    def __init__(self, *args, user=None, article=None, **kwargs) -> None:
+        self.user = user
+        self.article = article
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.user:
+            raise ValidationError("User is required to save the comment.")
+        if not self.article:
+            raise ValidationError("Article is required to save the comment.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        comment = super().save(commit=False)
+        comment.author = self.user
+        comment.article = self.article
+        if commit:
+            comment.save()
+        return comment
