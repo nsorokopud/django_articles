@@ -1,20 +1,5 @@
 likeArticle();
 
-function getCookie(cname) {
-  let name = cname + '=';
-  let ca = document.cookie.split(';');
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) == ' ') {
-      c = c.substring(1);
-    }
-    if (c.indexOf(name) == 0) {
-      return c.substring(name.length, c.length);
-    }
-  }
-  return '';
-}
-
 function likeArticle() {
   const likeLink = document.getElementById('articleLikeLink');
   const likeIcon = document.getElementById('articleLikeIcon');
@@ -26,7 +11,7 @@ function likeArticle() {
       let xhr = new XMLHttpRequest();
       let url = likeLink.href;
 
-      let csrftoken = getCookie('csrftoken');
+      let csrftoken = Cookies.get('csrftoken');
 
       xhr.open('POST', url, true);
       xhr.setRequestHeader('X-CSRFToken', csrftoken);
@@ -53,7 +38,7 @@ function likeComment(e, comment_id) {
     let xhr = new XMLHttpRequest();
     let url = commentLink.href;
 
-    let csrftoken = getCookie('csrftoken');
+    let csrftoken = Cookies.get('csrftoken');
 
     xhr.open('POST', url, true);
     xhr.setRequestHeader('X-CSRFToken', csrftoken);
