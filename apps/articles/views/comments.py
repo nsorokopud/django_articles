@@ -1,7 +1,8 @@
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.views import View
 
 from ..forms import ArticleCommentForm
@@ -10,16 +11,14 @@ from ..services import toggle_comment_like
 
 
 class ArticleCommentView(LoginRequiredMixin, View):
-    login_url = reverse_lazy("login")
-
-    def post(self, request, article_slug) -> HttpResponseRedirect:
-        form = ArticleCommentForm(request.POST)
+    def post(self, request, article_slug: str) -> HttpResponseRedirect:
+        article = get_object_or_404(Article, slug=article_slug)
+        form = ArticleCommentForm(request.POST, user=request.user, article=article)
         if form.is_valid():
-            comment = form.save(commit=False)
-            comment.article = get_object_or_404(Article, slug=article_slug)
-            comment.author = request.user
-            comment.save()
-            return redirect(reverse("article-details", args=[article_slug]))
+            form.save()
+        else:
+            messages.error(request, "Your comment could not be posted.")
+        return redirect(reverse("article-details", args=[article_slug]))
 
 
 class CommentLikeView(LoginRequiredMixin, View):

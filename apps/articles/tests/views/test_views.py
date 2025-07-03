@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Count
@@ -313,40 +314,6 @@ class TestViews(TestCase):
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)
 
-    def test_article_comment_view_unauthorized(self):
-        url = reverse("article-comment", args=[self.test_article.slug])
-        response = self.client.get(url)
-        self.assertRedirects(
-            response,
-            f"{reverse('login')}?next={url}",
-            status_code=302,
-            target_status_code=200,
-        )
-
-    def test_article_comment_view_authorized(self):
-        url = reverse("article-comment", args=[self.test_article.slug])
-        comment_data = {"text": "text"}
-
-        self.client.force_login(self.test_user)
-        with (
-            patch("articles.cache.get_redis_connection"),
-            patch("articles.views.decorators.get_redis_connection"),
-        ):
-            response = self.client.post(url, comment_data)
-            self.assertRedirects(
-                response,
-                reverse("article-details", args=[self.test_article.slug]),
-                status_code=302,
-                target_status_code=200,
-            )
-
-        article_comments = ArticleComment.objects.filter(article=self.test_article)
-        self.assertEqual(len(article_comments), 2)
-        last_comment = article_comments.last()
-        self.assertEqual(last_comment.text, comment_data["text"])
-        self.assertEqual(last_comment.article, self.test_article)
-        self.assertEqual(last_comment.author, self.test_user)
-
     def test_article_like_view_get(self):
         url = reverse("article-like", args=[self.test_article.slug])
         response = self.client.get(url)
@@ -654,3 +621,80 @@ class TestAttachedFileUploadView(TestCase):
         self.assertEqual(
             response.json(), {"status": "error", "message": "Internal server error"}
         )
+
+
+class TestArticleCommentView(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.user,
+            preview_text="text1",
+            content="content1",
+        )
+        self.url = reverse("article-comment", args=[self.article.slug])
+
+    def test_anonymous_user(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={self.url}",
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertEqual(ArticleComment.objects.count(), 0)
+
+    def test_non_existent_article(self):
+        url = reverse("article-comment", args=["non-existent-article"])
+        comment_data = {"text": "text"}
+
+        self.client.force_login(self.user)
+        response = self.client.post(url, comment_data)
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "error.html")
+        self.assertEqual(ArticleComment.objects.count(), 0)
+
+    def test_form_error(self):
+        comment_data = {"text": ""}
+
+        self.client.force_login(self.user)
+        with (
+            patch("articles.cache.get_redis_connection"),
+            patch("articles.views.decorators.get_redis_connection"),
+        ):
+            response = self.client.post(self.url, comment_data)
+            self.assertRedirects(
+                response,
+                reverse("article-details", args=[self.article.slug]),
+                status_code=302,
+                target_status_code=200,
+            )
+        messages = list(get_messages(response.wsgi_request))
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].level, 40)  # ERROR level
+        self.assertEqual(messages[0].message, "Your comment could not be posted.")
+        self.assertEqual(ArticleComment.objects.count(), 0)
+
+    def test_correct_case(self):
+        comment_data = {"text": "text"}
+
+        self.client.force_login(self.user)
+        with (
+            patch("articles.cache.get_redis_connection"),
+            patch("articles.views.decorators.get_redis_connection"),
+        ):
+            response = self.client.post(self.url, comment_data)
+            self.assertRedirects(
+                response,
+                reverse("article-details", args=[self.article.slug]),
+                status_code=302,
+                target_status_code=200,
+            )
+
+        self.assertEqual(ArticleComment.objects.count(), 1)
+        last_comment = ArticleComment.objects.last()
+        self.assertEqual(last_comment.text, comment_data["text"])
+        self.assertEqual(last_comment.article, self.article)
+        self.assertEqual(last_comment.author, self.user)
