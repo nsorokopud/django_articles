@@ -81,7 +81,6 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
     form_class = ArticleCreateForm
     template_name = "articles/article_form.html"
-    login_url = reverse_lazy("login")
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
@@ -104,7 +103,6 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     model = Article
     form_class = ArticleUpdateForm
-    login_url = reverse_lazy("login")
     template_name_suffix = "_form"
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
