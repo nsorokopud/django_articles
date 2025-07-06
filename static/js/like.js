@@ -1,56 +1,57 @@
-likeArticle();
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.like-link').forEach((link) => {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      handleLike(link);
+    });
+  });
+});
 
-function likeArticle() {
-  const likeLink = document.getElementById('articleLikeLink');
-  const likeIcon = document.getElementById('articleLikeIcon');
-  const likesCounter = document.getElementById('articleLikesCounter');
+function handleLike(linkEl) {
+  const isLoggedIn = linkEl.dataset.loggedIn === 'yes';
+  const url = linkEl.getAttribute('href');
 
-  likeLink.onclick = (e) => {
-    e.preventDefault();
-    if (likeLink.hasAttribute('is_logged_in')) {
-      let xhr = new XMLHttpRequest();
-      let url = likeLink.href;
+  if (!isLoggedIn) {
+    alert(`Please, log in to like this ${linkEl.dataset.type}!`);
+    return;
+  }
 
-      let csrftoken = Cookies.get('csrftoken');
+  const iconEl = linkEl.querySelector('.like-icon');
+  const counterEl =
+    linkEl.querySelector('.like-counter') ||
+    linkEl.parentElement.querySelector('.like-counter');
+  const csrftoken = Cookies.get('csrftoken');
 
-      xhr.open('POST', url, true);
-      xhr.setRequestHeader('X-CSRFToken', csrftoken);
-      xhr.dataType = 'json';
-      xhr.responseType = 'json';
-      xhr.send();
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  xhr.setRequestHeader('X-CSRFToken', csrftoken);
+  xhr.responseType = 'json';
+  xhr.send();
 
-      xhr.onload = function () {
-        let response = xhr.response;
-        likeIcon.classList.toggle('active');
-        likesCounter.textContent = response['likes_count'];
-      };
+  xhr.onload = function () {
+    if (xhr.status === 200 && xhr.response) {
+      const { status, data } = xhr.response;
+
+      if (
+        status === 'success' &&
+        data &&
+        typeof data.likes_count === 'number'
+      ) {
+        iconEl?.classList.toggle('active');
+        counterEl.textContent = data.likes_count;
+      } else {
+        console.error('Unexpected response format:', xhr.response);
+        alert('Something went wrong. Please try again.');
+      }
     } else {
-      alert('Please, log in if you want to like an article!');
+      console.error('Like request failed. Status:', xhr.status, xhr.response);
+      alert('Failed to like. Please try again later.');
     }
   };
-}
 
-function likeComment(e, comment_id) {
-  e.preventDefault();
-  let commentLink = document.getElementById('commentLink' + comment_id);
-
-  if (commentLink.hasAttribute('is_logged_in')) {
-    let xhr = new XMLHttpRequest();
-    let url = commentLink.href;
-
-    let csrftoken = Cookies.get('csrftoken');
-
-    xhr.open('POST', url, true);
-    xhr.setRequestHeader('X-CSRFToken', csrftoken);
-    xhr.dataType = 'json';
-    xhr.responseType = 'json';
-    xhr.send();
-
-    xhr.onload = function () {
-      let response = xhr.response;
-      commentLink.getElementsByTagName('i')[0].classList.toggle('active');
-      commentLink.getElementsByClassName('comment-like-count')[0].textContent =
-        response['comment_likes_count'];
-    };
-  } else alert('Please, log in if you want to like a comment!');
+  xhr.onerror = function () {
+    console.error('Network error occurred during like request.');
+    alert('Network error. Please check your connection.');
+  };
 }

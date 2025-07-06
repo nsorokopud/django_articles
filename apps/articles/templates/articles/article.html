@@ -57,16 +57,16 @@
                     <span class="article-icon-counter">{{ article.views }}</span>
                   </span>
                   <span class="mx-2 article-preview-icons__item">
-                    <a id="articleLikeLink"
-                       class="article-icon"
+                    <a class="article-icon like-link"
                        href="{% url 'article-like' article.slug %}"
-                       {% if request.user.is_authenticated %}is_logged_in{% endif %}>
+                       data-type="article"
+                       data-logged-in="{{ request.user.is_authenticated|yesno }}">
                       <i id="articleLikeIcon"
-                         class="article-icon fas fa-thumbs-up m-1
+                         class="like-icon article-icon fas fa-thumbs-up m-1
                                 {% if user_liked %}active{% endif %}">
                       </i>
                     </a>
-                    <span id="articleLikesCounter" class="article-icon-counter">
+                    <span id="articleLikesCounter" class="like-counter article-icon-counter">
                     {{ article.likes_count }}</span>
                   </span>
                 </span>
@@ -139,15 +139,15 @@
                       <p>{{ comment.text }}</p>
                       <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                          <a id="commentLink{{ comment.id }}"
-                             href="{% url 'comment-like' comment.id %}"
-                             onClick="likeComment(event, {{ comment.id }})"
-                             class="comment-like-link link-muted me-2"
-                             {% if request.user.is_authenticated %}is_logged_in{% endif %}>
-                            <i class="article-icon fas fa-thumbs-up m-1
+                          <a href="{% url 'comment-like' comment.id %}"
+                             class="like-link link-muted me-2"
+                             data-type="comment"
+                             data-id="{{ comment.id }}"
+                             data-logged-in="{{ request.user.is_authenticated|yesno }}">
+                            <i class="like-icon article-icon fas fa-thumbs-up m-1
                                       {% if comment.id in liked_comments %}active{% endif %}">
                             </i>
-                            <span class="comment-like-count">{{ comment.likes_count }}</span>
+                            <span class="like-counter comment-like-count">{{ comment.likes_count }}</span>
                           </a>
                         </div>
                       </div>
