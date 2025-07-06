@@ -33,13 +33,9 @@ function handleLike(linkEl) {
     if (xhr.status === 200 && xhr.response) {
       const { status, data } = xhr.response;
 
-      if (
-        status === 'success' &&
-        data &&
-        typeof data.likes_count === 'number'
-      ) {
+      if (status === 'success' && data && typeof data.likes === 'number') {
         iconEl?.classList.toggle('active');
-        counterEl.textContent = data.likes_count;
+        counterEl.textContent = data.likes;
       } else {
         console.error('Unexpected response format:', xhr.response);
         alert('Something went wrong. Please try again.');
