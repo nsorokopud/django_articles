@@ -342,6 +342,9 @@ class TestViews(TestCase):
         self.client.force_login(self.test_user)
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"status": "success", "data": {"likes_count": 1}}
+        )
         self.assertCountEqual(
             list(self.test_article.users_that_liked.all()), [self.test_user]
         )
@@ -355,6 +358,9 @@ class TestViews(TestCase):
 
         response = self.client.post(url)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(), {"status": "success", "data": {"likes_count": 0}}
+        )
         self.assertCountEqual(list(self.test_article.users_that_liked.all()), [])
         likes_count = (
             Article.objects.filter(slug=self.test_article.slug)

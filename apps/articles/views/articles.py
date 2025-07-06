@@ -133,6 +133,5 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
 
 class ArticleLikeView(LoginRequiredMixin, View):
     def post(self, request, article_slug) -> JsonResponse:
-        user_id = request.user.id
-        likes_count = toggle_article_like(article_slug, user_id)
-        return JsonResponse({"likes_count": likes_count})
+        data = {"likes_count": toggle_article_like(article_slug, request.user.id)}
+        return JsonResponse({"status": "success", "data": data}, status=200)
