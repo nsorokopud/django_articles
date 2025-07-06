@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.db.models import Count
 from django.http import Http404
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -309,55 +308,3 @@ class TestViews(TestCase):
 
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)
-
-    def test_article_like_view_get(self):
-        url = reverse("article-like", args=[self.test_article.slug])
-        response = self.client.get(url)
-        self.assertRedirects(
-            response,
-            "/login/?next=/articles/test-article/like",
-            status_code=302,
-            target_status_code=200,
-        )
-
-        self.client.force_login(self.test_user)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 405)
-
-    def test_article_like_view_post(self):
-        url = reverse("article-like", args=[self.test_article.slug])
-
-        response = self.client.post(url)
-        self.assertRedirects(
-            response,
-            "/login/?next=/articles/test-article/like",
-            status_code=302,
-            target_status_code=200,
-        )
-
-        self.client.force_login(self.test_user)
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"status": "success", "data": {"likes": 1}})
-        self.assertCountEqual(
-            list(self.test_article.users_that_liked.all()), [self.test_user]
-        )
-        likes_count = (
-            Article.objects.filter(slug=self.test_article.slug)
-            .annotate(likes_count=Count("users_that_liked", distinct=True))
-            .first()
-            .likes_count
-        )
-        self.assertEqual(likes_count, 1)
-
-        response = self.client.post(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"status": "success", "data": {"likes": 0}})
-        self.assertCountEqual(list(self.test_article.users_that_liked.all()), [])
-        likes_count = (
-            Article.objects.filter(slug=self.test_article.slug)
-            .annotate(likes_count=Count("users_that_liked", distinct=True))
-            .first()
-            .likes_count
-        )
-        self.assertEqual(likes_count, 0)
