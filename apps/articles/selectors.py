@@ -3,7 +3,6 @@ from typing import Iterable, Optional
 
 from django.db.models import Count, Q, Subquery
 from django.db.models.query import QuerySet
-from django.shortcuts import get_object_or_404
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
@@ -125,11 +124,6 @@ def get_all_categories() -> QuerySet[ArticleCategory]:
 
 def get_all_tags():
     return Tag.objects.all()
-
-
-def get_all_users_that_liked_article(article_slug: str) -> QuerySet[User]:
-    article = get_object_or_404(Article, slug=article_slug)
-    return article.users_that_liked.all()
 
 
 def get_comment_by_id(comment_id: int) -> ArticleComment:
