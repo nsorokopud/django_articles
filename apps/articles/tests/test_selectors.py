@@ -10,7 +10,6 @@ from articles.selectors import (
     find_published_articles,
     get_all_categories,
     get_all_tags,
-    get_article_by_id,
     get_article_by_slug,
     get_comment_by_id,
 )
@@ -267,27 +266,6 @@ class TestSelectors(TestCase):
         a2.tags.add("tag2", "tag3")
         res = [tag.name for tag in get_all_tags()]
         self.assertCountEqual(res, ["tag1", "tag2", "tag3"])
-
-    def test_get_article_by_id(self):
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_id(1)
-
-        a = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-        _id = a.id
-
-        res = get_article_by_id(_id)
-        self.assertEqual(res, a)
-
-        a.delete()
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_id(_id)
 
     def test_get_article_by_slug(self):
         with self.assertRaises(Article.DoesNotExist):

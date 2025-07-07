@@ -94,16 +94,6 @@ def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
     )
 
 
-def get_article_by_id(article_id: int) -> Article:
-    return (
-        Article.objects.select_related("author")
-        .select_related("author__profile")
-        .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
-        .get(id=article_id)
-    )
-
-
 def get_article_by_slug(article_slug: str) -> Article:
     return (
         Article.objects.select_related("author")
