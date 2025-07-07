@@ -4,7 +4,6 @@ from articles.models import Article, ArticleCategory, ArticleComment
 from articles.selectors import (
     find_article_comments_liked_by_user,
     find_articles_by_query,
-    find_articles_of_category,
     find_articles_with_all_tags,
     find_comments_to_article,
     find_published_articles,
@@ -54,39 +53,6 @@ class TestSelectors(TestCase):
             is_published=True,
         )
         self.assertCountEqual(find_published_articles(), [a1, a3])
-
-    def test_find_articles_of_category(self):
-        a1 = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-            is_published=True,
-        )
-        Article.objects.create(
-            title="a2",
-            slug="a2",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text2",
-            content="content2",
-            is_published=False,
-        )
-
-        cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
-
-        Article.objects.create(
-            title="a3",
-            slug="a3",
-            category=cat1,
-            author=self.test_user,
-            preview_text="text3",
-            content="content3",
-            is_published=True,
-        )
-        self.assertCountEqual(find_articles_of_category(self.test_category.slug), [a1])
 
     def test_find_articles_with_all_tags(self):
         a1 = Article.objects.create(
