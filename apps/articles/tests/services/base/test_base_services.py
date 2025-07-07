@@ -5,7 +5,6 @@ from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
     create_article,
     generate_unique_article_slug,
-    increment_article_views_counter,
     toggle_article_like,
     toggle_comment_like,
 )
@@ -183,21 +182,3 @@ class TestServices(TestCase):
         self.assertEqual(likes_count, 1)
         likes_count = toggle_comment_like(comment.id, user.id)
         self.assertEqual(likes_count, 0)
-
-    def test_increment_article_views_count(self):
-        a1 = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.category,
-            author=self.user,
-            preview_text="text1",
-            content="content1",
-            is_published=True,
-        )
-        self.assertEqual(a1.views_count, 0)
-        new_views_count = increment_article_views_counter(a1)
-        self.assertEqual(new_views_count, 1)
-        self.assertEqual(a1.views_count, 1)
-        new_views_count = increment_article_views_counter(a1)
-        self.assertEqual(new_views_count, 2)
-        self.assertEqual(a1.views_count, 2)

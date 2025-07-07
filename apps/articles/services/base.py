@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 
 from django.db import DatabaseError, connection, transaction
-from django.db.models import Count, F
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 
@@ -39,13 +39,6 @@ def create_article(
     if tags is not None:
         article.tags.add(*tags)
     return article
-
-
-def increment_article_views_counter(article: Article) -> int:
-    article.views_count = F("views_count") + 1
-    article.save(update_fields=("views_count",))
-    article.refresh_from_db()
-    return article.views_count
 
 
 def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
