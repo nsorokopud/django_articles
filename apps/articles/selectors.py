@@ -108,7 +108,7 @@ def get_all_categories() -> QuerySet[ArticleCategory]:
     )
 
 
-def get_all_tags():
+def get_all_tags() -> QuerySet[Tag]:
     return Tag.objects.all()
 
 
