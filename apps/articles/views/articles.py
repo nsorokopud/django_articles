@@ -23,8 +23,8 @@ from ..selectors import (
 )
 from ..services import toggle_article_like
 from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
-from ..utils import AllowOnlyAuthorMixin
 from .decorators import increment_article_view_counter
+from .mixins import AllowOnlyAuthorMixin
 
 
 logger = logging.getLogger("default_logger")
