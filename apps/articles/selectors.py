@@ -16,9 +16,7 @@ logger = logging.getLogger("default_logger")
 def find_published_articles() -> QuerySet[Article]:
     return (
         Article.objects.filter(is_published=True)
-        .select_related("category")
-        .select_related("author")
-        .select_related("author__profile")
+        .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
         .annotate(comments_count=Count("articlecomment", distinct=True))
@@ -84,16 +82,14 @@ def find_article_comments_liked_by_user(article: Article, user: User) -> QuerySe
 def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
     return (
         ArticleComment.objects.filter(article=article)
-        .select_related("author")
-        .select_related("author__profile")
+        .select_related("author", "author__profile")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
     )
 
 
 def get_article_by_slug(article_slug: str) -> Article:
     return (
-        Article.objects.select_related("author")
-        .select_related("author__profile")
+        Article.objects.select_related("author", "author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
         .get(slug=article_slug)
