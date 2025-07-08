@@ -1,4 +1,5 @@
 from django.test import TestCase
+from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.selectors import (
@@ -91,11 +92,26 @@ class TestSelectors(TestCase):
         a3.tags.add("tag2", "tag7")
         a3.save()
 
-        self.assertCountEqual(find_articles_with_all_tags(["ehjnrkhn"]), [])
-        self.assertCountEqual(find_articles_with_all_tags(["tag2"]), [a1, a3])
-        self.assertCountEqual(find_articles_with_all_tags(["tag7", "tag2"]), [a3])
+        with self.assertRaises(TypeError):
+            find_articles_with_all_tags(None)
+
+        self.assertCountEqual(find_articles_with_all_tags([]), [])
+
+        tags = Tag.objects.filter(name__in=["ehjnrkhn"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [])
+
+        tags = Tag.objects.filter(name__in=["tag2"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [a1, a3])
+
+        tags = Tag.objects.filter(name__in=["tag2", "tag2"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [a1, a3])
+
+        tags = Tag.objects.filter(name__in=["tag7", "tag2"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [a3])
+
+        tags = Tag.objects.filter(name__in=["tag2"])
         queryset = Article.objects.filter(id__in=[a1.id, a2.id])
-        self.assertCountEqual(find_articles_with_all_tags(["tag2"], queryset), [a1])
+        self.assertCountEqual(find_articles_with_all_tags(tags, queryset), [a1])
 
     def test_find_articles_by_query(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
