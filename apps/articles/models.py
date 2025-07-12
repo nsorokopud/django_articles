@@ -65,7 +65,7 @@ class ArticleComment(models.Model):
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     users_that_liked = models.ManyToManyField(
-        User, related_name="users_that_liked_comment", blank=True
+        User, related_name="liked_comments", blank=True
     )
 
     class Meta:
