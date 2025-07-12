@@ -31,11 +31,25 @@ class Article(models.Model):
         verbose_name_plural = "Articles"
         ordering = ["-created_at"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._from_admin = False
+        self._original_title = self.title
+
     def __str__(self):
         return self.title
 
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
+
+    def save(self, *args, **kwargs):
+        from .services import generate_unique_article_slug
+
+        title_changed = not self.pk or self._original_title != self.title
+        if not self._from_admin and title_changed:
+            self.slug = generate_unique_article_slug(self.title)
+
+        super().save(*args, **kwargs)
 
     @property
     def views(self) -> int:
