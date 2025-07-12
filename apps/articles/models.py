@@ -9,8 +9,8 @@ from .settings import DISPLAYED_COMMENT_LENGTH
 
 
 class Article(models.Model):
-    title = models.CharField(max_length=256, unique=True, db_index=True)
-    slug = models.SlugField(max_length=256, unique=True, db_index=True)
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
     category = models.ForeignKey(
         "ArticleCategory", null=True, blank=True, on_delete=models.SET_NULL
     )
@@ -23,7 +23,7 @@ class Article(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, db_index=True)
     users_that_liked = models.ManyToManyField(
-        User, related_name="users_that_liked", blank=True
+        User, related_name="liked_articles", blank=True
     )
     views_count = models.IntegerField(default=0)
 
