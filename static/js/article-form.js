@@ -92,7 +92,7 @@ function onArticleFormUpdateButtonClick() {
 
 function updateArticle(articleSlug, form, editor) {
   xhr = new XMLHttpRequest();
-  xhr.open('POST', `/articles/${articleSlug}/update`);
+  xhr.open('POST', `/articles/${articleSlug}/edit`);
   xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
