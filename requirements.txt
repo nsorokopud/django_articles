@@ -153,6 +153,8 @@ minify-html==0.15.0
     # via django-minify-html
 msgpack==1.1.0
     # via channels-redis
+nanoid==2.0.0
+    # via -r requirements.in
 pillow==10.4.0
     # via -r requirements.in
 prometheus-client==0.21.1

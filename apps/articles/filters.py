@@ -1,3 +1,4 @@
+from django.db.models import QuerySet
 from django.forms import TextInput
 from django_filters import FilterSet
 from django_filters.filters import (
@@ -27,15 +28,14 @@ class ArticleFilter(FilterSet):
         label="Search",
         widget=TextInput(attrs={"placeholder": "Enter text..."}),
     )
-    author = ModelChoiceFilter(queryset=get_all_users(), to_field_name="username")
+    author = ModelChoiceFilter(to_field_name="username")
     date = DateFromToRangeFilter(
         field_name="created_at",
         widget=DateRangeWidget(attrs={"type": "date"}),
         label="Date [after - before]",
     )
-    category = ModelChoiceFilter(queryset=get_all_categories(), to_field_name="slug")
+    category = ModelChoiceFilter(to_field_name="slug")
     tags = ModelMultipleChoiceFilter(
-        queryset=get_all_tags(),
         to_field_name="name",
         method="tags_filter",
         widget=Select2TagWidget(attrs={"id": "filterTagsInput"}),
@@ -52,8 +52,18 @@ class ArticleFilter(FilterSet):
         model = Article
         fields = ["q", "author", "date", "category", "tags", "ordering"]
 
-    def search_filter(self, queryset, name, value):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.filters["author"].queryset = get_all_users()
+        self.filters["category"].queryset = get_all_categories()
+        self.filters["tags"].queryset = get_all_tags()
+
+    def search_filter(self, queryset, name, value) -> QuerySet[Article]:
+        if not value:
+            return queryset
         return find_articles_by_query(value, queryset)
 
-    def tags_filter(self, queryset, name, value):
+    def tags_filter(self, queryset, name, value) -> QuerySet[Article]:
+        if not value:
+            return queryset
         return find_articles_with_all_tags(value, queryset)

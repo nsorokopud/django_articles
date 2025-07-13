@@ -1,9 +1,8 @@
 import logging
-from typing import Iterable, Optional
+from typing import Optional, Sequence
 
-from django.db.models import Count, Q, Subquery
+from django.db.models import Count, Q
 from django.db.models.query import QuerySet
-from django.shortcuts import get_object_or_404
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
@@ -17,9 +16,7 @@ logger = logging.getLogger("default_logger")
 def find_published_articles() -> QuerySet[Article]:
     return (
         Article.objects.filter(is_published=True)
-        .select_related("category")
-        .select_related("author")
-        .select_related("author__profile")
+        .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
         .annotate(comments_count=Count("articlecomment", distinct=True))
@@ -27,42 +24,23 @@ def find_published_articles() -> QuerySet[Article]:
     )
 
 
-def find_articles_of_category(category_slug: str) -> QuerySet[Article]:
-    return find_published_articles().filter(category__slug=category_slug)
-
-
 def find_articles_with_all_tags(
-    tags: Iterable[str], queryset: Optional[QuerySet[Article]] = None
+    tags: Sequence[Tag], queryset: Optional[QuerySet[Article]] = None
 ) -> QuerySet[Article]:
-    """Returns articles that have all the specified tags.
-    If no tags are provided, returns an empty queryset.
-    If no queryset is provided, uses the default published articles queryset.
+    """Returns articles that have all the specified tags. If no queryset
+    is provided, uses the default published articles queryset. If no
+    valid tags are provided, returns an empty queryset.
     """
-    if not tags:
-        return Article.objects.none()
-
     if queryset is None:
         queryset = find_published_articles()
 
-    tag_names = set(tags)
-    tag_ids = list(Tag.objects.filter(name__in=tag_names).values_list("id", flat=True))
-    if len(tag_ids) != len(tag_names):
-        logger.warning(
-            "Some article tags not found. tag_names: %s; tag_ids: %s",
-            tag_names,
-            tag_ids,
-        )
+    tag_ids = [tag.id for tag in tags if tag.id is not None]
+    if not tag_ids:
         return queryset.none()
 
-    tag_count = len(tag_ids)
-    matching_ids_subquery = (
-        queryset.filter(tags__id__in=tag_ids)
-        .values("id")
-        .annotate(tag_match_count=Count("tags", distinct=True))
-        .filter(tag_match_count=tag_count)
-        .values("id")
-    )
-    return queryset.filter(id__in=Subquery(matching_ids_subquery))
+    return queryset.annotate(
+        num_tags=Count("tags", filter=Q(tags__id__in=tag_ids), distinct=True)
+    ).filter(num_tags=len(tag_ids))
 
 
 def find_articles_by_query(
@@ -89,26 +67,14 @@ def find_article_comments_liked_by_user(article: Article, user: User) -> QuerySe
 def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
     return (
         ArticleComment.objects.filter(article=article)
-        .select_related("author")
-        .select_related("author__profile")
+        .select_related("author", "author__profile")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
-    )
-
-
-def get_article_by_id(article_id: int) -> Article:
-    return (
-        Article.objects.select_related("author")
-        .select_related("author__profile")
-        .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
-        .get(id=article_id)
     )
 
 
 def get_article_by_slug(article_slug: str) -> Article:
     return (
-        Article.objects.select_related("author")
-        .select_related("author__profile")
+        Article.objects.select_related("author", "author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
         .get(slug=article_slug)
@@ -123,13 +89,8 @@ def get_all_categories() -> QuerySet[ArticleCategory]:
     )
 
 
-def get_all_tags():
+def get_all_tags() -> QuerySet[Tag]:
     return Tag.objects.all()
-
-
-def get_all_users_that_liked_article(article_slug: str) -> QuerySet[User]:
-    article = get_object_or_404(Article, slug=article_slug)
-    return article.users_that_liked.all()
 
 
 def get_comment_by_id(comment_id: int) -> ArticleComment:

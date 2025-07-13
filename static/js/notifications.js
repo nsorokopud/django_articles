@@ -79,12 +79,6 @@ function addEventListenersToWebSocket(socket) {
   };
 }
 
-function getCookie(name) {
-  var re = new RegExp(name + '=([^;]+)');
-  var value = re.exec(document.cookie);
-  return value != null ? value[1] : null;
-}
-
 function addEventListenersToNotificationElement(element) {
   element.addEventListener('touchstart', () => {
     element.classList.add('notification-hover');
@@ -102,7 +96,7 @@ function addEventListenersToNotificationElement(element) {
       `${location.origin}/notification/${notificationId}/read/`,
       false,
     );
-    xmlHttp.setRequestHeader('X-CSRFToken', getCookie('csrftoken')),
+    xmlHttp.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken')),
       xmlHttp.send(null);
     window.location.replace(element.getAttribute('href'));
   });
@@ -168,7 +162,7 @@ function addEventListenerToNotificaionDeleteButton(button) {
       `${location.origin}/notification/${notificationIdNumber}/delete/`,
       true,
     );
-    xmlHttp.setRequestHeader('X-CSRFToken', getCookie('csrftoken')),
+    xmlHttp.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken')),
       xmlHttp.send(null);
   });
 }
@@ -275,7 +269,7 @@ function createToastElement(id, title, message, time, link = null) {
         `${location.origin}/notification/${id}/read/`,
         false,
       );
-      xmlHttp.setRequestHeader('X-CSRFToken', getCookie('csrftoken')),
+      xmlHttp.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken')),
         xmlHttp.send(null);
       window.location.replace(link);
     });

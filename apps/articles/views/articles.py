@@ -13,7 +13,10 @@ from django_filters.views import FilterView
 from core.decorators import cache_page_for_anonymous
 
 from ..filters import ArticleFilter
-from ..forms import ArticleCommentForm, ArticleCreateForm, ArticleUpdateForm
+from ..forms import (
+    ArticleCommentForm,
+    ArticleModelForm,
+)
 from ..models import Article
 from ..selectors import (
     find_article_comments_liked_by_user,
@@ -23,8 +26,8 @@ from ..selectors import (
 )
 from ..services import toggle_article_like
 from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
-from ..utils import AllowOnlyAuthorMixin
 from .decorators import increment_article_view_counter
+from .mixins import AllowOnlyAuthorMixin
 
 
 logger = logging.getLogger("default_logger")
@@ -79,13 +82,12 @@ class ArticleDetailView(DetailView):
 
 class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
-    form_class = ArticleCreateForm
+    form_class = ArticleModelForm
     template_name = "articles/article_form.html"
-    login_url = reverse_lazy("login")
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["request"] = self.request
+        kwargs["user"] = self.request.user
         return kwargs
 
     def form_valid(self, form) -> JsonResponse:
@@ -103,8 +105,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
 
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     model = Article
-    form_class = ArticleUpdateForm
-    login_url = reverse_lazy("login")
+    form_class = ArticleModelForm
     template_name_suffix = "_form"
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
@@ -133,6 +134,5 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
 
 class ArticleLikeView(LoginRequiredMixin, View):
     def post(self, request, article_slug) -> JsonResponse:
-        user_id = request.user.id
-        likes_count = toggle_article_like(article_slug, user_id)
-        return JsonResponse({"likes_count": likes_count})
+        data = {"likes": toggle_article_like(article_slug, request.user.id)}
+        return JsonResponse({"status": "success", "data": data}, status=200)

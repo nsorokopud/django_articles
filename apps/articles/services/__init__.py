@@ -1,2 +1,3 @@
-from .base import *
+from .articles import *
+from .likes import *
 from .media import *

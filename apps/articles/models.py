@@ -9,8 +9,8 @@ from .settings import DISPLAYED_COMMENT_LENGTH
 
 
 class Article(models.Model):
-    title = models.CharField(max_length=256, unique=True, db_index=True)
-    slug = models.SlugField(max_length=256, unique=True, db_index=True)
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
     category = models.ForeignKey(
         "ArticleCategory", null=True, blank=True, on_delete=models.SET_NULL
     )
@@ -23,7 +23,7 @@ class Article(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
     is_published = models.BooleanField(default=False, db_index=True)
     users_that_liked = models.ManyToManyField(
-        User, related_name="users_that_liked", blank=True
+        User, related_name="liked_articles", blank=True
     )
     views_count = models.IntegerField(default=0)
 
@@ -31,11 +31,25 @@ class Article(models.Model):
         verbose_name_plural = "Articles"
         ordering = ["-created_at"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.from_admin = False
+        self._original_title = self.title
+
     def __str__(self):
         return self.title
 
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
+
+    def save(self, *args, **kwargs):
+        from .services import generate_unique_article_slug
+
+        title_changed = not self.pk or self._original_title != self.title
+        if not self.from_admin and title_changed:
+            self.slug = generate_unique_article_slug(self.title)
+
+        super().save(*args, **kwargs)
 
     @property
     def views(self) -> int:
@@ -65,7 +79,7 @@ class ArticleComment(models.Model):
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     users_that_liked = models.ManyToManyField(
-        User, related_name="users_that_liked_comment", blank=True
+        User, related_name="liked_comments", blank=True
     )
 
     class Meta:

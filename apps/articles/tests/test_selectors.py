@@ -1,17 +1,15 @@
 from django.test import TestCase
+from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.selectors import (
     find_article_comments_liked_by_user,
     find_articles_by_query,
-    find_articles_of_category,
     find_articles_with_all_tags,
     find_comments_to_article,
     find_published_articles,
     get_all_categories,
     get_all_tags,
-    get_all_users_that_liked_article,
-    get_article_by_id,
     get_article_by_slug,
     get_comment_by_id,
 )
@@ -57,39 +55,6 @@ class TestSelectors(TestCase):
         )
         self.assertCountEqual(find_published_articles(), [a1, a3])
 
-    def test_find_articles_of_category(self):
-        a1 = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-            is_published=True,
-        )
-        Article.objects.create(
-            title="a2",
-            slug="a2",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text2",
-            content="content2",
-            is_published=False,
-        )
-
-        cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
-
-        Article.objects.create(
-            title="a3",
-            slug="a3",
-            category=cat1,
-            author=self.test_user,
-            preview_text="text3",
-            content="content3",
-            is_published=True,
-        )
-        self.assertCountEqual(find_articles_of_category(self.test_category.slug), [a1])
-
     def test_find_articles_with_all_tags(self):
         a1 = Article.objects.create(
             title="a1",
@@ -127,11 +92,26 @@ class TestSelectors(TestCase):
         a3.tags.add("tag2", "tag7")
         a3.save()
 
-        self.assertCountEqual(find_articles_with_all_tags(["ehjnrkhn"]), [])
-        self.assertCountEqual(find_articles_with_all_tags(["tag2"]), [a1, a3])
-        self.assertCountEqual(find_articles_with_all_tags(["tag7", "tag2"]), [a3])
+        with self.assertRaises(TypeError):
+            find_articles_with_all_tags(None)
+
+        self.assertCountEqual(find_articles_with_all_tags([]), [])
+
+        tags = Tag.objects.filter(name__in=["ehjnrkhn"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [])
+
+        tags = Tag.objects.filter(name__in=["tag2"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [a1, a3])
+
+        tags = Tag.objects.filter(name__in=["tag2", "tag2"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [a1, a3])
+
+        tags = Tag.objects.filter(name__in=["tag7", "tag2"])
+        self.assertCountEqual(find_articles_with_all_tags(tags), [a3])
+
+        tags = Tag.objects.filter(name__in=["tag2"])
         queryset = Article.objects.filter(id__in=[a1.id, a2.id])
-        self.assertCountEqual(find_articles_with_all_tags(["tag2"], queryset), [a1])
+        self.assertCountEqual(find_articles_with_all_tags(tags, queryset), [a1])
 
     def test_find_articles_by_query(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
@@ -268,43 +248,6 @@ class TestSelectors(TestCase):
         a2.tags.add("tag2", "tag3")
         res = [tag.name for tag in get_all_tags()]
         self.assertCountEqual(res, ["tag1", "tag2", "tag3"])
-
-    def test_get_all_users_that_liked_article(self):
-        a = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-            is_published=True,
-        )
-        self.assertEqual(list(get_all_users_that_liked_article(a.slug)), [])
-        a.users_that_liked.add(self.test_user)
-        self.assertCountEqual(
-            get_all_users_that_liked_article(a.slug), [self.test_user]
-        )
-
-    def test_get_article_by_id(self):
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_id(1)
-
-        a = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-        _id = a.id
-
-        res = get_article_by_id(_id)
-        self.assertEqual(res, a)
-
-        a.delete()
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_id(_id)
 
     def test_get_article_by_slug(self):
         with self.assertRaises(Article.DoesNotExist):
