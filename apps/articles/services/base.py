@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from django.db import DatabaseError, connection, transaction
 from django.db.models import Count
@@ -9,37 +9,10 @@ from nanoid import generate
 
 from users.models import User
 
-from ..models import Article, ArticleCategory, ArticleComment
+from ..models import Article, ArticleComment
 
 
 logger = logging.getLogger("default_logger")
-
-
-@transaction.atomic
-def create_article(
-    *,
-    title: str,
-    author: User,
-    preview_text: str,
-    content: str,
-    category: Optional[ArticleCategory] = None,
-    tags: Optional[List] = None,
-    preview_image: Optional[str] = None,
-) -> Article:
-    article = Article(
-        title=title,
-        category=category,
-        author=author,
-        preview_text=preview_text,
-        preview_image=preview_image,
-        content=content,
-        is_published=True,
-    )
-    article.slug = generate_unique_article_slug(title)
-    article.save()
-    if tags is not None:
-        article.tags.add(*tags)
-    return article
 
 
 def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
