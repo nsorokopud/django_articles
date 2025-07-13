@@ -7,6 +7,19 @@ from core.validators import validate_uploaded_file
 from .models import Article, ArticleComment
 
 
+class ArticleAdminForm(forms.ModelForm):
+    class Meta:
+        model = Article
+        fields = "__all__"
+        help_texts = {
+            "slug": "Leave blank to automatically generate a new slug from the title.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["slug"].required = False
+
+
 class ArticleModelForm(forms.ModelForm):
     class Meta:
         model = Article
