@@ -1,4 +1,3 @@
-from django.db.utils import IntegrityError
 from django.test import TestCase
 
 from articles.models import Article, ArticleCategory, ArticleComment
@@ -84,19 +83,19 @@ class TestServices(TestCase):
         self.assertEqual(a1.slug, "a1")
         self.assertEqual(a2.slug, "a2")
 
-        with self.assertRaises(IntegrityError):
-            a3 = create_article(
-                title="a1",
-                category=self.category,
-                author=self.user,
-                preview_text="text1",
-                content="content1",
-                tags=["tag1", "tag2"],
-            )
+        a3 = create_article(
+            title="a1",
+            category=self.category,
+            author=self.user,
+            preview_text="text1",
+            content="content1",
+            tags=["tag1", "tag2"],
+        )
 
-        self.assertEqual(Article.objects.count(), 2)
-        last_article = Article.objects.first()
-        self.assertEqual(last_article, a2)
+        self.assertEqual(Article.objects.count(), 3)
+        self.assertEqual(a1.title, a3.title)
+        self.assertNotEqual(a1.pk, a3.pk)
+        self.assertNotEqual(a1.slug, a3.slug)
 
     def test_create_article_tags_creation(self):
         a1 = create_article(
