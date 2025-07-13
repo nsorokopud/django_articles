@@ -1,12 +1,10 @@
 import logging
-from typing import Optional
 
 from django.db import DatabaseError, connection, transaction
-from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 from nanoid import generate
 
-from ..models import Article, ArticleComment
+from ..models import Article
 
 
 logger = logging.getLogger("default_logger")
@@ -51,26 +49,6 @@ def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
                 cursor.execute(sql, params)
     except DatabaseError as e:
         logger.exception("Failed to bulk update view counts: %s", e)
-
-
-def toggle_article_like(article_slug: str, user_id: int) -> int:
-    article = get_object_or_404(Article, slug=article_slug)
-    return toggle_like(article, user_id)
-
-
-def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
-    comment = get_object_or_404(ArticleComment, id=comment_id)
-    return toggle_like(comment, user_id)
-
-
-@transaction.atomic
-def toggle_like(obj: Article | ArticleComment, user_id: int) -> int:
-    if obj.users_that_liked.filter(id=user_id).exists():
-        obj.users_that_liked.remove(user_id)
-    else:
-        obj.users_that_liked.add(user_id)
-
-    return obj.users_that_liked.count()
 
 
 def generate_unique_article_slug(article_title: str) -> str:
