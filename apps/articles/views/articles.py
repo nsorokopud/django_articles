@@ -13,7 +13,10 @@ from django_filters.views import FilterView
 from core.decorators import cache_page_for_anonymous
 
 from ..filters import ArticleFilter
-from ..forms import ArticleCommentForm, ArticleCreateForm, ArticleUpdateForm
+from ..forms import (
+    ArticleCommentForm,
+    ArticleModelForm,
+)
 from ..models import Article
 from ..selectors import (
     find_article_comments_liked_by_user,
@@ -79,12 +82,12 @@ class ArticleDetailView(DetailView):
 
 class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
-    form_class = ArticleCreateForm
+    form_class = ArticleModelForm
     template_name = "articles/article_form.html"
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["request"] = self.request
+        kwargs["user"] = self.request.user
         return kwargs
 
     def form_valid(self, form) -> JsonResponse:
@@ -102,7 +105,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
 
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     model = Article
-    form_class = ArticleUpdateForm
+    form_class = ArticleModelForm
     template_name_suffix = "_form"
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
