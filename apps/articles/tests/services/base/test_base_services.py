@@ -16,7 +16,7 @@ class TestServices(TestCase):
         self.user = User.objects.create_user(username="user", email="user@test.com")
         self.category = ArticleCategory.objects.create(title="cat", slug="cat")
 
-    @patch("articles.services.base.generate", return_value="suffix")
+    @patch("articles.services.articles.generate", return_value="suffix")
     def test_generate_unique_article_slug(self, mock_generate):
         self.assertEqual(generate_unique_article_slug("abc"), "abc")
 
