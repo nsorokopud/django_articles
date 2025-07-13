@@ -1,6 +1,8 @@
 from django.contrib import admin
 
-from articles.models import Article, ArticleCategory, ArticleComment
+from .forms import ArticleAdminForm
+from .models import Article, ArticleCategory, ArticleComment
+from .services import generate_unique_article_slug
 
 
 class CommentInline(admin.TabularInline):
@@ -9,6 +11,7 @@ class CommentInline(admin.TabularInline):
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
+    form = ArticleAdminForm
     list_display = ("id", "is_published", "title", "category", "author", "created_at")
     list_display_links = ("id", "title")
     list_editable = ("is_published",)
@@ -19,6 +22,12 @@ class ArticleAdmin(admin.ModelAdmin):
     inlines = (CommentInline,)
     save_on_top = True
     save_as = True
+
+    def save_model(self, request, obj, form, change):
+        obj._from_admin = True  # pylint: disable=W0212
+        if not obj.slug:
+            obj.slug = generate_unique_article_slug(obj.title)
+        super().save_model(request, obj, form, change)
 
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
