@@ -57,7 +57,7 @@ class TestArticleModel(TestCase):
     def test_slug_not_generated_when_set_by_admin(self, mock_generate_slug):
         self.a.title = "a"
         self.a.slug = "abc"
-        self.a._from_admin = True
+        self.a.from_admin = True
         self.a.save()
         mock_generate_slug.assert_not_called()
         self.a.refresh_from_db()

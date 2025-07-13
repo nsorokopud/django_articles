@@ -24,7 +24,7 @@ class ArticleAdmin(admin.ModelAdmin):
     save_as = True
 
     def save_model(self, request, obj, form, change):
-        obj._from_admin = True  # pylint: disable=W0212
+        obj.from_admin = True
         if not obj.slug:
             obj.slug = generate_unique_article_slug(obj.title)
         super().save_model(request, obj, form, change)

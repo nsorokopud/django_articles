@@ -33,7 +33,7 @@ class Article(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._from_admin = False
+        self.from_admin = False
         self._original_title = self.title
 
     def __str__(self):
@@ -46,7 +46,7 @@ class Article(models.Model):
         from .services import generate_unique_article_slug
 
         title_changed = not self.pk or self._original_title != self.title
-        if not self._from_admin and title_changed:
+        if not self.from_admin and title_changed:
             self.slug = generate_unique_article_slug(self.title)
 
         super().save(*args, **kwargs)
