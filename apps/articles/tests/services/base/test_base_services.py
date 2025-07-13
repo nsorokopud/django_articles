@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 
 from articles.models import Article, ArticleCategory, ArticleComment
@@ -15,7 +17,8 @@ class TestServices(TestCase):
         self.user = User.objects.create_user(username="user", email="user@test.com")
         self.category = ArticleCategory.objects.create(title="cat", slug="cat")
 
-    def test_generate_unique_article_slug(self):
+    @patch("articles.services.base.generate", return_value="suffix")
+    def test_generate_unique_article_slug(self, mock_generate):
         self.assertEqual(generate_unique_article_slug("abc"), "abc")
 
         Article.objects.create(
@@ -26,19 +29,11 @@ class TestServices(TestCase):
             content="1",
         )
 
-        self.assertEqual(generate_unique_article_slug("abc"), "abc")
-        self.assertEqual(generate_unique_article_slug("abc "), "abc-1")
-
-        Article.objects.create(
-            title="abc-",
-            slug="abc-1",
-            author=self.user,
-            preview_text="1",
-            content="1",
-        )
-        self.assertEqual(generate_unique_article_slug("abc"), "abc")
-        self.assertEqual(generate_unique_article_slug("abc-"), "abc-1")
-        self.assertEqual(generate_unique_article_slug("abc -"), "abc-2")
+        self.assertEqual(generate_unique_article_slug("abc"), "abc-suffix")
+        self.assertEqual(generate_unique_article_slug("abc "), "abc-suffix")
+        self.assertEqual(generate_unique_article_slug("abc-"), "abc-suffix")
+        self.assertEqual(generate_unique_article_slug("abc -"), "abc-suffix")
+        self.assertEqual(generate_unique_article_slug("non-existent"), "non-existent")
 
     def test_create_article(self):
         a1 = create_article(

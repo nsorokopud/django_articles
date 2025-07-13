@@ -5,6 +5,7 @@ from django.db import DatabaseError, connection, transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
+from nanoid import generate
 
 from users.models import User
 
@@ -116,22 +117,9 @@ def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
     return likes_count
 
 
-def generate_unique_article_slug(article_title: str):
-    """Returns a unique slug for the specified article title. If an
-    article with the specified title already exists, the corresponding
-    slug is returned. Otherwise the next available unique slug is
-    returned.
-    """
-    try:
-        article = Article.objects.get(title=article_title)
-        return article.slug
-    except Article.DoesNotExist:
-        slug = slugify(article_title)
-        unique_slug = slug
-
-        number = 1
-        while Article.objects.filter(slug=unique_slug).exists():
-            unique_slug = f"{slug}-{number}"
-            number += 1
-
-        return unique_slug
+def generate_unique_article_slug(article_title: str) -> str:
+    base = slugify(article_title)
+    slug = base
+    while Article.objects.filter(slug=slug).exists():
+        slug = f"{base}-{generate(size=6)}"
+    return slug
