@@ -8,6 +8,39 @@ from .models import Article, ArticleComment
 from .services import create_article, generate_unique_article_slug
 
 
+class ArticleModelForm(forms.ModelForm):
+    class Meta:
+        model = Article
+        fields = [
+            "title",
+            "category",
+            "tags",
+            "preview_text",
+            "preview_image",
+            "content",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.instance.pk and (not self.user or not self.user.is_authenticated):
+            raise ValidationError("A valid authenticated user is required.")
+        return cleaned_data
+
+    def save(self, commit=True) -> Article:
+        instance = super().save(commit=False)
+        if not instance.pk:
+            instance.author = self.user
+            instance.is_published = True
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
 class ArticleCreateForm(forms.ModelForm):
     preview_text = forms.TextInput()
 
