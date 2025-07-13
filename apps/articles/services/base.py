@@ -2,12 +2,9 @@ import logging
 from typing import Optional
 
 from django.db import DatabaseError, connection, transaction
-from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.template.defaultfilters import slugify
 from nanoid import generate
-
-from users.models import User
 
 from ..models import Article, ArticleComment
 
@@ -58,36 +55,22 @@ def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
 
 def toggle_article_like(article_slug: str, user_id: int) -> int:
     article = get_object_or_404(Article, slug=article_slug)
-    try:
-        user = article.users_that_liked.get(id=user_id)
-        article.users_that_liked.remove(user)
-    except User.DoesNotExist:
-        user = get_object_or_404(User, id=user_id)
-        article.users_that_liked.add(user)
-    likes_count = (
-        Article.objects.annotate(likes_count=Count("users_that_liked", distinct=True))
-        .get(slug=article_slug)
-        .likes_count
-    )
-    return likes_count
+    return toggle_like(article, user_id)
 
 
 def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
     comment = get_object_or_404(ArticleComment, id=comment_id)
-    try:
-        user = comment.users_that_liked.get(id=user_id)
-        comment.users_that_liked.remove(user)
-    except User.DoesNotExist:
-        user = User.objects.get(id=user_id)
-        comment.users_that_liked.add(user)
-    likes_count = (
-        ArticleComment.objects.annotate(
-            likes_count=Count("users_that_liked", distinct=True)
-        )
-        .get(id=comment_id)
-        .likes_count
-    )
-    return likes_count
+    return toggle_like(comment, user_id)
+
+
+@transaction.atomic
+def toggle_like(obj: Article | ArticleComment, user_id: int) -> int:
+    if obj.users_that_liked.filter(id=user_id).exists():
+        obj.users_that_liked.remove(user_id)
+    else:
+        obj.users_that_liked.add(user_id)
+
+    return obj.users_that_liked.count()
 
 
 def generate_unique_article_slug(article_title: str) -> str:
