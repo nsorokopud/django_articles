@@ -67,7 +67,7 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
         folder_path = path_arg_value.rsplit("/", 1)[0]
         file_base, file_ext = file_name.rsplit(".", 1)
         self.assertEqual(
-            folder_path, f"articles/uploads/{self.user.username}/{self.article.id}"
+            folder_path, f"articles/uploads/{self.user.id}/{self.article.id}"
         )
         self.assertIn("img", file_base)
         self.assertEqual(file_ext, "jpeg")
@@ -98,7 +98,7 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
         folder_path = path_arg_value.rsplit("/", 1)[0]
         file_base, file_ext = file_name.rsplit(".", 1)
         self.assertEqual(
-            folder_path, f"articles/uploads/{self.user.username}/{self.article.id}"
+            folder_path, f"articles/uploads/{self.user.id}/{self.article.id}"
         )
         self.assertIn("file", file_base)
         self.assertEqual(file_ext, "jpeg")
