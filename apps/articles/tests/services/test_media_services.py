@@ -1,11 +1,18 @@
-import os
-from unittest.mock import ANY, call, patch
+from pathlib import PurePosixPath
+from unittest.mock import ANY, Mock, call, patch
 
+from botocore.exceptions import ClientError
+from django.core.exceptions import ImproperlyConfigured
+from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
+from storages.backends.s3boto3 import S3Boto3Storage
 
 from articles.models import Article
-from articles.services import (
+from articles.services.media import (
+    ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE,
+    MAX_S3_DELETE_BATCH_SIZE,
+    _delete_s3_media,
     delete_media_files_attached_to_article,
     save_media_file_attached_to_article,
 )
@@ -13,36 +20,176 @@ from core.exceptions import MediaSaveError
 from users.models import User
 
 
-class TestDeleteMediaFilesAttachedToArticle(TestCase):
-    def test_delete_media_files_attached_to_article(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
-        a = Article.objects.create(
-            title="a1",
-            slug="a1",
-            author=user,
-            preview_text="text1",
-            content="content1",
+class TestDeleteMediaFilesAttachedToArticle(SimpleTestCase):
+    def setUp(self):
+        self.article_id = 123
+        self.author_id = 1
+        self.article_dir = ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE.format(
+            author_id=self.author_id, article_id=self.article_id
         )
-        directory = f"articles/uploads/{user.username}/{a.id}"
+
+    @override_settings(
+        STORAGES={
+            "default": {"BACKEND": ("django.core.files.storage.FileSystemStorage")}
+        }
+    )
+    def test_local_fs_storage(self):
+        self.assertIsInstance(default_storage, FileSystemStorage)
+
+        with patch(
+            "articles.services.media._delete_local_filesystem_media"
+        ) as mock_delete:
+            delete_media_files_attached_to_article(self.article_id, self.author_id)
+
+        mock_delete.assert_called_once_with(
+            self.article_dir, self.article_id, default_storage
+        )
+
+    @override_settings(
+        STORAGES={"default": {"BACKEND": ("storages.backends.s3boto3.S3Boto3Storage")}}
+    )
+    def test_s3_storage(self):
+        with patch("articles.services.media._delete_s3_media") as mock_delete:
+            delete_media_files_attached_to_article(self.article_id, self.author_id)
+
+        mock_delete.assert_called_once_with(
+            self.article_dir, self.article_id, default_storage
+        )
+
+    @override_settings(
+        STORAGES={"default": {"BACKEND": ("django.core.files.storage.InMemoryStorage")}}
+    )
+    def test_unsupported_storage(self):
+        with (
+            patch(
+                "articles.services.media._delete_local_filesystem_media"
+            ) as mock_delete_local,
+            patch("articles.services.media._delete_s3_media") as mock_delete_s3,
+            self.assertRaises(ImproperlyConfigured) as context,
+        ):
+            delete_media_files_attached_to_article(self.article_id, self.author_id)
+
+        self.assertEqual(str(context.exception), "Media storage not supported.")
+        mock_delete_local.assert_not_called()
+        mock_delete_s3.assert_not_called()
+
+
+class TestDeleteS3Media(SimpleTestCase):
+    def setUp(self):
+        self.article_id = 123
+        self.article_dir = "media/articles/1/123"
+        self.posix_dir = PurePosixPath("media/articles/1/123")
+
+        self.storage = Mock(spec=S3Boto3Storage)
+        self.storage.bucket_name = "test-bucket"
+        self.s3_client = self.storage.connection.meta.client = Mock()
+
+    @patch("articles.services.media.logger")
+    def test_single_batch(self, mock_logger):
+        self.storage.listdir.return_value = ([], ["file1.jpg", "file2.png"])
+
+        _delete_s3_media(self.article_dir, self.article_id, self.storage)
+
+        expected_keys = [
+            {"Key": f"{self.posix_dir}/file1.jpg"},
+            {"Key": f"{self.posix_dir}/file2.png"},
+        ]
+
+        self.s3_client.delete_objects.assert_called_once_with(
+            Bucket="test-bucket",
+            Delete={"Objects": expected_keys},
+        )
+        mock_logger.info.assert_called_once_with(
+            "Successfully deleted media (batch %s) for article %s.",
+            1,
+            self.article_id,
+        )
+
+    @patch("articles.services.media.logger")
+    def test_multiple_batches(self, mock_logger):
+        file_names = [f"img_{i}.jpg" for i in range(MAX_S3_DELETE_BATCH_SIZE + 10)]
+        self.storage.listdir.return_value = ([], file_names)
+
+        _delete_s3_media(self.article_dir, self.article_id, self.storage)
+        self.assertEqual(self.s3_client.delete_objects.call_count, 2)
+        call_1_keys = [
+            {"Key": f"{self.posix_dir}/img_{i}.jpg"}
+            for i in range(MAX_S3_DELETE_BATCH_SIZE)
+        ]
+        call_2_keys = [
+            {"Key": f"{self.posix_dir}/img_{i}.jpg"}
+            for i in range(MAX_S3_DELETE_BATCH_SIZE, MAX_S3_DELETE_BATCH_SIZE + 10)
+        ]
+        self.assertEqual(
+            self.s3_client.delete_objects.call_args_list,
+            [
+                call(Bucket="test-bucket", Delete={"Objects": call_1_keys}),
+                call(Bucket="test-bucket", Delete={"Objects": call_2_keys}),
+            ],
+        )
+        self.assertEqual(
+            mock_logger.info.call_args_list,
+            [
+                call(
+                    "Successfully deleted media (batch %s) for article %s.",
+                    1,
+                    self.article_id,
+                ),
+                call(
+                    "Successfully deleted media (batch %s) for article %s.",
+                    2,
+                    self.article_id,
+                ),
+            ],
+        )
+
+    def test_no_files_to_delete(self):
+        self.storage.listdir.return_value = ([], [])
+
+        with patch("articles.services.media.logger") as mock_logger:
+            _delete_s3_media(self.article_dir, self.article_id, self.storage)
+
+        self.s3_client.delete_objects.assert_not_called()
+        mock_logger.info.assert_called_with(
+            "No S3 files to delete in %s for article %s.",
+            self.posix_dir,
+            self.article_id,
+        )
+
+    def test_unsupported_storage(self):
+        with self.assertRaises(ImproperlyConfigured):
+            _delete_s3_media(
+                self.article_dir, self.article_id, storage=FileSystemStorage()
+            )
+
+    def test_listdir_exception(self):
+        self.storage.listdir.side_effect = ClientError({"Error": {}}, "ListObjectsV2")
 
         with (
-            patch("articles.services.default_storage.exists", return_value=True),
-            patch(
-                "articles.services.default_storage.listdir",
-                return_value=[[directory], ["file1", "file2"]],
-            ),
-            patch("articles.services.default_storage.delete") as delete_mock,
+            self.assertRaises(ClientError),
+            patch("articles.services.media.logger") as mock_logger,
         ):
+            _delete_s3_media(self.article_dir, self.article_id, self.storage)
 
-            delete_media_files_attached_to_article(a)
-            delete_mock.assert_has_calls(
-                [
-                    call(os.path.join(directory, "file1")),
-                    call(os.path.join(directory, "file2")),
-                    call(directory),
-                ],
-                any_order=False,
-            )
+        mock_logger.exception.assert_called_with(
+            "Failed to list S3 directory %s for article %s.",
+            self.posix_dir,
+            self.article_id,
+        )
+
+    @patch("articles.services.media.logger")
+    def test_delete_objects_exception(self, mock_logger):
+        self.storage.listdir.return_value = [[], ["file1", "file2"]]
+        self.storage.connection.meta.client.delete_objects.side_effect = OSError(
+            "Error"
+        )
+
+        with self.assertRaises(OSError):
+            _delete_s3_media(self.article_dir, self.article_id, self.storage)
+
+        mock_logger.exception.assert_called_with(
+            "Failed to delete media (batch %s) for article %s.", 1, self.article_id
+        )
 
 
 class TestSaveMediaFileAttachedToArticle(TestCase):
