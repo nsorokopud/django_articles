@@ -26,9 +26,10 @@ class TestSignals(TransactionTestCase):
             title="a1", slug="a1", author=user, preview_text="a1", content="a1"
         )
 
-        with patch("articles.signals.delete_media_files_attached_to_article") as mock:
+        with patch("articles.signals.delete_article_inline_media_task.delay") as mock:
+            a1_id = a1.id
             a1.delete()
-            mock.assert_called_once_with(a1)
+            mock.assert_called_once_with(a1_id, user.id)
 
         a2 = Article.objects.create(
             title="a2", slug="a2", author=user, preview_text="a2", content="a2"
@@ -36,7 +37,7 @@ class TestSignals(TransactionTestCase):
 
         signals.post_delete.disconnect(delete_article_media_files, sender=Article)
 
-        with patch("articles.signals.delete_media_files_attached_to_article") as mock:
+        with patch("articles.signals.delete_article_inline_media_task.delay") as mock:
             a2.delete()
             mock.assert_not_called()
 
