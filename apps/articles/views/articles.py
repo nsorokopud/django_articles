@@ -13,10 +13,7 @@ from django_filters.views import FilterView
 from core.decorators import cache_page_for_anonymous
 
 from ..filters import ArticleFilter
-from ..forms import (
-    ArticleCommentForm,
-    ArticleModelForm,
-)
+from ..forms import ArticleCommentForm, ArticleModelForm
 from ..models import Article
 from ..selectors import (
     find_article_comments_liked_by_user,
