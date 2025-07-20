@@ -3,7 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from config import views as project_views
+from apps.core import views as core_views
 
 
 urlpatterns = [
@@ -24,7 +24,7 @@ else:
     urlpatterns.append(path("__djangoblog__/", admin.site.urls))
 
 # Error handlers
-handler400 = project_views.Error400View.as_view()
-handler403 = project_views.Error403View.as_view()
-handler404 = project_views.Error404View.as_view()
-handler500 = project_views.Error500View.as_view()
+handler400 = core_views.Error400View.as_view()
+handler403 = core_views.Error403View.as_view()
+handler404 = core_views.Error404View.as_view()
+handler500 = core_views.Error500View.as_view()
