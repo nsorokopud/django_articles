@@ -178,7 +178,7 @@ class TestSendEmail(TestCase):
             text_content="Test",
             fail_silently=True,
         )
-        with self.assertLogs("default_logger", level="ERROR"):
+        with self.assertLogs("core.services", level="ERROR"):
             send_email(config)
 
     @patch("core.services.email.render_content", side_effect=ValueError("Test"))
