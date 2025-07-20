@@ -93,7 +93,7 @@ class TestBulkIncrementArticleViewCounts(TestCase):
         self.assertEqual(a3.views_count, 50)
 
     def test_empty_input(self):
-        with patch("articles.services.logger.warning") as mock_warn:
+        with patch("articles.services.articles.logger.warning") as mock_warn:
             bulk_increment_article_view_counts({})
             mock_warn.assert_called_once_with("No deltas to process for bulk update.")
 
@@ -101,6 +101,6 @@ class TestBulkIncrementArticleViewCounts(TestCase):
         self.patch_cursor()
         self.mocked_cursor.execute.side_effect = DatabaseError("DB failed")
 
-        with patch("articles.services.logger.exception") as mock_exc:
+        with patch("articles.services.articles.logger.exception") as mock_exc:
             bulk_increment_article_view_counts({1: 5})
             mock_exc.assert_called_once()
