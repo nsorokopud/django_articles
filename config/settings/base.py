@@ -92,7 +92,6 @@ if DEBUG:
 MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
     "django_minify_html.middleware.MinifyHtmlMiddleware",
-    "config.middleware.ErrorLoggingMiddleware",
     "config.middleware.TimezoneMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
