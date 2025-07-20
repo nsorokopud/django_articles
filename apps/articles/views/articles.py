@@ -30,7 +30,7 @@ from .decorators import increment_article_view_counter
 from .mixins import AllowOnlyAuthorMixin
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class ArticleListFilterView(FilterView):

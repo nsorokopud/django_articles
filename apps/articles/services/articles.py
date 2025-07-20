@@ -7,7 +7,7 @@ from nanoid import generate
 from ..models import Article
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def generate_unique_article_slug(article_title: str) -> str:

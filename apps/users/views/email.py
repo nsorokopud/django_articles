@@ -19,7 +19,7 @@ from ..services import (
 )
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class EmailChangeView(LoginRequiredMixin, FormView):

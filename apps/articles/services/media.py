@@ -19,7 +19,7 @@ from core.exceptions import MediaSaveError
 from ..models import Article
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 MAX_S3_DELETE_BATCH_SIZE = 1000
 ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE = "articles/uploads/{author_id}/{article_id}"

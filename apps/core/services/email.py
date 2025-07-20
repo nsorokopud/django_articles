@@ -9,7 +9,7 @@ from django.template import TemplateDoesNotExist
 from django.template.loader import get_template, render_to_string
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class EmailConfigDict(TypedDict, total=False):

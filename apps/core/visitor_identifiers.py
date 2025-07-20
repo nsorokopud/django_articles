@@ -10,7 +10,7 @@ from ipware import get_client_ip
 from config.settings import ALLOW_NON_ROUTABLE_IPS
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def get_visitor_id(request: HttpRequest) -> str:

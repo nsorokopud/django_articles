@@ -9,7 +9,7 @@ from .services import bulk_increment_article_view_counts
 from .settings import ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE, ARTICLE_VIEW_SYNC_MAX_ITERATIONS
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 ARTICLE_VIEWED_BY_KEY = "articles:{article_id}:viewed_by:{viewer_id}"

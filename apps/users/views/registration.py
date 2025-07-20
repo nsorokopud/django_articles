@@ -19,7 +19,7 @@ from ..services import activate_user, deactivate_user, send_account_activation_e
 from ..services.tokens import activation_token_generator
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class UserRegistrationView(CreateView):

@@ -14,7 +14,7 @@ from ..models import Article
 from ..services import save_media_file_attached_to_article
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class HomePageView(RedirectView):

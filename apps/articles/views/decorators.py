@@ -11,7 +11,7 @@ from ..models import Article
 from ..settings import ARTICLE_UNIQUE_VIEW_TIMEOUT
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def increment_article_view_counter(view_func: Callable[..., Any]) -> Callable[..., Any]:

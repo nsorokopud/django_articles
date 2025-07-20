@@ -9,7 +9,7 @@ from .cache import sync_article_views
 from .services import delete_media_files_attached_to_article
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 @app.task

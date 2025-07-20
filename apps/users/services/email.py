@@ -21,7 +21,7 @@ from ..settings import (
 from .tokens import activation_token_generator, email_change_token_generator
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def send_account_activation_email(user: User, base_url: str) -> None:
