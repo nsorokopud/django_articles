@@ -52,7 +52,7 @@ class TestSendEmailTask(TestCase):
             "text_content": "Test",
         }
 
-        with self.assertLogs("default_logger", level="ERROR") as logs:
+        with self.assertLogs("core.tasks", level="ERROR") as logs:
             with self.assertRaises(ValueError):
                 send_email_task.delay(invalid_config)
 

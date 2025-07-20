@@ -16,7 +16,7 @@ from .models import Notification
 from .tasks import send_notification_email as send_notification_email__task
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def send_new_comment_notification(comment: ArticleComment, recipient: User) -> None:

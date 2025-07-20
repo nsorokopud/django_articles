@@ -5,7 +5,7 @@ from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
-from config.middleware import TimezoneMiddleware, get_default_timezone
+from core.middleware import TimezoneMiddleware, get_default_timezone
 
 
 class TimezoneMiddlewareTestCase(SimpleTestCase):
@@ -22,7 +22,7 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
             override_settings(USE_TZ=False),
             patch("django.utils.timezone.activate") as timezone_activate__mock,
             patch(
-                "config.middleware.get_default_timezone",
+                "core.middleware.get_default_timezone",
                 return_value=pytz.timezone("America/Chihuahua"),
             ),
         ):
@@ -36,7 +36,7 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
             override_settings(USE_TZ=True),
             patch("django.utils.timezone.activate") as timezone_activate__mock,
             patch(
-                "config.middleware.get_default_timezone",
+                "core.middleware.get_default_timezone",
                 return_value=pytz.timezone("America/Chihuahua"),
             ),
         ):
@@ -53,7 +53,7 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
             override_settings(USE_TZ=True),
             patch("django.utils.timezone.activate") as timezone_activate__mock,
             patch(
-                "config.middleware.get_default_timezone",
+                "core.middleware.get_default_timezone",
                 return_value=pytz.timezone("America/Chihuahua"),
             ),
         ):
@@ -70,7 +70,7 @@ class TimezoneMiddlewareTestCase(SimpleTestCase):
             override_settings(USE_TZ=True),
             patch("django.utils.timezone.activate") as timezone_activate__mock,
             patch(
-                "config.middleware.get_default_timezone",
+                "core.middleware.get_default_timezone",
                 return_value=pytz.timezone("America/Chihuahua"),
             ),
         ):

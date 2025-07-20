@@ -10,7 +10,7 @@ from articles.models import Article, ArticleCategory, ArticleComment
 from users.models import User
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def find_published_articles() -> QuerySet[Article]:

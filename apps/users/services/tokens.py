@@ -9,7 +9,7 @@ from ..models import TokenCounter, TokenType
 from ..selectors import get_pending_email_address
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class BaseTokenGenerator(PasswordResetTokenGenerator):

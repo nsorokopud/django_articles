@@ -8,7 +8,7 @@ from notifications.tasks import (
 )
 
 from .models import Article, ArticleComment
-from .services import delete_media_files_attached_to_article
+from .tasks import delete_article_inline_media_task
 
 
 @receiver(post_save, sender=Article)
@@ -27,4 +27,4 @@ def send_comment_notification(sender, instance, created, **kwargs) -> None:
 
 @receiver(post_delete, sender=Article)
 def delete_article_media_files(sender, instance, **kwargs) -> None:
-    delete_media_files_attached_to_article(instance)
+    delete_article_inline_media_task.delay(instance.id, instance.author.id)

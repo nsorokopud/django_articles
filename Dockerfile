@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 
 RUN adduser --disabled-password articles_user
 
-RUN mkdir logs && touch logs/info.log logs/uncatched_errors.log
+RUN mkdir logs
 RUN mkdir staticfiles
 
 COPY ./entrypoint.sh .

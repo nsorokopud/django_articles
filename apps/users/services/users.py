@@ -11,7 +11,7 @@ from users.models import Profile, User
 from ..cache import get_subscribers_count_cache_key
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 @transaction.atomic

@@ -16,7 +16,7 @@ from users.forms import AuthenticationForm
 from ..services.tokens import password_reset_token_generator
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class UserLoginView(LoginView):

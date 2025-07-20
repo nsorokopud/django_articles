@@ -10,7 +10,7 @@ from ..selectors import get_pending_email_address
 from .users import delete_social_accounts_with_email
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:

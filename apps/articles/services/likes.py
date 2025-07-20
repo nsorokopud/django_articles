@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from ..models import Article, ArticleComment
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 def toggle_article_like(article_slug: str, user_id: int) -> int:

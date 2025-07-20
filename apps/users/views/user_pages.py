@@ -21,7 +21,7 @@ from ..selectors import (
 from ..services import toggle_user_subscription
 
 
-logger = logging.getLogger("default_logger")
+logger = logging.getLogger(__name__)
 
 
 class UserProfileView(LoginRequiredMixin, View):

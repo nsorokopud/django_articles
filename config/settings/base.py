@@ -92,8 +92,7 @@ if DEBUG:
 MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
     "django_minify_html.middleware.MinifyHtmlMiddleware",
-    "config.middleware.ErrorLoggingMiddleware",
-    "config.middleware.TimezoneMiddleware",
+    "core.middleware.TimezoneMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -240,52 +239,97 @@ if USE_SENTRY:
 # Logging
 
 LOGGING_ENABLED = bool(int(os.getenv("ENABLE_LOGGING", "0")))
-
+LOG_TO_CONSOLE = bool(int(os.getenv("LOG_TO_CONSOLE", "0")))
 LOGS_PATH = os.path.join(BASE_DIR, os.getenv("LOGS_PATH", "logs"))
 
 if LOGGING_ENABLED:
+    os.makedirs(LOGS_PATH, exist_ok=True)
+
+    logging_handlers = {
+        "file_general": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "general.log"),
+            "maxBytes": 1024 * 1024 * 50,  # 50 MB
+            "backupCount": 5,
+            "formatter": "default",
+            "delay": True,
+        },
+        "file_errors": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "errors.log"),
+            "maxBytes": 1024 * 1024 * 50,
+            "backupCount": 5,
+            "formatter": "default",
+            "delay": True,
+        },
+        "file_uncaught_errors": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "uncaught_errors.log"),
+            "maxBytes": 1024 * 1024 * 50,
+            "backupCount": 5,
+            "formatter": "exception",
+            "delay": True,
+        },
+    }
+
+    if LOG_TO_CONSOLE:
+        logging_handlers["console"] = {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+        }
+
     LOGGING = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "default_formatter": {
+            "default": {
                 "format": (
-                    "{asctime} - [{levelname}] - {filename}:{funcName}:"
-                    "{lineno} - {message}"
+                    "{asctime} - [{levelname}] - {name}:{funcName}:{lineno} - {message}"
                 ),
                 "style": "{",
             },
-            "uncatched_errors_formatter": {
+            "exception": {
                 "format": "{asctime} - [{levelname}] - {message}",
                 "style": "{",
             },
         },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-            },
-            "default_file": {
-                "level": "INFO",
-                "class": "logging.FileHandler",
-                "filename": os.path.join(LOGS_PATH, "info.log"),
-                "formatter": "default_formatter",
-            },
-            "uncatched_errors_file": {
-                "level": "ERROR",
-                "class": "logging.FileHandler",
-                "filename": os.path.join(LOGS_PATH, "uncatched_errors.log"),
-                "formatter": "uncatched_errors_formatter",
-            },
+        "handlers": logging_handlers,
+        "root": {
+            "handlers": [
+                h
+                for h in ["console", "file_general", "file_errors"]
+                if h in logging_handlers
+            ],
+            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
         },
         "loggers": {
-            "default_logger": {
-                "handlers": ["default_file"],
-                "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "django": {
+                "handlers": [h for h in ["console"] if h in logging_handlers],
+                "level": "INFO",
                 "propagate": False,
             },
-            "uncatched_errors_logger": {
-                "handlers": ["uncatched_errors_file"],
-                "level": "ERROR",
+            "django.server": {
+                "handlers": [h for h in ["console"] if h in logging_handlers],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "django.request": {
+                "handlers": [
+                    h
+                    for h in ["console", "file_uncaught_errors"]
+                    if h in logging_handlers
+                ],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "daphne": {
+                "handlers": [
+                    h for h in ["console", "file_errors"] if h in logging_handlers
+                ],
+                "level": "INFO",
                 "propagate": False,
             },
         },
