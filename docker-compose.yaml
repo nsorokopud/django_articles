@@ -35,6 +35,8 @@ services:
       - .env
     entrypoint: celery
     command: -A config worker -l INFO
+    volumes:
+      - logs-volume:/app/logs/
     depends_on:
       - redis
       - db
@@ -47,6 +49,8 @@ services:
       - .env
     entrypoint: celery
     command: -A config beat -l INFO
+    volumes:
+      - logs-volume:/app/logs/
     depends_on:
       - redis
       - db
