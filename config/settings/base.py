@@ -273,6 +273,42 @@ if LOGGING_ENABLED:
             "formatter": "exception",
             "delay": True,
         },
+        "file_celery_worker_general": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "celery_worker.log"),
+            "maxBytes": 1024 * 1024 * 50,
+            "backupCount": 5,
+            "formatter": "default",
+            "delay": True,
+        },
+        "file_celery_worker_errors": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "celery_worker_errors.log"),
+            "maxBytes": 1024 * 1024 * 50,
+            "backupCount": 5,
+            "formatter": "exception",
+            "delay": True,
+        },
+        "file_celery_beat_general": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "celery_beat.log"),
+            "maxBytes": 1024 * 1024 * 50,
+            "backupCount": 5,
+            "formatter": "default",
+            "delay": True,
+        },
+        "file_celery_beat_errors": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(LOGS_PATH, "celery_beat_errors.log"),
+            "maxBytes": 1024 * 1024 * 50,
+            "backupCount": 5,
+            "formatter": "exception",
+            "delay": True,
+        },
     }
 
     if LOG_TO_CONSOLE:
@@ -328,6 +364,27 @@ if LOGGING_ENABLED:
             "daphne": {
                 "handlers": [
                     h for h in ["console", "file_errors"] if h in logging_handlers
+                ],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "celery": {
+                "handlers": [
+                    h
+                    for h in [
+                        "file_celery_worker_general",
+                        "file_celery_worker_errors",
+                    ]
+                    if h in logging_handlers
+                ],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "celery.beat": {
+                "handlers": [
+                    h
+                    for h in ["file_celery_beat_general", "file_celery_beat_errors"]
+                    if h in logging_handlers
                 ],
                 "level": "INFO",
                 "propagate": False,
