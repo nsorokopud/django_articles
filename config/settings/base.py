@@ -253,6 +253,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,  # 50 MB
             "backupCount": 5,
             "formatter": "default",
+            "filters": ["host_name"],
             "delay": True,
         },
         "file_errors": {
@@ -262,6 +263,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,
             "backupCount": 5,
             "formatter": "default",
+            "filters": ["host_name"],
             "delay": True,
         },
         "file_uncaught_errors": {
@@ -271,6 +273,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,
             "backupCount": 5,
             "formatter": "exception",
+            "filters": ["host_name"],
             "delay": True,
         },
         "file_celery_worker_general": {
@@ -280,6 +283,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,
             "backupCount": 5,
             "formatter": "default",
+            "filters": ["host_name"],
             "delay": True,
         },
         "file_celery_worker_errors": {
@@ -289,6 +293,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,
             "backupCount": 5,
             "formatter": "exception",
+            "filters": ["host_name"],
             "delay": True,
         },
         "file_celery_beat_general": {
@@ -298,6 +303,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,
             "backupCount": 5,
             "formatter": "default",
+            "filters": ["host_name"],
             "delay": True,
         },
         "file_celery_beat_errors": {
@@ -307,6 +313,7 @@ if LOGGING_ENABLED:
             "maxBytes": 1024 * 1024 * 50,
             "backupCount": 5,
             "formatter": "exception",
+            "filters": ["host_name"],
             "delay": True,
         },
     }
@@ -320,15 +327,20 @@ if LOGGING_ENABLED:
     LOGGING = {
         "version": 1,
         "disable_existing_loggers": False,
+        "filters": {
+            "host_name": {"()": "core.logging_filters.HostNameFilter"},
+        },
         "formatters": {
             "default": {
                 "format": (
-                    "{asctime} - [{levelname}] - {name}:{funcName}:{lineno} - {message}"
+                    "{asctime} - [{levelname}] - {host_name}:{processName}:{process}\n"
+                    "{name}:{funcName}:{lineno} - {message}"
                 ),
                 "style": "{",
             },
             "exception": {
-                "format": "{asctime} - [{levelname}] - {message}",
+                "format": "{asctime} - [{levelname}] - {host_name}:{processName}:"
+                "{process}\n{message}",
                 "style": "{",
             },
         },
