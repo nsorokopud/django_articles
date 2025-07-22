@@ -168,6 +168,11 @@ if LOGGING_ENABLED:
                 "level": "INFO",
                 "propagate": False,
             },
+            "py.warnings": {
+                "handlers": ["file_general"],
+                "level": "WARNING",
+                "propagate": False,
+            },
         },
     }
 else:
