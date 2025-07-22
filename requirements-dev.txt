@@ -12,6 +12,7 @@ asgiref==3.8.1
     #   channels-redis
     #   daphne
     #   django
+    #   django-allauth
     #   django-minify-html
 astroid==3.3.9
     # via pylint
@@ -118,7 +119,7 @@ django==5.1.1
     #   django-timezone-field
     #   django-tinymce
     #   sentry-sdk
-django-allauth==65.0.2
+django-allauth==65.5.0
     # via -r requirements.in
 django-appconf==1.1.0
     # via django-select2

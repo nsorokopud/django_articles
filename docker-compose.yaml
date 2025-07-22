@@ -8,6 +8,7 @@ services:
     expose:
       - 8000
     volumes:
+      - media-volume:/app/media/
       - static-volume:/app/staticfiles/
       - logs-volume:/app/logs/
     depends_on:
@@ -35,6 +36,9 @@ services:
       - .env
     entrypoint: celery
     command: -A config worker -l INFO
+    volumes:
+      - media-volume:/app/media/
+      - logs-volume:/app/logs/
     depends_on:
       - redis
       - db
@@ -47,6 +51,8 @@ services:
       - .env
     entrypoint: celery
     command: -A config beat -l INFO
+    volumes:
+      - logs-volume:/app/logs/
     depends_on:
       - redis
       - db
@@ -92,11 +98,13 @@ services:
       - web-app
       - flower
     volumes:
+      - media-volume:/app-media/
       - static-volume:/static/
       - ssl-cert-volume:/etc/letsencrypt/
 
 volumes:
   db-volume:
   logs-volume:
+  media-volume:
   static-volume:
   ssl-cert-volume:

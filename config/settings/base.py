@@ -174,6 +174,7 @@ AUTHENTICATION_BACKENDS = [
 
 ACCOUNT_ADAPTER = "users.adapters.AccountAdapter"
 ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_CHANGE_EMAIL = True
 
 SOCIALACCOUNT_ONLY = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
@@ -234,106 +235,6 @@ if USE_SENTRY:
         traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
         send_default_pii=SENTRY_SEND_DEFAULT_PII,
     )
-
-
-# Logging
-
-LOGGING_ENABLED = bool(int(os.getenv("ENABLE_LOGGING", "0")))
-LOG_TO_CONSOLE = bool(int(os.getenv("LOG_TO_CONSOLE", "0")))
-LOGS_PATH = os.path.join(BASE_DIR, os.getenv("LOGS_PATH", "logs"))
-
-if LOGGING_ENABLED:
-    os.makedirs(LOGS_PATH, exist_ok=True)
-
-    logging_handlers = {
-        "file_general": {
-            "level": "INFO",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOGS_PATH, "general.log"),
-            "maxBytes": 1024 * 1024 * 50,  # 50 MB
-            "backupCount": 5,
-            "formatter": "default",
-            "delay": True,
-        },
-        "file_errors": {
-            "level": "ERROR",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOGS_PATH, "errors.log"),
-            "maxBytes": 1024 * 1024 * 50,
-            "backupCount": 5,
-            "formatter": "default",
-            "delay": True,
-        },
-        "file_uncaught_errors": {
-            "level": "ERROR",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(LOGS_PATH, "uncaught_errors.log"),
-            "maxBytes": 1024 * 1024 * 50,
-            "backupCount": 5,
-            "formatter": "exception",
-            "delay": True,
-        },
-    }
-
-    if LOG_TO_CONSOLE:
-        logging_handlers["console"] = {
-            "class": "logging.StreamHandler",
-            "level": "DEBUG",
-        }
-
-    LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "format": (
-                    "{asctime} - [{levelname}] - {name}:{funcName}:{lineno} - {message}"
-                ),
-                "style": "{",
-            },
-            "exception": {
-                "format": "{asctime} - [{levelname}] - {message}",
-                "style": "{",
-            },
-        },
-        "handlers": logging_handlers,
-        "root": {
-            "handlers": [
-                h
-                for h in ["console", "file_general", "file_errors"]
-                if h in logging_handlers
-            ],
-            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
-        },
-        "loggers": {
-            "django": {
-                "handlers": [h for h in ["console"] if h in logging_handlers],
-                "level": "INFO",
-                "propagate": False,
-            },
-            "django.server": {
-                "handlers": [h for h in ["console"] if h in logging_handlers],
-                "level": "INFO",
-                "propagate": False,
-            },
-            "django.request": {
-                "handlers": [
-                    h
-                    for h in ["console", "file_uncaught_errors"]
-                    if h in logging_handlers
-                ],
-                "level": "INFO",
-                "propagate": False,
-            },
-            "daphne": {
-                "handlers": [
-                    h for h in ["console", "file_errors"] if h in logging_handlers
-                ],
-                "level": "INFO",
-                "propagate": False,
-            },
-        },
-    }
 
 
 # Internationalization
@@ -504,6 +405,9 @@ CHANNEL_LAYERS = {
 
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = ALLOW_NON_ROUTABLE_IPS = bool(
+    int(os.getenv("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", "1"))
+)
 
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
@@ -520,3 +424,6 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
 EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
+
+
+from .logging import LOGGING  # noqa
