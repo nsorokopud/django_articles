@@ -2,8 +2,8 @@
 
 set -e
 
-mkdir -p /app/logs /app/staticfiles
-chown -R articles_user:articles_user /app/logs /app/staticfiles
+mkdir -p /app/logs /app/media /app/staticfiles
+chown -R articles_user:articles_user /app/logs /app/media /app/staticfiles
 
 # Re-exec this script as articles_user
 if [ "$(whoami)" != "articles_user" ]; then
