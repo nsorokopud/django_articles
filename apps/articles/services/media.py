@@ -81,8 +81,12 @@ def _delete_local_filesystem_media(
     local_path = os.path.join(storage.location, article_media_dir)
     media_root = os.path.realpath(MEDIA_ROOT)
 
-    if not os.path.realpath(local_path).startswith(media_root):
-        logger.error("Attempted to delete a path outside MEDIA_ROOT: %s.", local_path)
+    if not os.path.commonpath([media_root, os.path.realpath(local_path)]) == media_root:
+        logger.error(
+            "Attempted to delete a path ('%s') outside MEDIA_ROOT ('%s').",
+            local_path,
+            media_root,
+        )
         return
     if not os.path.exists(local_path):
         logger.info(
@@ -99,11 +103,16 @@ def _delete_local_filesystem_media(
         )
     except FileNotFoundError as e:
         logger.warning("Directory or file %s does not exist: %s.", local_path, str(e))
-    except OSError:
-        logger.exception(
-            "Failed to delete local media (%s) for article %s.", local_path, article_id
+    except OSError as e:
+        logger.error(
+            "Failed to delete local media (%s) for article %s: %s.",
+            local_path,
+            article_id,
+            str(e),
         )
         raise
+
+    _delete_author_media_dir(os.path.dirname(local_path))
 
 
 def _delete_s3_media(
