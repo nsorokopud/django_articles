@@ -1,3 +1,6 @@
+import os
+import shutil
+import tempfile
 from pathlib import PurePosixPath
 from unittest.mock import ANY, Mock, call, patch
 
@@ -12,6 +15,7 @@ from articles.models import Article
 from articles.services.media import (
     ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE,
     MAX_S3_DELETE_BATCH_SIZE,
+    _delete_author_media_dir,
     _delete_s3_media,
     delete_media_files_attached_to_article,
     save_media_file_attached_to_article,
@@ -249,3 +253,56 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
         )
         self.assertIn("file", file_base)
         self.assertEqual(file_ext, "jpeg")
+
+
+class TestDeleteAuthorMediaDir(SimpleTestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(
+            lambda x: shutil.rmtree(x) if os.path.exists(x) else ..., self.dir
+        )
+
+    @patch("articles.services.media.logger")
+    def test_not_dir(self, mock_logger):
+        path = "not-dir"
+        self.assertFalse(os.path.exists(path))
+
+        _delete_author_media_dir(path)
+        mock_logger.info.assert_not_called()
+        mock_logger.warning.assert_not_called()
+        self.assertTrue(os.path.exists(self.dir))
+
+    @patch("articles.services.media.logger")
+    def test_empty_dir(self, mock_logger):
+        self.assertTrue(os.path.exists(self.dir))
+
+        _delete_author_media_dir(self.dir)
+        mock_logger.info.assert_called_once_with(
+            "Removed empty author media folder: %s", self.dir
+        )
+        mock_logger.warning.assert_not_called()
+        self.assertFalse(os.path.exists(self.dir))
+
+    @patch("articles.services.media.logger")
+    def test_non_empty_dir(self, mock_logger):
+        self.file_path = os.path.join(self.dir, "file1.txt")
+        with open(self.file_path, "w", encoding="utf-8") as f:
+            f.write("content")
+
+        self.assertTrue(os.path.exists(self.file_path))
+
+        _delete_author_media_dir(self.dir)
+        mock_logger.info.assert_not_called()
+        mock_logger.warning.assert_not_called()
+        self.assertTrue(os.path.exists(self.file_path))
+
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.os.rmdir", side_effect=OSError("OS error"))
+    def test_os_error_when_deleting(self, mock_rmdir, mock_logger):
+        _delete_author_media_dir(self.dir)
+        mock_logger.info.assert_not_called()
+        mock_logger.warning.assert_called_once_with(
+            "Failed to remove author media folder %s: %s",
+            self.dir,
+            str(mock_rmdir.side_effect),
+        )

@@ -152,3 +152,14 @@ def _delete_s3_media(
                 article_id,
             )
             raise
+
+
+def _delete_author_media_dir(author_dir: str):
+    try:
+        if os.path.isdir(author_dir) and not os.listdir(author_dir):
+            os.rmdir(author_dir)
+            logger.info("Removed empty author media folder: %s", author_dir)
+    except OSError as e:
+        logger.warning(
+            "Failed to remove author media folder %s: %s", author_dir, str(e)
+        )
