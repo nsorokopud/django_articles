@@ -27,4 +27,6 @@ def send_comment_notification(sender, instance, created, **kwargs) -> None:
 
 @receiver(post_delete, sender=Article)
 def delete_article_media_files(sender, instance, **kwargs) -> None:
-    delete_article_inline_media_task.delay(instance.id, instance.author.id)
+    transaction.on_commit(
+        lambda: delete_article_inline_media_task.delay(instance.id, instance.author.id)
+    )
