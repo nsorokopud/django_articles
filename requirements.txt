@@ -103,6 +103,8 @@ django-cachalot==2.6.3
     # via -r requirements.in
 django-celery-beat==2.8.1
     # via -r requirements.in
+django-cleanup==9.0.0
+    # via -r requirements.in
 django-crispy-forms==2.3
     # via
     #   -r requirements.in

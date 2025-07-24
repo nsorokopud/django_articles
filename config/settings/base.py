@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "users",
     "notifications",
     "core",
+    "django_cleanup.apps.CleanupConfig",
 ]
 
 if DEBUG:
