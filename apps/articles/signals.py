@@ -22,7 +22,11 @@ def send_article_notification(sender, instance, created, **kwargs) -> None:
 @receiver(post_save, sender=ArticleComment)
 def send_comment_notification(sender, instance, created, **kwargs) -> None:
     if created and not kwargs.get("raw", False):
-        send_new_comment_notification.delay(instance.id, instance.article.author.id)
+        transaction.on_commit(
+            lambda: send_new_comment_notification.delay(
+                instance.id, instance.article.author.id
+            )
+        )
 
 
 @receiver(post_delete, sender=Article)
