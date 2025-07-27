@@ -2,6 +2,8 @@ from articles.selectors import get_article_by_slug, get_comment_by_id
 from config.celery import app
 from users.selectors import get_user_by_id
 
+from .selectors import get_notification_by_id
+
 
 @app.task
 def send_new_article_notification(article_slug: str) -> None:
@@ -22,7 +24,7 @@ def send_new_comment_notification(comment_id: int, recipient_id: int) -> None:
 
 @app.task
 def send_notification_email(notification_id: int) -> None:
-    from .services import get_notification_by_id, send_notification_email
+    from .services import send_notification_email
 
     notification = get_notification_by_id(notification_id)
     send_notification_email(notification)

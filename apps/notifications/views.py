@@ -1,12 +1,8 @@
 from django.http import HttpResponseForbidden, JsonResponse
 from django.views import View
 
-from .services import (
-    delete_notification,
-    get_notification_by_id,
-    get_unread_notifications_count_by_user,
-    mark_notification_as_read,
-)
+from .selectors import get_notification_by_id, get_unread_notifications_count_by_user
+from .services import delete_notification, mark_notification_as_read
 
 
 class ReadNotificationView(View):

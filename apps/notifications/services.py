@@ -4,7 +4,6 @@ from typing import Any, Iterable
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.core.mail import EmailMultiAlternatives
-from django.db.models.query import QuerySet
 from django.template.loader import render_to_string
 from django.urls import reverse
 
@@ -149,17 +148,6 @@ def send_notification_email(notification: Notification) -> None:
     email.send()
 
 
-def get_notification_by_id(notification_id: int) -> Notification:
-    return Notification.objects.get(pk=notification_id)
-
-
-def find_notifications_by_user(user: User) -> QuerySet[Notification]:
-    """Returns a queryset of notifications addressed to the specified
-    user.
-    """
-    return Notification.objects.filter(recipient=user)
-
-
 def mark_notification_as_read(notification: Notification) -> None:
     """Changes the status of the notification to 'read'."""
     notification.status = Notification.Status.READ
@@ -168,12 +156,3 @@ def mark_notification_as_read(notification: Notification) -> None:
 
 def delete_notification(notification: Notification) -> None:
     notification.delete()
-
-
-def get_unread_notifications_count_by_user(user: User) -> int:
-    """Returns the total count of unread notifications addressed to the
-    specified user.
-    """
-    return Notification.objects.filter(
-        recipient=user, status=Notification.Status.UNREAD
-    ).count()

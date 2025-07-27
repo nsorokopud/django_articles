@@ -1,7 +1,10 @@
 import logging
 from typing import Any
 
-from .services import find_notifications_by_user, get_unread_notifications_count_by_user
+from .selectors import (
+    find_notifications_by_user,
+    get_unread_notifications_count_by_user,
+)
 
 
 logger = logging.getLogger(__name__)
