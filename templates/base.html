@@ -28,7 +28,7 @@
     </title>
   </head>
 
-  <body>
+  <body {% if user.is_authenticated %}data-is-authenticated="1"{% endif %}>
     {% include "notifications/notification_modal.html" %}
     {% include "inclusion/header.html" %}
     {% block content %}{% endblock %}
@@ -49,7 +49,7 @@
             crossorigin="anonymous"
             integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="></script>
     <!-- Notifications -->
-    <script src="{% static 'js/notifications.js' %}"></script>
+    <script type="module" src="{% static 'js/notifications/index.js' %}"></script>
     <!-- Timezones -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.3.0/luxon.min.js"></script>
     <script src="{% static 'js/timezones.js' %}"></script>
