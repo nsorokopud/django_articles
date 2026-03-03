@@ -3,19 +3,35 @@ from django.db import models
 from users.models import User
 
 
+class NotificationType(models.TextChoices):
+    NEW_ARTICLE = "new_article", "New article"
+    NEW_COMMENT = "new_comment", "New comment"
+    SYSTEM = "system", "System"
+    OTHER = "other", "Other"
+
+
 class Notification(models.Model):
-    class Type(models.TextChoices):
-        NEW_ARTICLE = "new article"
-        NEW_COMMENT = "new comment"
+    class Level(models.TextChoices):
+        INFO = "info", "Info"
+        SUCCESS = "success", "Success"
+        WARNING = "warning", "Warning"
+        ERROR = "error", "Error"
 
-    class Status(models.TextChoices):
-        UNREAD = "unread"
-        READ = "read"
-
-    type = models.CharField(max_length=255, choices=Type)
-    title = models.CharField(max_length=255, blank=True)
-    message = models.CharField(max_length=500, blank=True)
-    link = models.URLField(max_length=500, blank=True)
+    level = models.CharField(
+        max_length=16, choices=Level.choices, blank=True, default=Level.INFO
+    )
+    notification_type = models.CharField(
+        max_length=32,
+        choices=NotificationType.choices,
+        blank=True,
+        default=NotificationType.SYSTEM,
+    )
+    title = models.CharField(max_length=128, blank=True)
+    body = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications", db_index=True
+    )
     sender = models.ForeignKey(
         User,
         null=True,
@@ -23,19 +39,34 @@ class Notification(models.Model):
         related_name="sent_notifications",
         on_delete=models.SET_NULL,
     )
-    recipient = models.ForeignKey(
-        User,
-        blank=True,
-        related_name="received_notifications",
-        on_delete=models.CASCADE,
-    )
-    status = models.CharField(
-        max_length=255, blank=True, choices=Status, default=Status.UNREAD
-    )
+    dedupe_key = models.CharField(max_length=128, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
-    def __str__(self):
+    class Meta:
+        ordering = ("-id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "dedupe_key"],
+                condition=~models.Q(dedupe_key=""),
+                name="uniq_notif_recipient_dedupe",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["recipient", "-id"], name="notif_recipient_id_desc_idx"
+            ),
+            models.Index(
+                fields=["recipient", "-id"],
+                name="notif_unread_recip_id_desc_idx",
+                condition=models.Q(read_at__isnull=True),
+            ),
+        ]
+
+    def __str__(self) -> str:
         created_at = self.created_at.strftime("%H:%M:%S %d-%m-%Y")
-        sender = self.sender.username if self.sender else "System"
-        recipient = self.recipient.username
-        return f"{created_at} [{self.type}] from {sender} to {recipient}: {self.link}"
+        sender = self.sender.pk if self.sender else "System"
+        return (
+            f"{created_at} [{self.level}, {self.notification_type}]; "
+            f"{sender}->{self.recipient.pk}"
+        )
