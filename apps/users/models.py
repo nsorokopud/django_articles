@@ -10,6 +10,11 @@ class User(AbstractUser):
         symmetrical=False,
         related_name="subscribers",
     )
+    latest_published_article_id = models.BigIntegerField(default=0, db_index=True)
+    subscriptions_last_seen_article_id = models.BigIntegerField(
+        default=0, db_index=True
+    )
+    unread_notifications_count = models.IntegerField(default=0)
 
 
 class Profile(models.Model):
@@ -18,9 +23,9 @@ class Profile(models.Model):
         default="users/profile_images/default_avatar.jpg",
         upload_to="users/profile_images/",
     )
-    notification_emails_allowed = models.BooleanField(default=True)
+    notification_emails_allowed = models.BooleanField(default=True, db_index=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username}'s profile"
 
 
@@ -36,21 +41,25 @@ class AuthorSubscription(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["subscriber"]),
-            models.Index(fields=["author"]),
+            models.Index(
+                fields=["subscriber", "author"],
+                name="sub_notif_enabl_sub_author_idx",
+                condition=models.Q(notifications_enabled=True),
+            ),
         ]
         constraints = [
             models.CheckConstraint(
-                check=~models.Q(subscriber=models.F("author")),
-                name="prevent_self_subscription",
+                condition=~models.Q(subscriber=models.F("author")),
+                name="sub_prevent_self_subscription",
             ),
             models.UniqueConstraint(
-                fields=["subscriber", "author"], name="unique_subscription"
+                fields=["subscriber", "author"],
+                name="sub_subscriber_author_unique",
             ),
         ]
 
-    def __str__(self):
-        return f"{self.subscriber} -> {self.author}"
+    def __str__(self) -> str:
+        return f"{self.subscriber_id} -> {self.author_id}"
 
 
 class TokenType(models.TextChoices):
