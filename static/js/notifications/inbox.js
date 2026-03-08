@@ -177,8 +177,11 @@ function renderInboxItems(items, { mode } = { mode: 'replace' }) {
   setInboxEmpty(false);
 
   const fragment = document.createDocumentFragment();
-  for (const n of items)
+
+  for (const n of items) {
+    if (mode !== 'replace' && hasInboxItem(n.id)) continue;
     fragment.appendChild(createInboxNotificationElement(n));
+  }
 
   switch (mode) {
     case 'prepend':
@@ -192,6 +195,8 @@ function renderInboxItems(items, { mode } = { mode: 'replace' }) {
 }
 
 function prependInboxItem(n) {
+  if (hasInboxItem(n.id)) return;
+
   showInboxUI();
   setInboxEmpty(false);
 
@@ -213,6 +218,10 @@ function updateInboxBounds(items) {
 
   inboxNewestId = inboxNewestId ? Math.max(inboxNewestId, maxId) : maxId;
   inboxOldestId = inboxOldestId ? Math.min(inboxOldestId, minId) : minId;
+}
+
+function hasInboxItem(id) {
+  return !!document.getElementById(`notification-${id}`);
 }
 
 function setInboxLoading(isLoading) {
