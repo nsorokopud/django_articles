@@ -11,9 +11,9 @@ import { intVal } from './utils.js';
 // Cross-tab shared state (localStorage)
 const DIGEST_LEADER_KEY = 'digest_leader';
 const DIGEST_PREFERRED_LEADER_KEY = 'digest_preferred_leader';
-const NEW_ARTICLES_DIGEST_CURSOR_KEY = 'digest_cursor_id';
-const NEW_ARTICLES_DIGEST_NEXT_POLL_MS_KEY = 'digest_next_poll_ms';
-const SUBS_FEED_LAST_SEEN_TS_KEY = 'subs_last_seen_ts';
+const PUBLISH_SEQUENCE_CURSOR_KEY = 'publish_sequence_cursor';
+const DIGEST_NEXT_POLL_AT_KEY = 'digest_next_poll_at';
+const SUBSCRIPTIONS_FEED_LAST_SEEN_AT_KEY = 'subscriptions_feed_last_seen_at';
 
 // Leader election timing
 const DIGEST_HEARTBEAT_MS = 5_000;
@@ -27,7 +27,7 @@ const DIGEST_VISIBILITY_CLAIM_RETRY_MS = 1_000;
 const DIGEST_VISIBILITY_CLAIM_MAX_ATTEMPTS = 3;
 
 // Digest polling timing
-const DIGEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min
+const DIGEST_POLL_INTERVAL_MS = 30 * 1000; // 5 min
 const DIGEST_POLL_JITTER_MS = 30 * 1000;
 
 // Maximum allowed carryover when resuming a stored next-poll time.
@@ -52,7 +52,7 @@ const state = {
   isAuthenticated: false,
   isSubscriptionsPage: false,
   isSubscriptionsFeedPageOne: false,
-  latestArticleId: 0,
+  latestPublishSequence: 0,
 };
 
 let digestChannel = null;
@@ -72,8 +72,8 @@ let leaderWatchdogIntervalId = null;
 let digestKickoffTimeoutId = null;
 let digestLoopTimeoutId = null;
 
-let newArticlesDigestCursorId = intVal(
-  localStorage.getItem(NEW_ARTICLES_DIGEST_CURSOR_KEY),
+let publishSequenceCursor = intVal(
+  localStorage.getItem(PUBLISH_SEQUENCE_CURSOR_KEY),
   0,
 );
 
@@ -83,12 +83,12 @@ export function initNewArticlesDigest({
   isAuthenticated,
   isSubscriptionsPage,
   isSubscriptionsFeedPageOne,
-  latestArticleId,
+  latestPublishSequence,
 } = {}) {
   state.isAuthenticated = !!isAuthenticated;
   state.isSubscriptionsPage = !!isSubscriptionsPage;
   state.isSubscriptionsFeedPageOne = !!isSubscriptionsFeedPageOne;
-  state.latestArticleId = intVal(latestArticleId, 0);
+  state.latestPublishSequence = intVal(latestPublishSequence, 0);
 
   if (!state.isAuthenticated) return;
 
@@ -102,11 +102,15 @@ export function initNewArticlesDigest({
   // On subscriptions feed page 1: record "seen recently" (suppresses toasts briefly)
   // and advance the cursor so we don't notify about already-visible items.
   if (state.isSubscriptionsPage && state.isSubscriptionsFeedPageOne) {
-    localStorage.setItem(SUBS_FEED_LAST_SEEN_TS_KEY, String(Date.now()));
+    localStorage.setItem(
+      SUBSCRIPTIONS_FEED_LAST_SEEN_AT_KEY,
+      String(Date.now()),
+    );
 
-    const latestId = intVal(state.latestArticleId, 0);
+    const latestVisiblePublishSequence = intVal(state.latestPublishSequence, 0);
 
-    if (latestId > 0) bumpDigestCursor(latestId);
+    if (latestVisiblePublishSequence > 0)
+      bumpDigestCursor(latestVisiblePublishSequence);
   }
 
   syncDigestCursorFromStorage();
@@ -116,7 +120,7 @@ export function initNewArticlesDigest({
     storageListenerAttached = true;
 
     window.addEventListener('storage', (e) => {
-      if (e.key === NEW_ARTICLES_DIGEST_CURSOR_KEY) {
+      if (e.key === PUBLISH_SEQUENCE_CURSOR_KEY) {
         syncDigestCursorFromStorage();
         return;
       }
@@ -255,8 +259,8 @@ function startDigestPolling() {
   const tick = async () => {
     if (!isDigestLeader) return;
 
-    const nextDueMs = Date.now() + DIGEST_POLL_INTERVAL_MS + perTickJitterMs();
-    writeNextPollDueMs(nextDueMs);
+    const nextPollAt = Date.now() + DIGEST_POLL_INTERVAL_MS + perTickJitterMs();
+    writeNextPollAt(nextPollAt);
 
     if (canRunDigestNow()) {
       await checkNewArticlesDigest();
@@ -269,10 +273,10 @@ function startDigestPolling() {
   const scheduleNext = () => {
     if (!isDigestLeader) return;
 
-    const nextDueMs = readNextPollDueMs();
+    const nextPollAt = readNextPollAt();
     const now = Date.now();
 
-    const remainingMs = nextDueMs - now;
+    const remainingMs = nextPollAt - now;
     const delayMs =
       remainingMs > 0 && remainingMs <= MAX_SCHEDULE_CARRYOVER_MS
         ? remainingMs
@@ -286,11 +290,11 @@ function startDigestPolling() {
 
   // On startup or leadership takeover, resume the stored schedule if valid.
   // Page reloads or tab switches are not resetting the poll schedule.
-  const storedNextDueMs = readNextPollDueMs();
+  const storedNextPollAt = readNextPollAt();
   const now = Date.now();
-  const carryoverMs = storedNextDueMs - now;
+  const carryoverMs = storedNextPollAt - now;
 
-  if (storedNextDueMs > now && carryoverMs <= MAX_SCHEDULE_CARRYOVER_MS) {
+  if (storedNextPollAt > now && carryoverMs <= MAX_SCHEDULE_CARRYOVER_MS) {
     scheduleFromNow(carryoverMs);
   } else {
     scheduleFromNow(perTickJitterMs());
@@ -305,10 +309,10 @@ function stopDigestPolling() {
 }
 
 async function checkNewArticlesDigest() {
-  const sinceId = syncDigestCursorFromStorage();
+  const sincePublishSequence = syncDigestCursorFromStorage();
 
   try {
-    const res = await fetch(digestSummaryUrl(sinceId), {
+    const res = await fetch(digestSummaryUrl(sincePublishSequence), {
       credentials: 'same-origin',
     });
     if (!res.ok) return;
@@ -316,11 +320,14 @@ async function checkNewArticlesDigest() {
     const data = await res.json();
     if (!data.has_new) return;
 
-    const latest = intVal(data.latest_article_id, 0);
+    const latestPublishSequence = intVal(
+      data.latest_article_publish_sequence,
+      0,
+    );
 
-    if (latest <= newArticlesDigestCursorId) return;
+    if (latestPublishSequence <= publishSequenceCursor) return;
 
-    bumpDigestCursor(latest);
+    bumpDigestCursor(latestPublishSequence);
 
     showToast({
       id: null,
@@ -393,39 +400,41 @@ function onLostLeadership() {
 
 // Gating + idle helpers
 
-function digestSummaryUrl(sinceId) {
-  const url = new URL(`${location.origin}/notifications/new_articles_summary/`);
-  url.searchParams.set('since_id', String(sinceId));
+function digestSummaryUrl(sincePublishSequence) {
+  const url = new URL(
+    `${location.origin}/notifications/new_articles_digest_summary/`,
+  );
+  url.searchParams.set('since_publish_sequence', String(sincePublishSequence));
   return url;
 }
 
 function syncDigestCursorFromStorage() {
-  const stored = intVal(
-    localStorage.getItem(NEW_ARTICLES_DIGEST_CURSOR_KEY),
-    0,
-  );
-  if (stored > newArticlesDigestCursorId) newArticlesDigestCursorId = stored;
-  return newArticlesDigestCursorId;
+  const stored = intVal(localStorage.getItem(PUBLISH_SEQUENCE_CURSOR_KEY), 0);
+  if (stored > publishSequenceCursor) publishSequenceCursor = stored;
+  return publishSequenceCursor;
 }
 
-function bumpDigestCursor(latestId) {
+function bumpDigestCursor(latestPublishSequence) {
   const current = syncDigestCursorFromStorage();
-  const next = Math.max(current, latestId);
-  localStorage.setItem(NEW_ARTICLES_DIGEST_CURSOR_KEY, String(next));
-  newArticlesDigestCursorId = next;
+  const next = Math.max(current, latestPublishSequence);
+  localStorage.setItem(PUBLISH_SEQUENCE_CURSOR_KEY, String(next));
+  publishSequenceCursor = next;
 }
 
-function readNextPollDueMs() {
-  return intVal(localStorage.getItem(NEW_ARTICLES_DIGEST_NEXT_POLL_MS_KEY), 0);
+function readNextPollAt() {
+  return intVal(localStorage.getItem(DIGEST_NEXT_POLL_AT_KEY), 0);
 }
 
-function writeNextPollDueMs(nextDueMs) {
-  localStorage.setItem(NEW_ARTICLES_DIGEST_NEXT_POLL_MS_KEY, String(nextDueMs));
+function writeNextPollAt(nextPollAt) {
+  localStorage.setItem(DIGEST_NEXT_POLL_AT_KEY, String(nextPollAt));
 }
 
 function wasSubscriptionPageRecentlyOpened() {
-  const ts = intVal(localStorage.getItem(SUBS_FEED_LAST_SEEN_TS_KEY), 0);
-  return ts > 0 && Date.now() - ts < SUBS_FEED_COOLDOWN_MS;
+  const ts = intVal(
+    localStorage.getItem(SUBSCRIPTIONS_FEED_LAST_SEEN_AT_KEY),
+    0,
+  );
+  return ts > 0 && Date.now() - ts < SUBSCRIPTIONS_FEED_COOLDOWN_MS;
 }
 
 function isUserIdle() {

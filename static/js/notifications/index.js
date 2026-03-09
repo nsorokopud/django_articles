@@ -11,7 +11,8 @@ const dataset = document.body?.dataset;
 const isAuthenticated = dataset?.isAuthenticated === '1';
 const isSubscriptionsPage = dataset?.page === 'subscriptions';
 const isSubscriptionsFeedPageOne = dataset?.isSubscriptionsFeedPageOne === '1';
-const latestArticleId = Number(dataset?.latestArticleId) || 0;
+const latestArticlePublishSequence =
+  Number(dataset?.latestArticlePublishSequence) || 0;
 
 if (isAuthenticated) {
   initInboxUI();
@@ -24,6 +25,6 @@ if (isAuthenticated) {
     isAuthenticated,
     isSubscriptionsPage,
     isSubscriptionsFeedPageOne,
-    latestArticleId,
+    latestArticlePublishSequence,
   });
 }
