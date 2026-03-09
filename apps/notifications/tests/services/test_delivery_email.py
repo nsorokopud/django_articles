@@ -1,0 +1,114 @@
+from django.test import TestCase
+
+from notifications.models import Notification, NotificationType
+from notifications.services.delivery_email import build_notification_email_config
+from users.models import Profile, User
+
+
+class TestBuildNotificationEmailConfig(TestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(
+            username="u1",
+            email="u1@test.com",
+        )
+        Profile.objects.update_or_create(
+            user=self.user,
+            defaults={"notification_emails_allowed": True},
+        )
+
+    def _create_notification(
+        self,
+        *,
+        notification_type: str = NotificationType.SYSTEM,
+        title: str = "T",
+        body: str = "B",
+        payload=None,
+    ) -> Notification:
+        if payload is None:
+            payload = {}
+        return Notification.objects.create(
+            recipient=self.user,
+            notification_type=notification_type,
+            title=title,
+            body=body,
+            payload=payload,
+        )
+
+    def test_returns_none_when_notification_missing(self) -> None:
+        cfg = build_notification_email_config(notification_id=99999)
+        self.assertIsNone(cfg)
+
+    def test_returns_none_for_non_system_notification(self) -> None:
+        n = self._create_notification(notification_type=NotificationType.NEW_COMMENT)
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNone(cfg)
+
+    def test_returns_none_when_user_disables_notification_emails(self) -> None:
+        self.user.profile.notification_emails_allowed = False
+        self.user.profile.save(update_fields=["notification_emails_allowed"])
+
+        n = self._create_notification(notification_type=NotificationType.SYSTEM)
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNone(cfg)
+
+    def test_returns_none_when_email_blank_or_whitespace(self) -> None:
+        self.user.email = "   "
+        self.user.save(update_fields=["email"])
+
+        n = self._create_notification(notification_type=NotificationType.SYSTEM)
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNone(cfg)
+
+    def test_builds_config_for_system_notification(self) -> None:
+        n = self._create_notification(
+            notification_type=NotificationType.SYSTEM,
+            title="T",
+            body="B",
+            payload={"link": "/x/"},
+        )
+
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNotNone(cfg)
+        self.assertEqual(cfg["recipients"], ["u1@test.com"])
+        self.assertEqual(
+            cfg["subject_template"], "emails/notifications/system_subject.txt"
+        )
+        self.assertEqual(cfg["text_template"], "emails/notifications/system.txt")
+        self.assertEqual(cfg["html_template"], "emails/notifications/system.html")
+        self.assertFalse(cfg["fail_silently"])
+
+        ctx = cfg["context"]
+        self.assertEqual(ctx["title"], "T")
+        self.assertEqual(ctx["body"], "B")
+        self.assertEqual(ctx["link"], "/x/")
+        self.assertEqual(ctx["notification_id"], n.id)
+
+    def test_payload_link_takes_precedence_over_url(self) -> None:
+        n = self._create_notification(
+            notification_type=NotificationType.SYSTEM,
+            payload={"link": "/preferred/", "url": "/fallback/"},
+        )
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNotNone(cfg)
+        assert cfg is not None
+        self.assertEqual(cfg["context"]["link"], "/preferred/")
+
+    def test_payload_url_used_when_link_missing(self) -> None:
+        n = self._create_notification(
+            notification_type=NotificationType.SYSTEM,
+            payload={"url": "/from-url/"},
+        )
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNotNone(cfg)
+        assert cfg is not None
+        self.assertEqual(cfg["context"]["link"], "/from-url/")
+
+    def test_payload_not_dict_results_in_none_link(self) -> None:
+        n = self._create_notification(
+            notification_type=NotificationType.SYSTEM,
+            payload=["not-a-dict"],
+        )
+        cfg = build_notification_email_config(notification_id=n.id)
+        self.assertIsNotNone(cfg)
+        assert cfg is not None
+        self.assertIsNone(cfg["context"]["link"])
