@@ -64,6 +64,11 @@ class Notification(models.Model):
                 name="notif_unread_recip_id_desc_idx",
                 condition=models.Q(read_at__isnull=True),
             ),
+            models.Index(
+                fields=["read_at", "id"],
+                name="notif_read_read_at_id_idx",
+                condition=models.Q(read_at__isnull=False),
+            ),
         ]
 
     def __str__(self) -> str:
