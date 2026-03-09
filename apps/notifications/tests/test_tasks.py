@@ -1,121 +1,180 @@
-from asgiref.sync import sync_to_async
-from channels.testing import WebsocketCommunicator
-from django.core import mail
-from django.db.models import signals
-from django.test import TransactionTestCase, override_settings
-from django.urls import reverse
+from unittest.mock import Mock, patch
 
-from articles.models import Article, ArticleComment
-from articles.signals import send_article_notification, send_comment_notification
-from users.models import User
+from django.test import SimpleTestCase, override_settings
 
-from ..consumers import NotificationConsumer
-from ..models import Notification
-from ..tasks import (
-    send_new_article_notification,
-    send_new_comment_notification,
-    send_notification_email,
+from notifications.tasks import (
+    NOTIFICATIONS_CLEANUP_LOCK_KEY,
+    cleanup_old_read_notifications_task,
+    send_notification_email_task,
+    send_notification_ws_task,
 )
 
 
-@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
-class TestTasks(TransactionTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        signals.post_save.disconnect(send_article_notification, sender=Article)
-        signals.post_save.disconnect(send_comment_notification, sender=ArticleComment)
+class TestSendNotificationWSTask(SimpleTestCase):
+    @patch("notifications.tasks.async_to_sync")
+    @patch("notifications.services.delivery_ws.send_ws_notification")
+    def test_calls_send_ws_notification_via_async_to_sync(
+        self, mock_send_ws_notification, mock_async_to_sync
+    ):
+        sync_callable = Mock()
+        mock_async_to_sync.return_value = sync_callable
 
-    @classmethod
-    def tearDownClass(cls):
-        signals.post_save.connect(send_article_notification, sender=Article)
-        signals.post_save.connect(send_comment_notification, sender=ArticleComment)
-        super().tearDownClass()
+        send_notification_ws_task.run(notification_id=123)
 
-    def setUp(self):
-        self.user = User.objects.create_user(username="user", email="user@test.com")
-        self.author = User.objects.create_user(
-            username="author", email="author@test.com"
-        )
-        self.author.subscribers.add(self.user)
-        self.article = Article.objects.create(
-            title="a1",
-            slug="a1",
-            author=self.author,
-            preview_text="text1",
-            content="content1",
-        )
-        self.comment = ArticleComment.objects.create(
-            article=self.article, author=self.author, text="1"
+        mock_async_to_sync.assert_called_once_with(mock_send_ws_notification)
+        sync_callable.assert_called_once_with(123)
+
+    @patch("notifications.tasks.async_to_sync")
+    @patch("notifications.tasks.logger.exception")
+    def test_logs_exception_when_ws_delivery_raises(
+        self, mock_log_exception, mock_async_to_sync
+    ):
+        sync_callable = Mock(side_effect=RuntimeError("error"))
+        mock_async_to_sync.return_value = sync_callable
+
+        send_notification_ws_task.run(notification_id=456)
+
+        sync_callable.assert_called_once_with(456)
+        mock_log_exception.assert_called_once_with(
+            "WS delivery failed (notification_id=%s)", 456
         )
 
-    async def test_send_new_article_notification(self):
-        communicator = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "/ws/notifications/"
-        )
-        communicator.scope["user"] = self.user
-        connected, _ = await communicator.connect()
-        self.assertTrue(connected)
 
-        result = await sync_to_async(send_new_article_notification.delay)(
-            self.article.slug
-        )
-        await sync_to_async(result.get)(timeout=5)
-        self.assertEqual(result.state, "SUCCESS")
+class TestSendNotificationEmailTask(SimpleTestCase):
+    def test_returns_when_config_missing(self):
+        with (
+            patch(
+                "notifications.tasks.build_notification_email_config",
+                return_value=None,
+            ) as mock_build,
+            patch("notifications.tasks.EmailConfig.from_dict") as mock_from_dict,
+            patch("notifications.tasks.send_email") as mock_send_email,
+        ):
+            send_notification_email_task.run(notification_id=1)
 
-        response = await communicator.receive_json_from()
-        self.assertEqual(response["title"], "New Article")
-        self.assertEqual(
-            response["text"],
-            (
-                f"New article from <strong>{self.author.username}</strong>: "
-                f'<strong>"{self.article.title}"</strong>'
+            mock_build.assert_called_once_with(1)
+            mock_from_dict.assert_not_called()
+            mock_send_email.assert_not_called()
+
+    def test_sends_email_when_config_present(self):
+        cfg_dict = {
+            "recipients": ["x@test.com"],
+            "subject_template": "emails/notifications/system_subject.txt",
+            "text_template": "emails/notifications/system.txt",
+            "html_template": "emails/notifications/system.html",
+            "context": {
+                "title": "T",
+                "body": "B",
+                "link": "/x/",
+                "notification_id": 99,
+            },
+            "fail_silently": False,
+        }
+        cfg_obj = Mock(name="EmailConfig")
+
+        with (
+            patch(
+                "notifications.tasks.build_notification_email_config",
+                return_value=cfg_dict,
+            ) as mock_build,
+            patch(
+                "notifications.tasks.EmailConfig.from_dict",
+                return_value=cfg_obj,
+            ) as mock_from_dict,
+            patch("notifications.tasks.send_email") as mock_send_email,
+        ):
+            send_notification_email_task.run(notification_id=99)
+
+            mock_build.assert_called_once_with(99)
+            mock_from_dict.assert_called_once_with(cfg_dict)
+            mock_send_email.assert_called_once_with(cfg_obj)
+
+    def test_raises_when_email_config_from_dict_fails(self):
+        with (
+            patch(
+                "notifications.tasks.build_notification_email_config",
+                return_value={"x": 1},
             ),
-        )
-        self.assertEqual(response["link"], f"/articles/{self.article.slug}")
-
-        await communicator.disconnect()
-
-    async def test_send_new_comment_notification(self):
-        communicator = WebsocketCommunicator(
-            NotificationConsumer.as_asgi(), "/ws/notifications/"
-        )
-        communicator.scope["user"] = self.user
-        connected, _ = await communicator.connect()
-        self.assertTrue(connected)
-
-        result = await sync_to_async(send_new_comment_notification.delay)(
-            self.comment.id, self.user.id
-        )
-        await sync_to_async(result.get)(timeout=5)
-        self.assertEqual(result.state, "SUCCESS")
-
-        response = await communicator.receive_json_from()
-        self.assertEqual(response["title"], "New Comment")
-        self.assertEqual(
-            response["text"],
-            (
-                f'New comment on your article <strong>"{self.article.title}"</strong> '
-                f"from <strong>{self.author.username}</strong>"
+            patch(
+                "notifications.tasks.EmailConfig.from_dict",
+                side_effect=ValueError("error"),
             ),
+        ):
+            with self.assertRaises(ValueError):
+                send_notification_email_task.run(notification_id=1)
+
+
+@override_settings(NOTIFICATIONS_CLEANUP_LOCK_TTL_SECONDS=60)
+class TestCleanupOldReadNotificationsTask(SimpleTestCase):
+    @patch("notifications.tasks.cache.delete")
+    @patch("notifications.services.retention.cleanup_old_read_notifications")
+    @patch("notifications.tasks.cache.add")
+    def test_runs_cleanup_when_lock_acquired(
+        self,
+        mock_cache_add,
+        mock_cleanup_old_read_notifications,
+        mock_cache_delete,
+    ):
+        mock_cache_add.return_value = True
+        mock_cleanup_old_read_notifications.return_value = 7
+
+        result = cleanup_old_read_notifications_task()
+
+        self.assertEqual(result, 7)
+        mock_cache_add.assert_called_once_with(
+            NOTIFICATIONS_CLEANUP_LOCK_KEY,
+            "1",
+            timeout=60,
         )
-        self.assertEqual(response["link"], f"/articles/{self.article.slug}")
+        mock_cleanup_old_read_notifications.assert_called_once_with()
+        mock_cache_delete.assert_called_once_with(NOTIFICATIONS_CLEANUP_LOCK_KEY)
 
-        await communicator.disconnect()
+    @patch("notifications.tasks.logger.info")
+    @patch("notifications.tasks.cache.delete")
+    @patch("notifications.services.retention.cleanup_old_read_notifications")
+    @patch("notifications.tasks.cache.add")
+    def test_skips_when_lock_not_acquired(
+        self,
+        mock_cache_add,
+        mock_cleanup_old_read_notifications,
+        mock_cache_delete,
+        mock_logger_info,
+    ):
+        mock_cache_add.return_value = False
 
-    def test_send_notification_email(self):
-        notification = Notification.objects.create(
-            type=Notification.Type.NEW_ARTICLE,
-            title="New Article",
-            message=f"New article from {self.author.username}: '{self.article.title}'",
-            link=reverse("article-details", args=(self.article.slug,)),
-            sender=self.author,
-            recipient=self.user,
+        result = cleanup_old_read_notifications_task()
+
+        self.assertEqual(result, 0)
+        mock_cache_add.assert_called_once_with(
+            NOTIFICATIONS_CLEANUP_LOCK_KEY,
+            "1",
+            timeout=60,
         )
-        self.assertEqual(len(mail.outbox), 0)
+        mock_cleanup_old_read_notifications.assert_not_called()
+        mock_cache_delete.assert_not_called()
+        mock_logger_info.assert_called_once_with(
+            "Notification cleanup skipped: already running"
+        )
 
-        result = send_notification_email.delay(notification.id)
-        self.assertIsNone(result.get(timeout=5))
-        self.assertEqual(result.state, "SUCCESS")
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].recipients(), [self.user.email])
+    @patch("notifications.tasks.cache.delete")
+    @patch("notifications.services.retention.cleanup_old_read_notifications")
+    @patch("notifications.tasks.cache.add")
+    def test_deletes_lock_when_cleanup_raises(
+        self,
+        mock_cache_add,
+        mock_cleanup_old_read_notifications,
+        mock_cache_delete,
+    ):
+        mock_cache_add.return_value = True
+        mock_cleanup_old_read_notifications.side_effect = RuntimeError("error")
+
+        with self.assertRaises(RuntimeError):
+            cleanup_old_read_notifications_task()
+
+        mock_cache_add.assert_called_once_with(
+            NOTIFICATIONS_CLEANUP_LOCK_KEY,
+            "1",
+            timeout=60,
+        )
+        mock_cleanup_old_read_notifications.assert_called_once_with()
+        mock_cache_delete.assert_called_once_with(NOTIFICATIONS_CLEANUP_LOCK_KEY)
