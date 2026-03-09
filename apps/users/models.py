@@ -10,9 +10,10 @@ class User(AbstractUser):
         symmetrical=False,
         related_name="subscribers",
     )
-    latest_published_article_id = models.BigIntegerField(default=0, db_index=True)
-    subscriptions_last_seen_article_id = models.BigIntegerField(
-        default=0, db_index=True
+    latest_article_publish_sequence = models.BigIntegerField(default=0, db_index=True)
+    subscriptions_last_seen_publish_sequence = models.BigIntegerField(
+        default=0,
+        db_index=True,
     )
     unread_notifications_count = models.IntegerField(default=0)
 

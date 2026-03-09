@@ -28,12 +28,12 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="user",
-            name="latest_published_article_id",
+            name="latest_article_publish_sequence",
             field=models.BigIntegerField(db_index=True, default=0),
         ),
         migrations.AddField(
             model_name="user",
-            name="subscriptions_last_seen_article_id",
+            name="subscriptions_last_seen_publish_sequence",
             field=models.BigIntegerField(db_index=True, default=0),
         ),
         migrations.AddField(
