@@ -8,6 +8,9 @@ from users.models import User
 from .settings import DISPLAYED_COMMENT_LENGTH
 
 
+ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
+
+
 class Article(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
@@ -20,8 +23,14 @@ class Article(models.Model):
     preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
     content = HTMLField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    publish_sequence = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        editable=False,
+    )
     modified_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False, db_index=True)
     users_that_liked = models.ManyToManyField(
         User, related_name="liked_articles", blank=True
     )
@@ -29,7 +38,36 @@ class Article(models.Model):
 
     class Meta:
         verbose_name_plural = "Articles"
-        ordering = ["-created_at"]
+
+        indexes = [
+            models.Index(
+                fields=["author", "-publish_sequence", "-id"],
+                name="art_author_pub_seq_id_desc_idx",
+                condition=models.Q(publish_sequence__isnull=False),
+            ),
+            models.Index(
+                fields=["-publish_sequence"],
+                name="article_publish_seq_desc_idx",
+                condition=models.Q(publish_sequence__isnull=False),
+            ),
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["publish_sequence"],
+                condition=models.Q(publish_sequence__isnull=False),
+                name="uniq_article_publish_sequence_not_null",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(published_at__isnull=True, publish_sequence__isnull=True)
+                    | models.Q(
+                        published_at__isnull=False, publish_sequence__isnull=False
+                    )
+                ),
+                name="article_publish_fields_consistent",
+            ),
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
