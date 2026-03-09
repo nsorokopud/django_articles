@@ -365,7 +365,7 @@ function createInboxNotificationElement(n) {
     el.classList.add('notification-title', 'me-3');
     return el;
   })();
-  title.innerText = n.title || '';
+  title.innerHTML = n.title || '';
 
   const time = (() => {
     const el = document.createElement('span');
@@ -381,7 +381,7 @@ function createInboxNotificationElement(n) {
     el.classList.add('notification-message');
     return el;
   })();
-  msg.innerText = n.body || '';
+  msg.innerHTML = n.body || '';
 
   header.append(title, time);
   content.append(header, msg);

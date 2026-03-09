@@ -22,7 +22,7 @@ export function showToast({
 
   const headerText = document.createElement('strong');
   headerText.classList.add('me-auto');
-  headerText.innerText = title || '';
+  headerText.innerHTML = title || '';
 
   const headerTime = document.createElement('small');
   try {
@@ -45,7 +45,7 @@ export function showToast({
 
   const toastBody = document.createElement('div');
   toastBody.classList.add('toast-body');
-  toastBody.innerText = body || '';
+  toastBody.innerHTML = body || '';
 
   toastEl.appendChild(toastHeader);
   toastEl.appendChild(toastBody);
