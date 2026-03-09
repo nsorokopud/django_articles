@@ -39,7 +39,7 @@ const MAX_SCHEDULE_CARRYOVER_MS =
 // Idle / suppression behavior
 const DIGEST_IDLE_AFTER_MS = 10 * 60 * 1000;
 const DIGEST_IDLE_POLL_EVERY_MS = 15 * 60 * 1000;
-const SUBS_FEED_COOLDOWN_MS = 5 * 60 * 1000;
+const SUBSCRIPTIONS_FEED_COOLDOWN_MS = 5 * 60 * 1000;
 
 // UI behavior
 const DIGEST_TOAST_DELAY_MS = 15_000;
