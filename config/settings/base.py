@@ -428,3 +428,4 @@ EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
 
 
 from .logging import LOGGING  # noqa
+from .notifications import *  # noqa
