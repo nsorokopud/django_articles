@@ -3,6 +3,9 @@ from django.db import models
 from users.models import User
 
 
+NOTIFICATION_DEDUPE_CONSTRAINT = "uniq_notif_recipient_dedupe"
+
+
 class NotificationType(models.TextChoices):
     NEW_ARTICLE = "new_article", "New article"
     NEW_COMMENT = "new_comment", "New comment"
@@ -49,7 +52,7 @@ class Notification(models.Model):
             models.UniqueConstraint(
                 fields=["recipient", "dedupe_key"],
                 condition=~models.Q(dedupe_key=""),
-                name="uniq_notif_recipient_dedupe",
+                name=NOTIFICATION_DEDUPE_CONSTRAINT,
             ),
         ]
         indexes = [
