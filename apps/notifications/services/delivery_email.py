@@ -36,20 +36,8 @@ def build_notification_email_config(notification_id: int) -> Optional[EmailConfi
     if not email:
         return None
 
-    link = None
-    if isinstance(n.payload, dict):
-        link = n.payload.get("link") or n.payload.get("url")
-
     return {
+        "subject": n.title,
+        "text_content": n.body,
         "recipients": [email],
-        "subject_template": "emails/notifications/system_subject.txt",
-        "text_template": "emails/notifications/system.txt",
-        "html_template": "emails/notifications/system.html",
-        "context": {
-            "title": n.title,
-            "body": n.body,
-            "link": link,
-            "notification_id": n.id,
-        },
-        "fail_silently": False,
     }

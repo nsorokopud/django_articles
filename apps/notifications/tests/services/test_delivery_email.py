@@ -69,46 +69,18 @@ class TestBuildNotificationEmailConfig(TestCase):
 
         cfg = build_notification_email_config(notification_id=n.id)
         self.assertIsNotNone(cfg)
+        assert cfg is not None
         self.assertEqual(cfg["recipients"], ["u1@test.com"])
-        self.assertEqual(
-            cfg["subject_template"], "emails/notifications/system_subject.txt"
-        )
-        self.assertEqual(cfg["text_template"], "emails/notifications/system.txt")
-        self.assertEqual(cfg["html_template"], "emails/notifications/system.html")
-        self.assertFalse(cfg["fail_silently"])
+        self.assertEqual(cfg["subject"], "T")
+        self.assertEqual(cfg["text_content"], "B")
 
-        ctx = cfg["context"]
-        self.assertEqual(ctx["title"], "T")
-        self.assertEqual(ctx["body"], "B")
-        self.assertEqual(ctx["link"], "/x/")
-        self.assertEqual(ctx["notification_id"], n.id)
+    def test_email_is_stripped_before_returning_config(self) -> None:
+        self.user.email = "  u1@test.com  "
+        self.user.save(update_fields=["email"])
 
-    def test_payload_link_takes_precedence_over_url(self) -> None:
-        n = self._create_notification(
-            notification_type=NotificationType.SYSTEM,
-            payload={"link": "/preferred/", "url": "/fallback/"},
-        )
+        n = self._create_notification(notification_type=NotificationType.SYSTEM)
         cfg = build_notification_email_config(notification_id=n.id)
+
         self.assertIsNotNone(cfg)
         assert cfg is not None
-        self.assertEqual(cfg["context"]["link"], "/preferred/")
-
-    def test_payload_url_used_when_link_missing(self) -> None:
-        n = self._create_notification(
-            notification_type=NotificationType.SYSTEM,
-            payload={"url": "/from-url/"},
-        )
-        cfg = build_notification_email_config(notification_id=n.id)
-        self.assertIsNotNone(cfg)
-        assert cfg is not None
-        self.assertEqual(cfg["context"]["link"], "/from-url/")
-
-    def test_payload_not_dict_results_in_none_link(self) -> None:
-        n = self._create_notification(
-            notification_type=NotificationType.SYSTEM,
-            payload=["not-a-dict"],
-        )
-        cfg = build_notification_email_config(notification_id=n.id)
-        self.assertIsNotNone(cfg)
-        assert cfg is not None
-        self.assertIsNone(cfg["context"]["link"])
+        self.assertEqual(cfg["recipients"], ["u1@test.com"])

@@ -59,16 +59,8 @@ class TestSendNotificationEmailTask(SimpleTestCase):
     def test_sends_email_when_config_present(self):
         cfg_dict = {
             "recipients": ["x@test.com"],
-            "subject_template": "emails/notifications/system_subject.txt",
-            "text_template": "emails/notifications/system.txt",
-            "html_template": "emails/notifications/system.html",
-            "context": {
-                "title": "T",
-                "body": "B",
-                "link": "/x/",
-                "notification_id": 99,
-            },
-            "fail_silently": False,
+            "subject": "T",
+            "text_content": "B",
         }
         cfg_obj = Mock(name="EmailConfig")
 
