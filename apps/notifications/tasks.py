@@ -16,8 +16,8 @@ NOTIFICATIONS_CLEANUP_LOCK_KEY = "notifications_cleanup_lock"
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=0)
-def send_notification_ws_task(self, notification_id: int) -> None:
+@shared_task(max_retries=0)
+def send_notification_ws_task(notification_id: int) -> None:
     from .services.delivery_ws import send_ws_notification
 
     try:
@@ -27,13 +27,12 @@ def send_notification_ws_task(self, notification_id: int) -> None:
 
 
 @shared_task(
-    bind=True,
     autoretry_for=(DatabaseError,),
     retry_backoff=True,
     retry_jitter=True,
     max_retries=5,
 )
-def send_notification_email_task(self, notification_id: int) -> None:
+def send_notification_email_task(notification_id: int) -> None:
     cfg_dict = build_notification_email_config(notification_id)
     if not cfg_dict:
         return
