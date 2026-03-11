@@ -19,10 +19,10 @@ class TestSendNotificationWSTask(SimpleTestCase):
         sync_callable = Mock()
         mock_async_to_sync.return_value = sync_callable
 
-        send_notification_ws_task.run(notification_id=123)
+        send_notification_ws_task.run(notification_id=123, is_new_unread=False)
 
         mock_async_to_sync.assert_called_once_with(mock_send_ws_notification)
-        sync_callable.assert_called_once_with(123)
+        sync_callable.assert_called_once_with(123, is_new_unread=False)
 
     @patch("notifications.tasks.async_to_sync")
     @patch("notifications.tasks.logger.exception")
@@ -32,9 +32,9 @@ class TestSendNotificationWSTask(SimpleTestCase):
         sync_callable = Mock(side_effect=RuntimeError("error"))
         mock_async_to_sync.return_value = sync_callable
 
-        send_notification_ws_task.run(notification_id=456)
+        send_notification_ws_task.run(notification_id=456, is_new_unread=True)
 
-        sync_callable.assert_called_once_with(456)
+        sync_callable.assert_called_once_with(456, is_new_unread=True)
         mock_log_exception.assert_called_once_with(
             "WS delivery failed (notification_id=%s)", 456
         )

@@ -1,9 +1,7 @@
-from unittest.mock import patch
+from unittest.mock import patch, sentinel
 
 from django.db import IntegrityError
-from django.template import TemplateDoesNotExist
 from django.test import TestCase
-from django.urls import NoReverseMatch
 
 from notifications.models import Notification, NotificationType
 from notifications.services.creation import (
@@ -214,66 +212,38 @@ class TestCreateNewCommentNotification(TestCase):
             comment_author_id=self.recipient.id,
             comment_author_username=self.recipient.username,
             article_author_id=self.recipient.id,
+            article_id=123,
             article_slug="slug",
             article_title="Title",
         )
         self.assertIsNone(res)
 
     @patch(
-        "notifications.services.creation.render_to_string",
-        side_effect=TemplateDoesNotExist("x"),
+        "notifications.services.creation."
+        "create_or_update_unread_comment_aggregate_notification"
     )
-    @patch(
-        "notifications.services.creation.reverse",
-        side_effect=NoReverseMatch("x"),
-    )
-    def test_template_fallback_and_reverse_fallback(
-        self, mock_reverse, mock_render
-    ) -> None:
+    def test_delegates_to_comment_aggregate_service(self, mock_delegate) -> None:
+        mock_delegate.return_value = (sentinel.notification, True)
+
         res = create_new_comment_notification(
             comment_id=1,
             comment_author_id=self.sender.id,
             comment_author_username=self.sender.username,
             article_author_id=self.recipient.id,
+            article_id=123,
             article_slug="a-slug",
             article_title="Some Article",
         )
 
-        self.assertIsNotNone(res)
-        n, created = res
-        self.assertTrue(created)
-
-        n_db = Notification.objects.get(id=n.id)
-        self.assertEqual(n_db.recipient_id, self.recipient.id)
-        self.assertEqual(n_db.sender_id, self.sender.id)
-        self.assertEqual(n_db.notification_type, NotificationType.NEW_COMMENT)
-        self.assertEqual(n_db.title, "New Comment")
-        self.assertEqual(n_db.payload.get("link"), "/")  # reverse fallback
-        self.assertIn("New comment by", n_db.body)  # template fallback
-
-        self.recipient.refresh_from_db()
-        self.assertEqual(self.recipient.unread_notifications_count, 1)
-
-    def test_uses_reverse_link_when_available(
-        self,
-    ) -> None:
-        with patch(
-            "notifications.services.creation.reverse", return_value="/articles/a-slug/"
-        ):
-            res = create_new_comment_notification(
-                comment_id=1,
-                comment_author_id=self.sender.id,
-                comment_author_username=self.sender.username,
-                article_author_id=self.recipient.id,
-                article_slug="a-slug",
-                article_title="Some Article",
-            )
-
-        self.assertIsNotNone(res)
-        n, created = res
-        self.assertTrue(created)
-        self.assertEqual(
-            Notification.objects.get(id=n.id).payload.get("link"), "/articles/a-slug/"
+        self.assertEqual(res, (sentinel.notification, True))
+        mock_delegate.assert_called_once_with(
+            comment_id=1,
+            comment_author_id=self.sender.id,
+            comment_author_username=self.sender.username,
+            article_id=123,
+            article_author_id=self.recipient.id,
+            article_slug="a-slug",
+            article_title="Some Article",
         )
 
 

@@ -26,7 +26,9 @@ export function onNotificationReceived(n) {
     markReadOnClick: true,
   });
 
-  adjustUnreadBadgeCountBy(1);
+  if (n.is_new_unread) {
+    adjustUnreadBadgeCountBy(1);
+  }
 
   if (isInboxModalOpen()) {
     prependInboxItem({
@@ -179,7 +181,10 @@ function renderInboxItems(items, { mode } = { mode: 'replace' }) {
   const fragment = document.createDocumentFragment();
 
   for (const n of items) {
-    if (mode !== 'replace' && hasInboxItem(n.id)) continue;
+    if (mode !== 'replace') {
+      const existing = document.getElementById(`notification-${n.id}`);
+      if (existing) existing.remove();
+    }
     fragment.appendChild(createInboxNotificationElement(n));
   }
 
@@ -195,15 +200,20 @@ function renderInboxItems(items, { mode } = { mode: 'replace' }) {
 }
 
 function prependInboxItem(n) {
-  if (hasInboxItem(n.id)) return;
-
   showInboxUI();
   setInboxEmpty(false);
 
   const container = document.getElementById('notificationsContainer');
   if (!container) return;
 
-  container.prepend(createInboxNotificationElement(n));
+  const existing = document.getElementById(`notification-${n.id}`);
+  const nextEl = createInboxNotificationElement(n);
+
+  if (existing) {
+    existing.replaceWith(nextEl);
+  } else {
+    container.prepend(nextEl);
+  }
 
   if (!inboxNewestId || n.id > inboxNewestId) inboxNewestId = n.id;
   if (!inboxOldestId || n.id < inboxOldestId) inboxOldestId = n.id;
@@ -218,10 +228,6 @@ function updateInboxBounds(items) {
 
   inboxNewestId = inboxNewestId ? Math.max(inboxNewestId, maxId) : maxId;
   inboxOldestId = inboxOldestId ? Math.min(inboxOldestId, minId) : minId;
-}
-
-function hasInboxItem(id) {
-  return !!document.getElementById(`notification-${id}`);
 }
 
 function setInboxLoading(isLoading) {

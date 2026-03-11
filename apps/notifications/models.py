@@ -4,6 +4,7 @@ from users.models import User
 
 
 NOTIFICATION_DEDUPE_CONSTRAINT = "uniq_notif_recipient_dedupe"
+UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT = "uniq_rec_unread_comm_notif_agg"
 
 
 class NotificationType(models.TextChoices):
@@ -43,6 +44,7 @@ class Notification(models.Model):
         on_delete=models.SET_NULL,
     )
     dedupe_key = models.CharField(max_length=128, blank=True, default="")
+    aggregate_key = models.CharField(max_length=128, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
@@ -53,6 +55,15 @@ class Notification(models.Model):
                 fields=["recipient", "dedupe_key"],
                 condition=~models.Q(dedupe_key=""),
                 name=NOTIFICATION_DEDUPE_CONSTRAINT,
+            ),
+            models.UniqueConstraint(
+                fields=["recipient", "aggregate_key"],
+                condition=(
+                    ~models.Q(aggregate_key="")
+                    & models.Q(read_at__isnull=True)
+                    & models.Q(notification_type=NotificationType.NEW_COMMENT)
+                ),
+                name=UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT,
             ),
         ]
         indexes = [
@@ -65,15 +76,19 @@ class Notification(models.Model):
                 condition=models.Q(read_at__isnull=True),
             ),
             models.Index(
-                fields=["read_at", "id"],
-                name="notif_read_read_at_id_idx",
-                condition=models.Q(read_at__isnull=False),
+                fields=["recipient", "aggregate_key", "-id"],
+                name="notif_unread_aggr_lookup_idx",
+                condition=(
+                    ~models.Q(aggregate_key="")
+                    & models.Q(read_at__isnull=True)
+                    & models.Q(notification_type=NotificationType.NEW_COMMENT)
+                ),
             ),
         ]
 
     def __str__(self) -> str:
         created_at = self.created_at.strftime("%H:%M:%S %d-%m-%Y")
-        sender = self.sender.pk if self.sender else "System"
+        sender = self.sender.pk if self.sender else "-"
         return (
             f"{created_at} [{self.level}, {self.notification_type}]; "
             f"{sender}->{self.recipient.pk}"

@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from django.db import transaction
 from django.test import TestCase, TransactionTestCase
@@ -42,7 +42,7 @@ class TestDispatchNotificationAfterCommit(TransactionTestCase):
             ws_delay.assert_not_called()
             email_delay.assert_not_called()
 
-        ws_delay.assert_called_once_with(1)
+        ws_delay.assert_called_once_with(1, True)
         email_delay.assert_called_once_with(1)
 
     @patch("notifications.services.dispatch.send_notification_ws_task")
@@ -64,7 +64,35 @@ class TestDispatchNotificationAfterCommit(TransactionTestCase):
             ws_delay.assert_not_called()
             email_delay.assert_not_called()
 
-        ws_delay.assert_called_once_with(1)
+        ws_delay.assert_called_once_with(1, True)
+        email_delay.assert_not_called()
+
+    @patch("notifications.services.dispatch.send_notification_ws_task")
+    @patch("notifications.services.dispatch.send_notification_email_task")
+    def test_passes_is_new_unread_to_ws_task(
+        self, mock_email_task, mock_ws_task
+    ) -> None:
+        ws_delay = Mock()
+        email_delay = Mock()
+
+        mock_ws_task.delay = ws_delay
+        mock_email_task.delay = email_delay
+
+        with transaction.atomic():
+            dispatch_notification_after_commit(
+                notification_id=1,
+                notification_type=NotificationType.NEW_COMMENT,
+                is_new_unread=True,
+            )
+            dispatch_notification_after_commit(
+                notification_id=1,
+                notification_type=NotificationType.NEW_COMMENT,
+                is_new_unread=False,
+            )
+            ws_delay.assert_not_called()
+            email_delay.assert_not_called()
+
+        self.assertCountEqual(ws_delay.call_args_list, [call(1, True), call(1, False)])
         email_delay.assert_not_called()
 
     @patch("notifications.services.dispatch.send_notification_ws_task")

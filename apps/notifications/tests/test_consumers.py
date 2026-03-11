@@ -78,6 +78,37 @@ class TestNotificationConsumerUnit(SimpleTestCase):
         self.assertIn("payload", msg)
         self.assertIsNone(msg["payload"])
 
+    def test_build_message_from_event_includes_is_new_unread(self):
+        event = {
+            "type": "send.notification",
+            "id": 1,
+            "title": "t",
+            "body": "b",
+            "payload": None,
+            "timestamp": "2026-01-01T12:00:00Z",
+            "is_new_unread": False,
+        }
+        msg = NotificationConsumer._build_message_from_event(event)
+        self.assertIsNotNone(msg)
+        assert msg is not None
+        self.assertIn("is_new_unread", msg)
+        self.assertFalse(msg["is_new_unread"])
+
+    def test_build_message_from_event_defaults_is_new_unread_to_true(self):
+        event = {
+            "type": "send.notification",
+            "id": 1,
+            "title": "t",
+            "body": "b",
+            "payload": None,
+            "timestamp": "2026-01-01T12:00:00Z",
+        }
+        msg = NotificationConsumer._build_message_from_event(event)
+        self.assertIsNotNone(msg)
+        assert msg is not None
+        self.assertIn("is_new_unread", msg)
+        self.assertTrue(msg["is_new_unread"])
+
     async def test_safe_close_is_idempotent(self):
         consumer = NotificationConsumer()
         consumer.close = mock.AsyncMock()
@@ -124,6 +155,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         body: str = "b",
         payload=None,
         timestamp: str = "2026-01-01T12:00:00Z",
+        is_new_unread: bool = True,
     ) -> dict:
         return {
             "type": "send.notification",
@@ -132,6 +164,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             "body": body,
             "payload": payload,
             "timestamp": timestamp,
+            "is_new_unread": is_new_unread,
         }
 
     @staticmethod
@@ -258,6 +291,23 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             self.assertEqual(msg["body"], "b")
             self.assertIsNone(msg["payload"])
             self.assertEqual(msg["timestamp"], "2026-01-01T12:00:00Z")
+            self.assertTrue(msg["is_new_unread"])
+
+    async def test_group_send_delivers_notification_with_is_new_unread_false(self):
+        user = UserStub(user_id=1, authenticated=True)
+        comm = self._make_communicator(user)
+
+        async with self._connected_comm(comm):
+            layer = get_channel_layer()
+            await layer.group_send(
+                get_personal_group_name(user.id),
+                self._notification_event(1, is_new_unread=False),
+            )
+
+            msg = await comm.receive_json_from(timeout=1)
+            self.assertEqual(msg["kind"], "notification")
+            self.assertEqual(msg["id"], 1)
+            self.assertFalse(msg["is_new_unread"])
 
     async def test_digest_event_delivers_digest_message_when_idle(self):
         user = UserStub(user_id=1, authenticated=True)
@@ -315,6 +365,8 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             self.assertEqual(m2["kind"], "notification")
             self.assertEqual(m1["id"], 1)
             self.assertEqual(m2["id"], 1)
+            self.assertTrue(m1["is_new_unread"])
+            self.assertTrue(m2["is_new_unread"])
 
     async def test_group_send_does_not_leak_across_users(self):
         user_a = UserStub(user_id=1, authenticated=True)

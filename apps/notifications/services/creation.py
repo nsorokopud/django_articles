@@ -3,14 +3,12 @@ from typing import Any, Optional
 
 from django.db import IntegrityError, transaction
 from django.db.models import F
-from django.template import TemplateDoesNotExist, TemplateSyntaxError
 from django.template.loader import render_to_string
-from django.urls import NoReverseMatch, reverse
-from django.utils.html import format_html
 
 from users.models import User
 
 from ..models import NOTIFICATION_DEDUPE_CONSTRAINT, Notification, NotificationType
+from .comment_aggregation import create_or_update_unread_comment_aggregate_notification
 
 
 logger = logging.getLogger(__name__)
@@ -22,46 +20,19 @@ def create_new_comment_notification(
     comment_author_id: int,
     comment_author_username: str,
     article_author_id: int,
+    article_id: int,
     article_slug: str,
     article_title: str,
 ) -> Optional[tuple[Notification, bool]]:
 
-    if comment_author_id == article_author_id:
-        return None
-
-    try:
-        body = _render_notification_message(
-            "notifications/new_comment_notification.html",
-            {
-                "article_title": article_title,
-                "comment_author": comment_author_username,
-            },
-        )
-    except (TemplateDoesNotExist, TemplateSyntaxError) as e:
-        logger.warning("Failed to render notification body: %s", e, exc_info=True)
-        body = str(
-            format_html(
-                "New comment by {} on article '{}'.",
-                comment_author_username,
-                article_title,
-            )
-        )
-
-    try:
-        link = reverse("article-details", args=(article_slug,))
-    except NoReverseMatch:
-        logger.exception("reverse(article-details) failed for slug=%s", article_slug)
-        link = "/"
-
-    return create_notification(
-        recipient_id=article_author_id,
-        notification_type=NotificationType.NEW_COMMENT,  # type: ignore[arg-type]
-        level=Notification.Level.INFO,  # type: ignore[arg-type]
-        title="New Comment",
-        body=body,
-        payload={"link": link},
-        sender_id=comment_author_id,
-        dedupe_key=f"new_comment:{comment_id}",
+    return create_or_update_unread_comment_aggregate_notification(
+        comment_id=comment_id,
+        comment_author_id=comment_author_id,
+        comment_author_username=comment_author_username,
+        article_id=article_id,
+        article_author_id=article_author_id,
+        article_slug=article_slug,
+        article_title=article_title,
     )
 
 

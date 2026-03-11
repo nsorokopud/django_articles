@@ -20,15 +20,17 @@ def get_delivery_plan(*, notification_type: str) -> DeliveryPlan:
 
 
 def dispatch_notification_after_commit(
-    *, notification_id: int, notification_type: str
+    *,
+    notification_id: int,
+    notification_type: str,
+    is_new_unread: bool = True,
 ) -> None:
-    """Schedule notification delivery tasks after the current DB transaction commits.
-    Ensures we never send WS/email for a notification that gets rolled back.
-    """
     plan = get_delivery_plan(notification_type=notification_type)
 
     if plan.ws:
-        transaction.on_commit(lambda: send_notification_ws_task.delay(notification_id))
+        transaction.on_commit(
+            lambda: send_notification_ws_task.delay(notification_id, is_new_unread)
+        )
 
     if plan.email:
         transaction.on_commit(

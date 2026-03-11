@@ -17,11 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(max_retries=0)
-def send_notification_ws_task(notification_id: int) -> None:
+def send_notification_ws_task(
+    notification_id: int,
+    is_new_unread: bool = True,
+) -> None:
     from .services.delivery_ws import send_ws_notification
 
     try:
-        async_to_sync(send_ws_notification)(notification_id)
+        async_to_sync(send_ws_notification)(
+            notification_id,
+            is_new_unread=is_new_unread,
+        )
     except Exception:
         logger.exception("WS delivery failed (notification_id=%s)", notification_id)
 

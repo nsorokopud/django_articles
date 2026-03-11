@@ -93,7 +93,9 @@ class TestSendWSNotification(SimpleTestCase):
             patch.object(delivery_ws, "get_personal_group_name", return_value="user_1"),
             patch.object(delivery_ws.cache, "add", return_value=True) as add_mock,
         ):
-            await delivery_ws.send_ws_notification(notification_id=1)
+            await delivery_ws.send_ws_notification(
+                notification_id=1, is_new_unread=False
+            )
 
         self.layer.group_send.assert_awaited_once()
         group, payload = self.layer.group_send.await_args.args
@@ -103,6 +105,7 @@ class TestSendWSNotification(SimpleTestCase):
         self.assertEqual(payload["title"], "T")
         self.assertEqual(payload["body"], "B")
         self.assertEqual(payload["payload"], {"link": "/x/"})
+        self.assertFalse(payload["is_new_unread"])
         self.assertIn("timestamp", payload)
 
         add_mock.assert_called_once()

@@ -14,7 +14,11 @@ from ..models import Notification
 logger = logging.getLogger(__name__)
 
 
-async def send_ws_notification(notification_id: int) -> None:
+async def send_ws_notification(
+    notification_id: int,
+    *,
+    is_new_unread: bool = True,
+) -> None:
     layer = get_channel_layer()
     if layer is None:
         return
@@ -29,11 +33,11 @@ async def send_ws_notification(notification_id: int) -> None:
         logger.exception("WS: failed to load notification id=%s", notification_id)
         return
 
-    await _send_notification_throttled(layer, n)
+    await _send_notification_throttled(layer, n, is_new_unread=is_new_unread)
 
 
 async def _send_notification_throttled(
-    layer: BaseChannelLayer, n: Notification
+    layer: BaseChannelLayer, n: Notification, is_new_unread: bool = True
 ) -> None:
     recipient_id = n.recipient_id
     group = get_personal_group_name(recipient_id)
@@ -48,6 +52,7 @@ async def _send_notification_throttled(
         "body": n.body,
         "payload": n.payload,
         "timestamp": n.created_at.isoformat(),
+        "is_new_unread": is_new_unread,
     }
 
     if _throttle_allows_send(
