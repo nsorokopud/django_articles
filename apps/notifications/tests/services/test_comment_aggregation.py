@@ -110,6 +110,7 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
             payload["sample_commenters"],
             [{"id": self.commenter1.id, "username": self.commenter1.username}],
         )
+        self.assertEqual(payload["distinct_commenter_count"], 1)
         self.assertIn("last_comment_at", payload)
         self.assertTrue(payload["link"])
 
@@ -158,6 +159,7 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
                 {"id": self.commenter1.id, "username": self.commenter1.username},
             ],
         )
+        self.assertEqual(second.payload["distinct_commenter_count"], 2)
 
         self.article_author.refresh_from_db()
         self.assertEqual(self.article_author.unread_notifications_count, 1)
@@ -266,9 +268,9 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
             [
                 {"id": self.commenter4.id, "username": self.commenter4.username},
                 {"id": self.commenter2.id, "username": self.commenter2.username},
-                {"id": self.commenter3.id, "username": self.commenter3.username},
             ],
         )
+        self.assertEqual(notification.payload["distinct_commenter_count"], 4)
 
     def test_recovers_from_malformed_existing_payload_when_updating(self):
         notification = Notification.objects.create(
@@ -320,6 +322,7 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
                 {"id": self.commenter1.id, "username": self.commenter1.username},
             ],
         )
+        self.assertEqual(updated.payload["distinct_commenter_count"], 2)
 
         self.article_author.refresh_from_db()
         self.assertEqual(self.article_author.unread_notifications_count, 1)
@@ -423,6 +426,48 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
 
         self.assertIsNotNone(notification.id)
 
+    def test_same_user_multiple_comments_keep_distinct_commenter_count_one(self):
+        first, first_created = create_or_update_unread_comment_aggregate_notification(
+            comment_id=11,
+            comment_author_id=self.commenter1.id,
+            comment_author_username=self.commenter1.username,
+            article_id=self.article_id,
+            article_author_id=self.article_author.id,
+            article_slug=self.article_slug,
+            article_title=self.article_title,
+        )
+        self.assertTrue(first_created)
+
+        second, second_created = create_or_update_unread_comment_aggregate_notification(
+            comment_id=12,
+            comment_author_id=self.commenter1.id,
+            comment_author_username=self.commenter1.username,
+            article_id=self.article_id,
+            article_author_id=self.article_author.id,
+            article_slug=self.article_slug,
+            article_title=self.article_title,
+        )
+
+        self.assertFalse(second_created)
+        self.assertEqual(first.id, second.id)
+        self.assertEqual(Notification.objects.count(), 1)
+
+        second.refresh_from_db()
+        self.assertEqual(second.payload["comment_count"], 2)
+        self.assertEqual(second.payload["distinct_commenter_count"], 1)
+        self.assertEqual(
+            second.payload["sample_commenters"],
+            [{"id": self.commenter1.id, "username": self.commenter1.username}],
+        )
+        self.assertEqual(
+            second.body,
+            f"{self.commenter1.username} left 2 comments on your article "
+            f'"{self.article_title}".',
+        )
+
+        self.article_author.refresh_from_db()
+        self.assertEqual(self.article_author.unread_notifications_count, 1)
+
 
 class TestCommentAggregateHelpers(SimpleTestCase):
     def test_safe_int(self):
@@ -481,9 +526,9 @@ class TestCommentAggregateHelpers(SimpleTestCase):
             [
                 {"id": 1, "username": "alice"},
                 {"id": 2, "username": "bob"},
-                {"id": 3, "username": "carol"},
             ],
         )
+        self.assertEqual(normalized["distinct_commenter_count"], 4)
 
     def test_prepend_unique_commenter(self):
         result = _prepend_unique_commenter(
@@ -494,7 +539,7 @@ class TestCommentAggregateHelpers(SimpleTestCase):
                 {"id": 4, "username": "dave"},
             ],
             commenter={"id": 1, "username": "alice"},
-            max_items=3,
+            max_items=2,
         )
 
         self.assertEqual(
@@ -502,7 +547,6 @@ class TestCommentAggregateHelpers(SimpleTestCase):
             [
                 {"id": 1, "username": "alice"},
                 {"id": 2, "username": "bob"},
-                {"id": 3, "username": "carol"},
             ],
         )
 
@@ -510,15 +554,16 @@ class TestCommentAggregateHelpers(SimpleTestCase):
         self.assertEqual(_build_comment_aggregate_title(1), "New Comment")
         self.assertEqual(_build_comment_aggregate_title(2), "New Comments")
 
-    def test_build_comment_aggregate_body_for_single_comment(self):
+    def test_build_comment_aggregate_body_1_commenter(self):
         body = _build_comment_aggregate_body(
             count=1,
             article_title="Article",
             sample_commenters=[{"id": 1, "username": "alice"}],
+            distinct_commenter_count=1,
         )
         self.assertEqual(body, 'New comment by alice on your article "Article".')
 
-    def test_build_comment_aggregate_body_for_two_comments(self):
+    def test_build_comment_aggregate_body_2_commenters(self):
         body = _build_comment_aggregate_body(
             count=2,
             article_title="Article",
@@ -526,10 +571,11 @@ class TestCommentAggregateHelpers(SimpleTestCase):
                 {"id": 2, "username": "bob"},
                 {"id": 1, "username": "alice"},
             ],
+            distinct_commenter_count=2,
         )
         self.assertEqual(body, 'bob and alice commented on your article "Article".')
 
-    def test_build_comment_aggregate_body_for_three_comments(self):
+    def test_build_comment_aggregate_body_3_commenters(self):
         body = _build_comment_aggregate_body(
             count=3,
             article_title="Article",
@@ -538,19 +584,48 @@ class TestCommentAggregateHelpers(SimpleTestCase):
                 {"id": 2, "username": "bob"},
                 {"id": 1, "username": "alice"},
             ],
+            distinct_commenter_count=3,
         )
         self.assertEqual(
             body,
-            'carol, bob, and alice commented on your article "Article".',
+            'carol and 2 others commented on your article "Article".',
         )
 
-    def test_build_comment_aggregate_body_for_many_comments(self):
+    def test_build_comment_aggregate_body_many_commenters(self):
         body = _build_comment_aggregate_body(
             count=5,
             article_title="Article",
-            sample_commenters=[{"id": 4, "username": "dave"}],
+            sample_commenters=[
+                {"id": 5, "username": "jack"},
+                {"id": 4, "username": "dave"},
+            ],
+            distinct_commenter_count=5,
         )
         self.assertEqual(
             body,
-            'dave and 4 others commented on your article "Article".',
+            'jack and 4 others commented on your article "Article".',
+        )
+
+    def test_build_comment_aggregate_body_many_comments_same_user(self):
+        body = _build_comment_aggregate_body(
+            count=3,
+            article_title="Article",
+            sample_commenters=[{"id": 1, "username": "alice"}],
+            distinct_commenter_count=1,
+        )
+        self.assertEqual(
+            body,
+            'alice left 3 comments on your article "Article".',
+        )
+
+    def test_build_comment_aggregate_body_falls_back_when_names_missing(self):
+        body = _build_comment_aggregate_body(
+            count=4,
+            article_title="Article",
+            sample_commenters=[],
+            distinct_commenter_count=4,
+        )
+        self.assertEqual(
+            body,
+            '4 new comments on your article "Article".',
         )
