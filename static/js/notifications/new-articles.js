@@ -27,7 +27,7 @@ const DIGEST_VISIBILITY_CLAIM_RETRY_MS = 1_000;
 const DIGEST_VISIBILITY_CLAIM_MAX_ATTEMPTS = 3;
 
 // Digest polling timing
-const DIGEST_POLL_INTERVAL_MS = 30 * 1000; // 5 min
+const DIGEST_POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min
 const DIGEST_POLL_JITTER_MS = 30 * 1000;
 
 // Maximum allowed carryover when resuming a stored next-poll time.
