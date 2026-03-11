@@ -21,6 +21,7 @@ export function onNotificationReceived(n) {
     title: n.title,
     body: n.body,
     timestamp: n.timestamp,
+    payload: n.payload,
     link: n.payload?.link || n.payload?.url || null,
     markReadOnClick: true,
   });
@@ -47,6 +48,7 @@ export function onNotificationDigestReceived() {
     title: 'New Notifications',
     body: 'You have new notifications. Check your inbox.',
     timestamp: new Date().toISOString(),
+    payload: {},
     link: null,
     markReadOnClick: false,
   });
@@ -352,9 +354,7 @@ function createInboxNotificationElement(n) {
     el.classList.add('notification-time');
     return el;
   })();
-  time.innerText = luxon.DateTime.fromJSDate(new Date(n.timestamp)).toFormat(
-    'HH:mm dd-MM-yyyy',
-  );
+  time.innerText = formatNotificationDateTime(getInboxDisplayTimestamp(n));
 
   const msg = (() => {
     const el = document.createElement('div');
@@ -363,8 +363,19 @@ function createInboxNotificationElement(n) {
   })();
   msg.innerHTML = n.body || '';
 
+  const startedAtText = getInboxStartedAtText(n);
+  const meta = (() => {
+    const el = document.createElement('div');
+    el.classList.add('notification-meta', 'text-muted', 'small', 'mt-1');
+    return el;
+  })();
+  meta.innerText = startedAtText;
+
   header.append(title, time);
   content.append(header, msg);
+  if (startedAtText) {
+    content.append(meta);
+  }
   notificationMain.append(circle, content);
 
   const del = document.createElement('button');
@@ -386,6 +397,46 @@ function createInboxNotificationElement(n) {
 
   notification.append(notificationMain, del);
   return notification;
+}
+
+function formatNotificationDateTime(value) {
+  try {
+    return luxon.DateTime.fromJSDate(new Date(value)).toFormat(
+      'HH:mm dd-MM-yyyy',
+    );
+  } catch {
+    return '';
+  }
+}
+
+function getInboxDisplayTimestamp(n) {
+  const payload = n?.payload;
+
+  if (payload?.kind === 'comment_aggregate' && payload.last_comment_at) {
+    return payload.last_comment_at;
+  }
+
+  return n.timestamp;
+}
+
+function getInboxStartedAtText(n) {
+  const payload = n?.payload;
+
+  if (!payload || payload.kind !== 'comment_aggregate') {
+    return '';
+  }
+
+  const commentCount = Number(payload.comment_count) || 0;
+  if (commentCount <= 1) {
+    return '';
+  }
+
+  const startedAt = formatNotificationDateTime(n.timestamp);
+  if (!startedAt) {
+    return '';
+  }
+
+  return `Started at ${startedAt}`;
 }
 
 function updateEmptyUIIfInboxEmpty() {

@@ -334,6 +334,7 @@ async function checkNewArticlesDigest() {
       title: 'New articles',
       body: 'New articles available! Check your subscriptions feed.',
       timestamp: new Date().toISOString(),
+      payload: {},
       link: '/subscriptions/',
       markReadOnClick: false,
       delayMs: DIGEST_TOAST_DELAY_MS,

@@ -7,6 +7,7 @@ export function showToast({
   title,
   body,
   timestamp,
+  payload,
   link,
   markReadOnClick,
   delayMs,
@@ -41,8 +42,9 @@ export function showToast({
 
   const headerTime = document.createElement('small');
   try {
+    const effectiveTimestamp = getToastTimestamp(timestamp, payload);
     headerTime.innerText = luxon.DateTime.fromJSDate(
-      new Date(timestamp),
+      new Date(effectiveTimestamp),
     ).toFormat('HH:mm dd-MM-yyyy');
   } catch {
     headerTime.innerText = '';
@@ -99,4 +101,15 @@ export function showToast({
       window.location.replace(link);
     });
   }
+}
+
+function getToastTimestamp(timestamp, payload) {
+  if (
+    payload &&
+    payload.kind === 'comment_aggregate' &&
+    payload.last_comment_at
+  ) {
+    return payload.last_comment_at;
+  }
+  return timestamp;
 }
