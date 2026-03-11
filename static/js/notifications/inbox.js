@@ -8,7 +8,6 @@ const UNREAD_COUNT_SYNC_THROTTLE_MS = 2000;
 
 let inboxNewestId = 0;
 let inboxOldestId = 0;
-let inboxLoaded = false;
 let lastUnreadSyncMs = 0;
 
 export function initInboxUI() {
@@ -55,7 +54,7 @@ export function onNotificationDigestReceived() {
   refreshUnreadCount();
 
   if (isInboxModalOpen()) {
-    loadNewerNotifications();
+    loadInitialInboxPage();
   }
 }
 
@@ -65,14 +64,7 @@ function setupInboxModalLoading() {
 
   modalEl.addEventListener('shown.bs.modal', async () => {
     await refreshUnreadCount();
-
-    if (!inboxLoaded) {
-      inboxLoaded = true;
-      await loadInitialInboxPage();
-      return;
-    }
-
-    await loadNewerNotifications();
+    await loadInitialInboxPage();
   });
 }
 
@@ -110,24 +102,6 @@ async function loadInitialInboxPage() {
 
   updateInboxBounds(data.items);
   updateLoadMoreButton(data.has_more);
-}
-
-async function loadNewerNotifications() {
-  if (!inboxNewestId) return;
-
-  const res = await fetch(
-    `${location.origin}${NOTIFICATIONS_LIST_PATH}?limit=${INBOX_PAGE_SIZE}&after_id=${inboxNewestId}`,
-    { credentials: 'same-origin' },
-  );
-  if (!res.ok) return;
-
-  const data = await res.json();
-  if (!data.items || data.items.length === 0) return;
-
-  const items = [...data.items].sort((a, b) => b.id - a.id);
-  renderInboxItems(items, { mode: 'prepend' });
-
-  updateInboxBounds(data.items);
 }
 
 async function loadOlderNotifications() {
