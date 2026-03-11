@@ -14,8 +14,23 @@ export function showToast({
   const toastContainer = document.getElementById('toastContainer');
   if (!toastContainer) return;
 
+  if (id != null) {
+    const existing = toastContainer.querySelector(
+      `[data-toast-id="${String(id)}"]`,
+    );
+    if (existing) {
+      const existingToast = bootstrap.Toast.getInstance(existing);
+      if (existingToast) existingToast.dispose();
+      existing.remove();
+    }
+  }
+
   const toastEl = document.createElement('div');
   toastEl.classList.add('toast');
+
+  if (id != null) {
+    toastEl.dataset.toastId = String(id);
+  }
 
   const toastHeader = document.createElement('div');
   toastHeader.classList.add('toast-header');
