@@ -43,9 +43,10 @@ export function showToast({
   const headerTime = document.createElement('small');
   try {
     const effectiveTimestamp = getToastTimestamp(timestamp, payload);
-    headerTime.innerText = luxon.DateTime.fromJSDate(
-      new Date(effectiveTimestamp),
-    ).toFormat('HH:mm dd-MM-yyyy');
+    headerTime.dataset.relativeTimestamp = effectiveTimestamp;
+    headerTime.innerText =
+      luxon.DateTime.fromJSDate(new Date(effectiveTimestamp)).toRelative() ||
+      '';
   } catch {
     headerTime.innerText = '';
   }

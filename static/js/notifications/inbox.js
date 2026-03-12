@@ -5,14 +5,17 @@ const INBOX_PAGE_SIZE = 50;
 const NOTIFICATIONS_LIST_PATH = '/notifications/list/';
 const UNREAD_COUNT_PATH = '/notifications/unread_count/';
 const UNREAD_COUNT_SYNC_THROTTLE_MS = 2000;
+const RELATIVE_TIME_REFRESH_INTERVAL_MS = 30 * 1000;
 
 let inboxNewestId = 0;
 let inboxOldestId = 0;
 let lastUnreadSyncMs = 0;
+let relativeTimeRefreshStarted = false;
 
 export function initInboxUI() {
   initInboxUnreadBadge();
   setupInboxModalLoading();
+  startRelativeTimeRefresh();
 }
 
 export function onNotificationReceived(n) {
@@ -354,7 +357,10 @@ function createInboxNotificationElement(n) {
     el.classList.add('notification-time');
     return el;
   })();
-  time.innerText = formatNotificationDateTime(getInboxDisplayTimestamp(n));
+  time.dataset.relativeTimestamp = getInboxDisplayTimestamp(n);
+  time.innerText = formatNotificationRelativeTime(
+    time.dataset.relativeTimestamp,
+  );
 
   const msg = (() => {
     const el = document.createElement('div');
@@ -407,6 +413,31 @@ function formatNotificationDateTime(value) {
   } catch {
     return '';
   }
+}
+
+function formatNotificationRelativeTime(value) {
+  try {
+    return luxon.DateTime.fromJSDate(new Date(value)).toRelative() || '';
+  } catch {
+    return '';
+  }
+}
+
+function refreshRelativeTimeElements() {
+  const elements = document.querySelectorAll('[data-relative-timestamp]');
+  elements.forEach((el) => {
+    const ts = el.dataset.relativeTimestamp;
+    if (!ts) return;
+    el.innerText = formatNotificationRelativeTime(ts);
+  });
+}
+
+function startRelativeTimeRefresh() {
+  if (relativeTimeRefreshStarted) return;
+  relativeTimeRefreshStarted = true;
+
+  refreshRelativeTimeElements();
+  setInterval(refreshRelativeTimeElements, RELATIVE_TIME_REFRESH_INTERVAL_MS);
 }
 
 function getInboxDisplayTimestamp(n) {
