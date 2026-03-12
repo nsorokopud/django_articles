@@ -121,7 +121,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "notifications.context_processors.include_user_notifications",
+                "notifications.context_processors.include_notification_count",
             ],
         },
     },
@@ -428,3 +428,4 @@ EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
 
 
 from .logging import LOGGING  # noqa
+from .notifications import *  # noqa
