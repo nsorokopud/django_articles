@@ -11,6 +11,7 @@ from core.services.email import EmailConfig, send_email
 from .services.delivery_email import build_notification_email_config
 
 
+NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY = "notifications_unread_counts_sync_lock"
 NOTIFICATIONS_CLEANUP_LOCK_KEY = "notifications_cleanup_lock"
 
 logger = logging.getLogger(__name__)
@@ -62,3 +63,25 @@ def cleanup_old_read_notifications_task() -> int:
         return cleanup_old_read_notifications()
     finally:
         cache.delete(NOTIFICATIONS_CLEANUP_LOCK_KEY)
+
+
+@shared_task(max_retries=0)
+def sync_unread_notification_counts_task() -> dict[str, int]:
+    from .services.counters import sync_unread_notification_counts
+
+    if not cache.add(
+        NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+        "1",
+        timeout=int(settings.NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_TTL_SECONDS),
+    ):
+        logger.info("Unread-count sync skipped: already running")
+        return {"users_checked": 0, "users_updated": 0, "users_zeroed": 0}
+
+    try:
+        stats = sync_unread_notification_counts(
+            batch_size=int(settings.NOTIFICATIONS_UNREAD_COUNT_SYNC_BATCH_SIZE),
+        )
+        logger.info("Unread-count sync finished: %s", stats)
+        return stats
+    finally:
+        cache.delete(NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY)
