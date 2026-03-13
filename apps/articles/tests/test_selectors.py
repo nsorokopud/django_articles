@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.utils import timezone
 from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment
@@ -24,70 +25,88 @@ class TestSelectors(TestCase):
         self.test_category = ArticleCategory.objects.create(
             title="test_cat", slug="test_cat"
         )
+        self._publish_sequence = 0
+
+    def create_article(self, **kwargs) -> Article:
+        defaults = {
+            "title": "article",
+            "slug": "article",
+            "category": self.test_category,
+            "author": self.test_user,
+            "preview_text": "text",
+            "content": "content",
+            "published_at": None,
+            "publish_sequence": None,
+        }
+        defaults.update(kwargs)
+        return Article.objects.create(**defaults)
+
+    def create_published_article(self, **kwargs) -> Article:
+        self._publish_sequence += 1
+        defaults = {
+            "published_at": timezone.now(),
+            "publish_sequence": self._publish_sequence,
+        }
+        defaults.update(kwargs)
+        return self.create_article(**defaults)
 
     def test_find_published_articles(self):
-        a1 = Article.objects.create(
+        a1 = self.create_published_article(
             title="a1",
             slug="a1",
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
         )
-        Article.objects.create(
+        self.create_article(
             title="a2",
             slug="a2",
             category=self.test_category,
             author=self.test_user,
             preview_text="text2",
             content="content2",
-            is_published=False,
         )
-        a3 = Article.objects.create(
+        a3 = self.create_published_article(
             title="a3",
             slug="a3",
             category=self.test_category,
             author=self.test_user,
             preview_text="text3",
             content="content3",
-            is_published=True,
         )
         self.assertCountEqual(find_published_articles(), [a1, a3])
 
     def test_find_articles_with_all_tags(self):
-        a1 = Article.objects.create(
+        a1 = self.create_published_article(
             title="a1",
             slug="a1",
             category=self.test_category,
             author=self.test_user,
             preview_text="text",
             content="content",
-            is_published=True,
         )
         a1.tags.add("tag1", "tag2")
         a1.save()
 
-        a2 = Article.objects.create(
+        a2 = self.create_published_article(
             title="a2",
             slug="a2",
             category=self.test_category,
             author=self.test_user,
             preview_text="text",
             content="content",
-            is_published=True,
         )
         a2.tags.add("tag3")
         a2.save()
 
-        a3 = Article.objects.create(
+        a3 = self.create_published_article(
             title="a3",
             slug="a3",
             category=self.test_category,
             author=self.test_user,
             preview_text="text",
             content="content",
-            is_published=True,
         )
         a3.tags.add("tag2", "tag7")
         a3.save()
@@ -116,53 +135,49 @@ class TestSelectors(TestCase):
     def test_find_articles_by_query(self):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
 
-        a1 = Article.objects.create(
+        a1 = self.create_published_article(
             title="a1",
             slug="a1",
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
         )
         a1.tags.add("cat1", "tag1")
-        a2 = Article.objects.create(
+
+        a2 = self.create_published_article(
             title="a2",
             slug="a2",
             category=self.test_category,
-            tags="tag2,cat1",
             author=self.test_user,
             preview_text="text2",
             content="content2",
-            is_published=True,
         )
-        a3 = Article.objects.create(
+
+        a3 = self.create_published_article(
             title="a3",
             slug="a3",
             category=cat1,
             author=self.test_user,
             preview_text="text3",
             content="content3",
-            is_published=True,
         )
-        a4 = Article.objects.create(
+        a4 = self.create_published_article(
             title="a4",
             slug="a4",
             category=cat1,
             author=self.test_user,
             preview_text="text4",
             content="content4",
-            is_published=True,
         )
         a4.tags.add("tag", "tag1", "tag2")
-        Article.objects.create(
+        self.create_article(
             title="a5",
             slug="a5",
             category=cat1,
             author=self.test_user,
             preview_text="text5",
             content="content5",
-            is_published=False,
         )
 
         self.assertCountEqual(find_articles_by_query("a"), [a1, a2, a3, a4])  # By title
@@ -188,23 +203,21 @@ class TestSelectors(TestCase):
         self.assertCountEqual(find_articles_by_query("agrj", queryset), [])
 
     def test_find_comments_to_article(self):
-        a1 = Article.objects.create(
+        a1 = self.create_published_article(
             title="a1",
             slug="a1",
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
         )
-        a2 = Article.objects.create(
+        a2 = self.create_published_article(
             title="a2",
             slug="a2",
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
         )
         comment1 = ArticleComment.objects.create(
             article=a1, author=self.test_user, text="text"
@@ -221,7 +234,7 @@ class TestSelectors(TestCase):
         self.assertCountEqual(get_all_categories(), [cat1, cat2, self.test_category])
 
     def test_get_all_tags(self):
-        a1 = Article.objects.create(
+        a1 = self.create_article(
             title="a1",
             slug="a1",
             category=self.test_category,
@@ -229,7 +242,7 @@ class TestSelectors(TestCase):
             preview_text="text1",
             content="content1",
         )
-        a2 = Article.objects.create(
+        a2 = self.create_article(
             title="a2",
             slug="a2",
             category=self.test_category,
@@ -253,7 +266,7 @@ class TestSelectors(TestCase):
         with self.assertRaises(Article.DoesNotExist):
             get_article_by_slug("a1")
 
-        a = Article.objects.create(
+        a = self.create_article(
             title="a1",
             slug="a1",
             category=self.test_category,
@@ -270,14 +283,13 @@ class TestSelectors(TestCase):
             get_article_by_slug("a1")
 
     def test_find_article_comments_liked_by_user(self):
-        a1 = Article.objects.create(
+        a1 = self.create_published_article(
             title="a1",
             slug="a1",
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
         )
 
         comment1 = ArticleComment.objects.create(
@@ -296,8 +308,16 @@ class TestSelectors(TestCase):
             [comment1.id, comment3.id],
         )
 
+    def test_find_published_articles_ordered_by_publish_sequence_desc(self):
+        a1 = self.create_published_article(title="a1", slug="a1", publish_sequence=10)
+        a2 = self.create_published_article(title="a2", slug="a2", publish_sequence=30)
+        a3 = self.create_published_article(title="a3", slug="a3", publish_sequence=20)
+
+        result = list(find_published_articles())
+        self.assertEqual(result, [a2, a3, a1])
+
     def test_get_comment_by_id(self):
-        a = Article.objects.create(
+        a = self.create_article(
             title="a1",
             slug="a1",
             author=self.test_user,
