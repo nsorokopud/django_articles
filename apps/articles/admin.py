@@ -3,6 +3,7 @@ from django.contrib import admin
 from .forms import ArticleAdminForm
 from .models import Article, ArticleCategory, ArticleComment
 from .services import generate_unique_article_slug
+from .services.publishing import publish_article
 
 
 class CommentInline(admin.TabularInline):
@@ -12,11 +13,11 @@ class CommentInline(admin.TabularInline):
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm
-    list_display = ("id", "is_published", "title", "category", "author", "created_at")
+    list_display = ("id", "published_at", "title", "category", "author", "created_at")
     list_display_links = ("id", "title")
-    list_editable = ("is_published",)
-    list_filter = ("is_published", "created_at", "category", "author")
+    list_filter = ("published_at", "created_at", "category", "author")
     search_fields = ("title", "author__username", "category__title")
+    readonly_fields = ("published_at", "publish_sequence", "created_at", "modified_at")
     prepopulated_fields = {"slug": ("title",)}
     actions = ("publish", "unpublish")
     inlines = (CommentInline,)
@@ -31,7 +32,11 @@ class ArticleAdmin(admin.ModelAdmin):
 
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
-        updated_rows_count = queryset.update(is_published=True)
+        updated_rows_count = 0
+        for article in queryset.filter(publish_sequence__isnull=True):
+            publish_article(article_id=article.id)
+            updated_rows_count += 1
+
         if updated_rows_count == 1:
             message = "1 article was published"
         else:
@@ -40,7 +45,10 @@ class ArticleAdmin(admin.ModelAdmin):
 
     @admin.action(description="Unpublish selected articles", permissions=("change",))
     def unpublish(self, request, queryset):
-        updated_rows_count = queryset.update(is_published=False)
+        updated_rows_count = queryset.filter(publish_sequence__isnull=False).update(
+            published_at=None,
+            publish_sequence=None,
+        )
         if updated_rows_count == 1:
             message = "1 article was unpublished"
         else:
