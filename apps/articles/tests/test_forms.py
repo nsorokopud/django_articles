@@ -8,7 +8,7 @@ from PIL import Image
 from taggit.models import Tag
 
 from articles.forms import ArticleCommentForm, ArticleModelForm, AttachedFileUploadForm
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleComment
 from core.exceptions import InvalidUpload
 from users.models import User
 
@@ -180,37 +180,76 @@ class TestArticleCommentForm(TestCase):
             content="content",
         )
 
-    def test_valid_form(self):
+    @patch("articles.forms.create_article_comment")
+    def test_valid_form(self, mock_create_article_comment):
+        comment = ArticleComment(
+            text="abc",
+            author=self.user,
+            article=self.article,
+        )
+        mock_create_article_comment.return_value = comment
+
         form = ArticleCommentForm(
-            data={"text": "abc"}, user=self.user, article=self.article
+            data={"text": "abc"},
+            user=self.user,
+            article=self.article,
         )
         self.assertTrue(form.is_valid())
-        comment = form.save()
-        self.assertEqual(comment.text, "abc")
-        self.assertEqual(comment.author, self.user)
-        self.assertEqual(comment.article, self.article)
+        self.assertEqual(form.errors, {})
+
+        result = form.save()
+
+        mock_create_article_comment.assert_called_once_with(
+            article=self.article,
+            user=self.user,
+            text="abc",
+        )
+        self.assertEqual(result, comment)
 
     def test_no_user(self):
-        form = ArticleCommentForm(data={"text": "abc"}, article=self.article)
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            article=self.article,
+        )
+
         self.assertFalse(form.is_valid())
-        with self.assertRaises(ValueError):
-            form.save()
         self.assertEqual(
-            form.errors, {"__all__": ["User is required to save the comment."]}
+            form.errors,
+            {"__all__": ["User is required to save the comment."]},
         )
 
     def test_no_article(self):
-        form = ArticleCommentForm(data={"text": "abc"}, user=self.user)
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            user=self.user,
+        )
+
         self.assertFalse(form.is_valid())
-        with self.assertRaises(ValueError):
-            form.save()
         self.assertEqual(
-            form.errors, {"__all__": ["Article is required to save the comment."]}
+            form.errors,
+            {"__all__": ["Article is required to save the comment."]},
         )
 
     def test_no_text(self):
         form = ArticleCommentForm(
-            data={"text": ""}, user=self.user, article=self.article
+            data={"text": ""},
+            user=self.user,
+            article=self.article,
         )
+
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors, {"text": ["This field is required."]})
+        self.assertEqual(
+            form.errors,
+            {"text": ["This field is required."]},
+        )
+
+    def test_commit_false_is_not_supported(self):
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            user=self.user,
+            article=self.article,
+        )
+        self.assertTrue(form.is_valid())
+
+        with self.assertRaises(ValueError):
+            form.save(commit=False)

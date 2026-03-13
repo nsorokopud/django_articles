@@ -5,6 +5,7 @@ from core.exceptions import InvalidUpload
 from core.validators import validate_uploaded_file
 
 from .models import Article, ArticleComment
+from .services.comments import create_article_comment
 
 
 class ArticleAdminForm(forms.ModelForm):
@@ -84,9 +85,11 @@ class ArticleCommentForm(forms.ModelForm):
         return cleaned_data
 
     def save(self, commit=True):
-        comment = super().save(commit=False)
-        comment.author = self.user
-        comment.article = self.article
-        if commit:
-            comment.save()
-        return comment
+        if not commit:
+            raise ValueError("ArticleCommentForm.save(commit=False) is not supported.")
+
+        return create_article_comment(
+            article=self.article,
+            user=self.user,
+            text=self.cleaned_data["text"],
+        )
