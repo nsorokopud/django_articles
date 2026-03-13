@@ -30,7 +30,8 @@ def send_email_task(self, config_data: EmailConfigDict) -> None:
     try:
         send_email(email_config)
         logger.info(
-            "Email sent successfully. Recipients: %s",
+            "Email sent successfully. Task ID: %s; recipients: %s",
+            self.request.id,
             masked_recipients,
         )
     except EMAIL_PERMANENT_ERRORS:
@@ -44,7 +45,9 @@ def send_email_task(self, config_data: EmailConfigDict) -> None:
         _handle_transient_error(self, e, masked_recipients)
     except Exception:
         logger.exception(
-            "Unexpected error while sending email. Task ID: %s", self.request.id
+            "Unexpected error while sending email. Task ID: %s; recipients: %s",
+            self.request.id,
+            masked_recipients,
         )
         raise
 
@@ -52,8 +55,8 @@ def send_email_task(self, config_data: EmailConfigDict) -> None:
 def _create_email_config(config_data: EmailConfigDict) -> EmailConfig:
     try:
         return EmailConfig.from_dict(config_data)
-    except (TypeError, ValueError):
-        logger.exception("Invalid email config provided.")
+    except (TypeError, ValueError) as exc:
+        logger.error("Invalid email config provided: %s", exc)
         raise
 
 
@@ -67,20 +70,25 @@ def _handle_transient_error(
             EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**task.request.retries
         )
         logger.warning(
-            "Failed to send email, retrying in %s seconds. Task ID: %s; error: %s",
+            (
+                "Failed to send email, retrying in %s seconds. "
+                "Task ID: %s; recipients: %s; error: %s"
+            ),
             delay,
             task.request.id,
+            masked_recipients,
             error,
         )
-        task.retry(exc=error, countdown=delay)
-    else:
-        logger.exception(
-            (
-                "Failed to send email after max retries (%s). "
-                "Task ID: %s; recipients: %s"
-            ),
-            EMAIL_TASK_MAX_RETRIES,
-            task.request.id,
-            masked_recipients,
-        )
-        raise error
+        raise task.retry(exc=error, countdown=delay)
+
+    logger.error(
+        (
+            "Failed to send email after max retries (%s). "
+            "Task ID: %s; recipients: %s; error: %s"
+        ),
+        task.max_retries,
+        task.request.id,
+        masked_recipients,
+        error,
+    )
+    raise error
