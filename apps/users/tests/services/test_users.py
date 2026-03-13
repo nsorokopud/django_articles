@@ -8,8 +8,9 @@ from django.test import TestCase
 
 from users.cache import get_subscribers_count_cache_key
 from users.models import Profile, User
-from users.services import (
+from users.services.users import (
     activate_user,
+    advance_latest_article_publish_sequence,
     create_user_profile,
     deactivate_user,
     delete_social_accounts_with_email,
@@ -156,3 +157,48 @@ class TestToggleUserSubscription(TestCase):
         toggle_user_subscription(self.user, self.author)
 
         self.assertIsNone(cache.get(get_subscribers_count_cache_key(self.author.id)))
+
+
+class TestAdvanceLatestArticlePublishSequence(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="user",
+            email="user@test.com",
+            latest_article_publish_sequence=10,
+        )
+
+    def test_updates_sequence_when_new_value_is_greater(self):
+        advance_latest_article_publish_sequence(
+            user_id=self.user.id,
+            publish_sequence=15,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.latest_article_publish_sequence, 15)
+
+    def test_does_not_update_sequence_when_new_value_is_equal(self):
+        advance_latest_article_publish_sequence(
+            user_id=self.user.id,
+            publish_sequence=10,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.latest_article_publish_sequence, 10)
+
+    def test_does_not_update_sequence_when_new_value_is_smaller(self):
+        advance_latest_article_publish_sequence(
+            user_id=self.user.id,
+            publish_sequence=5,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.latest_article_publish_sequence, 10)
+
+    def test_does_nothing_when_user_does_not_exist(self):
+        advance_latest_article_publish_sequence(
+            user_id=999999,
+            publish_sequence=20,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.latest_article_publish_sequence, 10)
