@@ -1,32 +1,9 @@
 from django.db import transaction
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
-from notifications.tasks import (
-    send_new_article_notification,
-    send_new_comment_notification,
-)
-
-from .models import Article, ArticleComment
+from .models import Article
 from .tasks import delete_article_inline_media_task
-
-
-@receiver(post_save, sender=Article)
-def send_article_notification(sender, instance, created, **kwargs) -> None:
-    if created and not kwargs.get("raw", False):
-        transaction.on_commit(
-            lambda: send_new_article_notification.delay(instance.slug)
-        )
-
-
-@receiver(post_save, sender=ArticleComment)
-def send_comment_notification(sender, instance, created, **kwargs) -> None:
-    if created and not kwargs.get("raw", False):
-        transaction.on_commit(
-            lambda: send_new_comment_notification.delay(
-                instance.id, instance.article.author.id
-            )
-        )
 
 
 @receiver(post_delete, sender=Article)
