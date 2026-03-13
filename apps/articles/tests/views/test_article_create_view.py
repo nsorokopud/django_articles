@@ -1,4 +1,5 @@
-from unittest.mock import ANY
+from datetime import datetime, timezone
+from unittest.mock import ANY, patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -57,7 +58,15 @@ class TestArticleCreateView(TestCase):
         )
         self.assertEqual(Article.objects.count(), 0)
 
-    def test_post_correct(self):
+    @patch(
+        "articles.services.publishing.get_next_article_publish_sequence_value",
+        return_value=999,
+    )
+    @patch(
+        "articles.services.publishing.timezone.now",
+        return_value=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    def test_post_correct(self, mock_now, mock_get_next):
         article_data = {"title": "a1", "preview_text": "1", "content": "1"}
 
         self.client.force_login(self.user)
@@ -89,4 +98,5 @@ class TestArticleCreateView(TestCase):
         self.assertEqual(a.content, article_data["content"])
         with self.assertRaises(ValueError):
             a.preview_image.url
-        self.assertEqual(a.is_published, True)
+        self.assertEqual(a.published_at, datetime(2026, 1, 1, tzinfo=timezone.utc))
+        self.assertEqual(a.publish_sequence, 999)

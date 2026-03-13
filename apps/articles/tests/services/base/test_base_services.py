@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from articles.services import (
@@ -42,7 +43,8 @@ class TestServices(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
-            is_published=True,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
 
         user = User(username="user1", email="test@test.com")
@@ -71,7 +73,8 @@ class TestServices(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
-            is_published=True,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         comment = ArticleComment.objects.create(
             article=a, author=self.user, text="text"

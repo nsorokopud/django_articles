@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from django_redis import get_redis_connection
 
 from articles.cache import (
@@ -44,7 +45,8 @@ class TestArticleDetailView(TestCase):
             author=self.user,
             preview_text="1",
             content="1",
-            is_published=True,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.comment = ArticleComment.objects.create(
             author=self.user, article=self.article, text="comment"

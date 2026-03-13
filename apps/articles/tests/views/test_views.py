@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.http import Http404
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleComment
 from users.models import User
@@ -23,7 +24,8 @@ class TestViews(TestCase):
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.test_article.tags.add("tag1")
         self.test_article.save()

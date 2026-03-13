@@ -1,5 +1,6 @@
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from articles.models import Article, ArticleCategory
 from users.models import User
@@ -18,7 +19,8 @@ class TestArticleUpdateView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
-            is_published=True,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.article.tags.add("tag1")
         self.article.save()
