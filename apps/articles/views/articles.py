@@ -88,7 +88,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form) -> JsonResponse:
-        article = form.save()
+        article = form.save(publish=True)
         data = {
             "articleId": article.id,
             "articleSlug": article.slug,
@@ -114,7 +114,7 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
         return get_article_by_slug(self.kwargs["article_slug"])
 
     def form_valid(self, form) -> JsonResponse:
-        article = form.save()
+        article = form.save(publish=False)
         data = {"articleUrl": article.get_absolute_url()}
         return JsonResponse({"status": "success", "data": data})
 
