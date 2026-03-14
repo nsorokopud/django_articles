@@ -4,9 +4,6 @@ import os
 SUBSCRIBERS_COUNT_CACHE_TIMEOUT = int(
     os.getenv("SUBSCRIBERS_COUNT_CACHE_TIMEOUT", "300")  # 5 minutes
 )
-SUBSCRIBED_TO_AUTHORS_CACHE_TIMEOUT = int(
-    os.getenv("SUBSCRIBED_TO_AUTHORS_CACHE_TIMEOUT", "3600")  # 1 hour
-)
 
 ACTIVATION_EMAIL_SUBJECT = "User account activation at Django Articles"
 ACTIVATION_EMAIL_TEXT_TEMPLATE = "users/emails/activation_email.txt"
