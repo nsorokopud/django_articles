@@ -1,9 +1,11 @@
 import logging
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import sentry_sdk
+from celery.schedules import crontab
 from django.contrib.messages import constants as messages
 from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -410,7 +412,21 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = ALLOW_NON_ROUTABLE_IPS = bool(
     int(os.getenv("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", "1"))
 )
 
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+CELERY_BEAT_SCHEDULE = {
+    "articles.sync-view-counts": {
+        "task": "articles.tasks.sync_article_views_task",
+        "schedule": timedelta(minutes=30),
+    },
+    "notifications.cleanup-old-read": {
+        "task": "notifications.tasks_retention.cleanup_old_read_notifications_task",
+        "schedule": timedelta(hours=1),
+    },
+    "notifications.sync-unread-counts": {
+        "task": "notifications.tasks.sync_unread_notification_counts_task",
+        "schedule": crontab(minute=0, hour="*/6"),  # every 6 hours
+    },
+}
 
 # Select2
 
