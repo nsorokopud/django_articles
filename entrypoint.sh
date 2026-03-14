@@ -12,9 +12,16 @@ fi
 
 ./manage.py wait_for_db
 ./manage.py migrate --noinput
-./manage.py collect_fixture_media --noinput
-./manage.py loaddata fixtures/initial_data.json
-./manage.py reset_article_publish_sequence
+
+if [ "$LOAD_INITIAL_FIXTURES" = "1" ]; then
+    echo "Loading initial fixture data..."
+    ./manage.py collect_fixture_media --noinput
+    ./manage.py loaddata fixtures/initial_data.json
+    ./manage.py reset_article_publish_sequence
+else
+    echo "Skipping fixture load"
+fi
+
 ./manage.py createsuperuser --noinput || true
 ./manage.py collectstatic --noinput
 
