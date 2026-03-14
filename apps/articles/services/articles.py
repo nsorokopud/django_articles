@@ -1,13 +1,43 @@
 import logging
+from typing import Callable
 
 from django.db import DatabaseError, connection, transaction
 from django.template.defaultfilters import slugify
 from nanoid import generate
 
+from users.models import User
+
 from ..models import Article
+from .publishing import publish_article
 
 
 logger = logging.getLogger(__name__)
+
+
+@transaction.atomic
+def save_article(
+    *,
+    article: Article,
+    author: User | None = None,
+    save_m2m: Callable[[], None] | None = None,
+    publish: bool = True,
+) -> Article:
+    is_new = article.pk is None
+
+    if is_new:
+        if author is None:
+            raise ValueError("author is required when creating an article")
+        article.author = author
+
+    article.save()
+
+    if save_m2m is not None:
+        save_m2m()
+
+    if publish and article.publish_sequence is None:
+        article = publish_article(article_id=article.id)
+
+    return article
 
 
 def generate_unique_article_slug(article_title: str) -> str:
