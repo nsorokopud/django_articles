@@ -42,7 +42,7 @@ const DIGEST_IDLE_POLL_EVERY_MS = 15 * 60 * 1000;
 const SUBSCRIPTIONS_FEED_COOLDOWN_MS = 5 * 60 * 1000;
 
 // UI behavior
-const DIGEST_TOAST_DURATION_MS = 15_000;
+const DIGEST_TOAST_DURATION_MS = 30_000;
 
 const tabId =
   (crypto?.randomUUID && crypto.randomUUID()) ||
