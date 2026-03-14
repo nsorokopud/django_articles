@@ -19,6 +19,7 @@ from users.views import (
     UserPasswordResetConfirmView,
     UserProfileView,
     UserRegistrationView,
+    new_articles_digest_summary,
 )
 
 
@@ -90,3 +91,7 @@ class TestURLs(SimpleTestCase):
     def test_user_profile_url_is_resolved(self):
         url = reverse("user-profile")
         self.assertEqual(resolve(url).func.view_class, UserProfileView)
+
+    def test_get_new_articles_digest_summary_url_is_resolved(self):
+        url = reverse("new-articles-digest-summary")
+        self.assertEqual(resolve(url).func, new_articles_digest_summary)
