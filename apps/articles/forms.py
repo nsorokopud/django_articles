@@ -1,3 +1,5 @@
+from typing import Any
+
 from django import forms
 from django.core.exceptions import ValidationError
 
@@ -17,7 +19,7 @@ class ArticleAdminForm(forms.ModelForm):
             "slug": "Leave blank to automatically generate a new slug from the title.",
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.fields["slug"].required = False
 
@@ -34,11 +36,11 @@ class ArticleModelForm(forms.ModelForm):
             "content",
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-    def clean(self):
+    def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
         if not self.instance.pk and (not self.user or not self.user.is_authenticated):
             raise ValidationError("A valid authenticated user is required.")
@@ -63,7 +65,7 @@ class ArticleModelForm(forms.ModelForm):
 class AttachedFileUploadForm(forms.Form):
     file = forms.FileField(error_messages={"required": "File is required."})
 
-    def clean_file(self):
+    def clean_file(self) -> Any:
         uploaded_file = self.cleaned_data["file"]
         try:
             validate_uploaded_file(uploaded_file)
@@ -82,7 +84,7 @@ class ArticleCommentForm(forms.ModelForm):
         self.article = article
         super().__init__(*args, **kwargs)
 
-    def clean(self):
+    def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
         if not self.user:
             raise ValidationError("User is required to save the comment.")
@@ -90,7 +92,7 @@ class ArticleCommentForm(forms.ModelForm):
             raise ValidationError("Article is required to save the comment.")
         return cleaned_data
 
-    def save(self, commit=True):
+    def save(self, commit=True) -> ArticleComment:
         if not commit:
             raise ValueError("ArticleCommentForm.save(commit=False) is not supported.")
 
