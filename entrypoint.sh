@@ -14,6 +14,7 @@ fi
 ./manage.py migrate --noinput
 ./manage.py collect_fixture_media --noinput
 ./manage.py loaddata fixtures/initial_data.json
+./manage.py reset_article_publish_sequence
 ./manage.py createsuperuser --noinput || true
 ./manage.py collectstatic --noinput
 
