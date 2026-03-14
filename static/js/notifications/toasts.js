@@ -1,6 +1,6 @@
 import { postJSON } from './utils.js';
 
-const TOAST_DELAY_MS = 10 * 60 * 1000; // 10 min
+const TOAST_DISPLAY_DURATION_MS = 10 * 60 * 1000; // 10 min
 
 export function showToast({
   id,
@@ -10,7 +10,7 @@ export function showToast({
   payload,
   link,
   markReadOnClick,
-  delayMs,
+  displayDurationMs,
 }) {
   const toastContainer = document.getElementById('toastContainer');
   if (!toastContainer) return;
@@ -69,8 +69,11 @@ export function showToast({
   toastEl.appendChild(toastBody);
   toastContainer.appendChild(toastEl);
 
-  const delay = typeof delayMs === 'number' ? delayMs : TOAST_DELAY_MS;
-  const toast = new bootstrap.Toast(toastEl, { delay });
+  const displayDuration =
+    typeof displayDurationMs === 'number'
+      ? displayDurationMs
+      : TOAST_DISPLAY_DURATION_MS;
+  const toast = new bootstrap.Toast(toastEl, { delay: displayDuration });
 
   toastEl.addEventListener('hidden.bs.toast', () => {
     toastEl.remove();

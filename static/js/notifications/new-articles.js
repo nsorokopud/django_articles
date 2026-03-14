@@ -337,7 +337,7 @@ async function checkNewArticlesDigest() {
       payload: {},
       link: '/subscriptions/',
       markReadOnClick: false,
-      delayMs: DIGEST_TOAST_DURATION_MS,
+      displayDurationMs: DIGEST_TOAST_DURATION_MS,
     });
   } catch (e) {
     console.debug('Digest check failed', e);
