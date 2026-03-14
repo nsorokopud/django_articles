@@ -5,6 +5,7 @@ from core.exceptions import InvalidUpload
 from core.validators import validate_uploaded_file
 
 from .models import Article, ArticleComment
+from .services.articles import save_article
 from .services.comments import create_article_comment
 
 
@@ -43,15 +44,20 @@ class ArticleModelForm(forms.ModelForm):
             raise ValidationError("A valid authenticated user is required.")
         return cleaned_data
 
-    def save(self, commit=True) -> Article:
+    def save(self, commit=True, *, publish=False) -> Article:
         instance = super().save(commit=False)
-        if not instance.pk:
-            instance.author = self.user
-            instance.is_published = True
-        if commit:
-            instance.save()
-            self.save_m2m()
-        return instance
+
+        if not commit:
+            return instance
+
+        author = self.user if instance.pk is None else None
+
+        return save_article(
+            article=instance,
+            author=author,
+            save_m2m=self.save_m2m,
+            publish=publish,
+        )
 
 
 class AttachedFileUploadForm(forms.Form):
