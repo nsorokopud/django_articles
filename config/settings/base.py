@@ -399,6 +399,8 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "capacity": 50,  # max queued messages per channel
+            "expiry": 10,  # seconds; drop queued messages after this
         },
     },
 }
