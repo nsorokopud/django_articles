@@ -444,14 +444,12 @@ function isUserIdle() {
 
 function canRunDigestNowIgnoringIdleThrottle() {
   if (document.hidden) return false;
-  if (state.isSubscriptionsPage) return false;
   if (wasSubscriptionPageRecentlyOpened()) return false;
   return true;
 }
 
 function canRunDigestNow() {
   if (document.hidden) return false;
-  if (state.isSubscriptionsPage) return false;
   if (wasSubscriptionPageRecentlyOpened()) return false;
 
   if (isUserIdle()) {
