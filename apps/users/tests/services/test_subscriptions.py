@@ -1,7 +1,10 @@
 from django.test import TestCase
 
 from users.models import AuthorSubscription, User
-from users.services.subscriptions import get_new_articles_digest_summary
+from users.services.subscriptions import (
+    advance_subscriptions_last_seen_publish_sequence,
+    get_new_articles_digest_summary,
+)
 
 
 class TestGetNewArticlesDigestSummary(TestCase):
@@ -158,3 +161,52 @@ class TestGetNewArticlesDigestSummary(TestCase):
             res,
             {"has_new": False, "latest_article_publish_sequence": 10},
         )
+
+
+class TestAdvanceSubscriptionsLastSeenPublishSequence(TestCase):
+    def setUp(self) -> None:
+        self.user = User.objects.create_user(username="u", email="u@test.com")
+
+    def test_noop_when_last_seen_publish_sequence_non_positive(
+        self,
+    ) -> None:
+        User.objects.filter(id=self.user.id).update(
+            subscriptions_last_seen_publish_sequence=10
+        )
+
+        advance_subscriptions_last_seen_publish_sequence(
+            user_id=self.user.id, last_seen_publish_sequence=0
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.subscriptions_last_seen_publish_sequence, 10)
+
+        advance_subscriptions_last_seen_publish_sequence(
+            user_id=self.user.id, last_seen_publish_sequence=-5
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.subscriptions_last_seen_publish_sequence, 10)
+
+    def test_only_moves_forward(
+        self,
+    ) -> None:
+        User.objects.filter(id=self.user.id).update(
+            subscriptions_last_seen_publish_sequence=10
+        )
+
+        advance_subscriptions_last_seen_publish_sequence(
+            user_id=self.user.id, last_seen_publish_sequence=9
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.subscriptions_last_seen_publish_sequence, 10)
+
+        advance_subscriptions_last_seen_publish_sequence(
+            user_id=self.user.id, last_seen_publish_sequence=10
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.subscriptions_last_seen_publish_sequence, 10)
+
+        advance_subscriptions_last_seen_publish_sequence(
+            user_id=self.user.id, last_seen_publish_sequence=11
+        )
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.subscriptions_last_seen_publish_sequence, 11)

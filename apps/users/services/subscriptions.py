@@ -23,3 +23,14 @@ def get_new_articles_digest_summary(
     if latest is None:
         return {"has_new": False, "latest_article_publish_sequence": watermark}
     return {"has_new": True, "latest_article_publish_sequence": latest}
+
+
+def advance_subscriptions_last_seen_publish_sequence(
+    *, user_id: int, last_seen_publish_sequence: int
+) -> None:
+    if last_seen_publish_sequence <= 0:
+        return
+    User.objects.filter(
+        id=user_id,
+        subscriptions_last_seen_publish_sequence__lt=last_seen_publish_sequence,
+    ).update(subscriptions_last_seen_publish_sequence=last_seen_publish_sequence)
