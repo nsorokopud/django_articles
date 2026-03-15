@@ -30,6 +30,39 @@ from .mixins import AllowOnlyAuthorMixin
 logger = logging.getLogger(__name__)
 
 
+class BaseArticleListFilterView(FilterView):
+    context_object_name = "articles"
+    paginate_by = ARTICLES_PER_PAGE_COUNT
+    template_name = "articles/article_list_page.html"
+
+    page_title = ""
+    empty_message = ""
+    show_filters = True
+    show_views = True
+    show_likes = True
+    show_comments = True
+    draft_edit_url_name = None
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        current_path = self.request.path
+        context.update(
+            {
+                "page_title": self.page_title,
+                "empty_message": self.empty_message,
+                "show_filters": self.show_filters,
+                "reset_url": current_path,
+                "category_filter_url": current_path,
+                "tag_filter_url": current_path,
+                "show_views": self.show_views,
+                "show_likes": self.show_likes,
+                "show_comments": self.show_comments,
+                "draft_edit_url_name": self.draft_edit_url_name,
+            }
+        )
+        return context
+
+
 class ArticleListFilterView(FilterView):
     filterset_class = ArticleFilter
     context_object_name = "articles"
