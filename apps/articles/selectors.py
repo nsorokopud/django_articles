@@ -24,6 +24,14 @@ def find_published_articles() -> QuerySet[Article]:
     )
 
 
+def find_subscription_feed_articles(user: User) -> QuerySet[Article]:
+    return (
+        find_published_articles()
+        .filter(author__subscriptions_received__subscriber=user)
+        .distinct()
+    )
+
+
 def find_articles_with_all_tags(
     tags: Sequence[Tag], queryset: Optional[QuerySet[Article]] = None
 ) -> QuerySet[Article]:

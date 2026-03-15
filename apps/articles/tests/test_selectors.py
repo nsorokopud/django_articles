@@ -9,12 +9,13 @@ from articles.selectors import (
     find_articles_with_all_tags,
     find_comments_to_article,
     find_published_articles,
+    find_subscription_feed_articles,
     get_all_categories,
     get_all_tags,
     get_article_by_slug,
     get_comment_by_id,
 )
-from users.models import User
+from users.models import AuthorSubscription, User
 
 
 class TestSelectors(TestCase):
@@ -340,3 +341,58 @@ class TestSelectors(TestCase):
         c1.delete()
         with self.assertRaises(ArticleComment.DoesNotExist):
             get_comment_by_id(c1_id)
+
+
+class TestFindSubscriptionFeedArticles(TestCase):
+    def setUp(self):
+        self.subscriber = User.objects.create_user(
+            username="subscriber", email="subscriber@test.com"
+        )
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.other_author = User.objects.create_user(
+            username="other_author", email="other_author@test.com"
+        )
+        AuthorSubscription.objects.create(
+            subscriber=self.subscriber, author=self.author
+        )
+        self.article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.author,
+            preview_text="text1",
+            content="content1",
+            publish_sequence=1,
+            published_at=timezone.now(),
+        )
+
+    def test_returns_subscribed_to_authors_articles(self):
+        qs = find_subscription_feed_articles(self.subscriber)
+        self.assertCountEqual(qs, [self.article])
+
+    def test_excludes_non_subscribed_to_authors(self):
+        Article.objects.create(
+            title="a2",
+            slug="a2",
+            author=self.other_author,
+            preview_text="text2",
+            content="content2",
+            publish_sequence=2,
+            published_at=timezone.now(),
+        )
+
+        qs = find_subscription_feed_articles(self.subscriber)
+        self.assertCountEqual(qs, [self.article])
+
+    def test_excludes_unpublished_articles(self):
+        Article.objects.create(
+            title="a2",
+            slug="a2",
+            author=self.author,
+            preview_text="text2",
+            content="content2",
+        )
+
+        qs = find_subscription_feed_articles(self.subscriber)
+        self.assertCountEqual(qs, [self.article])
