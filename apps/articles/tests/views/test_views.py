@@ -49,7 +49,7 @@ class TestViews(TestCase):
             response = self.client.get(reverse("articles"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "articles/home_page.html")
+        self.assertTemplateUsed(response, "articles/article_list_page.html")
 
     def test_article_delete_view_unauthorized(self):
         url = reverse("article-delete", args=[self.test_article.slug])

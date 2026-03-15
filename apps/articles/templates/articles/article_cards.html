@@ -1,0 +1,119 @@
+{% load tz %}
+
+{% for article in articles %}
+  <article class="article p-3">
+    <div class="article-preview-author d-flex align-items-center mb-3">
+      <img class="article-author-avatar rounded-circle"
+           src="{{ article.author.profile.image.url }}"
+           alt="Article author's image" />
+      <div class="article-preview-author-right">
+        <a href="{% url 'author-page' article.author.id %}"
+           class="article-author-name">{{ article.author.username }}</a>
+
+        {% if article.publish_sequence %}
+          <time class="article-preview-date"
+                datetime="{{ article.published_at.isoformat }}">
+            {{ article.published_at|localtime|date:'H:i d-m-Y' }}
+          </time>
+        {% else %}
+          <time class="article-preview-date"
+                datetime="{{ article.modified_at.isoformat }}">
+            Updated: {{ article.modified_at|localtime|date:'H:i d-m-Y' }}
+          </time>
+        {% endif %}
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="article-preview-main">
+      <h3 class="article-title mb-4">
+        {% if article.publish_sequence %}
+          <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+        {% else %}
+          {% if draft_edit_url_name %}
+            <a href="{% url draft_edit_url_name article_slug=article.slug %}">
+              {{ article.title }}
+            </a>
+          {% else %}
+            {{ article.title }}
+          {% endif %}
+        {% endif %}
+      </h3>
+
+      {% if article.category %}
+        <h5 class="article-category">
+          Category:
+          <a href="{{ category_filter_url }}?category={{ article.category.slug }}">
+            {{ article.category }}
+          </a>
+        </h5>
+      {% endif %}
+
+      {% if article.tags.all %}
+        <ul class="article-tags-list">
+          <span class="tags-span">Tags:</span>
+          {% for tag in article.tags.all %}
+            <li>
+              <a class="article-tag-link" href="{{ tag_filter_url }}?tags={{ tag }}">
+                #{{ tag }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="article-preview-content">
+        {% if article.preview_image %}
+          <img class="img-fluid mx-auto article-preview-image"
+               src="{{ article.preview_image.url }}"
+               alt="Article preview image">
+        {% elif article.category.image %}
+          <img class="img-fluid mx-auto article-preview-image"
+               src="{{ article.category.image.url }}"
+               alt="Article preview image">
+        {% endif %}
+
+        <p class="article-preview-text mt-3">{{ article.preview_text }}</p>
+
+        <hr>
+
+        <div class="article-preview-bottom d-flex justify-content-between align-items-center">
+          <div>
+            {% if article.publish_sequence %}
+              <a href="{{ article.get_absolute_url }}" class="btn btn-success">Read full</a>
+            {% else %}
+              {% if draft_edit_url_name %}
+                <a href="{% url draft_edit_url_name article_slug=article.slug %}"
+                   class="btn btn-success">Continue editing</a>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          <span class="article-preview-icons">
+            {% if show_views %}
+              <span class="mx-2 article-preview-icons__item">
+                <i class="far fa-eye m-1"></i>
+                <span class="article-preview-icon-counter">{{ article.views }}</span>
+              </span>
+            {% endif %}
+
+            {% if show_likes %}
+              <span class="mx-2 article-preview-icons__item">
+                <i class="far fa-thumbs-up m-1"></i>
+                <span class="article-preview-icon-counter">{{ article.likes_count }}</span>
+              </span>
+            {% endif %}
+
+            {% if show_comments %}
+              <span class="mx-2 article-preview-icons__item">
+                <i class="far fa-regular fa-comment"></i>
+                <span class="article-preview-icon-counter">{{ article.comments_count }}</span>
+              </span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </article>
+{% endfor %}
