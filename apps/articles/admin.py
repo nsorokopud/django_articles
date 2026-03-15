@@ -13,7 +13,15 @@ class CommentInline(admin.TabularInline):
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm
-    list_display = ("id", "published_at", "title", "category", "author", "created_at")
+    list_display = (
+        "id",
+        "pub_seq",
+        "published_at",
+        "title",
+        "category",
+        "author",
+        "created_at",
+    )
     list_display_links = ("id", "title")
     list_filter = ("published_at", "created_at", "category", "author")
     search_fields = ("title", "author__username", "category__title")
@@ -23,6 +31,10 @@ class ArticleAdmin(admin.ModelAdmin):
     inlines = (CommentInline,)
     save_on_top = True
     save_as = True
+
+    @admin.display(description="PSeq", ordering="publish_sequence")
+    def pub_seq(self, obj):
+        return obj.publish_sequence if obj.publish_sequence is not None else "-"
 
     def save_model(self, request, obj, form, change):
         obj.from_admin = True
