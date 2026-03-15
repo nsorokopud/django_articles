@@ -40,11 +40,8 @@ def get_user_by_id(user_id: int) -> User:
     return User.objects.get(id=user_id)
 
 
-def get_all_subscriptions_of_user(user: User) -> QuerySet[tuple[int, str]]:
-    """Returns a QuerySet of (user_id, username) tuples for all authors
-    the specified user is subscribed to.
-    """
-    return user.subscribed_to_authors.values_list("id", "username")
+def find_authors_subscribed_by_user(user: User) -> QuerySet[User]:
+    return user.subscribed_to_authors.only("id", "username")
 
 
 def get_pending_email_address(user: User) -> Optional[EmailAddress]:

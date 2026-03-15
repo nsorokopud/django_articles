@@ -15,7 +15,7 @@ from users.forms import ProfileUpdateForm, UserUpdateForm
 from ..cache import get_cached_subscribers_count
 from ..models import User
 from ..selectors import (
-    get_all_subscriptions_of_user,
+    find_authors_subscribed_by_user,
     get_author_with_viewer_subscription_status,
 )
 from ..services import toggle_user_subscription
@@ -51,7 +51,7 @@ class UserProfileView(LoginRequiredMixin, View):
             "user_form": user_form or UserUpdateForm(instance=self.request.user),
             "profile_form": profile_form
             or ProfileUpdateForm(instance=self.request.user.profile),
-            "subscribed_authors": get_all_subscriptions_of_user(self.request.user),
+            "subscribed_authors": find_authors_subscribed_by_user(self.request.user),
         }
 
 
