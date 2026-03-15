@@ -50,6 +50,11 @@ class TestViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "articles/article_list_page.html")
+        self.assertEqual(response.context["page_title"], "Articles matching your query")
+        self.assertEqual(
+            response.context["empty_message"], "No articles matching your query"
+        )
+        self.assertTrue(response.context["show_filters"])
 
     def test_article_delete_view_unauthorized(self):
         url = reverse("article-delete", args=[self.test_article.slug])

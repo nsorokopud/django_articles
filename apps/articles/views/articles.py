@@ -63,32 +63,13 @@ class BaseArticleListFilterView(FilterView):
         return context
 
 
-class ArticleListFilterView(FilterView):
+class ArticleListFilterView(BaseArticleListFilterView):
     filterset_class = ArticleFilter
-    context_object_name = "articles"
-    paginate_by = ARTICLES_PER_PAGE_COUNT
-    template_name = "articles/article_list_page.html"
+    page_title = "Articles matching your query"
+    empty_message = "No articles matching your query"
 
     def get_queryset(self) -> QuerySet[Article]:
         return find_published_articles()
-
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
-        context = super().get_context_data(**kwargs)
-        context.update(
-            {
-                "page_title": "Articles matching your query",
-                "empty_message": "No articles matching your query",
-                "show_filters": True,
-                "reset_url": self.request.path,
-                "category_filter_url": self.request.path,
-                "tag_filter_url": self.request.path,
-                "show_views": True,
-                "show_likes": True,
-                "show_comments": True,
-                "draft_edit_url_name": None,
-            }
-        )
-        return context
 
 
 class ArticleDetailView(DetailView):
