@@ -11,7 +11,8 @@ from django_filters.filters import (
 from django_filters.widgets import DateRangeWidget
 from django_select2.forms import Select2TagWidget
 
-from users.selectors import get_all_users
+from users.models import User
+from users.selectors import find_authors_subscribed_by_user, get_all_users
 
 from .models import Article
 from .selectors import (
@@ -67,3 +68,14 @@ class ArticleFilter(FilterSet):
         if not value:
             return queryset
         return find_articles_with_all_tags(value, queryset)
+
+
+class SubscriptionFeedFilter(ArticleFilter):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+        if user and user.is_authenticated:
+            self.filters["author"].queryset = find_authors_subscribed_by_user(user)
+        else:
+            self.filters["author"].queryset = User.objects.none()

@@ -4,9 +4,9 @@ from django.test import TestCase
 from django.utils import timezone
 from taggit.models import Tag
 
-from articles.filters import ArticleFilter
+from articles.filters import ArticleFilter, SubscriptionFeedFilter
 from articles.models import Article, ArticleCategory
-from users.models import User
+from users.models import AuthorSubscription, User
 
 
 class TestArticleFilter(TestCase):
@@ -228,3 +228,36 @@ class TestArticleFilter(TestCase):
         }
         filtered = ArticleFilter(data=data).qs
         self.assertCountEqual(filtered, [self.article2])
+
+
+class TestSubscriptionFeedFilter(TestCase):
+    def setUp(self):
+        self.subscriber = User.objects.create(
+            username="subscriber", email="subscriber@test.com"
+        )
+        self.subscribed_author = User.objects.create(
+            username="subscribed_author", email="subscribed_author@test.com"
+        )
+        self.other_author = User.objects.create(
+            username="other_author", email="other_author@test.com"
+        )
+        AuthorSubscription.objects.create(
+            subscriber=self.subscriber,
+            author=self.subscribed_author,
+        )
+
+    def test_limits_authors_to_subscribed_to(self):
+        filterset = SubscriptionFeedFilter(
+            data={},
+            queryset=Article.objects.none(),
+            user=self.subscriber,
+        )
+
+        authors = filterset.filters["author"].queryset
+        self.assertCountEqual(authors, [self.subscribed_author])
+
+    def test_returns_no_authors_when_no_user_passed(self):
+        filterset = SubscriptionFeedFilter(data={}, queryset=Article.objects.none())
+
+        authors = filterset.filters["author"].queryset
+        self.assertCountEqual(authors, [])
