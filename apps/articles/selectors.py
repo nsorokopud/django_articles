@@ -89,6 +89,16 @@ def get_article_by_slug(article_slug: str) -> Article:
     )
 
 
+def get_published_article_by_slug(article_slug: str) -> Article:
+    return (
+        Article.objects.filter(publish_sequence__isnull=False)
+        .select_related("author", "author__profile", "category")
+        .prefetch_related("tags")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .get(slug=article_slug)
+    )
+
+
 def get_all_categories() -> QuerySet[ArticleCategory]:
     return ArticleCategory.objects.annotate(
         articles_count=SubqueryAggregate(
