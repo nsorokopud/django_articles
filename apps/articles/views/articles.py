@@ -4,7 +4,7 @@ from typing import Any
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import QuerySet
 from django.http import Http404, HttpResponse, JsonResponse
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
@@ -175,11 +175,20 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form) -> JsonResponse:
-        article = form.save(publish=True)
+        publish = self.request.user.is_staff or self.request.user.is_superuser
+        article = form.save(publish=publish)
+
+        article_url = (
+            article.get_absolute_url()
+            if article.publish_sequence is not None
+            else reverse("article-update", kwargs={"article_slug": article.slug})
+        )
+
         data = {
             "articleId": article.id,
             "articleSlug": article.slug,
-            "articleUrl": article.get_absolute_url(),
+            "articleUrl": article_url,
+            "isPublished": article.publish_sequence is not None,
         }
         return JsonResponse({"status": "success", "data": data})
 
