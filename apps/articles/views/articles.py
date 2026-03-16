@@ -24,6 +24,7 @@ from ..selectors import (
     find_published_articles,
     find_subscription_feed_articles,
     get_article_by_slug,
+    get_published_article_by_slug,
 )
 from ..services import toggle_article_like
 from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
@@ -140,9 +141,9 @@ class ArticleDetailView(DetailView):
     def get_object(self) -> Article:
         article_slug = self.kwargs.get(self.slug_url_kwarg)
         try:
-            article = get_article_by_slug(article_slug)
+            article = get_published_article_by_slug(article_slug)
         except Article.DoesNotExist as e:
-            logger.warning("Article with '%s' slug not found.", article_slug)
+            logger.warning("Published article with '%s' slug not found.", article_slug)
             raise Http404("Article not found") from e
         return article
 

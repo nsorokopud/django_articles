@@ -159,3 +159,24 @@ class TestArticleDetailView(TestCase):
 
         self.article.refresh_from_db()
         self.assertEqual(self.article.views_count, 111)
+
+    def test_unpublished_article_returns_404(self):
+        unpublished_article = Article.objects.create(
+            title="draft",
+            slug="draft",
+            category=self.category,
+            author=self.user,
+            preview_text="draft preview",
+            content="draft content",
+            published_at=None,
+            publish_sequence=None,
+        )
+
+        url = reverse("article-details", args=[unpublished_article.slug])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_nonexistent_article_returns_404(self):
+        response = self.client.get(reverse("article-details", args=["missing-slug"]))
+        self.assertEqual(response.status_code, 404)
