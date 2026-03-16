@@ -71,7 +71,6 @@ class Article(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.from_admin = False
         self._original_title = self.title
 
     def __str__(self):
@@ -83,11 +82,17 @@ class Article(models.Model):
     def save(self, *args, **kwargs):
         from .services import generate_unique_article_slug
 
-        title_changed = not self.pk or self._original_title != self.title
-        if not self.from_admin and title_changed:
+        is_new = self.pk is None
+        title_changed = self.title != self._original_title
+        is_unpublished = self.published_at is None and self.publish_sequence is None
+
+        if not self.slug:
+            self.slug = generate_unique_article_slug(self.title)
+        elif not is_new and is_unpublished and title_changed:
             self.slug = generate_unique_article_slug(self.title)
 
         super().save(*args, **kwargs)
+        self._original_title = self.title
 
     @property
     def views(self) -> int:

@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .forms import ArticleAdminForm
 from .models import Article, ArticleCategory, ArticleComment
-from .services import generate_unique_article_slug
 from .services.publishing import publish_article
 
 
@@ -35,12 +34,6 @@ class ArticleAdmin(admin.ModelAdmin):
     @admin.display(description="PSeq", ordering="publish_sequence")
     def pub_seq(self, obj):
         return obj.publish_sequence if obj.publish_sequence is not None else "-"
-
-    def save_model(self, request, obj, form, change):
-        obj.from_admin = True
-        if not obj.slug:
-            obj.slug = generate_unique_article_slug(obj.title)
-        super().save_model(request, obj, form, change)
 
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
