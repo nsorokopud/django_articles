@@ -43,6 +43,10 @@ class BaseArticleListFilterView(FilterView):
     show_comments = True
     draft_edit_url_name = None
 
+    page_key = ""
+    is_subscriptions_feed_page_one = False
+    latest_article_publish_sequence = 0
+
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         current_path = self.request.path
@@ -58,6 +62,9 @@ class BaseArticleListFilterView(FilterView):
                 "show_likes": self.show_likes,
                 "show_comments": self.show_comments,
                 "draft_edit_url_name": self.draft_edit_url_name,
+                "page_key": self.page_key,
+                "is_subscriptions_feed_page_one": self.is_subscriptions_feed_page_one,
+                "latest_article_publish_sequence": self.latest_article_publish_sequence,
             }
         )
         return context
