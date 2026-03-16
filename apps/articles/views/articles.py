@@ -23,7 +23,7 @@ from ..selectors import (
     find_comments_to_article,
     find_published_articles,
     find_subscription_feed_articles,
-    get_article_by_slug,
+    get_article_for_author_by_slug,
     get_published_article_by_slug,
 )
 from ..services import toggle_article_like
@@ -207,11 +207,27 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
         return context
 
     def get_object(self) -> Article:
-        return get_article_by_slug(self.kwargs["article_slug"])
+        try:
+            return get_article_for_author_by_slug(
+                article_slug=self.kwargs["article_slug"],
+                author_id=self.request.user.id,
+            )
+        except Article.DoesNotExist as e:
+            raise Http404("Article not found") from e
 
     def form_valid(self, form) -> JsonResponse:
         article = form.save(publish=False)
-        data = {"articleUrl": article.get_absolute_url()}
+
+        article_url = (
+            article.get_absolute_url()
+            if article.publish_sequence is not None
+            else reverse("article-update", kwargs={"article_slug": article.slug})
+        )
+
+        data = {
+            "articleUrl": article_url,
+            "isPublished": article.publish_sequence is not None,
+        }
         return JsonResponse({"status": "success", "data": data})
 
     def form_invalid(self, form) -> JsonResponse:
