@@ -11,14 +11,18 @@ from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 from django_filters.views import FilterView
 
 from core.decorators import cache_page_for_anonymous
+from users.services.subscriptions import (
+    advance_subscriptions_last_seen_publish_sequence,
+)
 
-from ..filters import ArticleFilter
+from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
 from ..models import Article
 from ..selectors import (
     find_article_comments_liked_by_user,
     find_comments_to_article,
     find_published_articles,
+    find_subscription_feed_articles,
     get_article_by_slug,
 )
 from ..services import toggle_article_like
@@ -77,6 +81,49 @@ class ArticleListFilterView(BaseArticleListFilterView):
 
     def get_queryset(self) -> QuerySet[Article]:
         return find_published_articles()
+
+
+class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
+    filterset_class = SubscriptionFeedFilter
+    page_title = "Subscription feed"
+    empty_message = "No matching articles from your subscriptions yet"
+    page_key = "subscriptions"
+
+    def get_queryset(self) -> QuerySet[Article]:
+        return find_subscription_feed_articles(self.request.user)
+
+    def get_filterset_kwargs(self, filterset_class):
+        kwargs = super().get_filterset_kwargs(filterset_class)
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+
+        page_obj = context.get("page_obj")
+        articles = context.get("articles")
+
+        is_page_one = bool(page_obj and page_obj.number == 1)
+
+        latest_publish_sequence = 0
+        first_article = next(iter(articles), None) if articles else None
+        if first_article and first_article.publish_sequence:
+            latest_publish_sequence = first_article.publish_sequence
+
+        if is_page_one and latest_publish_sequence > 0:
+            advance_subscriptions_last_seen_publish_sequence(
+                user_id=self.request.user.id,
+                last_seen_publish_sequence=latest_publish_sequence,
+            )
+
+        context.update(
+            {
+                "page_key": self.page_key,
+                "is_subscriptions_feed_page_one": is_page_one,
+                "latest_article_publish_sequence": latest_publish_sequence,
+            }
+        )
+        return context
 
 
 class ArticleDetailView(DetailView):

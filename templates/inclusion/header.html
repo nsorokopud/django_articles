@@ -20,6 +20,7 @@
               {% if request.user.is_staff %}
                 <a class="link-green" href="{% url 'admin:index' %}">Admin Panel</a>
               {% endif %}
+              <a href="{% url 'subscription-feed' %}">Subscriptions</a>
               <a class="link-green" href="{% url 'article-create' %}">
                 New article
                 <i class="fa-solid fa-pen-to-square fa-bounce"></i>
