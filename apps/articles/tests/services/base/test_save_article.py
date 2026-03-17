@@ -23,7 +23,32 @@ class TestSaveArticle(TestCase):
         )
 
     @patch("articles.services.articles.publish_article")
-    def test_creates_article_assigns_author_and_publishes(
+    def test_creates_article_unpublished_by_default(self, mock_publish_article):
+        article = Article(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            preview_text="preview",
+            content="content",
+        )
+        save_m2m = Mock()
+
+        saved = save_article(
+            article=article,
+            author=self.author,
+            save_m2m=save_m2m,
+        )
+
+        self.assertIsNotNone(saved.pk)
+        self.assertEqual(saved.author, self.author)
+        self.assertIsNone(saved.published_at)
+        self.assertIsNone(saved.publish_sequence)
+
+        save_m2m.assert_called_once_with()
+        mock_publish_article.assert_not_called()
+
+    @patch("articles.services.articles.publish_article")
+    def test_creates_article_assigns_author_and_publishes_when_publish_true(
         self,
         mock_publish_article,
     ):

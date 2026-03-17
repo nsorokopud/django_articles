@@ -20,7 +20,7 @@ def save_article(
     article: Article,
     author: User | None = None,
     save_m2m: Callable[[], None] | None = None,
-    publish: bool = True,
+    publish: bool = False,
 ) -> Article:
     is_new = article.pk is None
 
