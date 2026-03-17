@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleStatus
 from articles.settings import ARTICLES_PER_PAGE_COUNT
 from users.models import AuthorSubscription, User
 
@@ -49,6 +49,7 @@ class TestSubscriptionFeedView(TestCase):
             author=self.author1,
             preview_text="Preview 1",
             content="Content 1",
+            status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=100,
         )
@@ -59,6 +60,7 @@ class TestSubscriptionFeedView(TestCase):
             author=self.author2,
             preview_text="Preview 2",
             content="Content 2",
+            status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=90,
         )
@@ -69,6 +71,7 @@ class TestSubscriptionFeedView(TestCase):
             author=self.unsubscribed_author,
             preview_text="Preview 3",
             content="Content 3",
+            status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=80,
         )
@@ -172,6 +175,7 @@ class TestSubscriptionFeedView(TestCase):
                 author=self.author1,
                 preview_text=f"Preview extra {i}",
                 content=f"Content extra {i}",
+                status=ArticleStatus.PUBLISHED,
                 published_at=timezone.now(),
                 publish_sequence=1000 + i,
             )

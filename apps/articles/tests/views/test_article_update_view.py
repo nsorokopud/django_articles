@@ -2,7 +2,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleStatus
 from users.models import User
 
 
@@ -30,6 +30,7 @@ class TestArticleUpdateView(TestCase):
             author=self.author,
             preview_text="text1",
             content="content1",
+            status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
         )

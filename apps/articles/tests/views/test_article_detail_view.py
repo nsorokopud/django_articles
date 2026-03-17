@@ -11,7 +11,7 @@ from articles.cache import (
     VIEWED_ARTICLES_SET_KEY,
 )
 from articles.forms import ArticleCommentForm
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from articles.settings import (
     ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT,
     ARTICLE_UNIQUE_VIEW_TIMEOUT,
@@ -45,6 +45,7 @@ class TestArticleDetailView(TestCase):
             author=self.user,
             preview_text="1",
             content="1",
+            status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
         )

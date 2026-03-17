@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleStatus
 from articles.selectors import get_published_article_by_slug
 from users.models import User
 
@@ -25,12 +25,14 @@ class TestGetPublishedArticleBySlug(TestCase):
             author=self.author,
             preview_text="Preview text",
             content="<p>Article content</p>",
+            status=ArticleStatus.DRAFT,
         )
 
         if published:
+            article.status = ArticleStatus.PUBLISHED
             article.published_at = article.created_at
             article.publish_sequence = 1
-            article.save(update_fields=["published_at", "publish_sequence"])
+            article.save(update_fields=["status", "published_at", "publish_sequence"])
 
         return article
 

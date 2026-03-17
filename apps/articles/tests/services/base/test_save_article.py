@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleStatus
 from articles.services.articles import save_article
 from users.models import User
 
@@ -185,6 +185,7 @@ class TestSaveArticle(TestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            status=ArticleStatus.PUBLISHED,
             publish_sequence=123,
             published_at="2026-01-01T00:00:00Z",
         )

@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.utils import timezone
 from taggit.models import Tag
 
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from articles.selectors import (
     find_article_comments_liked_by_user,
     find_articles_by_query,
@@ -36,6 +36,7 @@ class TestSelectors(TestCase):
             "author": self.test_user,
             "preview_text": "text",
             "content": "content",
+            "status": ArticleStatus.DRAFT,
             "published_at": None,
             "publish_sequence": None,
         }
@@ -45,6 +46,7 @@ class TestSelectors(TestCase):
     def create_published_article(self, **kwargs) -> Article:
         self._publish_sequence += 1
         defaults = {
+            "status": ArticleStatus.PUBLISHED,
             "published_at": timezone.now(),
             "publish_sequence": self._publish_sequence,
         }
@@ -363,6 +365,7 @@ class TestFindSubscriptionFeedArticles(TestCase):
             author=self.author,
             preview_text="text1",
             content="content1",
+            status=ArticleStatus.PUBLISHED,
             publish_sequence=1,
             published_at=timezone.now(),
         )
@@ -378,6 +381,7 @@ class TestFindSubscriptionFeedArticles(TestCase):
             author=self.other_author,
             preview_text="text2",
             content="content2",
+            status=ArticleStatus.PUBLISHED,
             publish_sequence=2,
             published_at=timezone.now(),
         )

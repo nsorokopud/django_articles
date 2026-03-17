@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
-from articles.models import Article
+from articles.models import Article, ArticleStatus
 from articles.services.publishing import (
     get_next_article_publish_sequence_value,
     publish_article,
@@ -50,9 +50,10 @@ class TestPublishArticle(TestCase):
         self, mock_advance, mock_get_next
     ):
         published_at = timezone.now()
+        self.article.status = ArticleStatus.PUBLISHED
         self.article.published_at = published_at
         self.article.publish_sequence = 123
-        self.article.save(update_fields=["published_at", "publish_sequence"])
+        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
 
         self.author.latest_article_publish_sequence = 123
         self.author.save(update_fields=["latest_article_publish_sequence"])

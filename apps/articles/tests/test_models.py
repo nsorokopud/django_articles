@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from articles.models import Article
+from articles.models import Article, ArticleStatus
 from config.settings import CACHES
 
 
@@ -27,6 +27,7 @@ class TestArticleModel(TestCase):
             author=self.user,
             preview_text="published preview",
             content="published content",
+            status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
         )
