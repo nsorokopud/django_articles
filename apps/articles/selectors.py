@@ -6,7 +6,7 @@ from django.db.models.query import QuerySet
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from users.models import User
 
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def find_published_articles() -> QuerySet[Article]:
     return (
-        Article.objects.filter(publish_sequence__isnull=False)
+        Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
@@ -91,7 +91,7 @@ def get_article_by_slug(article_slug: str) -> Article:
 
 def get_published_article_by_slug(article_slug: str) -> Article:
     return (
-        Article.objects.filter(publish_sequence__isnull=False)
+        Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("author", "author__profile", "category")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
@@ -111,7 +111,7 @@ def get_article_for_author_by_slug(*, article_slug: str, author_id: int) -> Arti
 def get_all_categories() -> QuerySet[ArticleCategory]:
     return ArticleCategory.objects.annotate(
         articles_count=SubqueryAggregate(
-            "article__id", filter=Q(publish_sequence__isnull=False), aggregate=Count
+            "article__id", filter=Q(status=ArticleStatus.PUBLISHED), aggregate=Count
         )
     )
 
