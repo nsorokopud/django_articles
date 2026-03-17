@@ -122,6 +122,10 @@ class Article(models.Model):
         self._original_title = self.title
 
     @property
+    def is_published(self) -> bool:
+        return self.status == ArticleStatus.PUBLISHED
+
+    @property
     def views(self) -> int:
         """Returns current total (DB + cache) view count."""
         from .cache import get_cached_article_views
