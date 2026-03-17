@@ -11,6 +11,12 @@ from .settings import DISPLAYED_COMMENT_LENGTH
 ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
 
 
+class ArticleStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PUBLISHED = "published", "Published"
+    REJECTED = "rejected", "Rejected"
+
+
 class Article(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
@@ -22,6 +28,12 @@ class Article(models.Model):
     preview_text = models.TextField(max_length=512)
     preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
     content = HTMLField()
+    status = models.CharField(
+        max_length=20,
+        choices=ArticleStatus.choices,
+        default=ArticleStatus.DRAFT,
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     publish_sequence = models.BigIntegerField(
@@ -43,12 +55,12 @@ class Article(models.Model):
             models.Index(
                 fields=["author", "-publish_sequence", "-id"],
                 name="art_author_pub_seq_id_desc_idx",
-                condition=models.Q(publish_sequence__isnull=False),
+                condition=models.Q(status=ArticleStatus.PUBLISHED),
             ),
             models.Index(
                 fields=["-publish_sequence"],
                 name="article_publish_seq_desc_idx",
-                condition=models.Q(publish_sequence__isnull=False),
+                condition=models.Q(status=ArticleStatus.PUBLISHED),
             ),
         ]
 
@@ -67,6 +79,21 @@ class Article(models.Model):
                 ),
                 name="article_publish_fields_consistent",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=ArticleStatus.PUBLISHED,
+                        published_at__isnull=False,
+                        publish_sequence__isnull=False,
+                    )
+                    | models.Q(
+                        status__in=[ArticleStatus.DRAFT, ArticleStatus.REJECTED],
+                        published_at__isnull=True,
+                        publish_sequence__isnull=True,
+                    )
+                ),
+                name="art_status_matches_publ_fields",
+            ),
         ]
 
     def __init__(self, *args, **kwargs):
@@ -84,7 +111,7 @@ class Article(models.Model):
 
         is_new = self.pk is None
         title_changed = self.title != self._original_title
-        is_unpublished = self.published_at is None and self.publish_sequence is None
+        is_unpublished = self.status != ArticleStatus.PUBLISHED
 
         if not self.slug:
             self.slug = generate_unique_article_slug(self.title)

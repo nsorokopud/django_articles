@@ -15,14 +15,14 @@ class ArticleAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "pub_seq",
-        "published_at",
+        "status",
         "title",
         "category",
         "author",
         "created_at",
     )
     list_display_links = ("id", "title")
-    list_filter = ("published_at", "created_at", "category", "author")
+    list_filter = ("status", "published_at", "created_at", "category", "author")
     search_fields = ("title", "author__username", "category__title")
     readonly_fields = ("published_at", "publish_sequence", "created_at", "modified_at")
     prepopulated_fields = {"slug": ("title",)}
