@@ -333,6 +333,9 @@ TINYMCE_DEFAULT_CONFIG = {
     "images_upload_url": "/tinymce/upload",
     "images_upload_handler": "tinymceUploadHandler",
     "automatic_uploads": False,
+    "convert_urls": False,
+    "relative_urls": False,
+    "remove_script_host": True,
     "promotion": False,
     "license_key": "gpl",
 }
