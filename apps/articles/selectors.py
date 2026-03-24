@@ -51,6 +51,17 @@ def find_articles_with_all_tags(
     ).filter(num_tags=len(tag_ids))
 
 
+def find_articles_by_author(author: User) -> QuerySet[Article]:
+    return (
+        Article.objects.filter(author=author)
+        .select_related("category", "author", "author__profile")
+        .prefetch_related("tags")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .annotate(comments_count=Count("articlecomment", distinct=True))
+        .order_by("-modified_at", "-id")
+    )
+
+
 def find_articles_by_query(
     q: str, queryset: Optional[QuerySet[Article]] = None
 ) -> QuerySet[Article]:
