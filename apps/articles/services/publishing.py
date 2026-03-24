@@ -23,6 +23,20 @@ def publish_article(*, article_id: int) -> Article:
     return a
 
 
+@transaction.atomic
+def unpublish_article(*, article_id: int) -> Article:
+    article = Article.objects.select_for_update().get(id=article_id)
+
+    if article.status != ArticleStatus.PUBLISHED:
+        return article
+
+    article.status = ArticleStatus.DRAFT
+    article.published_at = None
+    article.publish_sequence = None
+    article.save(update_fields=["status", "published_at", "publish_sequence"])
+    return article
+
+
 def get_next_article_publish_sequence_value() -> int:
     with connection.cursor() as cursor:
         cursor.execute("SELECT nextval('article_publish_seq')")

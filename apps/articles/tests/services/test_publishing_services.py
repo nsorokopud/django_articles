@@ -7,6 +7,7 @@ from articles.models import Article, ArticleStatus
 from articles.services.publishing import (
     get_next_article_publish_sequence_value,
     publish_article,
+    unpublish_article,
 )
 from users.models import User
 
@@ -106,3 +107,74 @@ class TestGetNextArticlePublishSequenceValue(TestCase):
         second = get_next_article_publish_sequence_value()
 
         self.assertGreater(second, first)
+
+
+class TestUnpublishArticle(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+
+    def test_changes_published_article_to_draft(self):
+        article = Article.objects.create(
+            title="Published",
+            slug="published",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=123,
+        )
+
+        returned_article = unpublish_article(article_id=article.id)
+        article.refresh_from_db()
+
+        self.assertEqual(returned_article.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+        self.assertIsNone(article.published_at)
+        self.assertIsNone(article.publish_sequence)
+
+    def test_does_nothing_for_draft_article(self):
+        article = Article.objects.create(
+            title="Draft",
+            slug="draft",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.DRAFT,
+            published_at=None,
+            publish_sequence=None,
+        )
+
+        returned_article = unpublish_article(article_id=article.id)
+        article.refresh_from_db()
+
+        self.assertEqual(returned_article.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+        self.assertIsNone(article.published_at)
+        self.assertIsNone(article.publish_sequence)
+
+    def test_does_nothing_for_rejected_article(self):
+        article = Article.objects.create(
+            title="Rejected",
+            slug="rejected",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.REJECTED,
+            published_at=None,
+            publish_sequence=None,
+        )
+
+        returned_article = unpublish_article(article_id=article.id)
+        article.refresh_from_db()
+
+        self.assertEqual(returned_article.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
+        self.assertIsNone(article.published_at)
+        self.assertIsNone(article.publish_sequence)
+
+    def test_raises_for_missing_article(self):
+        with self.assertRaises(Article.DoesNotExist):
+            unpublish_article(article_id=999999)
