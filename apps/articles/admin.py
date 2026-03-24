@@ -1,8 +1,8 @@
 from django.contrib import admin
 
 from .forms import ArticleAdminForm
-from .models import Article, ArticleCategory, ArticleComment
-from .services.publishing import publish_article
+from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
+from .services.publishing import publish_article, unpublish_article
 
 
 class CommentInline(admin.TabularInline):
@@ -38,7 +38,7 @@ class ArticleAdmin(admin.ModelAdmin):
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
         updated_rows_count = 0
-        for article in queryset.filter(publish_sequence__isnull=True):
+        for article in queryset.exclude(status=ArticleStatus.PUBLISHED):
             publish_article(article_id=article.id)
             updated_rows_count += 1
 
@@ -50,10 +50,11 @@ class ArticleAdmin(admin.ModelAdmin):
 
     @admin.action(description="Unpublish selected articles", permissions=("change",))
     def unpublish(self, request, queryset):
-        updated_rows_count = queryset.filter(publish_sequence__isnull=False).update(
-            published_at=None,
-            publish_sequence=None,
-        )
+        updated_rows_count = 0
+        for article in queryset.filter(status=ArticleStatus.PUBLISHED):
+            unpublish_article(article_id=article.id)
+            updated_rows_count += 1
+
         if updated_rows_count == 1:
             message = "1 article was unpublished"
         else:
