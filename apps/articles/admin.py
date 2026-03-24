@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .forms import ArticleAdminForm
 from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from .services.publishing import publish_article, unpublish_article
+from .services.publishing import publish_article, reject_article, unpublish_article
 
 
 class CommentInline(admin.TabularInline):
@@ -26,7 +26,7 @@ class ArticleAdmin(admin.ModelAdmin):
     search_fields = ("title", "author__username", "category__title")
     readonly_fields = ("published_at", "publish_sequence", "created_at", "modified_at")
     prepopulated_fields = {"slug": ("title",)}
-    actions = ("publish", "unpublish")
+    actions = ("publish", "reject", "unpublish")
     inlines = (CommentInline,)
     save_on_top = True
     save_as = True
@@ -59,6 +59,19 @@ class ArticleAdmin(admin.ModelAdmin):
             message = "1 article was unpublished"
         else:
             message = f"{updated_rows_count} articles were unpublished"
+        self.message_user(request, message)
+
+    @admin.action(description="Reject selected articles", permissions=("change",))
+    def reject(self, request, queryset):
+        updated_rows_count = 0
+        for article in queryset.filter(status=ArticleStatus.DRAFT):
+            reject_article(article_id=article.id)
+            updated_rows_count += 1
+
+        if updated_rows_count == 1:
+            message = "1 article was rejected"
+        else:
+            message = f"{updated_rows_count} articles were rejected"
         self.message_user(request, message)
 
 
