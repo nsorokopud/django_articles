@@ -7,7 +7,13 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    UpdateView,
+)
 from django_filters.views import FilterView
 
 from core.decorators import cache_page_for_anonymous
@@ -20,6 +26,7 @@ from ..forms import ArticleCommentForm, ArticleModelForm
 from ..models import Article
 from ..selectors import (
     find_article_comments_liked_by_user,
+    find_articles_by_author,
     find_comments_to_article,
     find_published_articles,
     find_subscription_feed_articles,
@@ -122,6 +129,38 @@ class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
                 "page_key": self.page_key,
                 "is_subscriptions_feed_page_one": is_page_one,
                 "latest_article_publish_sequence": latest_publish_sequence,
+            }
+        )
+        return context
+
+
+class MyArticlesListView(LoginRequiredMixin, ListView):
+    model = Article
+    context_object_name = "articles"
+    paginate_by = ARTICLES_PER_PAGE_COUNT
+    template_name = "articles/article_list_page.html"
+
+    def get_queryset(self) -> QuerySet[Article]:
+        return find_articles_by_author(self.request.user)
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        current_path = self.request.path
+        context.update(
+            {
+                "page_title": "Your articles",
+                "empty_message": "You have not created any articles yet",
+                "show_filters": False,
+                "reset_url": current_path,
+                "category_filter_url": current_path,
+                "tag_filter_url": current_path,
+                "show_views": True,
+                "show_likes": True,
+                "show_comments": True,
+                "draft_edit_url_name": "article-update",
+                "page_key": "my-articles",
+                "is_subscriptions_feed_page_one": False,
+                "latest_article_publish_sequence": 0,
             }
         )
         return context

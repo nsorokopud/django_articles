@@ -14,6 +14,7 @@ urlpatterns = [
     path(
         "subscriptions/", views.SubscriptionFeedView.as_view(), name="subscription-feed"
     ),
+    path("my-articles/", views.MyArticlesListView.as_view(), name="my-articles"),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
         "articles/<slug:article_slug>/edit",
