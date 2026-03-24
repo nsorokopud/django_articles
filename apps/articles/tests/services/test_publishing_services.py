@@ -7,6 +7,7 @@ from articles.models import Article, ArticleStatus
 from articles.services.publishing import (
     get_next_article_publish_sequence_value,
     publish_article,
+    reject_article,
     unpublish_article,
 )
 from users.models import User
@@ -178,3 +179,79 @@ class TestUnpublishArticle(TestCase):
     def test_raises_for_missing_article(self):
         with self.assertRaises(Article.DoesNotExist):
             unpublish_article(article_id=999999)
+
+
+class TestRejectArticle(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+
+    def test_reject_draft_article_marks_it_rejected(self):
+        article = Article.objects.create(
+            title="Draft",
+            slug="draft",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.DRAFT,
+            published_at=None,
+            publish_sequence=None,
+        )
+
+        result = reject_article(article_id=article.id)
+        article.refresh_from_db()
+
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
+        self.assertIsNone(article.published_at)
+        self.assertIsNone(article.publish_sequence)
+
+    def test_reject_rejected_article_is_idempotent(self):
+        article = Article.objects.create(
+            title="Rejected",
+            slug="rejected",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.REJECTED,
+            published_at=None,
+            publish_sequence=None,
+        )
+
+        result = reject_article(article_id=article.id)
+        article.refresh_from_db()
+
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
+        self.assertIsNone(article.published_at)
+        self.assertIsNone(article.publish_sequence)
+
+    def test_reject_published_article_raises_error_and_does_not_modify_article(self):
+        published_at = timezone.now()
+
+        article = Article.objects.create(
+            title="Published",
+            slug="published",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=published_at,
+            publish_sequence=123,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "published articles cannot be rejected",
+        ):
+            reject_article(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
+        self.assertEqual(article.published_at, published_at)
+        self.assertEqual(article.publish_sequence, 123)
+
+    def test_reject_nonexistent_article_raises_does_not_exist(self):
+        with self.assertRaises(Article.DoesNotExist):
+            reject_article(article_id=999999)

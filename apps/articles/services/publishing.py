@@ -37,6 +37,23 @@ def unpublish_article(*, article_id: int) -> Article:
     return article
 
 
+@transaction.atomic
+def reject_article(*, article_id: int) -> Article:
+    article = Article.objects.select_for_update().get(id=article_id)
+
+    if article.status == ArticleStatus.PUBLISHED:
+        raise ValueError("published articles cannot be rejected")
+
+    if article.status == ArticleStatus.REJECTED:
+        return article
+
+    article.status = ArticleStatus.REJECTED
+    article.published_at = None
+    article.publish_sequence = None
+    article.save(update_fields=["status", "published_at", "publish_sequence"])
+    return article
+
+
 def get_next_article_publish_sequence_value() -> int:
     with connection.cursor() as cursor:
         cursor.execute("SELECT nextval('article_publish_seq')")
