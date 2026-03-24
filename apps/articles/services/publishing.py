@@ -10,7 +10,7 @@ from ..models import Article, ArticleStatus
 def publish_article(*, article_id: int) -> Article:
     a = Article.objects.select_for_update().get(id=article_id)
 
-    if a.published_at is not None:
+    if a.status == ArticleStatus.PUBLISHED:
         return a
 
     seq = get_next_article_publish_sequence_value()
