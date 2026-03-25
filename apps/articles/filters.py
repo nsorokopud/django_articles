@@ -31,7 +31,7 @@ class ArticleFilter(FilterSet):
     )
     author = ModelChoiceFilter(to_field_name="username")
     date = DateFromToRangeFilter(
-        field_name="created_at",
+        field_name="published_at",
         widget=DateRangeWidget(attrs={"type": "date"}),
         label="Date [after - before]",
     )
@@ -43,7 +43,7 @@ class ArticleFilter(FilterSet):
     )
     ordering = OrderingFilter(
         fields=[
-            ("created_at", "Date and Time"),
+            ("published_at", "Date and Time"),
             ("views_count", "Views"),
             ("likes_count", "Likes"),
         ],
