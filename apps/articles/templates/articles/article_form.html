@@ -41,9 +41,11 @@
               <button id="articleFormUpdateButton" class="btn btn-success" type="submit">
                 Update article
               </button>
-              <a href="{{ article.get_absolute_url }}" class="btn btn-secondary mx-3">
-                View article
-              </a>
+              {% if article.is_published %}
+                <a href="{{ article.get_absolute_url }}" class="btn btn-secondary mx-3">
+                  View article
+                </a>
+              {% endif %}
               <input type="hidden" id="articleId" value="{{ form.instance.id }}" />
               <input type="hidden" id="articleSlug" value="{{ form.instance.slug }}" />
             {% else %}
