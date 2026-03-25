@@ -3,16 +3,31 @@
 {% for article in articles %}
   <article class="article p-3">
     <div class="article-preview-author d-flex align-items-center mb-3">
-      <img class="article-author-avatar rounded-circle"
-           src="{{ article.author.profile.image.url }}"
-           alt="Article author's image" />
+      {% if page_key == "my-articles" %}
+        <div class="me-3 d-flex align-items-center">
+          {% if article.status == "draft" %}
+            <span class="badge bg-secondary fs-6">Draft</span>
+          {% elif article.status == "rejected" %}
+            <span class="badge bg-danger fs-6">Rejected</span>
+          {% elif article.status == "published" %}
+            <span class="badge bg-success fs-6">Published</span>
+          {% endif %}
+        </div>
+      {% else %}
+        <img class="article-author-avatar rounded-circle"
+             src="{{ article.author.profile.image.url }}"
+             alt="Article author's image" />
+      {% endif %}
       <div class="article-preview-author-right">
-        <a href="{% url 'author-page' article.author.id %}"
-           class="article-author-name">{{ article.author.username }}</a>
+        {% if page_key != "my-articles" %}
+          <a href="{% url 'author-page' article.author.id %}"
+             class="article-author-name">{{ article.author.username }}</a>
+        {% endif %}
 
         {% if article.is_published %}
           <time class="article-preview-date"
                 datetime="{{ article.published_at.isoformat }}">
+            {% if page_key == "my-articles" %}Published:{% endif %}
             {{ article.published_at|localtime|date:'H:i d-m-Y' }}
           </time>
         {% else %}
