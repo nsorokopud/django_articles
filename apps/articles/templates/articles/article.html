@@ -20,7 +20,7 @@
                 </time>
               </div>
             </div>
-            <hr>
+
             <div class="article-preview-main">
               <h3 class="article-title mb-4">{{ article.title }}</h3>
               {% if article.category %}
@@ -50,7 +50,7 @@
                        alt="Article preview image">
                 {% endif %}
                 <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
-                <hr>
+
                 <span class="article-preview-icons">
                   <span class="mx-2 article-preview-icons__item">
                     <i class="article-icon far fa-eye m-1"></i>
@@ -90,7 +90,6 @@
 
 {% block content-bottom %}
   <div class="container">
-    <hr>
     <section class="article-comment-section">
       <div class="row">
         <div class="col-lg-8 col-md-12 mx-auto nopadding">
