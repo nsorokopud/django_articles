@@ -8,6 +8,15 @@ from users.models import User
 from .settings import DISPLAYED_COMMENT_LENGTH
 
 
+ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
+
+
+class ArticleStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PUBLISHED = "published", "Published"
+    REJECTED = "rejected", "Rejected"
+
+
 class Article(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
@@ -19,9 +28,21 @@ class Article(models.Model):
     preview_text = models.TextField(max_length=512)
     preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
     content = HTMLField()
+    status = models.CharField(
+        max_length=20,
+        choices=ArticleStatus.choices,
+        default=ArticleStatus.DRAFT,
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    publish_sequence = models.BigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        editable=False,
+    )
     modified_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False, db_index=True)
     users_that_liked = models.ManyToManyField(
         User, related_name="liked_articles", blank=True
     )
@@ -29,11 +50,54 @@ class Article(models.Model):
 
     class Meta:
         verbose_name_plural = "Articles"
-        ordering = ["-created_at"]
+
+        indexes = [
+            models.Index(
+                fields=["author", "-publish_sequence", "-id"],
+                name="art_author_pub_seq_id_desc_idx",
+                condition=models.Q(status=ArticleStatus.PUBLISHED),
+            ),
+            models.Index(
+                fields=["-publish_sequence"],
+                name="article_publish_seq_desc_idx",
+                condition=models.Q(status=ArticleStatus.PUBLISHED),
+            ),
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["publish_sequence"],
+                condition=models.Q(publish_sequence__isnull=False),
+                name="uniq_article_publish_sequence_not_null",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(published_at__isnull=True, publish_sequence__isnull=True)
+                    | models.Q(
+                        published_at__isnull=False, publish_sequence__isnull=False
+                    )
+                ),
+                name="article_publish_fields_consistent",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=ArticleStatus.PUBLISHED,
+                        published_at__isnull=False,
+                        publish_sequence__isnull=False,
+                    )
+                    | models.Q(
+                        status__in=[ArticleStatus.DRAFT, ArticleStatus.REJECTED],
+                        published_at__isnull=True,
+                        publish_sequence__isnull=True,
+                    )
+                ),
+                name="art_status_matches_publ_fields",
+            ),
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.from_admin = False
         self._original_title = self.title
 
     def __str__(self):
@@ -45,11 +109,21 @@ class Article(models.Model):
     def save(self, *args, **kwargs):
         from .services import generate_unique_article_slug
 
-        title_changed = not self.pk or self._original_title != self.title
-        if not self.from_admin and title_changed:
+        is_new = self.pk is None
+        title_changed = self.title != self._original_title
+        is_unpublished = self.status != ArticleStatus.PUBLISHED
+
+        if not self.slug:
+            self.slug = generate_unique_article_slug(self.title)
+        elif not is_new and is_unpublished and title_changed:
             self.slug = generate_unique_article_slug(self.title)
 
         super().save(*args, **kwargs)
+        self._original_title = self.title
+
+    @property
+    def is_published(self) -> bool:
+        return self.status == ArticleStatus.PUBLISHED
 
     @property
     def views(self) -> int:

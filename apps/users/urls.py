@@ -57,4 +57,9 @@ urlpatterns = [
         views.AuthorSubscribeView.as_view(),
         name="author-subscribe",
     ),
+    path(
+        "notifications/new_articles_digest_summary/",
+        views.new_articles_digest_summary,
+        name="new-articles-digest-summary",
+    ),
 ]

@@ -1,4 +1,5 @@
-from unittest.mock import ANY
+from datetime import datetime, timezone
+from unittest.mock import ANY, patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -57,7 +58,7 @@ class TestArticleCreateView(TestCase):
         )
         self.assertEqual(Article.objects.count(), 0)
 
-    def test_post_correct(self):
+    def test_post_correct_creates_draft_for_regular_user(self):
         article_data = {"title": "a1", "preview_text": "1", "content": "1"}
 
         self.client.force_login(self.user)
@@ -65,14 +66,22 @@ class TestArticleCreateView(TestCase):
             self.url, article_data, headers={"X-Requested-With": "XMLHttpRequest"}
         )
         self.assertEqual(response.status_code, 200)
+
         response_json = response.json()
         self.assertEqual(response_json["status"], "success")
+
+        expected_url = reverse(
+            "article-update",
+            kwargs={"article_slug": article_data["title"]},
+        )
+
         self.assertEqual(
             response_json["data"],
             {
                 "articleId": ANY,
                 "articleSlug": article_data["title"],
-                "articleUrl": "/articles/a1",
+                "articleUrl": expected_url,
+                "isPublished": False,
             },
         )
         self.assertIsInstance(response_json["data"]["articleId"], int)
@@ -83,10 +92,55 @@ class TestArticleCreateView(TestCase):
         self.assertEqual(a.title, article_data["title"])
         self.assertEqual(a.slug, article_data["title"])
         self.assertEqual(a.author, self.user)
-        self.assertEqual(a.category, None)
+        self.assertIsNone(a.category)
         self.assertCountEqual(a.tags.all(), [])
         self.assertEqual(a.preview_text, article_data["preview_text"])
         self.assertEqual(a.content, article_data["content"])
         with self.assertRaises(ValueError):
             a.preview_image.url
-        self.assertEqual(a.is_published, True)
+        self.assertIsNone(a.published_at)
+        self.assertIsNone(a.publish_sequence)
+
+    @patch(
+        "articles.services.publishing.get_next_article_publish_sequence_value",
+        return_value=999,
+    )
+    @patch(
+        "articles.services.publishing.timezone.now",
+        return_value=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    def test_post_correct_publishes_for_staff_user(self, mock_now, mock_get_next):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+
+        article_data = {"title": "a1", "preview_text": "1", "content": "1"}
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url, article_data, headers={"X-Requested-With": "XMLHttpRequest"}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response_json = response.json()
+        self.assertEqual(response_json["status"], "success")
+        self.assertEqual(
+            response_json["data"],
+            {
+                "articleId": ANY,
+                "articleSlug": article_data["title"],
+                "articleUrl": reverse(
+                    "article-details",
+                    kwargs={"article_slug": article_data["title"]},
+                ),
+                "isPublished": True,
+            },
+        )
+
+        a = Article.objects.get(slug="a1")
+        self.assertEqual(a.title, article_data["title"])
+        self.assertEqual(a.slug, article_data["title"])
+        self.assertEqual(a.author, self.user)
+        self.assertEqual(a.preview_text, article_data["preview_text"])
+        self.assertEqual(a.content, article_data["content"])
+        self.assertEqual(a.published_at, datetime(2026, 1, 1, tzinfo=timezone.utc))
+        self.assertEqual(a.publish_sequence, 999)

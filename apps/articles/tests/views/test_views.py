@@ -3,8 +3,9 @@ from unittest.mock import patch
 from django.http import Http404
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from users.models import User
 
 
@@ -23,7 +24,9 @@ class TestViews(TestCase):
             author=self.test_user,
             preview_text="text1",
             content="content1",
-            is_published=True,
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.test_article.tags.add("tag1")
         self.test_article.save()
@@ -47,7 +50,12 @@ class TestViews(TestCase):
             response = self.client.get(reverse("articles"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "articles/home_page.html")
+        self.assertTemplateUsed(response, "articles/article_list_page.html")
+        self.assertEqual(response.context["page_title"], "Articles matching your query")
+        self.assertEqual(
+            response.context["empty_message"], "No articles matching your query"
+        )
+        self.assertTrue(response.context["show_filters"])
 
     def test_article_delete_view_unauthorized(self):
         url = reverse("article-delete", args=[self.test_article.slug])

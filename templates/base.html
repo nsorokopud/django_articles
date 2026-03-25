@@ -28,7 +28,15 @@
     </title>
   </head>
 
-  <body>
+  <body {% if user.is_authenticated %}data-is-authenticated="1"{% endif %}
+        {% if page_key %}data-page="{{ page_key }}"{% endif %}
+        {% if is_subscriptions_feed_page_one %}
+          data-is-subscriptions-feed-page-one="1"
+        {% endif %}
+        {% if latest_article_publish_sequence %}
+          data-latest-article-publish-sequence="{{ latest_article_publish_sequence }}"
+        {% endif %}>
+
     {% include "notifications/notification_modal.html" %}
     {% include "inclusion/header.html" %}
     {% block content %}{% endblock %}
@@ -49,7 +57,7 @@
             crossorigin="anonymous"
             integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="></script>
     <!-- Notifications -->
-    <script src="{% static 'js/notifications.js' %}"></script>
+    <script type="module" src="{% static 'js/notifications/index.js' %}"></script>
     <!-- Timezones -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.3.0/luxon.min.js"></script>
     <script src="{% static 'js/timezones.js' %}"></script>

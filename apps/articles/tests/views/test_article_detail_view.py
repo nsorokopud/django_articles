@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from django_redis import get_redis_connection
 
 from articles.cache import (
@@ -10,7 +11,7 @@ from articles.cache import (
     VIEWED_ARTICLES_SET_KEY,
 )
 from articles.forms import ArticleCommentForm
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from articles.settings import (
     ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT,
     ARTICLE_UNIQUE_VIEW_TIMEOUT,
@@ -44,7 +45,9 @@ class TestArticleDetailView(TestCase):
             author=self.user,
             preview_text="1",
             content="1",
-            is_published=True,
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.comment = ArticleComment.objects.create(
             author=self.user, article=self.article, text="comment"
@@ -157,3 +160,24 @@ class TestArticleDetailView(TestCase):
 
         self.article.refresh_from_db()
         self.assertEqual(self.article.views_count, 111)
+
+    def test_unpublished_article_returns_404(self):
+        unpublished_article = Article.objects.create(
+            title="draft",
+            slug="draft",
+            category=self.category,
+            author=self.user,
+            preview_text="draft preview",
+            content="draft content",
+            published_at=None,
+            publish_sequence=None,
+        )
+
+        url = reverse("article-details", args=[unpublished_article.slug])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_nonexistent_article_returns_404(self):
+        response = self.client.get(reverse("article-details", args=["missing-slug"]))
+        self.assertEqual(response.status_code, 404)

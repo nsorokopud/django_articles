@@ -11,6 +11,10 @@ urlpatterns = [
         name="attached-file-upload",
     ),
     path("articles/", views.ArticleListFilterView.as_view(), name="articles"),
+    path(
+        "subscriptions/", views.SubscriptionFeedView.as_view(), name="subscription-feed"
+    ),
+    path("my-articles/", views.MyArticlesListView.as_view(), name="my-articles"),
     path("articles/create", views.ArticleCreateView.as_view(), name="article-create"),
     path(
         "articles/<slug:article_slug>/edit",

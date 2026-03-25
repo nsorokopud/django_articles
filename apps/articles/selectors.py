@@ -6,7 +6,7 @@ from django.db.models.query import QuerySet
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from users.models import User
 
 
@@ -15,12 +15,20 @@ logger = logging.getLogger(__name__)
 
 def find_published_articles() -> QuerySet[Article]:
     return (
-        Article.objects.filter(is_published=True)
+        Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
         .annotate(comments_count=Count("articlecomment", distinct=True))
-        .order_by("-created_at")
+        .order_by("-publish_sequence", "-id")
+    )
+
+
+def find_subscription_feed_articles(user: User) -> QuerySet[Article]:
+    return (
+        find_published_articles()
+        .filter(author__subscriptions_received__subscriber=user)
+        .distinct()
     )
 
 
@@ -41,6 +49,17 @@ def find_articles_with_all_tags(
     return queryset.annotate(
         num_tags=Count("tags", filter=Q(tags__id__in=tag_ids), distinct=True)
     ).filter(num_tags=len(tag_ids))
+
+
+def find_articles_by_author(author: User) -> QuerySet[Article]:
+    return (
+        Article.objects.filter(author=author)
+        .select_related("category", "author", "author__profile")
+        .prefetch_related("tags")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .annotate(comments_count=Count("articlecomment", distinct=True))
+        .order_by("-modified_at", "-id")
+    )
 
 
 def find_articles_by_query(
@@ -81,10 +100,29 @@ def get_article_by_slug(article_slug: str) -> Article:
     )
 
 
+def get_published_article_by_slug(article_slug: str) -> Article:
+    return (
+        Article.objects.filter(status=ArticleStatus.PUBLISHED)
+        .select_related("author", "author__profile", "category")
+        .prefetch_related("tags")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .get(slug=article_slug)
+    )
+
+
+def get_article_for_author_by_slug(*, article_slug: str, author_id: int) -> Article:
+    return (
+        Article.objects.select_related("author", "author__profile", "category")
+        .prefetch_related("tags")
+        .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .get(slug=article_slug, author_id=author_id)
+    )
+
+
 def get_all_categories() -> QuerySet[ArticleCategory]:
     return ArticleCategory.objects.annotate(
         articles_count=SubqueryAggregate(
-            "article__id", filter=Q(is_published=True), aggregate=Count
+            "article__id", filter=Q(status=ArticleStatus.PUBLISHED), aggregate=Count
         )
     )
 

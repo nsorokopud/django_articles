@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from users.models import User
 from users.selectors import (
-    get_all_subscriptions_of_user,
+    find_authors_subscribed_by_user,
     get_all_users,
     get_author_with_viewer_subscription_status,
     get_pending_email_address,
@@ -40,27 +40,27 @@ class TestSelectors(TestCase):
         with self.assertRaises(User.DoesNotExist):
             get_user_by_id(999)
 
-    def test_get_all_subscriptions_of_user(self):
+    def test_find_authors_subscribed_by_user(self):
         a1 = User.objects.create_user(username="author1", email="author1@test.com")
         a2 = User.objects.create_user(username="author2", email="author2@test.com")
 
-        res = get_all_subscriptions_of_user(self.test_user)
+        res = find_authors_subscribed_by_user(self.test_user)
         self.assertCountEqual(res, [])
 
         a1.subscribers.add(self.test_user)
-        res = get_all_subscriptions_of_user(self.test_user)
-        self.assertCountEqual(res, [(a1.id, a1.username)])
+        res = find_authors_subscribed_by_user(self.test_user)
+        self.assertCountEqual(res, [a1])
 
         a2.subscribers.add(self.test_user)
-        res = get_all_subscriptions_of_user(self.test_user)
-        self.assertCountEqual(res, [(a1.id, a1.username), (a2.id, a2.username)])
+        res = find_authors_subscribed_by_user(self.test_user)
+        self.assertCountEqual(res, [a1, a2])
 
         a2.subscribers.remove(self.test_user)
-        res = get_all_subscriptions_of_user(self.test_user)
-        self.assertCountEqual(res, [(a1.id, a1.username)])
+        res = find_authors_subscribed_by_user(self.test_user)
+        self.assertCountEqual(res, [a1])
 
         a1.subscribers.remove(self.test_user)
-        res = get_all_subscriptions_of_user(self.test_user)
+        res = find_authors_subscribed_by_user(self.test_user)
         self.assertCountEqual(res, [])
 
     def test_get_all_users(self):

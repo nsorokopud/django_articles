@@ -44,6 +44,7 @@ django-select2==8.2.1
 
 # Media and files
 boto3==1.35.29
+django-cleanup==9.0.0
 django-storages==1.14.4
 pillow==10.4.0
 python-magic==0.4.27

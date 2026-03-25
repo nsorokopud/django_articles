@@ -20,6 +20,8 @@
               {% if request.user.is_staff %}
                 <a class="link-green" href="{% url 'admin:index' %}">Admin Panel</a>
               {% endif %}
+              <a href="{% url 'subscription-feed' %}">Subscriptions</a>
+              <a href="{% url 'my-articles' %}">My articles</a>
               <a class="link-green" href="{% url 'article-create' %}">
                 New article
                 <i class="fa-solid fa-pen-to-square fa-bounce"></i>
@@ -33,13 +35,11 @@
                 <i class="fas fa-envelope fs-4"></i>
                 <span id="notificationCounter"
                       class="badge rounded-pill badge-notification bg-danger
-                             {% if notifications_count < 1 %}invisible{% endif %}">
-                  {% if notifications_count <= 0 %}
-                    0
-                  {% elif notifications_count > 999 %}
+                             {% if notification_count < 1 %}invisible{% endif %}">
+                  {% if notification_count|default:0 > 999 %}
                     999+
                   {% else %}
-                    {{ notifications_count }}
+                    {{ notification_count|default:0 }}
                   {% endif %}
                 </span>
               </button>

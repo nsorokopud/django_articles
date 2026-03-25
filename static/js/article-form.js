@@ -18,10 +18,9 @@ $('#articleFormUpdateButton').click((e) => {
     document.documentElement.style.scrollBehavior = 'auto';
     form.reportValidity();
     document.documentElement.style.scrollBehavior = '';
-  } else {
-    e.preventDefault();
-    onArticleFormUpdateButtonClick();
+    return;
   }
+  e.preventDefault();
   onArticleFormUpdateButtonClick();
 });
 

@@ -12,6 +12,8 @@ from articles.views import (
     AttachedFileUploadView,
     CommentLikeView,
     HomePageView,
+    MyArticlesListView,
+    SubscriptionFeedView,
 )
 
 
@@ -23,6 +25,14 @@ class TestURLs(SimpleTestCase):
     def test_articles_list_page_url_is_resolved(self):
         url = reverse("articles")
         self.assertEqual(resolve(url).func.view_class, ArticleListFilterView)
+
+    def test_subscription_feed_page_url_is_resolved(self):
+        url = reverse("subscription-feed")
+        self.assertEqual(resolve(url).func.view_class, SubscriptionFeedView)
+
+    def test_my_articles_list_page_url_is_resolved(self):
+        url = reverse("my-articles")
+        self.assertEqual(resolve(url).func.view_class, MyArticlesListView)
 
     def test_article_details_page_url_is_resolved(self):
         url = reverse("article-details", args=[1])

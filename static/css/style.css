@@ -163,6 +163,10 @@ aside.sidebar + .main-content {
   width: 65%;
 }
 
+.main-content.main-content--narrow {
+  max-width: 800px;
+}
+
 .article-search {
   margin-bottom: 50px;
 }

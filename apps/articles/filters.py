@@ -11,7 +11,8 @@ from django_filters.filters import (
 from django_filters.widgets import DateRangeWidget
 from django_select2.forms import Select2TagWidget
 
-from users.selectors import get_all_users
+from users.models import User
+from users.selectors import find_authors_subscribed_by_user, get_all_users
 
 from .models import Article
 from .selectors import (
@@ -30,7 +31,7 @@ class ArticleFilter(FilterSet):
     )
     author = ModelChoiceFilter(to_field_name="username")
     date = DateFromToRangeFilter(
-        field_name="created_at",
+        field_name="published_at",
         widget=DateRangeWidget(attrs={"type": "date"}),
         label="Date [after - before]",
     )
@@ -41,11 +42,16 @@ class ArticleFilter(FilterSet):
         widget=Select2TagWidget(attrs={"id": "filterTagsInput"}),
     )
     ordering = OrderingFilter(
-        fields=[
-            ("created_at", "Date and Time"),
-            ("views_count", "Views"),
-            ("likes_count", "Likes"),
-        ],
+        fields=(
+            ("published_at", "published_at"),
+            ("views_count", "views_count"),
+            ("likes_count", "likes_count"),
+        ),
+        field_labels={
+            "published_at": "Date and Time",
+            "views_count": "Views",
+            "likes_count": "Likes",
+        },
     )
 
     class Meta:
@@ -67,3 +73,14 @@ class ArticleFilter(FilterSet):
         if not value:
             return queryset
         return find_articles_with_all_tags(value, queryset)
+
+
+class SubscriptionFeedFilter(ArticleFilter):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+        if user and user.is_authenticated:
+            self.filters["author"].queryset = find_authors_subscribed_by_user(user)
+        else:
+            self.filters["author"].queryset = User.objects.none()

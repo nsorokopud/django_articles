@@ -1,0 +1,40 @@
+{% extends "articles/base.html" %}
+{% load static %}
+
+{% block extra_links %}
+  {% if show_filters %}
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+          rel="stylesheet" />
+    <link rel="stylesheet" href="{% static 'css/select2.css' %}">
+  {% endif %}
+{% endblock extra_links %}
+
+{% block content-main %}
+  <div class="container main-container d-flex mx-auto">
+    {% if show_filters %}
+      {% include "inclusion/sidebar.html" %}
+    {% endif %}
+
+    <section class="main-content mx-auto
+                    {% if not show_filters %}main-content--narrow{% endif %}">
+      <div class="articles-container mx-auto">
+        {% if not articles %}
+          <h2>{{ empty_message }}</h2>
+        {% else %}
+          <h2 class="mb-5">{{ page_title }} ({{ paginator.count }}):</h2>
+        {% endif %}
+
+        {% include "articles/article_cards.html" %}
+      </div>
+
+      {% include "articles/article_pagination.html" %}
+    </section>
+  </div>
+{% endblock content-main %}
+
+{% block extra_scripts %}
+  {% if show_filters %}
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="{% static 'js/articles-filtering.js' %}"></script>
+  {% endif %}
+{% endblock extra_scripts %}

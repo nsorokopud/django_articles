@@ -1,9 +1,11 @@
 import logging
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import sentry_sdk
+from celery.schedules import crontab
 from django.contrib.messages import constants as messages
 from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -83,6 +85,7 @@ INSTALLED_APPS = [
     "users",
     "notifications",
     "core",
+    "django_cleanup.apps.CleanupConfig",
 ]
 
 if DEBUG:
@@ -120,7 +123,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "notifications.context_processors.include_user_notifications",
+                "notifications.context_processors.include_notification_count",
             ],
         },
     },
@@ -330,6 +333,9 @@ TINYMCE_DEFAULT_CONFIG = {
     "images_upload_url": "/tinymce/upload",
     "images_upload_handler": "tinymceUploadHandler",
     "automatic_uploads": False,
+    "convert_urls": False,
+    "relative_urls": False,
+    "remove_script_host": True,
     "promotion": False,
     "license_key": "gpl",
 }
@@ -396,6 +402,8 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "capacity": 50,  # max queued messages per channel
+            "expiry": 10,  # seconds; drop queued messages after this
         },
     },
 }
@@ -405,11 +413,25 @@ CHANNEL_LAYERS = {
 
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = ALLOW_NON_ROUTABLE_IPS = bool(
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = bool(
     int(os.getenv("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", "1"))
 )
 
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+CELERY_BEAT_SCHEDULE = {
+    "articles.sync-view-counts": {
+        "task": "articles.tasks.sync_article_views_task",
+        "schedule": timedelta(minutes=30),
+    },
+    "notifications.cleanup-old-read": {
+        "task": "notifications.tasks_retention.cleanup_old_read_notifications_task",
+        "schedule": timedelta(hours=1),
+    },
+    "notifications.sync-unread-counts": {
+        "task": "notifications.tasks.sync_unread_notification_counts_task",
+        "schedule": crontab(minute=0, hour="*/6"),  # every 6 hours
+    },
+}
 
 # Select2
 
@@ -427,3 +449,4 @@ EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
 
 
 from .logging import LOGGING  # noqa
+from .notifications import *  # noqa pylint: disable=W0401,W0614

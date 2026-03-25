@@ -1,14 +1,13 @@
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from PIL import Image
-from taggit.models import Tag
 
 from articles.forms import ArticleCommentForm, ArticleModelForm, AttachedFileUploadForm
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleComment
 from core.exceptions import InvalidUpload
 from users.models import User
 
@@ -34,8 +33,21 @@ class TestArticleModelForm(TestCase):
             "test_image.jpg", image_file.read(), content_type="image/jpeg"
         )
 
-    def test_create(self):
+    @patch("articles.forms.save_article")
+    def test_create_delegates_to_save_article_with_default_publish_false(
+        self, mock_save_article
+    ):
         preview_image = self.get_preview_image()
+
+        unsaved_result = Article(
+            title="a2",
+            slug="a2",
+            category=self.category,
+            preview_text="preview2",
+            content="content2",
+        )
+        mock_save_article.return_value = unsaved_result
+
         form = ArticleModelForm(
             user=self.user,
             data={
@@ -47,30 +59,56 @@ class TestArticleModelForm(TestCase):
             },
             files={"preview_image": preview_image},
         )
+
         self.assertTrue(form.is_valid())
         self.assertEqual(form.errors, {})
 
-        article = form.save()
-        self.assertNotEqual(article.pk, self.article.pk)
-        self.assertEqual(article.title, "a2")
-        self.assertEqual(article.slug, "a2")
-        self.assertEqual(article.author, self.user)
-        self.assertEqual(article.category, self.category)
-        self.assertEqual(article.preview_text, "preview2")
-        self.assertEqual(article.content, "content2")
-        tag1 = Tag.objects.get(name="tag1")
-        tag2 = Tag.objects.get(name="tag2")
-        self.assertCountEqual(article.tags.all(), [tag1, tag2])
-        image_name, ext = article.preview_image.name.split(".")
-        self.assertIn("articles/preview_images/test_image", image_name)
-        self.assertEqual(ext, "jpg")
-        expected_image = Image.open(preview_image).convert("RGB")
-        with article.preview_image.open("rb") as f:
-            updated_image = Image.open(f).convert("RGB")
-        self.assertEqual(list(updated_image.getdata()), list(expected_image.getdata()))
+        result = form.save()
 
-    def test_update(self):
-        preview_image = self.get_preview_image()
+        self.assertEqual(result, unsaved_result)
+        mock_save_article.assert_called_once_with(
+            article=ANY,
+            author=self.user,
+            save_m2m=form.save_m2m,
+            publish=False,
+        )
+
+        passed_article = mock_save_article.call_args.kwargs["article"]
+        self.assertIsNone(passed_article.pk)
+        self.assertEqual(passed_article.title, "a2")
+        self.assertEqual(passed_article.category, self.category)
+        self.assertEqual(passed_article.preview_text, "preview2")
+        self.assertEqual(passed_article.content, "content2")
+        self.assertTrue(passed_article.preview_image.name.endswith("test_image.jpg"))
+
+    @patch("articles.forms.save_article")
+    def test_create_passes_publish_true_when_requested(self, mock_save_article):
+        mock_save_article.return_value = self.article
+
+        form = ArticleModelForm(
+            user=self.user,
+            data={
+                "title": "a2",
+                "preview_text": "preview2",
+                "content": "content2",
+            },
+        )
+
+        self.assertTrue(form.is_valid())
+
+        form.save(publish=True)
+
+        mock_save_article.assert_called_once_with(
+            article=ANY,
+            author=self.user,
+            save_m2m=form.save_m2m,
+            publish=True,
+        )
+
+    @patch("articles.forms.save_article")
+    def test_update_delegates_to_save_article_with_author_none(self, mock_save_article):
+        mock_save_article.return_value = self.article
+
         form = ArticleModelForm(
             data={
                 "title": "a2",
@@ -79,34 +117,47 @@ class TestArticleModelForm(TestCase):
                 "preview_text": "preview2",
                 "content": "content2",
             },
-            files={"preview_image": preview_image},
             instance=self.article,
         )
+
         self.assertTrue(form.is_valid())
         self.assertEqual(form.errors, {})
 
-        with patch("articles.services.generate_unique_article_slug") as mock_slug:
-            mock_slug.return_value = "slug2"
-            updated_article = form.save()
-            mock_slug.assert_called_once_with("a2")
+        result = form.save()
 
-        self.assertEqual(updated_article.pk, self.article.pk)
-        self.assertEqual(updated_article.author, self.user)
-        self.assertEqual(updated_article.title, "a2")
-        self.assertEqual(updated_article.slug, "slug2")
-        self.assertEqual(updated_article.category, self.category)
-        self.assertEqual(updated_article.preview_text, "preview2")
-        self.assertEqual(updated_article.content, "content2")
-        tag1 = Tag.objects.get(name="tag1")
-        tag2 = Tag.objects.get(name="tag2")
-        self.assertCountEqual(updated_article.tags.all(), [tag1, tag2])
-        image_name, ext = updated_article.preview_image.name.split(".")
-        self.assertIn("articles/preview_images/test_image", image_name)
-        self.assertEqual(ext, "jpg")
-        expected_image = Image.open(preview_image).convert("RGB")
-        with updated_article.preview_image.open("rb") as f:
-            updated_image = Image.open(f).convert("RGB")
-        self.assertEqual(list(updated_image.getdata()), list(expected_image.getdata()))
+        self.assertEqual(result, self.article)
+        mock_save_article.assert_called_once_with(
+            article=ANY,
+            author=None,
+            save_m2m=form.save_m2m,
+            publish=False,
+        )
+
+        passed_article = mock_save_article.call_args.kwargs["article"]
+        self.assertEqual(passed_article.pk, self.article.pk)
+        self.assertEqual(passed_article.title, "a2")
+        self.assertEqual(passed_article.preview_text, "preview2")
+        self.assertEqual(passed_article.content, "content2")
+
+    def test_save_with_commit_false_returns_unsaved_instance(self):
+        form = ArticleModelForm(
+            user=self.user,
+            data={
+                "title": "a2",
+                "preview_text": "preview2",
+                "content": "content2",
+            },
+        )
+
+        self.assertTrue(form.is_valid())
+
+        article = form.save(commit=False)
+
+        self.assertIsNone(article.pk)
+        self.assertIsNone(article.author_id)
+        self.assertEqual(article.title, "a2")
+        self.assertEqual(article.preview_text, "preview2")
+        self.assertEqual(article.content, "content2")
 
     def test_missing_fields(self):
         form = ArticleModelForm(data={}, instance=self.article)
@@ -180,37 +231,76 @@ class TestArticleCommentForm(TestCase):
             content="content",
         )
 
-    def test_valid_form(self):
+    @patch("articles.forms.create_article_comment")
+    def test_valid_form(self, mock_create_article_comment):
+        comment = ArticleComment(
+            text="abc",
+            author=self.user,
+            article=self.article,
+        )
+        mock_create_article_comment.return_value = comment
+
         form = ArticleCommentForm(
-            data={"text": "abc"}, user=self.user, article=self.article
+            data={"text": "abc"},
+            user=self.user,
+            article=self.article,
         )
         self.assertTrue(form.is_valid())
-        comment = form.save()
-        self.assertEqual(comment.text, "abc")
-        self.assertEqual(comment.author, self.user)
-        self.assertEqual(comment.article, self.article)
+        self.assertEqual(form.errors, {})
+
+        result = form.save()
+
+        mock_create_article_comment.assert_called_once_with(
+            article=self.article,
+            user=self.user,
+            text="abc",
+        )
+        self.assertEqual(result, comment)
 
     def test_no_user(self):
-        form = ArticleCommentForm(data={"text": "abc"}, article=self.article)
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            article=self.article,
+        )
+
         self.assertFalse(form.is_valid())
-        with self.assertRaises(ValueError):
-            form.save()
         self.assertEqual(
-            form.errors, {"__all__": ["User is required to save the comment."]}
+            form.errors,
+            {"__all__": ["User is required to save the comment."]},
         )
 
     def test_no_article(self):
-        form = ArticleCommentForm(data={"text": "abc"}, user=self.user)
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            user=self.user,
+        )
+
         self.assertFalse(form.is_valid())
-        with self.assertRaises(ValueError):
-            form.save()
         self.assertEqual(
-            form.errors, {"__all__": ["Article is required to save the comment."]}
+            form.errors,
+            {"__all__": ["Article is required to save the comment."]},
         )
 
     def test_no_text(self):
         form = ArticleCommentForm(
-            data={"text": ""}, user=self.user, article=self.article
+            data={"text": ""},
+            user=self.user,
+            article=self.article,
         )
+
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors, {"text": ["This field is required."]})
+        self.assertEqual(
+            form.errors,
+            {"text": ["This field is required."]},
+        )
+
+    def test_commit_false_is_not_supported(self):
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            user=self.user,
+            article=self.article,
+        )
+        self.assertTrue(form.is_valid())
+
+        with self.assertRaises(ValueError):
+            form.save(commit=False)

@@ -100,8 +100,8 @@ if LOGGING_ENABLED:
         "formatters": {
             "default": {
                 "format": (
-                    "{asctime} - [{levelname}] - {host_name}:{processName}:{process}\n"
-                    "{name}:{funcName}:{lineno} - {message}"
+                    "{asctime} - [{levelname}] - {host_name}:{processName}:{process} - "
+                    "{name}:{funcName}:{lineno}\n{message}"
                 ),
                 "style": "{",
             },

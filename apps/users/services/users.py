@@ -80,6 +80,15 @@ def toggle_user_subscription(user: User, author: User) -> bool:
     return True
 
 
+def advance_latest_article_publish_sequence(
+    *, user_id: int, publish_sequence: int
+) -> None:
+    User.objects.filter(
+        id=user_id,
+        latest_article_publish_sequence__lt=publish_sequence,
+    ).update(latest_article_publish_sequence=publish_sequence)
+
+
 def delete_social_accounts_with_email(email: str) -> None:
     """Deletes all social accounts with the specified email address.
     Raises TransactionManagementError if called outside of an atomic

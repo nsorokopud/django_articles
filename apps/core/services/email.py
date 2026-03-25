@@ -5,8 +5,7 @@ from typing import Any, Optional, Sequence, TypedDict
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import validate_email
-from django.template import TemplateDoesNotExist
-from django.template.loader import get_template, render_to_string
+from django.template.loader import render_to_string
 
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,8 @@ class EmailConfig:  # pylint: disable=too-many-instance-attributes
 
     def __post_init__(self) -> None:
         if self.context is not None and not isinstance(self.context, dict):
-            raise TypeError("Context must be a dictionary")
+            raise TypeError("context must be a dictionary")
+
         self._validate_email_addresses()
         self._validate_mutual_exclusive(
             "subject", self.subject, self.subject_template, field_is_optional=True
@@ -58,9 +58,6 @@ class EmailConfig:  # pylint: disable=too-many-instance-attributes
         self._validate_mutual_exclusive(
             "html", self.html_content, self.html_template, field_is_optional=True
         )
-        self._validate_template_exists(self.subject_template, "subject")
-        self._validate_template_exists(self.text_template, "text")
-        self._validate_template_exists(self.html_template, "html")
 
     def __json__(self) -> dict[str, Any]:
         """Makes the class JSON serializable."""
@@ -71,13 +68,19 @@ class EmailConfig:  # pylint: disable=too-many-instance-attributes
         return EmailConfig(**data)
 
     def _validate_email_addresses(self) -> None:
+        if isinstance(self.recipients, str):
+            raise TypeError(
+                "recipients must be a sequence of email strings, not a string"
+            )
+
         if not self.recipients:
-            raise ValueError("Recipients list cannot be empty")
+            raise ValueError("recipients list cannot be empty")
+
         for email in self.recipients:
             try:
                 validate_email(email)
             except ValidationError as exc:
-                raise ValueError(f"Invalid email address: {email}") from exc
+                raise ValueError(f"invalid email address: {email}") from exc
 
     def _validate_mutual_exclusive(
         self,
@@ -88,54 +91,53 @@ class EmailConfig:  # pylint: disable=too-many-instance-attributes
         field_is_optional: bool,
     ) -> None:
         if content and template:
-            raise ValueError(f"You can't provide both {label} content and template.")
+            raise ValueError(f"you can't provide both {label} content and template.")
         if not field_is_optional and not content and not template:
-            raise ValueError(f"You must provide either {label} content or template.")
-
-    def _validate_template_exists(self, template: Optional[str], label: str) -> None:
-        if template:
-            try:
-                get_template(template)
-            except TemplateDoesNotExist as exc:
-                raise ValueError(
-                    f"{label.title()} template does not exist: {template}"
-                ) from exc
+            raise ValueError(f"you must provide either {label} content or template.")
 
 
 def send_email(config: EmailConfig) -> None:
-    """Sends an email based on the given EmailConfig, handling subject,
-    plain text, and optional HTML rendering."""
+    """Sends a single transactional email based on EmailConfig."""
     try:
-        subject = ""
-        if config.subject or config.subject_template:
-            subject = render_content(
-                config.subject, config.subject_template, config.context
-            )
-
-        text_content = render_content(
-            config.text_content, config.text_template, config.context
-        )
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=text_content,
-            from_email=config.from_email,
-            to=config.recipients,
-        )
-
-        html_content = None
-        if config.html_content or config.html_template:
-            html_content = render_content(
-                config.html_content, config.html_template, config.context
-            )
-        if html_content:
-            email.attach_alternative(html_content, "text/html")
-
-        email.send(fail_silently=config.fail_silently)
-    except Exception:  # pylint: disable=broad-exception-caught
+        msg = build_email_message(config)
+        sent_count = msg.send()
+        if sent_count != 1:
+            raise RuntimeError("email was not accepted by the backend")
+    except Exception:  # pylint: disable=W0718
         masked_recipients = [mask_email(email) for email in config.recipients]
         logger.exception("Failed to send email to %s.", masked_recipients)
         if not config.fail_silently:
             raise
+
+
+def build_email_message(config: EmailConfig) -> EmailMultiAlternatives:
+    """Builds a single EmailMultiAlternatives from EmailConfig."""
+    subject = ""
+    if config.subject or config.subject_template:
+        subject = render_subject(
+            config.subject, config.subject_template, config.context
+        )
+
+    text_content = render_content(
+        config.text_content, config.text_template, config.context
+    )
+
+    email_message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_content,
+        from_email=config.from_email,
+        to=list(config.recipients),
+    )
+
+    html_content = None
+    if config.html_content or config.html_template:
+        html_content = render_content(
+            config.html_content, config.html_template, config.context
+        )
+    if html_content:
+        email_message.attach_alternative(html_content, "text/html")
+
+    return email_message
 
 
 def render_content(
@@ -145,14 +147,26 @@ def render_content(
 ) -> str:
     """Returns either the content or the rendered template."""
     if content is not None and template is not None:
-        raise ValueError("You can't provide both content and template.")
+        raise ValueError("you can't provide both content and template")
     if content is None and template is None:
-        raise ValueError("Either content or template must be provided.")
+        raise ValueError("either content or template must be provided")
     if content is not None:
         return content
     return render_to_string(template, context or {}).strip()
 
 
+def render_subject(
+    content: Optional[str] = None,
+    template: Optional[str] = None,
+    context: Optional[dict] = None,
+) -> str:
+    rendered = render_content(content, template, context)
+    return " ".join(rendered.splitlines()).strip()
+
+
 def mask_email(email: str) -> str:
+    if "@" not in email:
+        return "***"
     name, domain = email.split("@", 1)
-    return f"{name[:2]}***@{domain}"
+    visible = name[:2] if len(name) >= 2 else name[:1]
+    return f"{visible}***@{domain}"

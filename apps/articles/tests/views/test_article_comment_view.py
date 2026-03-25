@@ -3,8 +3,9 @@ from unittest.mock import patch
 from django.contrib.messages import get_messages
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from articles.models import Article, ArticleComment
+from articles.models import Article, ArticleComment, ArticleStatus
 from users.models import User
 
 
@@ -18,6 +19,9 @@ class TestArticleCommentView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.url = reverse("article-comment", args=[self.article.slug])
 
