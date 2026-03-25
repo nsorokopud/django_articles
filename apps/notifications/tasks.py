@@ -29,7 +29,7 @@ def send_notification_ws_task(
             notification_id,
             is_new_unread=is_new_unread,
         )
-    except Exception:
+    except Exception:  # pylint: disable=W0718
         logger.exception("WS delivery failed (notification_id=%s)", notification_id)
 
 
