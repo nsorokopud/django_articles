@@ -293,7 +293,7 @@ def _build_comment_aggregate_title(count: int) -> str:
     return "New Comment" if count == 1 else "New Comments"
 
 
-def _build_comment_aggregate_body(
+def _build_comment_aggregate_body(  # pylint: disable=R0911
     *,
     count: int,
     article_title: str,
