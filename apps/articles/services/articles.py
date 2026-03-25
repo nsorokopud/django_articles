@@ -34,7 +34,7 @@ def save_article(
     if save_m2m is not None:
         save_m2m()
 
-    if publish and article.publish_sequence is None:
+    if publish and not article.is_published:
         article = publish_article(article_id=article.id)
 
     return article
