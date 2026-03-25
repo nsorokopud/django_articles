@@ -5,12 +5,16 @@ from django.utils import timezone
 from taggit.models import Tag
 
 from articles.filters import ArticleFilter, SubscriptionFeedFilter
-from articles.models import Article, ArticleCategory
+from articles.models import Article, ArticleCategory, ArticleStatus
+from articles.selectors import find_published_articles
 from users.models import AuthorSubscription, User
 
 
 class TestArticleFilter(TestCase):
     def setUp(self):
+        self.now = timezone.now()
+        self.today = self.now.date()
+
         self.user1 = User.objects.create(username="user1", email="user1@test.com")
         self.user2 = User.objects.create(username="user2", email="user2@test.com")
 
@@ -27,10 +31,13 @@ class TestArticleFilter(TestCase):
             category=self.category1,
             preview_text="Preview1",
             content="Content1",
+            status=ArticleStatus.PUBLISHED,
+            published_at=self.now - timedelta(days=100),
+            publish_sequence=1,
+            views_count=5,
         )
-        self.article1.created_at = timezone.now() - timedelta(days=100)
-        self.article1.views_count = 5
-        self.article1.save(update_fields=["created_at", "views_count"])
+        self.article1.created_at = self.article1.published_at
+        self.article1.save(update_fields=["created_at"])
         self.article1.tags.add(self.tag1, self.tag2)
 
         self.article2 = Article.objects.create(
@@ -40,24 +47,34 @@ class TestArticleFilter(TestCase):
             category=self.category2,
             preview_text="Preview2",
             content="Content2",
+            status=ArticleStatus.PUBLISHED,
+            published_at=self.now - timedelta(days=1),
+            publish_sequence=2,
+            views_count=100,
         )
-        self.article2.created_at = timezone.now() - timedelta(days=1)
-        self.article2.views_count = 100
-        self.article2.save(update_fields=["created_at", "views_count"])
+        self.article2.created_at = self.article2.published_at
+        self.article2.save(update_fields=["created_at"])
         self.article2.tags.add(self.tag1)
         self.article2.users_that_liked.add(self.user1)
 
+    def get_base_queryset(self):
+        return find_published_articles()
+
     def test_filter_by_author(self):
-        f = ArticleFilter(data={"author": self.user1.username})
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"author": self.user1.username}, queryset=base_qs)
         self.assertTrue(f.is_valid())
         self.assertCountEqual(f.qs, [self.article1])
 
-        f = ArticleFilter(data={"author": self.user2.username})
+        f = ArticleFilter(data={"author": self.user2.username}, queryset=base_qs)
         self.assertTrue(f.is_valid())
         self.assertCountEqual(f.qs, [self.article2])
 
     def test_filter_by_author_invalid(self):
-        f = ArticleFilter(data={"author": "non-existent"})
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"author": "non-existent"}, queryset=base_qs)
         self.assertFalse(f.is_valid())
         self.assertEqual(
             f.errors,
@@ -70,16 +87,20 @@ class TestArticleFilter(TestCase):
         )
 
     def test_filter_by_category(self):
-        f = ArticleFilter(data={"category": self.category1.slug})
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"category": self.category1.slug}, queryset=base_qs)
         self.assertTrue(f.is_valid())
         self.assertCountEqual(f.qs, [self.article1])
 
-        f = ArticleFilter(data={"category": self.category2.slug})
+        f = ArticleFilter(data={"category": self.category2.slug}, queryset=base_qs)
         self.assertTrue(f.is_valid())
         self.assertCountEqual(f.qs, [self.article2])
 
     def test_filter_by_category_invalid(self):
-        f = ArticleFilter(data={"category": "non-existent"})
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"category": "non-existent"}, queryset=base_qs)
         self.assertFalse(f.is_valid())
         self.assertEqual(
             f.errors,
@@ -92,43 +113,49 @@ class TestArticleFilter(TestCase):
         )
 
     def test_filter_by_date(self):
-        today = timezone.now().date()
+        base_qs = self.get_base_queryset()
 
         data = {
-            "date_after": (today - timedelta(days=2)).isoformat(),
+            "date_after": (self.today - timedelta(days=2)).isoformat(),
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
         data = {
-            "date_before": (today - timedelta(days=2)).isoformat(),
+            "date_before": (self.today - timedelta(days=2)).isoformat(),
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
         data = {
-            "date_before": (today - timedelta(days=1)).isoformat(),
-            "date_after": (today - timedelta(days=1)).isoformat(),
+            "date_before": (self.today - timedelta(days=1)).isoformat(),
+            "date_after": (self.today - timedelta(days=1)).isoformat(),
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
     def test_filter_by_date_invalid(self):
+        base_qs = self.get_base_queryset()
+
         data = {
             "date_before": "abc",
             "date_after": "xyz",
         }
-        f = ArticleFilter(data=data)
+        f = ArticleFilter(data=data, queryset=base_qs)
         self.assertFalse(f.is_valid())
         self.assertEqual(f.errors, {"date": ["Enter a valid date."]})
 
     def test_filter_by_tags(self):
+        base_qs = self.get_base_queryset()
+
         data = {"tags": [self.tag1.name, self.tag2.name]}
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
     def test_filter_by_tags_invalid(self):
-        f = ArticleFilter(data={"tags": ["non-existent-tag"]})
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"tags": ["non-existent-tag"]}, queryset=base_qs)
         self.assertFalse(f.is_valid())
         self.assertCountEqual(f.errors.keys(), ["tags"])
         self.assertEqual(len(f.errors["tags"]), 1)
@@ -136,54 +163,60 @@ class TestArticleFilter(TestCase):
         self.assertIn("is not one of the available choices.", f.errors["tags"][0])
 
     def test_filter_by_search(self):
-        filtered = ArticleFilter(data={"q": "a1"}).qs
+        base_qs = self.get_base_queryset()
+
+        filtered = ArticleFilter(data={"q": "a1"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
-        filtered = ArticleFilter(data={"q": "a2"}).qs
+        filtered = ArticleFilter(data={"q": "a2"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
-        filtered = ArticleFilter(data={"q": "ent1"}).qs
+        filtered = ArticleFilter(data={"q": "ent1"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
-        filtered = ArticleFilter(data={"q": "content2"}).qs
+        filtered = ArticleFilter(data={"q": "content2"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
-        filtered = ArticleFilter(data={"q": "Cat1"}).qs
+        filtered = ArticleFilter(data={"q": "Cat1"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
-        filtered = ArticleFilter(data={"q": "at2"}).qs
+        filtered = ArticleFilter(data={"q": "at2"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
-        filtered = ArticleFilter(data={"q": "qafwejkfb"}).qs
+        filtered = ArticleFilter(data={"q": "qafwejkfb"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [])
 
     def test_ordering(self):
-        data = {"ordering": "created_at"}
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article2, self.article1])
+        base_qs = self.get_base_queryset()
 
-        data = {"ordering": "-created_at"}
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article1, self.article2])
+        data = {"ordering": "published_at"}
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertEqual(list(filtered), [self.article1, self.article2])
+
+        data = {"ordering": "-published_at"}
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertEqual(list(filtered), [self.article2, self.article1])
 
         data = {"ordering": "likes_count"}
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article1, self.article2])
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertEqual(list(filtered), [self.article1, self.article2])
 
         data = {"ordering": "-likes_count"}
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article2, self.article1])
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertEqual(list(filtered), [self.article2, self.article1])
 
         data = {"ordering": "views_count"}
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article1, self.article2])
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertEqual(list(filtered), [self.article1, self.article2])
 
         data = {"ordering": "-views_count"}
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article2, self.article1])
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertEqual(list(filtered), [self.article2, self.article1])
 
     def test_ordering_invalid(self):
-        f = ArticleFilter(data={"ordering": "invalid"})
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"ordering": "invalid"}, queryset=base_qs)
         self.assertFalse(f.is_valid())
         self.assertCountEqual(f.errors.keys(), ["ordering"])
         self.assertEqual(len(f.errors["ordering"]), 1)
@@ -191,42 +224,44 @@ class TestArticleFilter(TestCase):
         self.assertIn("is not one of the available choices.", f.errors["ordering"][0])
 
     def test_combined_filters(self):
+        base_qs = self.get_base_queryset()
+
         data = {
             "author": self.user1.username,
-            "date_after": (timezone.now() - timedelta(days=200)).isoformat(),
+            "date_after": (self.today - timedelta(days=200)).isoformat(),
             "tags": [self.tag1.name],
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
         data = {
             "author": self.user1.username,
-            "date_before": (timezone.now() - timedelta(days=10)).isoformat(),
+            "date_before": (self.today - timedelta(days=10)).isoformat(),
             "tags": [self.tag2.name],
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
         data = {
             "author": self.user1.username,
-            "date_before": (timezone.now() - timedelta(days=999)).isoformat(),
+            "date_before": (self.today - timedelta(days=999)).isoformat(),
             "tags": [self.tag2.name],
         }
-        filtered = ArticleFilter(data=data).qs
-        self.assertCountEqual(filtered, [self.article1])
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
+        self.assertCountEqual(filtered, [])
 
         data = {
-            "date_after": (timezone.now() - timedelta(days=999)).isoformat(),
+            "date_after": (self.today - timedelta(days=999)).isoformat(),
             "tags": [self.tag1.name],
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1, self.article2])
 
         data = {
             "category": self.category2.slug,
             "tags": [self.tag1.name],
         }
-        filtered = ArticleFilter(data=data).qs
+        filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
 
