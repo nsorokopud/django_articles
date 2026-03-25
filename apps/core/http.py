@@ -7,5 +7,5 @@ def get_int_param(request, name: str, default: int = 0) -> int:
         return default
     try:
         return int(value)
-    except (TypeError, ValueError):
-        raise BadRequest(f"invalid integer for '{name}'")
+    except (TypeError, ValueError) as e:
+        raise BadRequest(f"invalid integer for '{name}'") from e
