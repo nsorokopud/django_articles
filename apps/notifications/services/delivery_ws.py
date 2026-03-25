@@ -29,7 +29,7 @@ async def send_ws_notification(
         ).aget(id=notification_id)
     except Notification.DoesNotExist:
         return
-    except Exception:
+    except Exception:  # pylint: disable=W0718
         logger.exception("WS: failed to load notification id=%s", notification_id)
         return
 
@@ -87,7 +87,7 @@ def _throttle_allows_send(
 ) -> bool:
     try:
         return cache.add(key, True, timeout=cooldown_seconds)
-    except Exception:
+    except Exception:  # pylint: disable=W0718
         logger.warning(
             "WS cache throttle failed (recipient_id=%s key=%s)",
             recipient_id,
@@ -117,9 +117,9 @@ async def _group_send_with_timeout(
     try:
         async with asyncio.timeout(settings.GROUP_SEND_TIMEOUT_SECONDS):
             await layer.group_send(group, payload)
-    except asyncio.CancelledError:
+    except asyncio.CancelledError:  # pylint: disable=W0706
         raise
     except (asyncio.TimeoutError, OSError):
         logger.warning("%s infra error%s", log_prefix, log_suffix, exc_info=True)
-    except Exception:
+    except Exception:  # pylint: disable=W0718
         logger.exception("%s unexpected error%s", log_prefix, log_suffix)
