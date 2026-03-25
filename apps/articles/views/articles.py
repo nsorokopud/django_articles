@@ -219,7 +219,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
 
         article_url = (
             article.get_absolute_url()
-            if article.publish_sequence is not None
+            if article.is_published
             else reverse("article-update", kwargs={"article_slug": article.slug})
         )
 
@@ -227,7 +227,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
             "articleId": article.id,
             "articleSlug": article.slug,
             "articleUrl": article_url,
-            "isPublished": article.publish_sequence is not None,
+            "isPublished": article.is_published,
         }
         return JsonResponse({"status": "success", "data": data})
 
@@ -259,13 +259,13 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
 
         article_url = (
             article.get_absolute_url()
-            if article.publish_sequence is not None
+            if article.is_published
             else reverse("article-update", kwargs={"article_slug": article.slug})
         )
 
         data = {
             "articleUrl": article_url,
-            "isPublished": article.publish_sequence is not None,
+            "isPublished": article.is_published,
         }
         return JsonResponse({"status": "success", "data": data})
 
