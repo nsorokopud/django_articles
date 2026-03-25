@@ -8,6 +8,21 @@
         <div class="col-12 mx-auto">
           {% if update %}
             <h2 class="mb-5">Edit article</h2>
+
+            {% if article.status == "draft" %}
+              <div class="alert alert-secondary mb-4">
+                Status: <strong>Draft</strong>. This article is not public yet.
+              </div>
+            {% elif article.status == "rejected" %}
+              <div class="alert alert-danger mb-4">
+                Status: <strong>Rejected</strong>. Please update the article and try again.
+              </div>
+            {% elif article.status == "published" %}
+              <div class="alert alert-success mb-4">
+                Status: <strong>Published</strong>. This article is public.
+              </div>
+            {% endif %}
+
           {% else %}
             <h2 class="mb-5">New article</h2>
           {% endif %}
