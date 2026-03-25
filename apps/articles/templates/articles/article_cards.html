@@ -10,7 +10,7 @@
         <a href="{% url 'author-page' article.author.id %}"
            class="article-author-name">{{ article.author.username }}</a>
 
-        {% if article.publish_sequence %}
+        {% if article.is_published %}
           <time class="article-preview-date"
                 datetime="{{ article.published_at.isoformat }}">
             {{ article.published_at|localtime|date:'H:i d-m-Y' }}
@@ -28,7 +28,7 @@
 
     <div class="article-preview-main">
       <h3 class="article-title mb-4">
-        {% if article.publish_sequence %}
+        {% if article.is_published %}
           <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
         {% else %}
           {% if draft_edit_url_name %}
@@ -80,7 +80,7 @@
 
         <div class="article-preview-bottom d-flex justify-content-between align-items-center">
           <div>
-            {% if article.publish_sequence %}
+            {% if article.is_published %}
               <a href="{{ article.get_absolute_url }}" class="btn btn-success">Read full</a>
             {% else %}
               {% if draft_edit_url_name %}
