@@ -24,7 +24,14 @@ class ArticleAdmin(admin.ModelAdmin):
     list_display_links = ("id", "title")
     list_filter = ("status", "published_at", "created_at", "category", "author")
     search_fields = ("title", "author__username", "category__title")
-    readonly_fields = ("published_at", "publish_sequence", "created_at", "modified_at")
+    readonly_fields = (
+        "status",
+        "published_at",
+        "publish_sequence",
+        "created_at",
+        "modified_at",
+        "workflow_buttons",
+    )
     prepopulated_fields = {"slug": ("title",)}
     actions = ("publish", "reject", "unpublish")
     inlines = (CommentInline,)

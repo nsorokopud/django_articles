@@ -14,7 +14,16 @@ from .services.comments import create_article_comment
 class ArticleAdminForm(forms.ModelForm):
     class Meta:
         model = Article
-        fields = "__all__"
+        fields = (
+            "title",
+            "slug",
+            "category",
+            "tags",
+            "author",
+            "preview_text",
+            "preview_image",
+            "content",
+        )
         help_texts = {
             "slug": "Leave blank to automatically generate a new slug from the title.",
         }
