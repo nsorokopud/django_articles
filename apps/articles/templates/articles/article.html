@@ -14,9 +14,9 @@
               <div class="article-preview-author-right">
                 <a href="{% url 'author-page' article.author.id %}"
                    class="article-author-name">{{ article.author.username }}</a>
-                <time datetime="{{ article.created_at.isoformat }}"
+                <time datetime="{{ article.published_at.isoformat }}"
                       class="article-preview-date">
-                  {{ article.created_at|localtime|date:'H:i d-m-Y' }}
+                  {{ article.published_at|localtime|date:'H:i d-m-Y' }}
                 </time>
               </div>
             </div>
