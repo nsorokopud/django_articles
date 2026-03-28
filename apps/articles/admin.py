@@ -1,4 +1,9 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
+from django.http import Http404, HttpRequest, HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+from django.utils.html import format_html_join
 
 from .forms import ArticleAdminForm
 from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
@@ -36,50 +41,345 @@ class ArticleAdmin(admin.ModelAdmin):
     actions = ("publish", "reject", "unpublish")
     inlines = (CommentInline,)
     save_on_top = True
-    save_as = True
+    save_as = False
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "title",
+                    "slug",
+                    "category",
+                    "tags",
+                    "author",
+                    "preview_text",
+                    "preview_image",
+                    "content",
+                )
+            },
+        ),
+        (
+            "Publication",
+            {
+                "fields": (
+                    "status",
+                    "published_at",
+                    "publish_sequence",
+                    "workflow_buttons",
+                )
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "modified_at")},
+        ),
+    )
+
+    def save_model(self, request, obj, form, change):
+        """
+        Defense-in-depth: even though workflow fields are excluded/read-only,
+        do not allow the normal admin save flow to alter publication state.
+        """
+        if change:
+            old_obj = Article.objects.only(
+                "status", "published_at", "publish_sequence"
+            ).get(pk=obj.pk)
+            obj.status = old_obj.status
+            obj.published_at = old_obj.published_at
+            obj.publish_sequence = old_obj.publish_sequence
+        super().save_model(request, obj, form, change)
 
     @admin.display(description="PSeq", ordering="publish_sequence")
     def pub_seq(self, obj):
         return obj.publish_sequence if obj.publish_sequence is not None else "-"
 
+    @admin.display(description="Workflow")
+    def workflow_buttons(self, obj):
+        """
+        Show object-level workflow links that go to confirmation pages.
+        GET does not mutate state; POST on the confirmation page does.
+        """
+        if not obj.pk:
+            return "Save the article first to use workflow actions."
+
+        buttons = []
+
+        # Adjust these rules if you later decide rejected articles should not
+        # be directly publishable.
+        if obj.status != ArticleStatus.PUBLISHED:
+            buttons.append(
+                (
+                    reverse("admin:articles_article_publish", args=[obj.pk]),
+                    "Publish",
+                )
+            )
+
+        if obj.status == ArticleStatus.PUBLISHED:
+            buttons.append(
+                (
+                    reverse("admin:articles_article_unpublish", args=[obj.pk]),
+                    "Unpublish",
+                )
+            )
+
+        if obj.status == ArticleStatus.DRAFT:
+            buttons.append(
+                (
+                    reverse("admin:articles_article_reject", args=[obj.pk]),
+                    "Reject",
+                )
+            )
+
+        if not buttons:
+            return "-"
+
+        return format_html_join(
+            "",
+            (
+                '<span style="margin-right: 8px;">'
+                '<a class="button" href="{}">{}</a></span>'
+            ),
+            buttons,
+        )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:article_id>/publish/",
+                self.admin_site.admin_view(self.process_publish),
+                name="articles_article_publish",
+            ),
+            path(
+                "<int:article_id>/unpublish/",
+                self.admin_site.admin_view(self.process_unpublish),
+                name="articles_article_unpublish",
+            ),
+            path(
+                "<int:article_id>/reject/",
+                self.admin_site.admin_view(self.process_reject),
+                name="articles_article_reject",
+            ),
+        ]
+        return custom_urls + urls
+
+    def _get_article_or_404(self, request: HttpRequest, article_id: int) -> Article:
+        article = self.get_object(request, article_id)
+        if article is None:
+            raise Http404("Article not found.")
+        if not self.has_change_permission(request, article):
+            raise PermissionDenied
+        return article
+
+    def _render_workflow_confirmation(
+        self,
+        request: HttpRequest,
+        *,
+        article: Article,
+        action: str,
+        title: str,
+        confirm_label: str,
+    ):
+        opts = self.model._meta
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": opts,
+            "original": article,
+            "object_id": article.pk,
+            "title": title,
+            "article": article,
+            "action": action,
+            "confirm_label": confirm_label,
+            "back_url": reverse("admin:articles_article_change", args=[article.pk]),
+        }
+        return TemplateResponse(
+            request,
+            "articles/admin/workflow_confirm.html",
+            context,
+        )
+
+    def process_publish(self, request: HttpRequest, article_id: int):
+        article = self._get_article_or_404(request, article_id)
+
+        if request.method == "GET":
+            return self._render_workflow_confirmation(
+                request,
+                article=article,
+                action="publish",
+                title=f"Confirm publish: {article}",
+                confirm_label="Publish",
+            )
+
+        if request.method != "POST":
+            raise PermissionDenied
+
+        try:
+            publish_article(article_id=article.id)
+        except ValueError as e:
+            self.message_user(request, str(e), level=messages.ERROR)
+        else:
+            self.message_user(request, "Article was published.", level=messages.SUCCESS)
+
+        return HttpResponseRedirect(
+            reverse("admin:articles_article_change", args=[article.id])
+        )
+
+    def process_unpublish(self, request: HttpRequest, article_id: int):
+        article = self._get_article_or_404(request, article_id)
+
+        if request.method == "GET":
+            return self._render_workflow_confirmation(
+                request,
+                article=article,
+                action="unpublish",
+                title=f"Confirm unpublish: {article}",
+                confirm_label="Unpublish",
+            )
+
+        if request.method != "POST":
+            raise PermissionDenied
+
+        try:
+            unpublish_article(article_id=article.id)
+        except ValueError as e:
+            self.message_user(request, str(e), level=messages.ERROR)
+        else:
+            self.message_user(
+                request,
+                "Article was unpublished.",
+                level=messages.SUCCESS,
+            )
+
+        return HttpResponseRedirect(
+            reverse("admin:articles_article_change", args=[article.id])
+        )
+
+    def process_reject(self, request: HttpRequest, article_id: int):
+        article = self._get_article_or_404(request, article_id)
+
+        if request.method == "GET":
+            return self._render_workflow_confirmation(
+                request,
+                article=article,
+                action="reject",
+                title=f"Confirm reject: {article}",
+                confirm_label="Reject",
+            )
+
+        if request.method != "POST":
+            raise PermissionDenied
+
+        try:
+            reject_article(article_id=article.id)
+        except ValueError as e:
+            self.message_user(request, str(e), level=messages.ERROR)
+        else:
+            self.message_user(request, "Article was rejected.", level=messages.SUCCESS)
+
+        return HttpResponseRedirect(
+            reverse("admin:articles_article_change", args=[article.id])
+        )
+
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
         updated_rows_count = 0
-        for article in queryset.exclude(status=ArticleStatus.PUBLISHED):
-            publish_article(article_id=article.id)
-            updated_rows_count += 1
+        failed_rows_count = 0
 
-        if updated_rows_count == 1:
-            message = "1 article was published"
-        else:
-            message = f"{updated_rows_count} articles were published"
-        self.message_user(request, message)
+        for article in queryset.exclude(status=ArticleStatus.PUBLISHED):
+            try:
+                publish_article(article_id=article.id)
+            except ValueError as e:
+                failed_rows_count += 1
+                self.message_user(
+                    request,
+                    f"Could not publish article #{article.id}: {e}",
+                    level=messages.ERROR,
+                )
+            else:
+                updated_rows_count += 1
+
+        if updated_rows_count:
+            self.message_user(
+                request,
+                f"{updated_rows_count}"
+                f" article{' was' if updated_rows_count == 1 else 's were'} published.",
+                level=messages.SUCCESS,
+            )
+
+        if failed_rows_count and not updated_rows_count:
+            self.message_user(
+                request,
+                "No selected articles were published.",
+                level=messages.WARNING,
+            )
 
     @admin.action(description="Unpublish selected articles", permissions=("change",))
     def unpublish(self, request, queryset):
         updated_rows_count = 0
-        for article in queryset.filter(status=ArticleStatus.PUBLISHED):
-            unpublish_article(article_id=article.id)
-            updated_rows_count += 1
+        failed_rows_count = 0
 
-        if updated_rows_count == 1:
-            message = "1 article was unpublished"
-        else:
-            message = f"{updated_rows_count} articles were unpublished"
-        self.message_user(request, message)
+        for article in queryset.filter(status=ArticleStatus.PUBLISHED):
+            try:
+                unpublish_article(article_id=article.id)
+            except ValueError as e:
+                failed_rows_count += 1
+                self.message_user(
+                    request,
+                    f"Could not unpublish article #{article.id}: {e}",
+                    level=messages.ERROR,
+                )
+            else:
+                updated_rows_count += 1
+
+        if updated_rows_count:
+            self.message_user(
+                request,
+                f"{updated_rows_count} "
+                f"article{' was' if updated_rows_count == 1 else 's were'} "
+                "unpublished.",
+                level=messages.SUCCESS,
+            )
+
+        if failed_rows_count and not updated_rows_count:
+            self.message_user(
+                request,
+                "No selected articles were unpublished.",
+                level=messages.WARNING,
+            )
 
     @admin.action(description="Reject selected articles", permissions=("change",))
     def reject(self, request, queryset):
         updated_rows_count = 0
-        for article in queryset.filter(status=ArticleStatus.DRAFT):
-            reject_article(article_id=article.id)
-            updated_rows_count += 1
+        failed_rows_count = 0
 
-        if updated_rows_count == 1:
-            message = "1 article was rejected"
-        else:
-            message = f"{updated_rows_count} articles were rejected"
-        self.message_user(request, message)
+        for article in queryset.filter(status=ArticleStatus.DRAFT):
+            try:
+                reject_article(article_id=article.id)
+            except ValueError as e:
+                failed_rows_count += 1
+                self.message_user(
+                    request,
+                    f"Could not reject article #{article.id}: {e}",
+                    level=messages.ERROR,
+                )
+            else:
+                updated_rows_count += 1
+
+        if updated_rows_count:
+            self.message_user(
+                request,
+                f"{updated_rows_count}"
+                f" article{' was' if updated_rows_count == 1 else 's were'} rejected.",
+                level=messages.SUCCESS,
+            )
+
+        if failed_rows_count and not updated_rows_count:
+            self.message_user(
+                request,
+                "No selected articles were rejected.",
+                level=messages.WARNING,
+            )
 
 
 @admin.register(ArticleCategory)
