@@ -6,7 +6,7 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html_join
 
-from .forms import ArticleAdminForm
+from .forms import ArticleAdminForm, ArticleRejectAdminForm
 from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from .services.publishing import publish_article, reject_article, unpublish_article
 
@@ -51,6 +51,9 @@ class ArticleAdmin(admin.ModelAdmin):
         "status",
         "published_at",
         "publish_sequence",
+        "review_note",
+        "reviewed_at",
+        "reviewed_by",
         "created_at",
         "modified_at",
         "workflow_buttons",
@@ -92,20 +95,37 @@ class ArticleAdmin(admin.ModelAdmin):
             "Timestamps",
             {"fields": ("created_at", "modified_at")},
         ),
+        (
+            "Review",
+            {
+                "fields": (
+                    "review_note",
+                    "reviewed_at",
+                    "reviewed_by",
+                )
+            },
+        ),
     )
 
     def save_model(self, request, obj, form, change):
-        """
-        Defense-in-depth: even though workflow fields are excluded/read-only,
-        do not allow the normal admin save flow to alter publication state.
+        """Even though workflow fields are excluded/read-only, prevents
+        the normal admin save flow to alter workflow state.
         """
         if change:
             old_obj = Article.objects.only(
-                "status", "published_at", "publish_sequence"
+                "status",
+                "published_at",
+                "publish_sequence",
+                "review_note",
+                "reviewed_at",
+                "reviewed_by",
             ).get(pk=obj.pk)
             obj.status = old_obj.status
             obj.published_at = old_obj.published_at
             obj.publish_sequence = old_obj.publish_sequence
+            obj.review_note = old_obj.review_note
+            obj.reviewed_at = old_obj.reviewed_at
+            obj.reviewed_by = old_obj.reviewed_by
         super().save_model(request, obj, form, change)
 
     @admin.display(description="PSeq", ordering="publish_sequence")
@@ -114,18 +134,12 @@ class ArticleAdmin(admin.ModelAdmin):
 
     @admin.display(description="Workflow")
     def workflow_buttons(self, obj):
-        """
-        Show object-level workflow links that go to confirmation pages.
-        GET does not mutate state; POST on the confirmation page does.
-        """
         if not obj.pk:
             return "Save the article first to use workflow actions."
 
         buttons = []
 
-        # Adjust these rules if you later decide rejected articles should not
-        # be directly publishable.
-        if obj.status != ArticleStatus.PUBLISHED:
+        if obj.status == ArticleStatus.DRAFT:
             buttons.append(
                 (
                     reverse("admin:articles_article_publish", args=[obj.pk]),
@@ -190,7 +204,7 @@ class ArticleAdmin(admin.ModelAdmin):
             raise PermissionDenied
         return article
 
-    def _render_workflow_confirmation(
+    def _render_workflow_confirmation(  # pylint: disable=R0913
         self,
         request: HttpRequest,
         *,
@@ -198,6 +212,7 @@ class ArticleAdmin(admin.ModelAdmin):
         action: str,
         title: str,
         confirm_label: str,
+        form=None,
     ):
         opts = self.model._meta
         context = {
@@ -210,6 +225,7 @@ class ArticleAdmin(admin.ModelAdmin):
             "action": action,
             "confirm_label": confirm_label,
             "back_url": reverse("admin:articles_article_change", args=[article.pk]),
+            "form": form,
         }
         return TemplateResponse(
             request,
@@ -277,19 +293,36 @@ class ArticleAdmin(admin.ModelAdmin):
         article = self._get_article_or_404(request, article_id)
 
         if request.method == "GET":
+            form = ArticleRejectAdminForm(initial={"reason": article.review_note})
             return self._render_workflow_confirmation(
                 request,
                 article=article,
                 action="reject",
                 title=f"Confirm reject: {article}",
                 confirm_label="Reject",
+                form=form,
             )
 
         if request.method != "POST":
             raise PermissionDenied
 
+        form = ArticleRejectAdminForm(request.POST)
+        if not form.is_valid():
+            return self._render_workflow_confirmation(
+                request,
+                article=article,
+                action="reject",
+                title=f"Confirm reject: {article}",
+                confirm_label="Reject",
+                form=form,
+            )
+
         try:
-            reject_article(article_id=article.id)
+            reject_article(
+                article_id=article.id,
+                reason=form.cleaned_data["reason"],
+                reviewer=request.user,
+            )
         except ValueError as e:
             self.message_user(request, str(e), level=messages.ERROR)
         else:
