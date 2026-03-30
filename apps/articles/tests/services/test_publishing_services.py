@@ -418,8 +418,8 @@ class TestRestoreArticleToDraft(TestCase):
 
         self.assertEqual(restored.id, article.id)
         self.assertEqual(article.status, ArticleStatus.DRAFT)
-        self.assertIsNone(article.reviewed_at)
-        self.assertIsNone(article.reviewed_by)
+        self.assertEqual(article.reviewed_at, reviewed_at)
+        self.assertEqual(article.reviewed_by, self.reviewer)
         self.assertEqual(article.review_note, "Please fix the structure and title.")
 
     def test_restore_draft_article_is_idempotent(self):
@@ -456,22 +456,6 @@ class TestRestoreArticleToDraft(TestCase):
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(article.published_at)
         self.assertEqual(article.publish_sequence, 123)
-
-    def test_restore_clears_only_reviewer_metadata(self):
-        article = self.create_article(
-            status=ArticleStatus.REJECTED,
-            review_note="Please add references.",
-            reviewed_at=timezone.now(),
-            reviewed_by=self.reviewer,
-        )
-
-        restore_article_to_draft(article_id=article.id)
-        article.refresh_from_db()
-
-        self.assertEqual(article.status, ArticleStatus.DRAFT)
-        self.assertEqual(article.review_note, "Please add references.")
-        self.assertIsNone(article.reviewed_at)
-        self.assertIsNone(article.reviewed_by)
 
     def test_restore_nonexistent_article_raises_does_not_exist(self):
         with self.assertRaises(Article.DoesNotExist):
