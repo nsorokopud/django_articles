@@ -37,6 +37,7 @@ class TestPublishArticle(TestCase):
         self.author.refresh_from_db()
 
         self.assertEqual(published.id, self.article.id)
+        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(self.article.published_at)
         self.assertIsNotNone(self.article.publish_sequence)
         self.assertGreaterEqual(self.article.published_at, before)
@@ -46,13 +47,13 @@ class TestPublishArticle(TestCase):
             self.article.publish_sequence,
         )
 
-    def test_clears_review_metadata_when_publishing(self):
+    def test_clears_review_metadata_when_publishing_draft(self):
         reviewer = User.objects.create_user(
             username="reviewer",
             email="reviewer@test.com",
         )
-        self.article.status = ArticleStatus.REJECTED
-        self.article.review_note = "Needs more sources."
+        self.article.status = ArticleStatus.DRAFT
+        self.article.review_note = "Old review note."
         self.article.reviewed_at = timezone.now()
         self.article.reviewed_by = reviewer
         self.article.save(
@@ -71,6 +72,41 @@ class TestPublishArticle(TestCase):
         self.assertEqual(self.article.review_note, "")
         self.assertIsNone(self.article.reviewed_at)
         self.assertIsNone(self.article.reviewed_by)
+
+    def test_raises_when_article_is_rejected(self):
+        reviewer = User.objects.create_user(
+            username="reviewer",
+            email="reviewer@test.com",
+        )
+        reviewed_at = timezone.now()
+
+        self.article.status = ArticleStatus.REJECTED
+        self.article.review_note = "Needs more sources."
+        self.article.reviewed_at = reviewed_at
+        self.article.reviewed_by = reviewer
+        self.article.save(
+            update_fields=[
+                "status",
+                "review_note",
+                "reviewed_at",
+                "reviewed_by",
+            ]
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only draft articles can be published",
+        ):
+            publish_article(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+
+        self.assertEqual(self.article.status, ArticleStatus.REJECTED)
+        self.assertEqual(self.article.review_note, "Needs more sources.")
+        self.assertEqual(self.article.reviewed_at, reviewed_at)
+        self.assertEqual(self.article.reviewed_by, reviewer)
+        self.assertIsNone(self.article.published_at)
+        self.assertIsNone(self.article.publish_sequence)
 
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
     @patch("articles.services.publishing.advance_latest_article_publish_sequence")
@@ -92,6 +128,7 @@ class TestPublishArticle(TestCase):
         self.author.refresh_from_db()
 
         self.assertEqual(result.id, self.article.id)
+        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertEqual(self.article.publish_sequence, 123)
         self.assertEqual(self.article.published_at, published_at)
         self.assertEqual(self.author.latest_article_publish_sequence, 123)
@@ -115,6 +152,7 @@ class TestPublishArticle(TestCase):
         )
 
         self.article.refresh_from_db()
+        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertEqual(self.article.publish_sequence, 777)
         self.assertIsNotNone(self.article.published_at)
 

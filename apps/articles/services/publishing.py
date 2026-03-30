@@ -14,6 +14,9 @@ def publish_article(*, article_id: int) -> Article:
     if a.status == ArticleStatus.PUBLISHED:
         return a
 
+    if a.status != ArticleStatus.DRAFT:
+        raise ValueError("only draft articles can be published")
+
     seq = get_next_article_publish_sequence_value()
     a.status = ArticleStatus.PUBLISHED
     a.published_at = timezone.now()
