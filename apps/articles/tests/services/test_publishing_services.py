@@ -46,6 +46,32 @@ class TestPublishArticle(TestCase):
             self.article.publish_sequence,
         )
 
+    def test_clears_review_metadata_when_publishing(self):
+        reviewer = User.objects.create_user(
+            username="reviewer",
+            email="reviewer@test.com",
+        )
+        self.article.status = ArticleStatus.REJECTED
+        self.article.review_note = "Needs more sources."
+        self.article.reviewed_at = timezone.now()
+        self.article.reviewed_by = reviewer
+        self.article.save(
+            update_fields=[
+                "status",
+                "review_note",
+                "reviewed_at",
+                "reviewed_by",
+            ]
+        )
+
+        publish_article(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
+        self.assertEqual(self.article.review_note, "")
+        self.assertIsNone(self.article.reviewed_at)
+        self.assertIsNone(self.article.reviewed_by)
+
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
     @patch("articles.services.publishing.advance_latest_article_publish_sequence")
     def test_returns_already_published_article_without_changing_it(
@@ -186,6 +212,9 @@ class TestRejectArticle(TestCase):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
         )
+        self.reviewer = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com"
+        )
 
     def test_reject_draft_article_marks_it_rejected(self):
         article = Article.objects.create(
@@ -199,15 +228,28 @@ class TestRejectArticle(TestCase):
             publish_sequence=None,
         )
 
-        result = reject_article(article_id=article.id)
+        before = timezone.now()
+        result = reject_article(
+            article_id=article.id,
+            reviewer=self.reviewer,
+            reason="Please improve structure.",
+        )
+        after = timezone.now()
+
         article.refresh_from_db()
 
         self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.REJECTED)
         self.assertIsNone(article.published_at)
         self.assertIsNone(article.publish_sequence)
+        self.assertEqual(article.review_note, "Please improve structure.")
+        self.assertEqual(article.reviewed_by, self.reviewer)
+        self.assertIsNotNone(article.reviewed_at)
+        self.assertGreaterEqual(article.reviewed_at, before)
+        self.assertLessEqual(article.reviewed_at, after)
 
-    def test_reject_rejected_article_is_idempotent(self):
+    def test_reject_rejected_article_without_new_data_is_idempotent(self):
+        reviewed_at = timezone.now()
         article = Article.objects.create(
             title="Rejected",
             slug="rejected",
@@ -217,6 +259,9 @@ class TestRejectArticle(TestCase):
             status=ArticleStatus.REJECTED,
             published_at=None,
             publish_sequence=None,
+            review_note="Old note",
+            reviewed_at=reviewed_at,
+            reviewed_by=self.reviewer,
         )
 
         result = reject_article(article_id=article.id)
@@ -226,6 +271,48 @@ class TestRejectArticle(TestCase):
         self.assertEqual(article.status, ArticleStatus.REJECTED)
         self.assertIsNone(article.published_at)
         self.assertIsNone(article.publish_sequence)
+        self.assertEqual(article.review_note, "Old note")
+        self.assertEqual(article.reviewed_at, reviewed_at)
+        self.assertEqual(article.reviewed_by, self.reviewer)
+
+    def test_reject_rejected_article_with_new_reason_updates_review_metadata(self):
+        old_reviewed_at = timezone.now()
+        article = Article.objects.create(
+            title="Rejected",
+            slug="rejected-2",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.REJECTED,
+            published_at=None,
+            publish_sequence=None,
+            review_note="Old note",
+            reviewed_at=old_reviewed_at,
+            reviewed_by=self.reviewer,
+        )
+
+        new_reviewer = User.objects.create_user(
+            username="editor2",
+            email="editor2@test.com",
+        )
+
+        before = timezone.now()
+        result = reject_article(
+            article_id=article.id,
+            reviewer=new_reviewer,
+            reason="Please fix formatting and sources.",
+        )
+        after = timezone.now()
+
+        article.refresh_from_db()
+
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
+        self.assertEqual(article.review_note, "Please fix formatting and sources.")
+        self.assertEqual(article.reviewed_by, new_reviewer)
+        self.assertIsNotNone(article.reviewed_at)
+        self.assertGreaterEqual(article.reviewed_at, before)
+        self.assertLessEqual(article.reviewed_at, after)
 
     def test_reject_published_article_raises_error_and_does_not_modify_article(self):
         published_at = timezone.now()

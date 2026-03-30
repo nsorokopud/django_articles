@@ -1,6 +1,7 @@
 from django.db import connection, transaction
 from django.utils import timezone
 
+from users.models import User
 from users.services.users import advance_latest_article_publish_sequence
 
 from ..models import Article, ArticleStatus
@@ -17,7 +18,21 @@ def publish_article(*, article_id: int) -> Article:
     a.status = ArticleStatus.PUBLISHED
     a.published_at = timezone.now()
     a.publish_sequence = seq
-    a.save(update_fields=["status", "published_at", "publish_sequence"])
+
+    a.review_note = ""
+    a.reviewed_at = None
+    a.reviewed_by = None
+
+    a.save(
+        update_fields=[
+            "status",
+            "published_at",
+            "publish_sequence",
+            "review_note",
+            "reviewed_at",
+            "reviewed_by",
+        ]
+    )
 
     advance_latest_article_publish_sequence(user_id=a.author_id, publish_sequence=seq)
     return a
@@ -33,24 +48,43 @@ def unpublish_article(*, article_id: int) -> Article:
     article.status = ArticleStatus.DRAFT
     article.published_at = None
     article.publish_sequence = None
+
     article.save(update_fields=["status", "published_at", "publish_sequence"])
     return article
 
 
 @transaction.atomic
-def reject_article(*, article_id: int) -> Article:
+def reject_article(
+    *,
+    article_id: int,
+    reviewer: User | None = None,
+    reason: str = "",
+) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
     if article.status == ArticleStatus.PUBLISHED:
         raise ValueError("published articles cannot be rejected")
 
-    if article.status == ArticleStatus.REJECTED:
+    if article.status == ArticleStatus.REJECTED and not reason and reviewer is None:
         return article
 
     article.status = ArticleStatus.REJECTED
     article.published_at = None
     article.publish_sequence = None
-    article.save(update_fields=["status", "published_at", "publish_sequence"])
+    article.review_note = reason.strip()
+    article.reviewed_at = timezone.now()
+    article.reviewed_by = reviewer
+
+    article.save(
+        update_fields=[
+            "status",
+            "published_at",
+            "publish_sequence",
+            "review_note",
+            "reviewed_at",
+            "reviewed_by",
+        ]
+    )
     return article
 
 
