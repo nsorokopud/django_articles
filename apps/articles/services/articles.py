@@ -1,7 +1,7 @@
 import logging
-from typing import Callable
+from typing import Callable, Optional
 
-from django.db import DatabaseError, connection, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.template.defaultfilters import slugify
 from nanoid import generate
 
@@ -10,6 +10,8 @@ from users.models import User
 from ..models import Article, ArticleStatus
 from .publishing import publish_article, restore_article_to_draft
 
+
+MAX_SLUG_RETRY_ATTEMPTS = 5
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +25,43 @@ def save_article(
     publish: bool = False,
 ) -> Article:
     is_new = article.pk is None
-    previous_status: str | None = None
 
+    previous_article = None
     if is_new:
         if author is None:
             raise ValueError("author is required when creating an article")
         article.author = author
     else:
-        previous_status = Article.objects.values_list("status", flat=True).get(
-            pk=article.pk
+        previous_article = (
+            Article.objects.select_for_update()
+            .only("title", "slug", "status")
+            .get(pk=article.pk)
         )
 
-    article.save()
+    if _should_regenerate_slug(article, previous_article):
+        for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
+            article.slug = _build_article_slug_candidate(
+                article.title,
+                use_suffix=(attempt > 0),
+            )
+            try:
+                with transaction.atomic():
+                    article.save()
+                break
+            except IntegrityError:
+                if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
+                    raise
+    else:
+        article.save()
 
     if save_m2m is not None:
         save_m2m()
 
-    if previous_status == ArticleStatus.REJECTED and not publish:
+    if (
+        previous_article is not None
+        and previous_article.status == ArticleStatus.REJECTED
+        and not publish
+    ):
         article = restore_article_to_draft(article_id=article.id)
 
     if publish:
@@ -48,12 +70,26 @@ def save_article(
     return article
 
 
-def generate_unique_article_slug(article_title: str) -> str:
-    base = slugify(article_title)
-    slug = base
-    while Article.objects.filter(slug=slug).exists():
-        slug = f"{base}-{generate(size=6)}"
-    return slug
+def _build_article_slug_candidate(title: str, *, use_suffix: bool) -> str:
+    base = slugify(title).strip("-") or "article"
+    if not use_suffix:
+        return base
+    return f"{base}-{generate(size=8)}"
+
+
+def _should_regenerate_slug(
+    article: Article, previous_article: Optional[Article]
+) -> bool:
+    if not article.slug:
+        return True
+
+    if previous_article is None:
+        return False
+
+    title_changed = article.title != previous_article.title
+    was_unpublished = previous_article.status != ArticleStatus.PUBLISHED
+
+    return title_changed and was_unpublished
 
 
 def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:

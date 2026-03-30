@@ -1,14 +1,8 @@
-from unittest.mock import patch
-
 from django.test import TestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from articles.services import (
-    generate_unique_article_slug,
-    toggle_article_like,
-    toggle_comment_like,
-)
+from articles.services import toggle_article_like, toggle_comment_like
 from users.models import User
 
 
@@ -16,24 +10,6 @@ class TestServices(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="user@test.com")
         self.category = ArticleCategory.objects.create(title="cat", slug="cat")
-
-    @patch("articles.services.articles.generate", return_value="suffix")
-    def test_generate_unique_article_slug(self, mock_generate):
-        self.assertEqual(generate_unique_article_slug("abc"), "abc")
-
-        Article.objects.create(
-            title="abc",
-            slug="abc",
-            author=self.user,
-            preview_text="1",
-            content="1",
-        )
-
-        self.assertEqual(generate_unique_article_slug("abc"), "abc-suffix")
-        self.assertEqual(generate_unique_article_slug("abc "), "abc-suffix")
-        self.assertEqual(generate_unique_article_slug("abc-"), "abc-suffix")
-        self.assertEqual(generate_unique_article_slug("abc -"), "abc-suffix")
-        self.assertEqual(generate_unique_article_slug("non-existent"), "non-existent")
 
     def test_toggle_article_like(self):
         a = Article.objects.create(

@@ -115,21 +115,6 @@ class Article(models.Model):
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})
 
-    def save(self, *args, **kwargs):
-        from .services import generate_unique_article_slug
-
-        is_new = self.pk is None
-        title_changed = self.title != self._original_title
-        is_unpublished = self.status != ArticleStatus.PUBLISHED
-
-        if not self.slug:
-            self.slug = generate_unique_article_slug(self.title)
-        elif not is_new and is_unpublished and title_changed:
-            self.slug = generate_unique_article_slug(self.title)
-
-        super().save(*args, **kwargs)
-        self._original_title = self.title
-
     @property
     def is_published(self) -> bool:
         return self.status == ArticleStatus.PUBLISHED
