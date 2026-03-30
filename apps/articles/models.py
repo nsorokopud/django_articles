@@ -43,6 +43,15 @@ class Article(models.Model):
         editable=False,
     )
     modified_at = models.DateTimeField(auto_now=True)
+    review_note = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_articles",
+    )
     users_that_liked = models.ManyToManyField(
         User, related_name="liked_articles", blank=True
     )
