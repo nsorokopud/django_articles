@@ -91,6 +91,23 @@ def reject_article(
     return article
 
 
+@transaction.atomic
+def restore_article_to_draft(*, article_id: int) -> Article:
+    article = Article.objects.select_for_update().get(id=article_id)
+
+    if article.status == ArticleStatus.DRAFT:
+        return article
+
+    if article.status != ArticleStatus.REJECTED:
+        raise ValueError("only rejected articles can be restored to draft")
+
+    article.status = ArticleStatus.DRAFT
+    article.reviewed_at = None
+    article.reviewed_by = None
+    article.save(update_fields=["status", "reviewed_at", "reviewed_by"])
+    return article
+
+
 def get_next_article_publish_sequence_value() -> int:
     with connection.cursor() as cursor:
         cursor.execute("SELECT nextval('article_publish_seq')")
