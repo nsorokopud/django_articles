@@ -27,6 +27,13 @@
 
     <form method="post" style="margin-top: 1rem;">
       {% csrf_token %}
+
+      {% if form %}
+        <fieldset class="module aligned">
+          {{ form.as_p }}
+        </fieldset>
+      {% endif %}
+
       <input type="submit"
              value="{{ confirm_label }}"
              class="default"
