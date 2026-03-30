@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
+from django.db.models import Count
 from django.http import Http404, HttpRequest, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -12,6 +13,23 @@ from .services.publishing import publish_article, reject_article, unpublish_arti
 
 class CommentInline(admin.TabularInline):
     model = ArticleComment
+    extra = 0
+    can_delete = True
+    show_change_link = True
+    readonly_fields = ("author", "text", "created_at", "likes_count")
+    fields = ("author", "text", "created_at", "likes_count")
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(_likes_count=Count("users_that_liked", distinct=True))
+
+    @admin.display(description="Likes")
+    def likes_count(self, obj):
+        return getattr(obj, "_likes_count", 0)
 
 
 @admin.register(Article)
