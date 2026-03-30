@@ -1,15 +1,133 @@
 from io import BytesIO
 from unittest.mock import ANY, patch
 
+from django import forms
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from PIL import Image
 
-from articles.forms import ArticleCommentForm, ArticleModelForm, AttachedFileUploadForm
+from articles.forms import (
+    ARTICLE_REJECT_REASON_MAX_LENGTH,
+    ARTICLE_REJECT_REASON_MIN_LENGTH,
+    ArticleCommentForm,
+    ArticleModelForm,
+    ArticleRejectAdminForm,
+    AttachedFileUploadForm,
+)
 from articles.models import Article, ArticleCategory, ArticleComment
 from core.exceptions import InvalidUpload
 from users.models import User
+
+
+class TestArticleRejectAdminForm(SimpleTestCase):
+    def test_form_is_valid_with_reason_at_min_length(self):
+        reason = "a" * ARTICLE_REJECT_REASON_MIN_LENGTH
+
+        form = ArticleRejectAdminForm(data={"reason": reason})
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["reason"], reason)
+
+    def test_form_is_valid_with_reason_longer_than_min_length(self):
+        reason = "This article needs clearer sourcing and a stronger conclusion."
+
+        form = ArticleRejectAdminForm(data={"reason": reason})
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["reason"], reason)
+
+    def test_reason_is_stripped_in_clean_reason(self):
+        raw_reason = "   This article needs clearer sourcing.   "
+        expected_reason = "This article needs clearer sourcing."
+
+        form = ArticleRejectAdminForm(data={"reason": raw_reason})
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["reason"], expected_reason)
+
+    def test_form_is_invalid_when_reason_is_missing(self):
+        form = ArticleRejectAdminForm(data={})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["reason"], ["This field is required."])
+
+    def test_form_is_invalid_when_reason_is_blank(self):
+        form = ArticleRejectAdminForm(data={"reason": ""})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["reason"], ["This field is required."])
+
+    def test_form_is_invalid_when_reason_is_only_whitespace(self):
+        form = ArticleRejectAdminForm(data={"reason": "   "})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["reason"],
+            ["This field is required."],
+        )
+
+    def test_form_is_invalid_when_reason_is_shorter_than_min_length(self):
+        reason = "a" * (ARTICLE_REJECT_REASON_MIN_LENGTH - 1)
+
+        form = ArticleRejectAdminForm(data={"reason": reason})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["reason"],
+            [
+                "Please provide a more detailed explanation "
+                f"(at least {ARTICLE_REJECT_REASON_MIN_LENGTH} characters)."
+            ],
+        )
+
+    def test_form_is_invalid_when_trimmed_reason_is_shorter_than_min_length(self):
+        core = "a" * (ARTICLE_REJECT_REASON_MIN_LENGTH - 1)
+        reason = f"   {core}   "
+
+        form = ArticleRejectAdminForm(data={"reason": reason})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["reason"],
+            [
+                "Please provide a more detailed explanation "
+                f"(at least {ARTICLE_REJECT_REASON_MIN_LENGTH} characters)."
+            ],
+        )
+
+    def test_form_is_invalid_when_reason_exceeds_max_length(self):
+        reason = "a" * (ARTICLE_REJECT_REASON_MAX_LENGTH + 1)
+
+        form = ArticleRejectAdminForm(data={"reason": reason})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["reason"],
+            [
+                f"Ensure this value has at most "
+                f"{ARTICLE_REJECT_REASON_MAX_LENGTH} characters "
+                f"(it has {ARTICLE_REJECT_REASON_MAX_LENGTH + 1})."
+            ],
+        )
+
+    def test_reason_field_configuration(self):
+        form = ArticleRejectAdminForm()
+        field = form.fields["reason"]
+
+        self.assertTrue(field.required)
+        self.assertEqual(field.label, "Rejection reason")
+        self.assertEqual(field.max_length, ARTICLE_REJECT_REASON_MAX_LENGTH)
+        self.assertEqual(
+            field.help_text,
+            "This note will be shown to the article author.",
+        )
+        self.assertIsInstance(field.widget, forms.Textarea)
+        self.assertEqual(field.widget.attrs["rows"], 6)
+        self.assertEqual(
+            field.widget.attrs["placeholder"],
+            "Explain what should be fixed before resubmission.",
+        )
 
 
 class TestArticleModelForm(TestCase):

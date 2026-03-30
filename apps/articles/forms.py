@@ -11,6 +11,10 @@ from .services.articles import save_article
 from .services.comments import create_article_comment
 
 
+ARTICLE_REJECT_REASON_MIN_LENGTH = 10
+ARTICLE_REJECT_REASON_MAX_LENGTH = 2000
+
+
 class ArticleAdminForm(forms.ModelForm):
     class Meta:
         model = Article
@@ -31,6 +35,32 @@ class ArticleAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.fields["slug"].required = False
+
+
+class ArticleRejectAdminForm(forms.Form):
+    reason = forms.CharField(
+        label="Rejection reason",
+        required=True,
+        max_length=ARTICLE_REJECT_REASON_MAX_LENGTH,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 6,
+                "placeholder": "Explain what should be fixed before resubmission.",
+            }
+        ),
+        help_text="This note will be shown to the article author.",
+    )
+
+    def clean_reason(self):
+        reason = self.cleaned_data["reason"].strip()
+
+        if len(reason) < ARTICLE_REJECT_REASON_MIN_LENGTH:
+            raise forms.ValidationError(
+                "Please provide a more detailed explanation "
+                f"(at least {ARTICLE_REJECT_REASON_MIN_LENGTH} characters)."
+            )
+
+        return reason
 
 
 class ArticleModelForm(forms.ModelForm):
