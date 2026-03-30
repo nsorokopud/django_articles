@@ -59,7 +59,7 @@ class ArticleAdmin(admin.ModelAdmin):
         "workflow_buttons",
     )
     prepopulated_fields = {"slug": ("title",)}
-    actions = ("publish", "reject", "unpublish")
+    actions = ("publish", "unpublish")
     inlines = (CommentInline,)
     save_on_top = True
     save_as = False
@@ -396,39 +396,6 @@ class ArticleAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 "No selected articles were unpublished.",
-                level=messages.WARNING,
-            )
-
-    @admin.action(description="Reject selected articles", permissions=("change",))
-    def reject(self, request, queryset):
-        updated_rows_count = 0
-        failed_rows_count = 0
-
-        for article in queryset.filter(status=ArticleStatus.DRAFT):
-            try:
-                reject_article(article_id=article.id)
-            except ValueError as e:
-                failed_rows_count += 1
-                self.message_user(
-                    request,
-                    f"Could not reject article #{article.id}: {e}",
-                    level=messages.ERROR,
-                )
-            else:
-                updated_rows_count += 1
-
-        if updated_rows_count:
-            self.message_user(
-                request,
-                f"{updated_rows_count}"
-                f" article{' was' if updated_rows_count == 1 else 's were'} rejected.",
-                level=messages.SUCCESS,
-            )
-
-        if failed_rows_count and not updated_rows_count:
-            self.message_user(
-                request,
-                "No selected articles were rejected.",
                 level=messages.WARNING,
             )
 
