@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
@@ -174,7 +175,7 @@ class TestSaveArticle(TestCase):
         save_m2m.assert_not_called()
 
     @patch("articles.services.articles.publish_article")
-    def test_does_not_publish_existing_already_published_article(
+    def test_calls_publish_service_for_already_published_article_when_publish_true(
         self,
         mock_publish_article,
     ):
@@ -187,9 +188,10 @@ class TestSaveArticle(TestCase):
             content="content",
             status=ArticleStatus.PUBLISHED,
             publish_sequence=123,
-            published_at="2026-01-01T00:00:00Z",
+            published_at=datetime(2026, 1, 1),
         )
 
+        mock_publish_article.return_value = article
         save_m2m = Mock()
 
         saved = save_article(
@@ -200,7 +202,7 @@ class TestSaveArticle(TestCase):
 
         self.assertEqual(saved.pk, article.pk)
         save_m2m.assert_called_once_with()
-        mock_publish_article.assert_not_called()
+        mock_publish_article.assert_called_once_with(article_id=article.id)
 
     @patch("articles.services.articles.publish_article")
     def test_publishes_existing_unpublished_article_when_publish_true(
@@ -230,6 +232,105 @@ class TestSaveArticle(TestCase):
         self.assertEqual(saved.pk, article.pk)
         save_m2m.assert_called_once_with()
         mock_publish_article.assert_called_once_with(article_id=article.id)
+
+    @patch("articles.services.articles.restore_article_to_draft")
+    @patch("articles.services.articles.publish_article")
+    def test_updates_rejected_article_restores_to_draft_when_publish_false(
+        self,
+        mock_publish_article,
+        mock_restore_article_to_draft,
+    ):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.REJECTED,
+            review_note="Needs work",
+        )
+        article.title = "updated"
+
+        mock_restore_article_to_draft.side_effect = (
+            lambda *, article_id: Article.objects.get(id=article_id)
+        )
+
+        save_m2m = Mock()
+
+        saved = save_article(
+            article=article,
+            save_m2m=save_m2m,
+            publish=False,
+        )
+
+        article.refresh_from_db()
+        self.assertEqual(article.title, "updated")
+        self.assertEqual(saved.pk, article.pk)
+        save_m2m.assert_called_once_with()
+        mock_restore_article_to_draft.assert_called_once_with(article_id=article.id)
+        mock_publish_article.assert_not_called()
+
+    @patch("articles.services.articles.restore_article_to_draft")
+    @patch("articles.services.articles.publish_article")
+    def test_rejected_article_with_publish_true_does_not_restore_to_draft(
+        self,
+        mock_publish_article,
+        mock_restore_article_to_draft,
+    ):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.REJECTED,
+            review_note="Needs work",
+        )
+
+        mock_publish_article.side_effect = ValueError(
+            "only draft articles can be published"
+        )
+        save_m2m = Mock()
+
+        with self.assertRaises(ValueError):
+            save_article(
+                article=article,
+                save_m2m=save_m2m,
+                publish=True,
+            )
+
+        save_m2m.assert_called_once_with()
+        mock_restore_article_to_draft.assert_not_called()
+        mock_publish_article.assert_called_once_with(article_id=article.id)
+
+    @patch("articles.services.articles.restore_article_to_draft")
+    def test_existing_draft_does_not_restore_to_draft_again(
+        self, mock_restore_article_to_draft
+    ):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.DRAFT,
+        )
+        article.title = "updated"
+
+        save_m2m = Mock()
+
+        saved = save_article(
+            article=article,
+            save_m2m=save_m2m,
+            publish=False,
+        )
+
+        self.assertEqual(saved.pk, article.pk)
+        save_m2m.assert_called_once_with()
+        mock_restore_article_to_draft.assert_not_called()
 
     def test_saves_article_when_save_m2m_is_none(self):
         article = Article(

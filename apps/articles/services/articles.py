@@ -7,8 +7,8 @@ from nanoid import generate
 
 from users.models import User
 
-from ..models import Article
-from .publishing import publish_article
+from ..models import Article, ArticleStatus
+from .publishing import publish_article, restore_article_to_draft
 
 
 logger = logging.getLogger(__name__)
@@ -23,18 +23,26 @@ def save_article(
     publish: bool = False,
 ) -> Article:
     is_new = article.pk is None
+    previous_status: str | None = None
 
     if is_new:
         if author is None:
             raise ValueError("author is required when creating an article")
         article.author = author
+    else:
+        previous_status = Article.objects.values_list("status", flat=True).get(
+            pk=article.pk
+        )
 
     article.save()
 
     if save_m2m is not None:
         save_m2m()
 
-    if publish and not article.is_published:
+    if previous_status == ArticleStatus.REJECTED and not publish:
+        article = restore_article_to_draft(article_id=article.id)
+
+    if publish:
         article = publish_article(article_id=article.id)
 
     return article
