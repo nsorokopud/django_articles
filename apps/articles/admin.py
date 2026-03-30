@@ -337,7 +337,7 @@ class ArticleAdmin(admin.ModelAdmin):
         updated_rows_count = 0
         failed_rows_count = 0
 
-        for article in queryset.exclude(status=ArticleStatus.PUBLISHED):
+        for article in queryset.filter(status=ArticleStatus.DRAFT):
             try:
                 publish_article(article_id=article.id)
             except ValueError as e:
