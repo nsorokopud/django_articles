@@ -249,7 +249,7 @@ class ArticleAdmin(admin.ModelAdmin):
             raise PermissionDenied
 
         try:
-            publish_article(article_id=article.id)
+            publish_article(article_id=article.id, actor=request.user)
         except ValueError as e:
             self.message_user(request, str(e), level=messages.ERROR)
         else:
@@ -275,7 +275,7 @@ class ArticleAdmin(admin.ModelAdmin):
             raise PermissionDenied
 
         try:
-            unpublish_article(article_id=article.id)
+            unpublish_article(article_id=article.id, actor=request.user)
         except ValueError as e:
             self.message_user(request, str(e), level=messages.ERROR)
         else:
@@ -339,7 +339,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
         for article in queryset.filter(status=ArticleStatus.DRAFT):
             try:
-                publish_article(article_id=article.id)
+                publish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
                 failed_rows_count += 1
                 self.message_user(
@@ -372,7 +372,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
         for article in queryset.filter(status=ArticleStatus.PUBLISHED):
             try:
-                unpublish_article(article_id=article.id)
+                unpublish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
                 failed_rows_count += 1
                 self.message_user(
