@@ -13,6 +13,7 @@ ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
 
 class ArticleStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
+    PENDING_REVIEW = "pending_review", "Pending review"
     PUBLISHED = "published", "Published"
     REJECTED = "rejected", "Rejected"
 
@@ -96,7 +97,11 @@ class Article(models.Model):
                         publish_sequence__isnull=False,
                     )
                     | models.Q(
-                        status__in=[ArticleStatus.DRAFT, ArticleStatus.REJECTED],
+                        status__in=[
+                            ArticleStatus.DRAFT,
+                            ArticleStatus.PENDING_REVIEW,
+                            ArticleStatus.REJECTED,
+                        ],
                         published_at__isnull=True,
                         publish_sequence__isnull=True,
                     )
