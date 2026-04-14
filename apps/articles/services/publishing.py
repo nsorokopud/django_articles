@@ -9,7 +9,7 @@ from notifications.services.articles import (
 from users.models import User
 from users.services.users import advance_latest_article_publish_sequence
 
-from ..models import Article, ArticleStatus
+from ..models import ARTICLE_PUBLISH_SEQUENCE_NAME, Article, ArticleStatus
 
 
 @transaction.atomic
@@ -149,5 +149,5 @@ def restore_article_to_draft(*, article_id: int) -> Article:
 
 def get_next_article_publish_sequence_value() -> int:
     with connection.cursor() as cursor:
-        cursor.execute("SELECT nextval('article_publish_seq')")
+        cursor.execute(f"SELECT nextval('{ARTICLE_PUBLISH_SEQUENCE_NAME}')")
         return int(cursor.fetchone()[0])
