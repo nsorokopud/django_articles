@@ -1,6 +1,11 @@
 from django.db import connection, transaction
 from django.utils import timezone
 
+from notifications.services.articles import (
+    notify_article_published,
+    notify_article_rejected,
+    notify_article_unpublished,
+)
 from users.models import User
 from users.services.users import advance_latest_article_publish_sequence
 
@@ -8,25 +13,25 @@ from ..models import Article, ArticleStatus
 
 
 @transaction.atomic
-def publish_article(*, article_id: int) -> Article:
-    a = Article.objects.select_for_update().get(id=article_id)
+def publish_article(*, article_id: int, actor: User | None = None) -> Article:
+    article = Article.objects.select_for_update().get(id=article_id)
 
-    if a.status == ArticleStatus.PUBLISHED:
-        return a
+    if article.status == ArticleStatus.PUBLISHED:
+        return article
 
-    if a.status != ArticleStatus.DRAFT:
+    if article.status != ArticleStatus.DRAFT:
         raise ValueError("only draft articles can be published")
 
     seq = get_next_article_publish_sequence_value()
-    a.status = ArticleStatus.PUBLISHED
-    a.published_at = timezone.now()
-    a.publish_sequence = seq
+    article.status = ArticleStatus.PUBLISHED
+    article.published_at = timezone.now()
+    article.publish_sequence = seq
 
-    a.review_note = ""
-    a.reviewed_at = None
-    a.reviewed_by = None
+    article.review_note = ""
+    article.reviewed_at = None
+    article.reviewed_by = None
 
-    a.save(
+    article.save(
         update_fields=[
             "status",
             "published_at",
@@ -37,22 +42,47 @@ def publish_article(*, article_id: int) -> Article:
         ]
     )
 
-    advance_latest_article_publish_sequence(user_id=a.author_id, publish_sequence=seq)
-    return a
+    advance_latest_article_publish_sequence(
+        user_id=article.author_id, publish_sequence=seq
+    )
+
+    if actor is None or actor.id != article.author_id:
+        notify_article_published(
+            recipient_id=article.author_id,
+            article_id=article.id,
+            article_slug=article.slug,
+            article_title=article.title,
+            actor_id=actor.id if actor else None,
+            publish_sequence=article.publish_sequence,
+        )
+
+    return article
 
 
 @transaction.atomic
-def unpublish_article(*, article_id: int) -> Article:
+def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
     if article.status != ArticleStatus.PUBLISHED:
         return article
 
+    unpublished_at = timezone.now()
+
     article.status = ArticleStatus.DRAFT
     article.published_at = None
     article.publish_sequence = None
-
     article.save(update_fields=["status", "published_at", "publish_sequence"])
+
+    if actor is not None and actor.id != article.author_id:
+        notify_article_unpublished(
+            recipient_id=article.author_id,
+            article_id=article.id,
+            article_slug=article.slug,
+            article_title=article.title,
+            actor_id=actor.id,
+            unpublished_at_ts=unpublished_at.isoformat(),
+        )
+
     return article
 
 
@@ -88,6 +118,17 @@ def reject_article(
             "reviewed_by",
         ]
     )
+
+    notify_article_rejected(
+        recipient_id=article.author_id,
+        article_id=article.id,
+        article_slug=article.slug,
+        article_title=article.title,
+        review_note=article.review_note,
+        reviewer_id=reviewer.id if reviewer else None,
+        reviewed_at_ts=article.reviewed_at.isoformat() if article.reviewed_at else None,
+    )
+
     return article
 
 
