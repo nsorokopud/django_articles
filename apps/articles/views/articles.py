@@ -214,9 +214,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form) -> JsonResponse:
-        publish = self.request.user.is_staff or self.request.user.is_superuser
-        article = form.save(publish=publish)
-
+        article = form.save(publish=False)
         article_url = (
             article.get_absolute_url()
             if article.is_published
