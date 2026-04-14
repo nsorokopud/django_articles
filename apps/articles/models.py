@@ -105,10 +105,6 @@ class Article(models.Model):
             ),
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._original_title = self.title
-
     def __str__(self):
         return self.title
 
