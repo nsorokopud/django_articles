@@ -139,6 +139,7 @@ class TestPublishArticle(TestCase):
             author=self.author,
             title="a",
             content="c",
+            status=ArticleStatus.PENDING_REVIEW,
         )
 
     @patch("articles.services.publishing.notify_article_published")
@@ -173,18 +174,16 @@ class TestPublishArticle(TestCase):
         )
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_clears_review_metadata_when_publishing_draft(self, mock_notify):
+    def test_clears_review_metadata_when_publishing(self, mock_notify):
         reviewer = User.objects.create_user(
             username="reviewer",
             email="reviewer@test.com",
         )
-        self.article.status = ArticleStatus.DRAFT
         self.article.review_note = "Old review note."
         self.article.reviewed_at = timezone.now()
         self.article.reviewed_by = reviewer
         self.article.save(
             update_fields=[
-                "status",
                 "review_note",
                 "reviewed_at",
                 "reviewed_by",
@@ -201,7 +200,7 @@ class TestPublishArticle(TestCase):
         mock_notify.assert_called_once()
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_raises_when_article_is_rejected(self, mock_notify):
+    def test_raises_when_not_pending_review(self, mock_notify):
         reviewer = User.objects.create_user(
             username="reviewer",
             email="reviewer@test.com",
@@ -223,7 +222,7 @@ class TestPublishArticle(TestCase):
 
         with self.assertRaisesMessage(
             ValueError,
-            "only draft articles can be published",
+            "only articles pending review can be published",
         ):
             publish_article(article_id=self.article.id)
 
@@ -508,9 +507,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
-            status=ArticleStatus.DRAFT,
-            published_at=None,
-            publish_sequence=None,
+            status=ArticleStatus.PENDING_REVIEW,
         )
 
         before = timezone.now()
@@ -544,48 +541,15 @@ class TestRejectArticle(TestCase):
         self.assertIsNotNone(kwargs["reviewed_at_ts"])
 
     @patch("articles.services.publishing.notify_article_rejected")
-    def test_reject_rejected_article_without_new_data_is_idempotent(self, mock_notify):
-        reviewed_at = timezone.now()
-        article = Article.objects.create(
-            title="Rejected",
-            slug="rejected",
-            author=self.author,
-            preview_text="p",
-            content="c",
-            status=ArticleStatus.REJECTED,
-            published_at=None,
-            publish_sequence=None,
-            review_note="Old note",
-            reviewed_at=reviewed_at,
-            reviewed_by=self.reviewer,
-        )
-
-        result = reject_article(article_id=article.id)
-        article.refresh_from_db()
-
-        self.assertEqual(result.id, article.id)
-        self.assertEqual(article.status, ArticleStatus.REJECTED)
-        self.assertIsNone(article.published_at)
-        self.assertIsNone(article.publish_sequence)
-        self.assertEqual(article.review_note, "Old note")
-        self.assertEqual(article.reviewed_at, reviewed_at)
-        self.assertEqual(article.reviewed_by, self.reviewer)
-        mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.notify_article_rejected")
-    def test_reject_rejected_article_with_new_reason_updates_review_metadata(
-        self, mock_notify
-    ):
+    def test_replaces_previous_review_metadata(self, mock_notify):
         old_reviewed_at = timezone.now()
         article = Article.objects.create(
-            title="Rejected",
-            slug="rejected",
+            title="a",
+            slug="a",
             author=self.author,
             preview_text="p",
             content="c",
-            status=ArticleStatus.REJECTED,
-            published_at=None,
-            publish_sequence=None,
+            status=ArticleStatus.PENDING_REVIEW,
             review_note="Old note",
             reviewed_at=old_reviewed_at,
             reviewed_by=self.reviewer,
@@ -628,32 +592,24 @@ class TestRejectArticle(TestCase):
         self.assertIsNotNone(kwargs["reviewed_at_ts"])
 
     @patch("articles.services.publishing.notify_article_rejected")
-    def test_reject_published_article_raises_error_and_does_not_modify_article(
-        self, mock_notify
-    ):
-        published_at = timezone.now()
-
+    def test_reject_non_pending_article_raises_error(self, mock_notify):
         article = Article.objects.create(
             title="Published",
             slug="published",
             author=self.author,
             preview_text="p",
             content="c",
-            status=ArticleStatus.PUBLISHED,
-            published_at=published_at,
-            publish_sequence=123,
+            status=ArticleStatus.REJECTED,
         )
 
         with self.assertRaisesMessage(
             ValueError,
-            "published articles cannot be rejected",
+            "only articles pending review can be rejected",
         ):
             reject_article(article_id=article.id)
 
         article.refresh_from_db()
-        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(article.published_at, published_at)
-        self.assertEqual(article.publish_sequence, 123)
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_rejected")

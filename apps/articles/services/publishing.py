@@ -51,8 +51,8 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
     if article.status == ArticleStatus.PUBLISHED:
         return article
 
-    if article.status != ArticleStatus.DRAFT:
-        raise ValueError("only draft articles can be published")
+    if article.status != ArticleStatus.PENDING_REVIEW:
+        raise ValueError("only articles pending review can be published")
 
     seq = get_next_article_publish_sequence_value()
     article.status = ArticleStatus.PUBLISHED
@@ -127,8 +127,8 @@ def reject_article(
 ) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
-    if article.status == ArticleStatus.PUBLISHED:
-        raise ValueError("published articles cannot be rejected")
+    if article.status != ArticleStatus.PENDING_REVIEW:
+        raise ValueError("only articles pending review can be rejected")
 
     if article.status == ArticleStatus.REJECTED and not reason and reviewer is None:
         return article
