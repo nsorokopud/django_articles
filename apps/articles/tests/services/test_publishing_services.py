@@ -4,14 +4,128 @@ from django.test import TestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleStatus
+from articles.services.articles import _build_article_slug_candidate
 from articles.services.publishing import (
     get_next_article_publish_sequence_value,
     publish_article,
     reject_article,
     restore_article_to_draft,
+    submit_article_for_review,
     unpublish_article,
+    withdraw_article_from_review,
 )
 from users.models import User
+
+
+class ArticleServiceBaseTestCase(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+
+    def create_article(self, *, status=ArticleStatus.DRAFT) -> Article:
+        published_at = None
+        publish_sequence = None
+
+        if status == ArticleStatus.PUBLISHED:
+            published_at = timezone.now()
+            publish_sequence = 123
+
+        return Article.objects.create(
+            title="a",
+            slug=_build_article_slug_candidate("a", use_suffix=True),
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=status,
+            published_at=published_at,
+            publish_sequence=publish_sequence,
+        )
+
+
+class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
+    def test_submit_article_for_review_from_draft(self):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        result = submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+
+    def test_submit_article_for_review_from_rejected(self):
+        article = self.create_article(status=ArticleStatus.REJECTED)
+        result = submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+
+    def test_submit_article_for_review_from_pending_review_is_idempotent(self):
+        article = self.create_article(status=ArticleStatus.PENDING_REVIEW)
+        result = submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+
+    def test_submit_article_for_review_from_published_raises_error(self):
+        article = self.create_article(status=ArticleStatus.PUBLISHED)
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only draft or rejected articles can be submitted for review",
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
+        self.assertIsNotNone(article.published_at)
+        self.assertIsNotNone(article.publish_sequence)
+
+
+class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
+
+    def test_withdraw_article_from_review_from_pending_review(self):
+        article = self.create_article(status=ArticleStatus.PENDING_REVIEW)
+        result = withdraw_article_from_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+    def test_withdraw_article_from_review_from_draft_is_idempotent(self):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        result = withdraw_article_from_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(result.id, article.id)
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+    def test_withdraw_article_from_review_from_rejected_raises_error(self):
+        article = self.create_article(status=ArticleStatus.REJECTED)
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only articles pending review can be withdrawn from review",
+        ):
+            withdraw_article_from_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
+
+    def test_withdraw_article_from_review_from_published_raises_error(self):
+        article = self.create_article(status=ArticleStatus.PUBLISHED)
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only articles pending review can be withdrawn from review",
+        ):
+            withdraw_article_from_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
+        self.assertIsNotNone(article.published_at)
+        self.assertIsNotNone(article.publish_sequence)
 
 
 class TestPublishArticle(TestCase):

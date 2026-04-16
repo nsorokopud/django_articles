@@ -13,6 +13,38 @@ from ..models import ARTICLE_PUBLISH_SEQUENCE_NAME, Article, ArticleStatus
 
 
 @transaction.atomic
+def submit_article_for_review(*, article_id: int) -> Article:
+    article = Article.objects.select_for_update().get(id=article_id)
+
+    if article.status == ArticleStatus.PENDING_REVIEW:
+        return article
+
+    if article.status not in (ArticleStatus.DRAFT, ArticleStatus.REJECTED):
+        raise ValueError("only draft or rejected articles can be submitted for review")
+
+    article.status = ArticleStatus.PENDING_REVIEW
+    article.save(update_fields=["status"])
+
+    return article
+
+
+@transaction.atomic
+def withdraw_article_from_review(*, article_id: int) -> Article:
+    article = Article.objects.select_for_update().get(id=article_id)
+
+    if article.status == ArticleStatus.DRAFT:
+        return article
+
+    if article.status != ArticleStatus.PENDING_REVIEW:
+        raise ValueError("only articles pending review can be withdrawn from review")
+
+    article.status = ArticleStatus.DRAFT
+    article.save(update_fields=["status"])
+
+    return article
+
+
+@transaction.atomic
 def publish_article(*, article_id: int, actor: User | None = None) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
