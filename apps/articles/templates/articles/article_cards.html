@@ -7,6 +7,8 @@
         <div class="me-3 d-flex align-items-center">
           {% if article.status == "draft" %}
             <span class="badge bg-secondary fs-6">Draft</span>
+          {% elif article.status == "pending_review" %}
+            <span class="badge bg-warning text-dark fs-6">Pending review</span>
           {% elif article.status == "rejected" %}
             <span class="badge bg-danger fs-6">Rejected</span>
           {% elif article.status == "published" %}
