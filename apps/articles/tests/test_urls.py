@@ -8,7 +8,9 @@ from articles.views import (
     ArticleDetailView,
     ArticleLikeView,
     ArticleListFilterView,
+    ArticleSubmitForReviewView,
     ArticleUpdateView,
+    ArticleWithdrawFromReviewView,
     AttachedFileUploadView,
     CommentLikeView,
     HomePageView,
@@ -45,6 +47,14 @@ class TestURLs(SimpleTestCase):
     def test_article_update_page_url_is_resolved(self):
         url = reverse("article-update", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleUpdateView)
+
+    def test_article_submit_for_review_url_is_resolved(self):
+        url = reverse("article-submit-for-review", args=[1])
+        self.assertEqual(resolve(url).func.view_class, ArticleSubmitForReviewView)
+
+    def test_article_withdraw_from_review_url_is_resolved(self):
+        url = reverse("article-withdraw-from-review", args=[1])
+        self.assertEqual(resolve(url).func.view_class, ArticleWithdrawFromReviewView)
 
     def test_article_delete_page_url_is_resolved(self):
         url = reverse("article-delete", args=[1])

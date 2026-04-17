@@ -1,9 +1,11 @@
 import logging
 from typing import Any
 
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import QuerySet
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -34,6 +36,10 @@ from ..selectors import (
     get_published_article_by_slug,
 )
 from ..services import toggle_article_like
+from ..services.publishing import (
+    submit_article_for_review,
+    withdraw_article_from_review,
+)
 from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
 from .decorators import increment_article_view_counter
 from .mixins import AllowOnlyAuthorMixin
@@ -269,6 +275,46 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
 
     def form_invalid(self, form) -> JsonResponse:
         return JsonResponse({"status": "fail", "data": form.errors})
+
+
+class ArticleSubmitForReviewView(LoginRequiredMixin, View):
+    def post(self, request, article_slug) -> HttpResponseRedirect:
+        try:
+            article = get_article_for_author_by_slug(
+                article_slug=article_slug,
+                author_id=request.user.id,
+            )
+        except Article.DoesNotExist as e:
+            raise Http404("Article not found") from e
+
+        try:
+            submit_article_for_review(article_id=article.id)
+        except ValueError as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Article was submitted for review.")
+
+        return redirect("article-update", article_slug=article.slug)
+
+
+class ArticleWithdrawFromReviewView(LoginRequiredMixin, View):
+    def post(self, request, article_slug) -> HttpResponseRedirect:
+        try:
+            article = get_article_for_author_by_slug(
+                article_slug=article_slug,
+                author_id=request.user.id,
+            )
+        except Article.DoesNotExist as e:
+            raise Http404("Article not found") from e
+
+        try:
+            withdraw_article_from_review(article_id=article.id)
+        except ValueError as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Article was withdrawn from review.")
+
+        return redirect("article-update", article_slug=article.slug)
 
 
 class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
