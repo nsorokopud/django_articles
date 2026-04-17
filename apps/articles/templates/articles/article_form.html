@@ -13,6 +13,10 @@
               <div class="alert alert-secondary mb-4">
                 Status: <strong>Draft</strong>. This article is not public yet.
               </div>
+            {% elif article.status == "pending_review" %}
+              <div class="alert alert-warning mb-4">
+                Status: <strong>Pending review</strong>. This article has been submitted for review.
+              </div>
             {% elif article.status == "rejected" %}
               <div class="alert alert-danger mb-4">
                 <div>
@@ -44,6 +48,7 @@
           {% else %}
             <h2 class="mb-5">New article</h2>
           {% endif %}
+
           <form id="articleForm"
                 class="user-form"
                 method="post"
@@ -55,23 +60,56 @@
                 enctype="multipart/form-data">
             {% csrf_token %}
             {{ form|crispy }}
+
             {% if update %}
-              <button id="articleFormUpdateButton" class="btn btn-success" type="submit">
-                Update article
-              </button>
+              <input type="hidden" id="articleId" value="{{ form.instance.id }}" />
+              <input type="hidden" id="articleSlug" value="{{ form.instance.slug }}" />
+            {% endif %}
+
+          </form>
+
+          <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
+            {% if update %}
+              {% if article.status != "pending_review" %}
+                <button form="articleForm"
+                        id="articleFormUpdateButton"
+                        class="btn btn-success"
+                        type="submit">Update article</button>
+              {% endif %}
+
               {% if article.is_published %}
-                <a href="{{ article.get_absolute_url }}" class="btn btn-secondary mx-3">
+                <a href="{{ article.get_absolute_url }}" class="btn btn-secondary">
                   View article
                 </a>
               {% endif %}
-              <input type="hidden" id="articleId" value="{{ form.instance.id }}" />
-              <input type="hidden" id="articleSlug" value="{{ form.instance.slug }}" />
+
+              {% if article.status == "draft" %}
+                <form method="post"
+                      action="{% url 'article-submit-for-review' article.slug %}"
+                      class="d-inline">
+                  {% csrf_token %}
+                  <button class="btn btn-outline-primary" type="submit">
+                    Submit for review
+                  </button>
+                </form>
+              {% elif article.status == "pending_review" %}
+                <form method="post"
+                      action="{% url 'article-withdraw-from-review' article.slug %}"
+                      class="d-inline">
+                  {% csrf_token %}
+                  <button class="btn btn-outline-secondary" type="submit">
+                    Withdraw from review
+                  </button>
+                </form>
+              {% endif %}
+
             {% else %}
-              <button id="articleFormCreateButton"
-                      class="btn btn-outline-success"
+              <button form="articleForm"
+                      id="articleFormCreateButton"
+                      class="btn btn-success"
                       type="submit">Create</button>
             {% endif %}
-          </form>
+          </div>
         </div>
       </div>
     </section>
