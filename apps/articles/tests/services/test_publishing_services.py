@@ -52,12 +52,16 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
 
-    def test_submit_article_for_review_from_pending_review_is_idempotent(self):
+    def test_submit_article_for_review_from_pending_review_raises_error(self):
         article = self.create_article(status=ArticleStatus.PENDING_REVIEW)
-        result = submit_article_for_review(article_id=article.id)
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only draft articles can be submitted for review",
+        ):
+            submit_article_for_review(article_id=article.id)
 
         article.refresh_from_db()
-        self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
 
     def test_submit_article_for_review_from_published_raises_error(self):
@@ -97,12 +101,16 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.DRAFT)
 
-    def test_withdraw_article_from_review_from_draft_is_idempotent(self):
+    def test_withdraw_article_from_review_from_draft_raises_error(self):
         article = self.create_article(status=ArticleStatus.DRAFT)
-        result = withdraw_article_from_review(article_id=article.id)
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only articles pending review can be withdrawn from review",
+        ):
+            withdraw_article_from_review(article_id=article.id)
 
         article.refresh_from_db()
-        self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.DRAFT)
 
     def test_withdraw_article_from_review_from_rejected_raises_error(self):
@@ -243,7 +251,7 @@ class TestPublishArticle(TestCase):
     @patch("articles.services.publishing.notify_article_published")
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
     @patch("articles.services.publishing.advance_latest_article_publish_sequence")
-    def test_returns_already_published_article_without_changing_it(
+    def test_raises_for_already_published_article(
         self, mock_advance, mock_get_next, mock_notify
     ):
         published_at = timezone.now()
@@ -255,12 +263,15 @@ class TestPublishArticle(TestCase):
         self.author.latest_article_publish_sequence = 123
         self.author.save(update_fields=["latest_article_publish_sequence"])
 
-        result = publish_article(article_id=self.article.id)
+        with self.assertRaisesMessage(
+            ValueError,
+            "only articles pending review can be published",
+        ):
+            publish_article(article_id=self.article.id)
 
         self.article.refresh_from_db()
         self.author.refresh_from_db()
 
-        self.assertEqual(result.id, self.article.id)
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertEqual(self.article.publish_sequence, 123)
         self.assertEqual(self.article.published_at, published_at)
@@ -384,7 +395,7 @@ class TestUnpublishArticle(TestCase):
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_unpublished")
-    def test_does_nothing_for_draft_article(self, mock_notify):
+    def test_raises_for_draft_article(self, mock_notify):
         article = Article.objects.create(
             title="Draft",
             slug="draft",
@@ -396,17 +407,20 @@ class TestUnpublishArticle(TestCase):
             publish_sequence=None,
         )
 
-        returned_article = unpublish_article(article_id=article.id)
-        article.refresh_from_db()
+        with self.assertRaisesMessage(
+            ValueError,
+            "only published articles can be unpublished",
+        ):
+            unpublish_article(article_id=article.id)
 
-        self.assertEqual(returned_article.id, article.id)
+        article.refresh_from_db()
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertIsNone(article.published_at)
         self.assertIsNone(article.publish_sequence)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_unpublished")
-    def test_does_nothing_for_rejected_article(self, mock_notify):
+    def test_raises_for_rejected_article(self, mock_notify):
         article = Article.objects.create(
             title="Rejected",
             slug="rejected",
@@ -418,10 +432,14 @@ class TestUnpublishArticle(TestCase):
             publish_sequence=None,
         )
 
-        returned_article = unpublish_article(article_id=article.id)
+        with self.assertRaisesMessage(
+            ValueError,
+            "only published articles can be unpublished",
+        ):
+            unpublish_article(article_id=article.id)
+
         article.refresh_from_db()
 
-        self.assertEqual(returned_article.id, article.id)
         self.assertEqual(article.status, ArticleStatus.REJECTED)
         self.assertIsNone(article.published_at)
         self.assertIsNone(article.publish_sequence)
@@ -685,7 +703,7 @@ class TestRestoreArticleToDraft(TestCase):
         self.assertEqual(article.reviewed_by, self.reviewer)
         self.assertEqual(article.review_note, "Please fix the structure and title.")
 
-    def test_restore_draft_article_is_idempotent(self):
+    def test_raises_for_draft_article(self):
         article = self.create_article(
             status=ArticleStatus.DRAFT,
             review_note="Old note",
@@ -693,10 +711,14 @@ class TestRestoreArticleToDraft(TestCase):
             reviewed_by=None,
         )
 
-        restored = restore_article_to_draft(article_id=article.id)
+        with self.assertRaisesMessage(
+            ValueError,
+            "only rejected articles can be restored to draft",
+        ):
+            restore_article_to_draft(article_id=article.id)
+
         article.refresh_from_db()
 
-        self.assertEqual(restored.id, article.id)
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertIsNone(article.reviewed_at)
         self.assertIsNone(article.reviewed_by)

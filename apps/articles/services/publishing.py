@@ -16,15 +16,11 @@ from ..models import ARTICLE_PUBLISH_SEQUENCE_NAME, Article, ArticleStatus
 def submit_article_for_review(*, article_id: int) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
-    if article.status == ArticleStatus.PENDING_REVIEW:
-        return article
-
     if article.status != ArticleStatus.DRAFT:
         raise ValueError("only draft articles can be submitted for review")
 
     article.status = ArticleStatus.PENDING_REVIEW
     article.save(update_fields=["status"])
-
     return article
 
 
@@ -32,24 +28,17 @@ def submit_article_for_review(*, article_id: int) -> Article:
 def withdraw_article_from_review(*, article_id: int) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
-    if article.status == ArticleStatus.DRAFT:
-        return article
-
     if article.status != ArticleStatus.PENDING_REVIEW:
         raise ValueError("only articles pending review can be withdrawn from review")
 
     article.status = ArticleStatus.DRAFT
     article.save(update_fields=["status"])
-
     return article
 
 
 @transaction.atomic
 def publish_article(*, article_id: int, actor: User | None = None) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
-
-    if article.status == ArticleStatus.PUBLISHED:
-        return article
 
     if article.status != ArticleStatus.PENDING_REVIEW:
         raise ValueError("only articles pending review can be published")
@@ -96,7 +85,7 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
     if article.status != ArticleStatus.PUBLISHED:
-        return article
+        raise ValueError("only published articles can be unpublished")
 
     unpublished_at = timezone.now()
 
@@ -168,9 +157,6 @@ def reject_article(
 @transaction.atomic
 def restore_article_to_draft(*, article_id: int) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
-
-    if article.status == ArticleStatus.DRAFT:
-        return article
 
     if article.status != ArticleStatus.REJECTED:
         raise ValueError("only rejected articles can be restored to draft")
