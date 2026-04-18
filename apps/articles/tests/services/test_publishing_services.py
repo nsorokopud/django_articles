@@ -52,14 +52,6 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
 
-    def test_submit_article_for_review_from_rejected(self):
-        article = self.create_article(status=ArticleStatus.REJECTED)
-        result = submit_article_for_review(article_id=article.id)
-
-        article.refresh_from_db()
-        self.assertEqual(result.id, article.id)
-        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
-
     def test_submit_article_for_review_from_pending_review_is_idempotent(self):
         article = self.create_article(status=ArticleStatus.PENDING_REVIEW)
         result = submit_article_for_review(article_id=article.id)
@@ -73,7 +65,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
 
         with self.assertRaisesMessage(
             ValueError,
-            "only draft or rejected articles can be submitted for review",
+            "only draft articles can be submitted for review",
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -81,6 +73,18 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(article.published_at)
         self.assertIsNotNone(article.publish_sequence)
+
+    def test_submit_article_for_review_from_rejected_raises_error(self):
+        article = self.create_article(status=ArticleStatus.REJECTED)
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "only draft articles can be submitted for review",
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.REJECTED)
 
 
 class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):

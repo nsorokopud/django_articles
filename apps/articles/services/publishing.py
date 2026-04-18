@@ -19,8 +19,8 @@ def submit_article_for_review(*, article_id: int) -> Article:
     if article.status == ArticleStatus.PENDING_REVIEW:
         return article
 
-    if article.status not in (ArticleStatus.DRAFT, ArticleStatus.REJECTED):
-        raise ValueError("only draft or rejected articles can be submitted for review")
+    if article.status != ArticleStatus.DRAFT:
+        raise ValueError("only draft articles can be submitted for review")
 
     article.status = ArticleStatus.PENDING_REVIEW
     article.save(update_fields=["status"])

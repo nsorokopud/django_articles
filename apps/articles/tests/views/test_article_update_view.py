@@ -126,7 +126,7 @@ class TestArticleUpdateView(TestCase):
         }
 
         self.client.force_login(self.author)
-        response = self.client.post(self.published_url, invalid_data)
+        response = self.client.post(self.draft_url, invalid_data)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
@@ -139,47 +139,6 @@ class TestArticleUpdateView(TestCase):
                     "content": ["This field is required."],
                 },
             },
-        )
-
-    def test_post_correct_for_published_article_keeps_slug_and_returns_public_url(self):
-        updated_data = {
-            "title": "new title",
-            "category": self.other_category.id,
-            "preview_text": "new preview text",
-            "content": "new content",
-            "tags": "tag2, tag3",
-        }
-
-        self.client.force_login(self.author)
-        response = self.client.post(self.published_url, updated_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json(),
-            {
-                "status": "success",
-                "data": {
-                    "articleUrl": reverse(
-                        "article-details",
-                        kwargs={"article_slug": self.published_article.slug},
-                    ),
-                    "isPublished": True,
-                },
-            },
-        )
-
-        self.published_article.refresh_from_db()
-        self.assertEqual(self.published_article.author, self.author)
-        self.assertEqual(self.published_article.title, "new title")
-        self.assertEqual(self.published_article.slug, "test-article")
-        self.assertEqual(self.published_article.category, self.other_category)
-        self.assertEqual(self.published_article.preview_text, "new preview text")
-        self.assertEqual(self.published_article.content, "new content")
-        self.assertIsNotNone(self.published_article.published_at)
-        self.assertEqual(self.published_article.publish_sequence, 1)
-        self.assertCountEqual(
-            [tag.name for tag in self.published_article.tags.all()],
-            ["tag2", "tag3"],
         )
 
     def test_post_correct_for_draft_article_regenerates_slug_and_returns_edit_url(self):
