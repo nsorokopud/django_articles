@@ -130,9 +130,6 @@ def reject_article(
     if article.status != ArticleStatus.PENDING_REVIEW:
         raise ValueError("only articles pending review can be rejected")
 
-    if article.status == ArticleStatus.REJECTED and not reason and reviewer is None:
-        return article
-
     article.status = ArticleStatus.REJECTED
     article.published_at = None
     article.publish_sequence = None
