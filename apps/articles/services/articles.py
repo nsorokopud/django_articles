@@ -8,7 +8,7 @@ from nanoid import generate
 from users.models import User
 
 from ..models import Article, ArticleStatus
-from .publishing import publish_article, restore_article_to_draft
+from .publishing import restore_article_to_draft
 
 
 MAX_SLUG_RETRY_ATTEMPTS = 5
@@ -22,7 +22,6 @@ def save_article(
     article: Article,
     author: User | None = None,
     save_m2m: Callable[[], None] | None = None,
-    publish: bool = False,
 ) -> Article:
     is_new = article.pk is None
 
@@ -60,12 +59,8 @@ def save_article(
     if (
         previous_article is not None
         and previous_article.status == ArticleStatus.REJECTED
-        and not publish
     ):
         article = restore_article_to_draft(article_id=article.id)
-
-    if publish:
-        article = publish_article(article_id=article.id)
 
     return article
 
