@@ -23,6 +23,10 @@
                   Status: <strong>Rejected</strong>. Please update the article and try again.
                 </div>
 
+                <div class="mt-2 small">
+                  After you save changes, this article will move back to <strong>Draft</strong>.
+                </div>
+
                 {% if article.review_note %}
                   <hr>
                   <div>
@@ -70,11 +74,16 @@
 
           <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
             {% if update %}
-              {% if article.status == "draft" or article.status == "rejected" %}
+              {% if article.status == "draft" %}
                 <button form="articleForm"
                         id="articleFormUpdateButton"
                         class="btn btn-success"
                         type="submit">Update article</button>
+              {% elif article.status == "rejected" %}
+                <button form="articleForm"
+                        id="articleFormUpdateButton"
+                        class="btn btn-success"
+                        type="submit">Save and move to draft</button>
               {% endif %}
 
               {% if article.is_published %}
