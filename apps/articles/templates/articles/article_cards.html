@@ -65,18 +65,20 @@
         </h5>
       {% endif %}
 
-      {% if article.tags.all %}
-        <ul class="article-tags-list">
-          <span class="tags-span">Tags:</span>
-          {% for tag in article.tags.all %}
-            <li>
-              <a class="article-tag-link" href="{{ tag_filter_url }}?tags={{ tag }}">
-                #{{ tag }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}
+      {% with tags=article.tags.all %}
+        {% if tags %}
+          <ul class="article-tags-list">
+            <span class="tags-span">Tags:</span>
+            {% for tag in tags %}
+              <li>
+                <a class="article-tag-link" href="{{ tag_filter_url }}?tags={{ tag }}">
+                  #{{ tag }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
 
       <div class="article-preview-content">
         {% if article.preview_image %}
