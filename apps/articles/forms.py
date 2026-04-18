@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from core.exceptions import InvalidUpload
 from core.validators import validate_uploaded_file
 
-from .models import Article, ArticleComment
+from .models import Article, ArticleComment, ArticleStatus
 from .services.articles import save_article
 from .services.comments import create_article_comment
 
@@ -81,8 +81,19 @@ class ArticleModelForm(forms.ModelForm):
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
+
         if not self.instance.pk and (not self.user or not self.user.is_authenticated):
             raise ValidationError("A valid authenticated user is required.")
+
+        if self.instance.pk:
+            if self.instance.status == ArticleStatus.PUBLISHED:
+                raise ValidationError("Published articles cannot be edited.")
+
+            if self.instance.status == ArticleStatus.PENDING_REVIEW:
+                raise ValidationError(
+                    "Withdraw the article from review before editing."
+                )
+
         return cleaned_data
 
     def save(self, commit=True, *, publish=False) -> Article:

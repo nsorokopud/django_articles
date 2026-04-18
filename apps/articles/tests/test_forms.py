@@ -5,6 +5,7 @@ from django import forms
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 from PIL import Image
 
 from articles.forms import (
@@ -15,7 +16,7 @@ from articles.forms import (
     ArticleRejectAdminForm,
     AttachedFileUploadForm,
 )
-from articles.models import Article, ArticleCategory, ArticleComment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from core.exceptions import InvalidUpload
 from users.models import User
 
@@ -315,6 +316,86 @@ class TestArticleModelForm(TestCase):
         self.assertEqual(
             form.errors, {"__all__": ["A valid authenticated user is required."]}
         )
+
+    def test_published_article_cannot_be_edited(self):
+        self.article.status = ArticleStatus.PUBLISHED
+        self.article.published_at = timezone.now()
+        self.article.publish_sequence = 1
+        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+
+        form = ArticleModelForm(
+            instance=self.article,
+            data={
+                "title": "updated title",
+                "preview_text": "updated preview",
+                "content": "updated content",
+            },
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("__all__", form.errors)
+        self.assertEqual(
+            form.errors["__all__"],
+            ["Published articles cannot be edited."],
+        )
+
+    def test_pending_review_article_cannot_be_edited(self):
+        self.article.status = ArticleStatus.PENDING_REVIEW
+        self.article.save(update_fields=["status"])
+
+        form = ArticleModelForm(
+            instance=self.article,
+            data={
+                "title": "updated title",
+                "preview_text": "updated preview",
+                "content": "updated content",
+            },
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("__all__", form.errors)
+        self.assertEqual(
+            form.errors["__all__"],
+            ["Withdraw the article from review before editing."],
+        )
+
+    @patch("articles.forms.save_article")
+    def test_rejected_article_can_be_edited(self, mock_save_article):
+        self.article.status = ArticleStatus.REJECTED
+        self.article.review_note = "Fix grammar."
+        self.article.save(update_fields=["status", "review_note"])
+        mock_save_article.return_value = self.article
+
+        form = ArticleModelForm(
+            instance=self.article,
+            data={
+                "title": "updated title",
+                "category": self.category.id,
+                "tags": "tag1, tag2",
+                "preview_text": "updated preview",
+                "content": "updated content",
+            },
+        )
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.errors, {})
+
+        result = form.save()
+
+        self.assertEqual(result, self.article)
+        mock_save_article.assert_called_once_with(
+            article=ANY,
+            author=None,
+            save_m2m=form.save_m2m,
+            publish=False,
+        )
+
+        passed_article = mock_save_article.call_args.kwargs["article"]
+        self.assertEqual(passed_article.pk, self.article.pk)
+        self.assertEqual(passed_article.title, "updated title")
+        self.assertEqual(passed_article.category, self.category)
+        self.assertEqual(passed_article.preview_text, "updated preview")
+        self.assertEqual(passed_article.content, "updated content")
 
 
 class TestAttachedFileUploadForm(SimpleTestCase):
