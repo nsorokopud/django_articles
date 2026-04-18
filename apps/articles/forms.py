@@ -108,7 +108,6 @@ class ArticleModelForm(forms.ModelForm):
             article=instance,
             author=author,
             save_m2m=self.save_m2m,
-            publish=publish,
         )
 
 

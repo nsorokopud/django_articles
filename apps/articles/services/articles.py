@@ -56,6 +56,8 @@ def save_article(
     if save_m2m is not None:
         save_m2m()
 
+    # Business rule:
+    # editing a rejected article reopens it as a draft.
     if (
         previous_article is not None
         and previous_article.status == ArticleStatus.REJECTED
