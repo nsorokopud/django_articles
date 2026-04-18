@@ -180,7 +180,7 @@
     "pk": 35,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 21
     }
   },
@@ -189,7 +189,7 @@
     "pk": 36,
     "fields": {
       "tag": 26,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 21
     }
   },
@@ -198,7 +198,7 @@
     "pk": 37,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 21
     }
   },
@@ -207,7 +207,7 @@
     "pk": 38,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 22
     }
   },
@@ -216,7 +216,7 @@
     "pk": 39,
     "fields": {
       "tag": 26,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 22
     }
   },
@@ -225,7 +225,7 @@
     "pk": 40,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 22
     }
   },
@@ -234,7 +234,7 @@
     "pk": 41,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 23
     }
   },
@@ -243,7 +243,7 @@
     "pk": 42,
     "fields": {
       "tag": 30,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 23
     }
   },
@@ -252,7 +252,7 @@
     "pk": 43,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 24
     }
   },
@@ -261,7 +261,7 @@
     "pk": 44,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 24
     }
   },
@@ -270,7 +270,7 @@
     "pk": 45,
     "fields": {
       "tag": 31,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 24
     }
   },
@@ -279,7 +279,7 @@
     "pk": 46,
     "fields": {
       "tag": 32,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 25
     }
   },
@@ -288,7 +288,7 @@
     "pk": 47,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 25
     }
   },
@@ -297,7 +297,7 @@
     "pk": 48,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 25
     }
   },
@@ -306,7 +306,7 @@
     "pk": 49,
     "fields": {
       "tag": 32,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 26
     }
   },
@@ -315,7 +315,7 @@
     "pk": 50,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 26
     }
   },
@@ -324,7 +324,7 @@
     "pk": 51,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 26
     }
   },
@@ -333,7 +333,7 @@
     "pk": 52,
     "fields": {
       "tag": 32,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 27
     }
   },
@@ -342,7 +342,7 @@
     "pk": 53,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 27
     }
   },
@@ -351,7 +351,7 @@
     "pk": 54,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 27
     }
   },
@@ -360,7 +360,7 @@
     "pk": 55,
     "fields": {
       "tag": 33,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 28
     }
   },
@@ -369,7 +369,7 @@
     "pk": 56,
     "fields": {
       "tag": 34,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 28
     }
   },
@@ -378,7 +378,7 @@
     "pk": 57,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 29
     }
   },
@@ -387,7 +387,7 @@
     "pk": 58,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 29
     }
   },
@@ -396,7 +396,7 @@
     "pk": 59,
     "fields": {
       "tag": 31,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 29
     }
   },
@@ -405,7 +405,7 @@
     "pk": 60,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 30
     }
   },
@@ -414,7 +414,7 @@
     "pk": 61,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 30
     }
   },
@@ -423,7 +423,7 @@
     "pk": 62,
     "fields": {
       "tag": 31,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 30
     }
   },
@@ -432,7 +432,7 @@
     "pk": 63,
     "fields": {
       "tag": 33,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 31
     }
   },
@@ -441,7 +441,7 @@
     "pk": 64,
     "fields": {
       "tag": 34,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 31
     }
   },
@@ -450,7 +450,7 @@
     "pk": 65,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 32
     }
   },
@@ -459,7 +459,7 @@
     "pk": 66,
     "fields": {
       "tag": 30,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 32
     }
   },
@@ -468,7 +468,7 @@
     "pk": 67,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 33
     }
   },
@@ -477,7 +477,7 @@
     "pk": 68,
     "fields": {
       "tag": 30,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 33
     }
   },
@@ -486,7 +486,7 @@
     "pk": 69,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 34
     }
   },
@@ -495,7 +495,7 @@
     "pk": 70,
     "fields": {
       "tag": 26,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 34
     }
   },
@@ -504,7 +504,7 @@
     "pk": 71,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 34
     }
   },
@@ -513,7 +513,7 @@
     "pk": 72,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 35
     }
   },
@@ -522,7 +522,7 @@
     "pk": 73,
     "fields": {
       "tag": 26,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 35
     }
   },
@@ -531,7 +531,7 @@
     "pk": 74,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 35
     }
   },
@@ -540,7 +540,7 @@
     "pk": 75,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 36
     }
   },
@@ -549,7 +549,7 @@
     "pk": 76,
     "fields": {
       "tag": 26,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 36
     }
   },
@@ -558,7 +558,7 @@
     "pk": 77,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 36
     }
   },
@@ -567,7 +567,7 @@
     "pk": 78,
     "fields": {
       "tag": 35,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 37
     }
   },
@@ -576,7 +576,7 @@
     "pk": 79,
     "fields": {
       "tag": 36,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 37
     }
   },
@@ -585,7 +585,7 @@
     "pk": 80,
     "fields": {
       "tag": 37,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 38
     }
   },
@@ -594,7 +594,7 @@
     "pk": 81,
     "fields": {
       "tag": 38,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 38
     }
   },
@@ -603,7 +603,7 @@
     "pk": 82,
     "fields": {
       "tag": 33,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 39
     }
   },
@@ -612,7 +612,7 @@
     "pk": 83,
     "fields": {
       "tag": 34,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 39
     }
   },
@@ -621,7 +621,7 @@
     "pk": 84,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 40
     }
   },
@@ -630,7 +630,7 @@
     "pk": 85,
     "fields": {
       "tag": 28,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 40
     }
   },
@@ -639,7 +639,7 @@
     "pk": 86,
     "fields": {
       "tag": 29,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 40
     }
   },
@@ -648,7 +648,7 @@
     "pk": 87,
     "fields": {
       "tag": 39,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 41
     }
   },
@@ -657,7 +657,7 @@
     "pk": 88,
     "fields": {
       "tag": 40,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 41
     }
   },
@@ -666,7 +666,7 @@
     "pk": 89,
     "fields": {
       "tag": 41,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 41
     }
   },
@@ -675,7 +675,7 @@
     "pk": 90,
     "fields": {
       "tag": 42,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 42
     }
   },
@@ -684,7 +684,7 @@
     "pk": 91,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 42
     }
   },
@@ -693,7 +693,7 @@
     "pk": 92,
     "fields": {
       "tag": 43,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 43
     }
   },
@@ -702,7 +702,7 @@
     "pk": 93,
     "fields": {
       "tag": 44,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 43
     }
   },
@@ -711,7 +711,7 @@
     "pk": 94,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 43
     }
   },
@@ -720,7 +720,7 @@
     "pk": 95,
     "fields": {
       "tag": 43,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 44
     }
   },
@@ -729,7 +729,7 @@
     "pk": 96,
     "fields": {
       "tag": 44,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 44
     }
   },
@@ -738,7 +738,7 @@
     "pk": 97,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 44
     }
   },
@@ -747,7 +747,7 @@
     "pk": 98,
     "fields": {
       "tag": 25,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 45
     }
   },
@@ -756,7 +756,7 @@
     "pk": 99,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 45
     }
   },
@@ -765,7 +765,7 @@
     "pk": 100,
     "fields": {
       "tag": 45,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 46
     }
   },
@@ -774,7 +774,7 @@
     "pk": 101,
     "fields": {
       "tag": 46,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 46
     }
   },
@@ -783,7 +783,7 @@
     "pk": 102,
     "fields": {
       "tag": 27,
-      "content_type": 14,
+      "content_type": ["articles", "article"],
       "object_id": 46
     }
   },
