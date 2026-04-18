@@ -139,7 +139,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
         buttons = []
 
-        if obj.status == ArticleStatus.DRAFT:
+        if obj.status == ArticleStatus.PENDING_REVIEW:
             buttons.append(
                 (
                     reverse("admin:articles_article_publish", args=[obj.pk]),
@@ -155,7 +155,7 @@ class ArticleAdmin(admin.ModelAdmin):
                 )
             )
 
-        if obj.status == ArticleStatus.DRAFT:
+        if obj.status == ArticleStatus.PENDING_REVIEW:
             buttons.append(
                 (
                     reverse("admin:articles_article_reject", args=[obj.pk]),
@@ -337,7 +337,7 @@ class ArticleAdmin(admin.ModelAdmin):
         updated_rows_count = 0
         failed_rows_count = 0
 
-        for article in queryset.filter(status=ArticleStatus.DRAFT):
+        for article in queryset.filter(status=ArticleStatus.PENDING_REVIEW):
             try:
                 publish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
