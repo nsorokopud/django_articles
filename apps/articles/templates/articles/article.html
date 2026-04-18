@@ -49,7 +49,7 @@
                        src="{{ article.preview_image.url }}"
                        alt="Article preview image">
                 {% endif %}
-                <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
+                <div class="article-content mt-3">{{ article.content|safe }}</div>
 
                 <span class="article-preview-icons">
                   <span class="mx-2 article-preview-icons__item">
