@@ -88,6 +88,7 @@ def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
         ArticleComment.objects.filter(article=article)
         .select_related("author", "author__profile")
         .annotate(likes_count=Count("users_that_liked", distinct=True))
+        .order_by("-created_at", "-id")
     )
 
 
