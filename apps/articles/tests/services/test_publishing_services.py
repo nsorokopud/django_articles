@@ -623,6 +623,28 @@ class TestRejectArticle(TestCase):
 
         mock_notify.assert_not_called()
 
+    def test_raises_for_empty_reason(self):
+        article = Article.objects.create(
+            title="Pending",
+            slug="pending",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "rejection reason is required",
+        ):
+            reject_article(article_id=article.id, reason="   ")
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+        self.assertIsNone(article.reviewed_at)
+        self.assertIsNone(article.reviewed_by)
+        self.assertEqual(article.review_note, "")
+
 
 class TestRestoreArticleToDraft(TestCase):
     def setUp(self):

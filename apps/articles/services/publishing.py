@@ -130,10 +130,14 @@ def reject_article(
     if article.status != ArticleStatus.PENDING_REVIEW:
         raise ValueError("only articles pending review can be rejected")
 
+    cleaned_reason = reason.strip()
+    if not cleaned_reason:
+        raise ValueError("rejection reason is required")
+
     article.status = ArticleStatus.REJECTED
     article.published_at = None
     article.publish_sequence = None
-    article.review_note = reason.strip()
+    article.review_note = cleaned_reason
     article.reviewed_at = timezone.now()
     article.reviewed_by = reviewer
 
