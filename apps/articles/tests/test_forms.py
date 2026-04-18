@@ -153,9 +153,7 @@ class TestArticleModelForm(TestCase):
         )
 
     @patch("articles.forms.save_article")
-    def test_create_delegates_to_save_article_with_default_publish_false(
-        self, mock_save_article
-    ):
+    def test_create_delegates_to_save_article(self, mock_save_article):
         preview_image = self.get_preview_image()
 
         unsaved_result = Article(
@@ -186,10 +184,7 @@ class TestArticleModelForm(TestCase):
 
         self.assertEqual(result, unsaved_result)
         mock_save_article.assert_called_once_with(
-            article=ANY,
-            author=self.user,
-            save_m2m=form.save_m2m,
-            publish=False,
+            article=ANY, author=self.user, save_m2m=form.save_m2m
         )
 
         passed_article = mock_save_article.call_args.kwargs["article"]
@@ -199,30 +194,6 @@ class TestArticleModelForm(TestCase):
         self.assertEqual(passed_article.preview_text, "preview2")
         self.assertEqual(passed_article.content, "content2")
         self.assertTrue(passed_article.preview_image.name.endswith("test_image.jpg"))
-
-    @patch("articles.forms.save_article")
-    def test_create_passes_publish_true_when_requested(self, mock_save_article):
-        mock_save_article.return_value = self.article
-
-        form = ArticleModelForm(
-            user=self.user,
-            data={
-                "title": "a2",
-                "preview_text": "preview2",
-                "content": "content2",
-            },
-        )
-
-        self.assertTrue(form.is_valid())
-
-        form.save(publish=True)
-
-        mock_save_article.assert_called_once_with(
-            article=ANY,
-            author=self.user,
-            save_m2m=form.save_m2m,
-            publish=True,
-        )
 
     @patch("articles.forms.save_article")
     def test_update_delegates_to_save_article_with_author_none(self, mock_save_article):
@@ -249,7 +220,6 @@ class TestArticleModelForm(TestCase):
             article=ANY,
             author=None,
             save_m2m=form.save_m2m,
-            publish=False,
         )
 
         passed_article = mock_save_article.call_args.kwargs["article"]
@@ -387,7 +357,6 @@ class TestArticleModelForm(TestCase):
             article=ANY,
             author=None,
             save_m2m=form.save_m2m,
-            publish=False,
         )
 
         passed_article = mock_save_article.call_args.kwargs["article"]

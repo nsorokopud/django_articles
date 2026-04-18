@@ -96,7 +96,7 @@ class ArticleModelForm(forms.ModelForm):
 
         return cleaned_data
 
-    def save(self, commit=True, *, publish=False) -> Article:
+    def save(self, commit=True) -> Article:
         instance = super().save(commit=False)
 
         if not commit:

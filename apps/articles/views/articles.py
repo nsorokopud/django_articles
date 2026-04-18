@@ -220,7 +220,7 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form) -> JsonResponse:
-        article = form.save(publish=False)
+        article = form.save()
         article_url = (
             article.get_absolute_url()
             if article.is_published
@@ -259,7 +259,7 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
             raise Http404("Article not found") from e
 
     def form_valid(self, form) -> JsonResponse:
-        article = form.save(publish=False)
+        article = form.save()
 
         article_url = (
             article.get_absolute_url()
