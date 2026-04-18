@@ -70,7 +70,7 @@
 
           <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
             {% if update %}
-              {% if article.status != "pending_review" %}
+              {% if article.status == "draft" or article.status == "rejected" %}
                 <button form="articleForm"
                         id="articleFormUpdateButton"
                         class="btn btn-success"
