@@ -25,7 +25,7 @@ from users.services.subscriptions import (
 
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
-from ..models import Article
+from ..models import Article, ArticleStatus
 from ..selectors import (
     find_article_comments_liked_by_user,
     find_articles_by_author,
@@ -251,12 +251,17 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
 
     def get_object(self) -> Article:
         try:
-            return get_article_for_author_by_slug(
+            article = get_article_for_author_by_slug(
                 article_slug=self.kwargs["article_slug"],
                 author_id=self.request.user.id,
             )
         except Article.DoesNotExist as e:
             raise Http404("Article not found") from e
+
+        if article.status == ArticleStatus.PUBLISHED:
+            raise Http404("Article not found")
+
+        return article
 
     def form_valid(self, form) -> JsonResponse:
         article = form.save()

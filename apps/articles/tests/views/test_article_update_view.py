@@ -73,13 +73,11 @@ class TestArticleUpdateView(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
-    def test_get_correct_for_published_article(self):
+    def test_get_for_published_article_returns_404(self):
         self.client.force_login(self.author)
         response = self.client.get(self.published_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "articles/article_form.html")
-        self.assertEqual(response.context["object"], self.published_article)
-        self.assertTrue(response.context["update"])
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "error.html")
 
     def test_get_correct_for_draft_article(self):
         self.client.force_login(self.author)
@@ -196,11 +194,11 @@ class TestArticleUpdateView(TestCase):
         }
 
         self.client.force_login(self.author)
-        response = self.client.post(self.published_url, updated_data)
+        response = self.client.post(self.draft_url, updated_data)
 
         self.assertEqual(response.status_code, 200)
-        self.published_article.refresh_from_db()
-        self.assertEqual(self.published_article.author_id, self.author.id)
+        self.draft_article.refresh_from_db()
+        self.assertEqual(self.draft_article.author_id, self.author.id)
 
     def test_post_not_author_does_not_modify_article(self):
         original_title = self.published_article.title
