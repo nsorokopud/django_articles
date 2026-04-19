@@ -337,7 +337,7 @@ class ArticleAdmin(admin.ModelAdmin):
         updated_rows_count = 0
         failed_rows_count = 0
 
-        for article in queryset.filter(status=ArticleStatus.PENDING_REVIEW):
+        for article in queryset:
             try:
                 publish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
@@ -370,7 +370,7 @@ class ArticleAdmin(admin.ModelAdmin):
         updated_rows_count = 0
         failed_rows_count = 0
 
-        for article in queryset.filter(status=ArticleStatus.PUBLISHED):
+        for article in queryset:
             try:
                 unpublish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
