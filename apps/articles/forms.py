@@ -79,6 +79,10 @@ class ArticleModelForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
+        if self.instance.pk and self.instance.status == ArticleStatus.PENDING_REVIEW:
+            for field in self.fields.values():
+                field.disabled = True
+
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
 

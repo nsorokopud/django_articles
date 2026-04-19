@@ -322,6 +322,13 @@ class TestArticleModelForm(TestCase):
             },
         )
 
+        self.assertTrue(form.fields["title"].disabled)
+        self.assertTrue(form.fields["category"].disabled)
+        self.assertTrue(form.fields["tags"].disabled)
+        self.assertTrue(form.fields["preview_text"].disabled)
+        self.assertTrue(form.fields["preview_image"].disabled)
+        self.assertTrue(form.fields["content"].disabled)
+
         self.assertFalse(form.is_valid())
         self.assertIn("__all__", form.errors)
         self.assertEqual(

@@ -73,6 +73,25 @@ class TestArticleUpdateView(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
+    def test_get_form_disabled_for_pending_review_article(self):
+        self.draft_article.status = ArticleStatus.PENDING_REVIEW
+        self.draft_article.save(update_fields=["status"])
+
+        self.client.force_login(self.author)
+        response = self.client.get(self.draft_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "articles/article_form.html")
+        self.assertEqual(response.context["object"], self.draft_article)
+        self.assertTrue(response.context["update"])
+
+        form = response.context["form"]
+        self.assertTrue(form.fields["title"].disabled)
+        self.assertTrue(form.fields["category"].disabled)
+        self.assertTrue(form.fields["tags"].disabled)
+        self.assertTrue(form.fields["preview_text"].disabled)
+        self.assertTrue(form.fields["preview_image"].disabled)
+        self.assertTrue(form.fields["content"].disabled)
+
     def test_get_for_published_article_returns_404(self):
         self.client.force_login(self.author)
         response = self.client.get(self.published_url)
