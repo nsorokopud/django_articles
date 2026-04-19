@@ -62,8 +62,23 @@
                   action="{% url 'article-create' %}"
                 {% endif %}
                 enctype="multipart/form-data">
+
             {% csrf_token %}
-            {{ form|crispy }}
+
+            {{ form.title|as_crispy_field }}
+            {{ form.category|as_crispy_field }}
+            {{ form.tags|as_crispy_field }}
+            {{ form.preview_text|as_crispy_field }}
+            {{ form.preview_image|as_crispy_field }}
+
+            {% if article.status == "pending_review" %}
+              <div class="mb-3">
+                <label class="form-label">Content</label>
+                <div class="border rounded px-3 py-3 bg-light">{{ article.content|safe }}</div>
+              </div>
+            {% else %}
+              {{ form.content|as_crispy_field }}
+            {% endif %}
 
             {% if update %}
               <input type="hidden" id="articleId" value="{{ form.instance.id }}" />
