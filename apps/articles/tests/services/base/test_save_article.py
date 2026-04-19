@@ -237,6 +237,41 @@ class TestSaveArticle(TestCase):
         self.assertEqual(saved.author, self.author)
         self.assertEqual(Article.objects.count(), 1)
 
+    @patch("articles.services.articles.sanitize_article_html")
+    def test_calls_sanitizer_before_save(self, mock_sanitize):
+        mock_sanitize.return_value = "<p>clean</p>"
+
+        article = Article(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            preview_text="preview",
+            content="<p>x</p><script>alert(1)</script>",
+        )
+
+        saved = save_article(article=article, author=self.author)
+
+        mock_sanitize.assert_called_once_with("<p>x</p><script>alert(1)</script>")
+        self.assertEqual(saved.content, "<p>clean</p>")
+
+    def test_sanitizes_content_when_creating_article(self):
+        article = Article(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            preview_text="preview",
+            content='<p>Hello</p><script>alert("xss")</script>',
+        )
+
+        saved = save_article(article=article, author=self.author)
+
+        self.assertIn("<p>Hello</p>", saved.content)
+        self.assertNotIn("<script", saved.content)
+
+        saved.refresh_from_db()
+        self.assertIn("<p>Hello</p>", saved.content)
+        self.assertNotIn("<script", saved.content)
+
     def test_generates_slug_for_new_article_when_slug_blank(self):
         article = Article(
             title="Hello World",

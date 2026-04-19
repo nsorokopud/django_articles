@@ -9,6 +9,7 @@ from users.models import User
 
 from ..models import Article, ArticleStatus
 from .publishing import restore_article_to_draft
+from .sanitization import sanitize_article_html
 
 
 MAX_SLUG_RETRY_ATTEMPTS = 5
@@ -36,6 +37,8 @@ def save_article(
             .only("title", "slug", "status")
             .get(pk=article.pk)
         )
+
+    article.content = sanitize_article_html(article.content)
 
     if _should_regenerate_slug(article, previous_article):
         for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
