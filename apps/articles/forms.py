@@ -13,6 +13,9 @@ from .services.comments import create_article_comment
 
 ARTICLE_REJECT_REASON_MIN_LENGTH = 10
 ARTICLE_REJECT_REASON_MAX_LENGTH = 2000
+ARTICLE_TITLE_SLUG_HELP = (
+    "Changing the title may update the article URL until publication."
+)
 
 
 class ArticleAdminForm(forms.ModelForm):
@@ -78,6 +81,15 @@ class ArticleModelForm(forms.ModelForm):
     def __init__(self, *args, **kwargs) -> None:
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+
+        if not self.instance.pk or self.instance.status in {
+            ArticleStatus.DRAFT,
+            ArticleStatus.REJECTED,
+        }:
+            existing_help = self.fields["title"].help_text or ""
+            self.fields["title"].help_text = (
+                f"{existing_help} {ARTICLE_TITLE_SLUG_HELP}".strip()
+            )
 
         if self.instance.pk and self.instance.status == ArticleStatus.PENDING_REVIEW:
             for field in self.fields.values():
