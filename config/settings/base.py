@@ -312,32 +312,27 @@ TINYMCE_DEFAULT_CONFIG = {
     "height": 500,
     "width": "100%",
     "menubar": False,
+    "promotion": False,
+    "license_key": "gpl",
     "plugins": (
-        "image link autolink media advlist lists table codesample charmap" "fullscreen"
+        "autolink link image advlist lists table codesample charmap fullscreen"
     ),
     "toolbar": [
-        (
-            "undo redo | fullscreen | hr image media table codesample blockquote | "
-            "subscript superscript charmap"
-        ),
-        (
-            "blocks | bullist numlist indent outdent | "
-            "alignleft aligncenter alignright alignjustify lineheight"
-        ),
-        (
-            "fontfamily fontsize | "
-            "bold italic underline strikethrough forecolor backcolor | removeformat"
-        ),
+        "undo redo | fullscreen | hr image table codesample blockquote | charmap",
+        "blocks | bullist numlist indent outdent | alignleft aligncenter alignright"
+        " alignjustify",
+        "fontfamily fontsize | bold italic underline strikethrough | removeformat",
     ],
-    "file_picker_types": "image media",
+    "file_picker_types": "image",
     "images_upload_url": "/tinymce/upload",
     "images_upload_handler": "tinymceUploadHandler",
     "automatic_uploads": False,
     "convert_urls": False,
     "relative_urls": False,
     "remove_script_host": True,
-    "promotion": False,
-    "license_key": "gpl",
+    "invalid_elements": (
+        "script,iframe,object,embed,form,input,button,select,textarea,style"
+    ),
 }
 
 
