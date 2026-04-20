@@ -28,19 +28,7 @@ def create_empty_draft(*, author: User) -> Article:
         status=ArticleStatus.DRAFT,
     )
 
-    for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
-        article.slug = _build_article_slug_candidate(
-            article.title,
-            use_suffix=(attempt > 0),
-        )
-        try:
-            with transaction.atomic():
-                article.save()
-            return article
-        except IntegrityError:
-            if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
-                raise
-
+    _save_with_unique_slug(article)
     return article
 
 
@@ -68,18 +56,7 @@ def save_article(
     article.content = sanitize_article_html(article.content)
 
     if _should_regenerate_slug(article, previous_article):
-        for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
-            article.slug = _build_article_slug_candidate(
-                article.title,
-                use_suffix=(attempt > 0),
-            )
-            try:
-                with transaction.atomic():
-                    article.save()
-                break
-            except IntegrityError:
-                if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
-                    raise
+        _save_with_unique_slug(article)
     else:
         article.save()
 
@@ -95,6 +72,21 @@ def save_article(
         article = restore_article_to_draft(article_id=article.id)
 
     return article
+
+
+def _save_with_unique_slug(article: Article) -> None:
+    for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
+        article.slug = _build_article_slug_candidate(
+            article.title,
+            use_suffix=(attempt > 0),
+        )
+        try:
+            with transaction.atomic():
+                article.save()
+            return
+        except IntegrityError:
+            if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
+                raise
 
 
 def _build_article_slug_candidate(title: str, *, use_suffix: bool) -> str:
