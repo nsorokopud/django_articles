@@ -1,3 +1,4 @@
+# pylint: disable=C0302
 from unittest.mock import patch
 
 from django.conf import settings
@@ -93,6 +94,62 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
 
         article.refresh_from_db()
         self.assertEqual(article.status, ArticleStatus.REJECTED)
+
+    def test_raises_when_title_is_blank(self):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        article.title = "   "
+        article.save(update_fields=["title"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Title is required before submission for review.",
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+    def test_raises_when_title_is_default_draft_title(self):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        article.title = settings.DEFAULT_DRAFT_ARTICLE_TITLE
+        article.save(update_fields=["title"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Title is required before submission for review.",
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+    def test_raises_when_preview_text_is_blank(self):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        article.preview_text = "   "
+        article.save(update_fields=["preview_text"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Preview text is required before submission for review.",
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+    def test_raises_when_content_is_empty_html(self):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        article.content = "<p><br></p>"
+        article.save(update_fields=["content"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Content is required before submission for review.",
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
 
 
 class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
@@ -355,6 +412,73 @@ class TestPublishArticle(TestCase):
         with self.assertRaises(Article.DoesNotExist):
             publish_article(article_id=999999)
 
+        mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_published")
+    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
+    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
+    def test_raises_when_title_is_blank(self, mock_get_next, mock_advance, mock_notify):
+        self.article.title = "   "
+        self.article.save(update_fields=["title"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Title is required before publishing.",
+        ):
+            publish_article(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
+        self.assertIsNone(self.article.published_at)
+        self.assertIsNone(self.article.publish_sequence)
+        mock_get_next.assert_not_called()
+        mock_advance.assert_not_called()
+        mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_published")
+    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
+    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
+    def test_raises_when_preview_text_is_blank(
+        self, mock_get_next, mock_advance, mock_notify
+    ):
+        self.article.preview_text = "   "
+        self.article.save(update_fields=["preview_text"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Preview text is required before publishing.",
+        ):
+            publish_article(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
+        self.assertIsNone(self.article.published_at)
+        self.assertIsNone(self.article.publish_sequence)
+        mock_get_next.assert_not_called()
+        mock_advance.assert_not_called()
+        mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_published")
+    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
+    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
+    def test_raises_when_content_is_empty_html(
+        self, mock_get_next, mock_advance, mock_notify
+    ):
+        self.article.content = "<p>&nbsp;</p>"
+        self.article.save(update_fields=["content"])
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Content is required before publishing.",
+        ):
+            publish_article(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
+        self.assertIsNone(self.article.published_at)
+        self.assertIsNone(self.article.publish_sequence)
+        mock_get_next.assert_not_called()
+        mock_advance.assert_not_called()
         mock_notify.assert_not_called()
 
 

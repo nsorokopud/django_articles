@@ -23,6 +23,8 @@ def submit_article_for_review(*, article_id: int) -> Article:
     if article.status != ArticleStatus.DRAFT:
         raise ValueError("only draft articles can be submitted for review")
 
+    _validate_article_ready(article, action="submission for review")
+
     article.status = ArticleStatus.PENDING_REVIEW
     article.save(update_fields=["status"])
     return article
@@ -46,6 +48,8 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
 
     if article.status != ArticleStatus.PENDING_REVIEW:
         raise ValueError("only articles pending review can be published")
+
+    _validate_article_ready(article, action="publishing")
 
     seq = get_next_article_publish_sequence_value()
     article.status = ArticleStatus.PUBLISHED
