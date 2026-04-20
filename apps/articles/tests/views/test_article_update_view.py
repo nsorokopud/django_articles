@@ -142,7 +142,7 @@ class TestArticleUpdateView(TestCase):
         self.client.force_login(self.author)
         response = self.client.post(self.draft_url, invalid_data)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json(),
             {

@@ -279,7 +279,7 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
         return JsonResponse({"status": "success", "data": data})
 
     def form_invalid(self, form) -> JsonResponse:
-        return JsonResponse({"status": "fail", "data": form.errors})
+        return JsonResponse({"status": "fail", "data": form.errors}, status=400)
 
 
 class ArticleSubmitForReviewView(LoginRequiredMixin, View):
