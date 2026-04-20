@@ -1,121 +1,94 @@
-$('#articleFormCreateButton').click((e) => {
-  let form = document.getElementById('articleForm');
-  let isFormValid = form.checkValidity();
-  if (!isFormValid) {
-    document.documentElement.style.scrollBehavior = 'auto';
-    form.reportValidity();
-    document.documentElement.style.scrollBehavior = '';
-  } else {
-    e.preventDefault();
-    onArticleFormCreateButtonClick();
-  }
-});
+document.getElementById('articleForm').addEventListener('submit', (e) => {
+  const form = e.target;
+  const isFormValid = form.checkValidity();
 
-$('#articleFormUpdateButton').click((e) => {
-  let form = document.getElementById('articleForm');
-  let isFormValid = form.checkValidity();
   if (!isFormValid) {
     document.documentElement.style.scrollBehavior = 'auto';
     form.reportValidity();
     document.documentElement.style.scrollBehavior = '';
+    e.preventDefault();
     return;
   }
+
   e.preventDefault();
-  onArticleFormUpdateButtonClick();
+  onArticleFormSaveButtonClick();
 });
 
-function onArticleFormCreateButtonClick() {
+function onArticleFormSaveButtonClick() {
   removeFormValidationErrors();
 
-  let form = document.getElementById('articleForm');
+  const form = document.getElementById('articleForm');
+  const articleSlug = document.getElementById('articleSlug').value;
+  const editor = tinymce.activeEditor;
 
-  let xhr = new XMLHttpRequest();
-  xhr.open('POST', '/articles/create');
-  xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
-  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  if (!editor) {
+    alert('Editor is not ready yet. Please try again.');
+    return;
+  }
 
-  xhr.onload = () => {
-    if (xhr.status != 200) {
-      alert(`Error (HTTP: ${xhr.status}) while creating article!`);
-      return;
-    }
-
-    let response = JSON.parse(xhr.responseText);
-
-    if (response.status == 'success') {
-      localStorage.setItem('createdArticleId', response.data.articleId);
-
-      let content = tinymce.activeEditor.getBody();
-      let containsUploadedImages =
-        checkIfContentContainsUploadedImages(content);
-
-      if (containsUploadedImages) {
-        tinymce.activeEditor.uploadImages().then(() => {
-          updateArticle(response.data.articleSlug, form, tinymce.activeEditor);
-        });
-      } else {
-        updateArticle(response.data.articleSlug, form, tinymce.activeEditor);
-      }
-    } else if (response.status == 'fail') {
-      displayFormValidationErrors(response);
-    } else if (response.status == 'error') {
-      alert(`Error while creating article! ${response.message}`);
-      console.log(response.message);
-    }
-  };
-
-  let formData = new FormData(form);
-  formData.set('content', tinymce.activeEditor.getContent());
-  xhr.send(formData);
-}
-
-function onArticleFormUpdateButtonClick() {
-  removeFormValidationErrors();
-
-  let form = document.getElementById('articleForm');
-  let articleId = document.getElementById('articleId').value;
-  let articleSlug = document.getElementById('articleSlug').value;
-  let content = tinymce.activeEditor.getBody();
-
-  let containsUploadedImages = checkIfContentContainsUploadedImages(content);
+  const content = editor.getBody();
+  const containsUploadedImages = checkIfContentContainsUploadedImages(content);
 
   if (containsUploadedImages) {
-    localStorage.setItem('createdArticleId', articleId);
-    tinymce.activeEditor.uploadImages().then(() => {
-      updateArticle(articleSlug, form, tinymce.activeEditor);
-    });
+    editor
+      .uploadImages()
+      .then(() => {
+        updateArticle(articleSlug, form, editor);
+      })
+      .catch((error) => {
+        console.error('TinyMCE image upload failed:', error);
+      });
   } else {
-    updateArticle(articleSlug, form, tinymce.activeEditor);
+    updateArticle(articleSlug, form, editor);
   }
 }
 
 function updateArticle(articleSlug, form, editor) {
-  xhr = new XMLHttpRequest();
+  const xhr = new XMLHttpRequest();
   xhr.open('POST', `/articles/${articleSlug}/edit`);
   xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  xhr.timeout = 30000;
 
   xhr.onload = () => {
-    response = JSON.parse(xhr.responseText);
-    if (response.status == 'success') {
-      localStorage.removeItem('createdArticleId');
+    let response = null;
+
+    try {
+      response = JSON.parse(xhr.responseText);
+    } catch (err) {
+      alert('Unexpected server response while updating article.');
+      console.error('Invalid JSON response:', xhr.responseText);
+      return;
+    }
+
+    if (xhr.status === 200 && response.status === 'success') {
       window.location.replace(response.data.articleUrl);
-    } else if (response.status == 'fail') {
+    } else if (xhr.status === 400 && response.status === 'fail') {
       displayFormValidationErrors(response);
-    } else if (response.status == 'error') {
-      alert(`Error while updating article! ${response.message}`);
-      console.log(response.message);
+    } else {
+      alert('Error while updating article!');
+      console.log(response);
     }
   };
 
-  let formData = new FormData(form);
+  xhr.onerror = () => {
+    alert('Network error while updating article. Please try again.');
+  };
+
+  xhr.ontimeout = () => {
+    alert('Article update timed out. Please try again.');
+  };
+
+  const formData = new FormData(form);
   formData.set('content', editor.getContent());
   xhr.send(formData);
 }
 
 function checkIfContentContainsUploadedImages(content) {
-  let images = content.getElementsByTagName('img');
-  for (el of images) if (el.src.startsWith('blob:')) return true;
+  const images = content.getElementsByTagName('img');
+  for (const el of images) {
+    if (el.src.startsWith('blob:')) return true;
+  }
   return false;
 }
 
@@ -125,12 +98,13 @@ function removeFormValidationErrors() {
 }
 
 function displayFormValidationErrors(response) {
-  for (field in response.data) {
-    let fieldId = 'id_' + field;
-    let input = document.getElementById(fieldId);
-    if (!input.classList.contains('is-invalid')) {
+  for (const field in response.data) {
+    const fieldId = 'id_' + field;
+    const input = document.getElementById(fieldId);
+
+    if (input && !input.classList.contains('is-invalid')) {
       input.classList.add('is-invalid');
-      let errorMessage = document.createElement('div');
+      const errorMessage = document.createElement('div');
       errorMessage.classList.add('invalid-feedback');
       errorMessage.innerText = response.data[field][0];
       input.parentNode.appendChild(errorMessage);
