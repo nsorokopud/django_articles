@@ -1,5 +1,9 @@
+from html import unescape
+
+from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
+from django.utils.html import strip_tags
 
 from notifications.services.articles import (
     notify_article_published,
@@ -170,3 +174,27 @@ def get_next_article_publish_sequence_value() -> int:
     with connection.cursor() as cursor:
         cursor.execute(f"SELECT nextval('{ARTICLE_PUBLISH_SEQUENCE_NAME}')")
         return int(cursor.fetchone()[0])
+
+
+def _validate_article_ready(article: Article, *, action: str) -> None:
+    if (
+        not _normalize_article_text(article.title)
+        or article.title == settings.DEFAULT_DRAFT_ARTICLE_TITLE
+    ):
+        raise ValueError(f"Title is required before {action}.")
+
+    if not _normalize_article_text(article.preview_text):
+        raise ValueError(f"Preview text is required before {action}.")
+
+    if not _has_meaningful_html_content(article.content):
+        raise ValueError(f"Content is required before {action}.")
+
+
+def _normalize_article_text(value: str | None) -> str:
+    return (value or "").strip()
+
+
+def _has_meaningful_html_content(html: str | None) -> bool:
+    text = unescape(strip_tags(html or ""))
+    normalized = text.replace("\xa0", " ").strip()
+    return bool(normalized)

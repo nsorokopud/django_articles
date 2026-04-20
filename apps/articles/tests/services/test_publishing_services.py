@@ -1,11 +1,15 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.conf import settings
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleStatus
 from articles.services.articles import _build_article_slug_candidate
 from articles.services.publishing import (
+    _has_meaningful_html_content,
+    _normalize_article_text,
+    _validate_article_ready,
     get_next_article_publish_sequence_value,
     publish_article,
     reject_article,
@@ -746,3 +750,136 @@ class TestRestoreArticleToDraft(TestCase):
     def test_restore_nonexistent_article_raises_does_not_exist(self):
         with self.assertRaises(Article.DoesNotExist):
             restore_article_to_draft(article_id=999999)
+
+
+class TestNormalizeArticleText(SimpleTestCase):
+    def test_returns_empty_string_for_none(self):
+        self.assertEqual(_normalize_article_text(None), "")
+
+    def test_returns_empty_string_for_blank_string(self):
+        self.assertEqual(_normalize_article_text(""), "")
+
+    def test_strips_surrounding_whitespace(self):
+        self.assertEqual(_normalize_article_text("  Hello world  "), "Hello world")
+
+    def test_strips_tabs_and_newlines(self):
+        self.assertEqual(_normalize_article_text("\n\t Hello \t\n"), "Hello")
+
+
+class TestHasMeaningfulHtmlContent(SimpleTestCase):
+    def test_returns_false_for_none(self):
+        self.assertFalse(_has_meaningful_html_content(None))
+
+    def test_returns_false_for_empty_string(self):
+        self.assertFalse(_has_meaningful_html_content(""))
+
+    def test_returns_false_for_whitespace_only(self):
+        self.assertFalse(_has_meaningful_html_content("   \n\t   "))
+
+    def test_returns_false_for_empty_paragraph(self):
+        self.assertFalse(_has_meaningful_html_content("<p></p>"))
+
+    def test_returns_false_for_br_only(self):
+        self.assertFalse(_has_meaningful_html_content("<p><br></p>"))
+
+    def test_returns_false_for_nbsp_only(self):
+        self.assertFalse(_has_meaningful_html_content("<p>\xa0</p>"))
+
+    def test_returns_false_for_html_nbsp_entity_only(self):
+        self.assertFalse(_has_meaningful_html_content("<p>&nbsp;</p>"))
+
+    def test_returns_true_for_plain_text(self):
+        self.assertTrue(_has_meaningful_html_content("Hello"))
+
+    def test_returns_true_for_html_with_text(self):
+        self.assertTrue(_has_meaningful_html_content("<p>Hello world</p>"))
+
+    def test_returns_true_for_nested_html_with_text(self):
+        self.assertTrue(
+            _has_meaningful_html_content("<div><p><strong>Hello</strong></p></div>")
+        )
+
+
+class TestValidateArticleReady(SimpleTestCase):
+    def make_article(
+        self,
+        *,
+        title="Valid title",
+        preview_text="Valid preview text",
+        content="<p>Valid content</p>",
+    ) -> Article:
+        return Article(
+            title=title,
+            preview_text=preview_text,
+            content=content,
+            status=ArticleStatus.DRAFT,
+        )
+
+    def test_does_not_raise_for_valid_article(self):
+        article = self.make_article()
+
+        _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_title_is_none(self):
+        article = self.make_article(title=None)
+
+        with self.assertRaisesMessage(
+            ValueError, "Title is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_title_is_blank(self):
+        article = self.make_article(title="   ")
+
+        with self.assertRaisesMessage(
+            ValueError, "Title is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_title_is_default_draft_title(self):
+        article = self.make_article(title=settings.DEFAULT_DRAFT_ARTICLE_TITLE)
+
+        with self.assertRaisesMessage(
+            ValueError, "Title is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_preview_text_is_none(self):
+        article = self.make_article(preview_text=None)
+
+        with self.assertRaisesMessage(
+            ValueError, "Preview text is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_preview_text_is_blank(self):
+        article = self.make_article(preview_text=" \n\t ")
+
+        with self.assertRaisesMessage(
+            ValueError, "Preview text is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_content_is_none(self):
+        article = self.make_article(content=None)
+
+        with self.assertRaisesMessage(
+            ValueError, "Content is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_raises_when_content_is_empty_html(self):
+        article = self.make_article(content="<p><br></p>")
+
+        with self.assertRaisesMessage(
+            ValueError, "Content is required before publishing."
+        ):
+            _validate_article_ready(article, action="publishing")
+
+    def test_uses_action_name_in_error_message(self):
+        article = self.make_article(title="")
+
+        with self.assertRaisesMessage(
+            ValueError, "Title is required before submitting for review."
+        ):
+            _validate_article_ready(article, action="submitting for review")
