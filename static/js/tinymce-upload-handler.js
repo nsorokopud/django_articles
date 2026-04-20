@@ -11,12 +11,12 @@ function tinymceUploadHandler(blobInfo, progress) {
     formData.append('file', blobInfo.blob(), blobInfo.filename());
 
     try {
-      const articleId = localStorage.getItem('createdArticleId');
-      if (articleId) {
-        formData.append('articleId', articleId);
+      const articleIdInput = document.getElementById('articleId');
+      if (articleIdInput && articleIdInput.value) {
+        formData.append('articleId', articleIdInput.value);
       }
     } catch (err) {
-      console.warn('Failed to get article ID from localStorage', err);
+      console.warn('Failed to read article ID from the form', err);
     }
 
     xhr.upload.onprogress = (e) => {
