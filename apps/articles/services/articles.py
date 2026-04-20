@@ -1,6 +1,7 @@
 import logging
 from typing import Callable, Optional
 
+from django.conf import settings
 from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.template.defaultfilters import slugify
 from nanoid import generate
@@ -15,6 +16,32 @@ from .sanitization import sanitize_article_html
 MAX_SLUG_RETRY_ATTEMPTS = 5
 
 logger = logging.getLogger(__name__)
+
+
+@transaction.atomic
+def create_empty_draft(*, author: User) -> Article:
+    article = Article(
+        author=author,
+        title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+        preview_text="",
+        content="",
+        status=ArticleStatus.DRAFT,
+    )
+
+    for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
+        article.slug = _build_article_slug_candidate(
+            article.title,
+            use_suffix=(attempt > 0),
+        )
+        try:
+            with transaction.atomic():
+                article.save()
+            return article
+        except IntegrityError:
+            if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
+                raise
+
+    return article
 
 
 @transaction.atomic
