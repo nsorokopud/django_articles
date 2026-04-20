@@ -90,10 +90,7 @@ function tinymceUploadHandler(blobInfo, progress) {
     xhr.send(formData);
   });
   return uploadPromise.catch((error) => {
-    alert(
-      `${error.message || 'Unknown upload error'} ` +
-        'You will now be redirected back to the article page.',
-    );
+    alert(`${error.message || 'Unknown upload error'} Please try again.`);
     return Promise.reject(error);
   });
 }
