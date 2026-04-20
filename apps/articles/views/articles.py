@@ -10,7 +10,6 @@ from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import (
-    CreateView,
     DeleteView,
     DetailView,
     ListView,
@@ -36,6 +35,7 @@ from ..selectors import (
     get_published_article_by_slug,
 )
 from ..services import toggle_article_like
+from ..services.articles import create_empty_draft
 from ..services.publishing import (
     submit_article_for_review,
     withdraw_article_from_review,
@@ -209,34 +209,10 @@ class ArticleDetailView(DetailView):
         return context
 
 
-class ArticleCreateView(LoginRequiredMixin, CreateView):
-    model = Article
-    form_class = ArticleModelForm
-    template_name = "articles/article_form.html"
-
-    def get_form_kwargs(self) -> dict[str, Any]:
-        kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
-        return kwargs
-
-    def form_valid(self, form) -> JsonResponse:
-        article = form.save()
-        article_url = (
-            article.get_absolute_url()
-            if article.is_published
-            else reverse("article-update", kwargs={"article_slug": article.slug})
-        )
-
-        data = {
-            "articleId": article.id,
-            "articleSlug": article.slug,
-            "articleUrl": article_url,
-            "isPublished": article.is_published,
-        }
-        return JsonResponse({"status": "success", "data": data})
-
-    def form_invalid(self, form) -> JsonResponse:
-        return JsonResponse({"status": "fail", "data": form.errors})
+class ArticleCreateDraftView(LoginRequiredMixin, View):
+    def post(self, request) -> HttpResponseRedirect:
+        article = create_empty_draft(author=request.user)
+        return redirect("article-update", article_slug=article.slug)
 
 
 class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):

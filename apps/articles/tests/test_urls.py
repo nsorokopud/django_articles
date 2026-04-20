@@ -3,7 +3,7 @@ from django.urls import resolve, reverse
 
 from articles.views import (
     ArticleCommentView,
-    ArticleCreateView,
+    ArticleCreateDraftView,
     ArticleDeleteView,
     ArticleDetailView,
     ArticleLikeView,
@@ -40,9 +40,9 @@ class TestURLs(SimpleTestCase):
         url = reverse("article-details", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleDetailView)
 
-    def test_article_creation_page_url_is_resolved(self):
-        url = reverse("article-create")
-        self.assertEqual(resolve(url).func.view_class, ArticleCreateView)
+    def test_draft_creation_url_is_resolved(self):
+        url = reverse("article-create-draft")
+        self.assertEqual(resolve(url).func.view_class, ArticleCreateDraftView)
 
     def test_article_update_page_url_is_resolved(self):
         url = reverse("article-update", args=[1])

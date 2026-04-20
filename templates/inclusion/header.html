@@ -22,10 +22,13 @@
               {% endif %}
               <a href="{% url 'subscription-feed' %}">Subscriptions</a>
               <a href="{% url 'my-articles' %}">My articles</a>
-              <a class="link-green" href="{% url 'article-create' %}">
-                New article
-                <i class="fa-solid fa-pen-to-square fa-bounce"></i>
-              </a>
+              <form method="post" action="{% url 'article-create-draft' %}">
+                {% csrf_token %}
+                <button class="link-green" type="submit">
+                  New article
+                  <i class="fa-solid fa-pen-to-square fa-bounce"></i>
+                </button>
+              </form>
               <!-- Icon -->
               <button type="button"
                       id="notificationBadge"
