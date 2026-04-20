@@ -137,10 +137,7 @@ class TestArticleUpdateView(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_post_invalid_data_returns_validation_errors(self):
-        invalid_data = {
-            "title": "",
-            "content": "",
-        }
+        invalid_data = {"title": "a" * 300}
 
         self.client.force_login(self.author)
         response = self.client.post(self.draft_url, invalid_data)
@@ -151,9 +148,9 @@ class TestArticleUpdateView(TestCase):
             {
                 "status": "fail",
                 "data": {
-                    "title": ["This field is required."],
-                    "preview_text": ["This field is required."],
-                    "content": ["This field is required."],
+                    "title": [
+                        "Ensure this value has at most 200 characters (it has 300)."
+                    ],
                 },
             },
         )

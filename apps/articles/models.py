@@ -19,16 +19,16 @@ class ArticleStatus(models.TextChoices):
 
 
 class Article(models.Model):
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, blank=True)
     slug = models.SlugField(max_length=200, unique=True)
     category = models.ForeignKey(
         "ArticleCategory", null=True, blank=True, on_delete=models.SET_NULL
     )
     tags = TaggableManager(blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
-    preview_text = models.TextField(max_length=512)
+    preview_text = models.TextField(max_length=512, blank=True)
     preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
-    content = HTMLField()
+    content = HTMLField(blank=True)
     status = models.CharField(
         max_length=20,
         choices=ArticleStatus.choices,
@@ -108,10 +108,21 @@ class Article(models.Model):
                 ),
                 name="art_status_matches_publ_fields",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status=ArticleStatus.DRAFT)
+                    | (
+                        ~models.Q(title="")
+                        & ~models.Q(preview_text="")
+                        & ~models.Q(content="")
+                    )
+                ),
+                name="art_non_draft_core_fields_not_blank",
+            ),
         ]
 
     def __str__(self):
-        return self.title
+        return self.title or f"Article #{self.pk}"
 
     def get_absolute_url(self):
         return reverse("article-details", kwargs={"article_slug": self.slug})

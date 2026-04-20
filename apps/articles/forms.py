@@ -82,6 +82,10 @@ class ArticleModelForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
+        self.fields["title"].required = False
+        self.fields["preview_text"].required = False
+        self.fields["content"].required = False
+
         if not self.instance.pk or self.instance.status in {
             ArticleStatus.DRAFT,
             ArticleStatus.REJECTED,

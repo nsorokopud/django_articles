@@ -248,17 +248,23 @@ class TestArticleModelForm(TestCase):
         self.assertEqual(article.preview_text, "preview2")
         self.assertEqual(article.content, "content2")
 
-    def test_missing_fields(self):
-        form = ArticleModelForm(data={}, instance=self.article)
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {
-                "title": ["This field is required."],
-                "preview_text": ["This field is required."],
-                "content": ["This field is required."],
+    def test_core_fields_are_not_required(self):
+        form = ArticleModelForm(instance=self.article)
+
+        self.assertFalse(form.fields["title"].required)
+        self.assertFalse(form.fields["preview_text"].required)
+        self.assertFalse(form.fields["content"].required)
+
+    def test_create_form_allows_blank_core_fields(self):
+        form = ArticleModelForm(
+            user=self.user,
+            data={
+                "title": "",
+                "preview_text": "",
+                "content": "",
             },
         )
+        self.assertTrue(form.is_valid())
 
     def test_user_not_provided_when_creating(self):
         form = ArticleModelForm(

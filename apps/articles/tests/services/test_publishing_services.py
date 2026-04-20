@@ -150,6 +150,7 @@ class TestPublishArticle(TestCase):
         self.article = Article.objects.create(
             author=self.author,
             title="a",
+            preview_text="p",
             content="c",
             status=ArticleStatus.PENDING_REVIEW,
         )

@@ -43,7 +43,9 @@ class TestArticleCreateView(TestCase):
 
         self.client.force_login(self.user)
         response = self.client.post(
-            self.url, {"title": "a1"}, headers={"X-Requested-With": "XMLHttpRequest"}
+            self.url,
+            {"title": "a" * 300},
+            headers={"X-Requested-With": "XMLHttpRequest"},
         )
         self.assertEqual(response.status_code, 200)
         response_json = response.json()
@@ -51,8 +53,7 @@ class TestArticleCreateView(TestCase):
         self.assertEqual(
             response_json["data"],
             {
-                "preview_text": ["This field is required."],
-                "content": ["This field is required."],
+                "title": ["Ensure this value has at most 200 characters (it has 300)."],
             },
         )
         self.assertEqual(Article.objects.count(), 0)
