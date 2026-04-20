@@ -1,0 +1,1 @@
+DEFAULT_DRAFT_ARTICLE_TITLE = "Untitled article"

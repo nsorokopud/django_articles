@@ -443,5 +443,6 @@ EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
 
 
+from .articles import *  # noqa pylint: disable=W0401,W0614
 from .logging import LOGGING  # noqa
 from .notifications import *  # noqa pylint: disable=W0401,W0614
