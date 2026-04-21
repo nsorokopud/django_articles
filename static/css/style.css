@@ -5,6 +5,17 @@
   --secondary-color: #00b74a;
 }
 
+html,
+body {
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .link-green,
 .link-green i {
   text-decoration: none;
@@ -147,6 +158,7 @@ header i {
 /* Main */
 
 main {
+  flex: 1;
   padding: 75px 0 35px;
 }
 
