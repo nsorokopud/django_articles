@@ -175,6 +175,14 @@ aside.sidebar + .main-content {
   width: 65%;
 }
 
+@media screen and (min-width: 768px) {
+  aside.sidebar {
+    position: sticky;
+    top: 100px;
+    align-self: flex-start;
+  }
+}
+
 .main-content.main-content--narrow {
   max-width: 800px;
 }
