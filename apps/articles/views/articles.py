@@ -190,17 +190,22 @@ class ArticleDetailView(DetailView):
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         article = self.object
         context = super().get_context_data(**kwargs)
-        context["comments"] = find_comments_to_article(article)
-        context["comments_count"] = len(context["comments"])
+
+        comments = list(find_comments_to_article(article))
+        context["comments"] = comments
+        context["comments_count"] = len(comments)
+
         context["user_liked"] = (
             self.request.user.is_authenticated
             and article.users_that_liked.filter(id=self.request.user.id).exists()
         )
+
         if self.request.user.is_authenticated:
             context["form"] = ArticleCommentForm()
-            context["liked_comments"] = find_article_comments_liked_by_user(
-                article, self.request.user
+            context["liked_comments"] = set(
+                find_article_comments_liked_by_user(article, self.request.user)
             )
+
         return context
 
 
