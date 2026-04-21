@@ -180,7 +180,6 @@ class TestArticleUpdateView(TestCase):
                         "article-update",
                         kwargs={"article_slug": self.draft_article.slug},
                     ),
-                    "isPublished": False,
                 },
             },
         )

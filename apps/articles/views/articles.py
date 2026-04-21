@@ -242,15 +242,10 @@ class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
     def form_valid(self, form) -> JsonResponse:
         article = form.save()
 
-        article_url = (
-            article.get_absolute_url()
-            if article.is_published
-            else reverse("article-update", kwargs={"article_slug": article.slug})
-        )
-
         data = {
-            "articleUrl": article_url,
-            "isPublished": article.is_published,
+            "articleUrl": reverse(
+                "article-update", kwargs={"article_slug": article.slug}
+            ),
         }
         return JsonResponse({"status": "success", "data": data})
 
