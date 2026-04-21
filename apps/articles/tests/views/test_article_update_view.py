@@ -1,8 +1,9 @@
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleStatus
+from config.settings import CACHES
 from users.models import User
 
 
@@ -55,9 +56,12 @@ class TestArticleUpdateView(TestCase):
             kwargs={"article_slug": self.draft_article.slug},
         )
 
-    def test_get_anonymous_user_returns_404(self):
-        response = self.client.get(self.published_url)
-        self.assertEqual(response.status_code, 404)
+    def test_get_anonymous_user_redirects_to_login(self):
+        redirect_url = f"{reverse('login')}?next={self.draft_url}"
+        response = self.client.get(self.draft_url)
+        self.assertRedirects(
+            response, redirect_url, status_code=302, target_status_code=200
+        )
 
     def test_get_not_author_returns_404(self):
         self.client.force_login(self.other_user)
@@ -92,11 +96,18 @@ class TestArticleUpdateView(TestCase):
         self.assertTrue(form.fields["preview_image"].disabled)
         self.assertTrue(form.fields["content"].disabled)
 
-    def test_get_for_published_article_returns_404(self):
+    @override_settings(CACHES=CACHES)
+    def test_get_for_published_article_redirects_to_detail_page(self):
+        redirect_url = reverse(
+            "article-details",
+            kwargs={"article_slug": self.published_article.slug},
+        )
         self.client.force_login(self.author)
         response = self.client.get(self.published_url)
-        self.assertEqual(response.status_code, 404)
-        self.assertTemplateUsed(response, "error.html")
+
+        self.assertRedirects(
+            response, redirect_url, status_code=302, target_status_code=200
+        )
 
     def test_get_correct_for_draft_article(self):
         self.client.force_login(self.author)
@@ -106,13 +117,16 @@ class TestArticleUpdateView(TestCase):
         self.assertEqual(response.context["object"], self.draft_article)
         self.assertTrue(response.context["update"])
 
-    def test_post_anonymous_user_returns_404(self):
+    def test_post_anonymous_user_redirects_to_login(self):
+        redirect_url = f"{reverse('login')}?next={self.published_url}"
         response = self.client.post(
             self.published_url,
             {"title": "new title"},
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertRedirects(
+            response, redirect_url, status_code=302, target_status_code=200
+        )
 
     def test_post_not_author_returns_404(self):
         self.client.force_login(self.other_user)

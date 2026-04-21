@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -210,29 +210,42 @@ class ArticleCreateDraftView(LoginRequiredMixin, View):
         return redirect("article-update", article_slug=article.slug)
 
 
-class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
+class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     model = Article
     form_class = ArticleModelForm
     template_name_suffix = "_form"
+
+    object: Optional[Article] = None
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["update"] = True
         return context
 
-    def get_object(self) -> Article:
+    def get_object(self, queryset=None) -> Article:
+        if self.object is not None:
+            return self.object
+
         try:
-            article = get_article_for_author_by_slug(
+            self.object = get_article_for_author_by_slug(
                 article_slug=self.kwargs["article_slug"],
                 author_id=self.request.user.id,
             )
         except Article.DoesNotExist as e:
             raise Http404("Article not found") from e
 
-        if article.status == ArticleStatus.PUBLISHED:
-            raise Http404("Article not found")
+        return self.object
 
-        return article
+    def dispatch(self, request, *args, **kwargs) -> HttpResponse | HttpResponseRedirect:
+        if request.user.is_anonymous:
+            return self.handle_no_permission()
+
+        article = self.get_object()
+
+        if article.status == ArticleStatus.PUBLISHED:
+            return redirect("article-details", article_slug=article.slug)
+
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form) -> JsonResponse:
         article = form.save()
