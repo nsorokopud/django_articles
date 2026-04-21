@@ -17,8 +17,13 @@
           </fieldset>
           <div class="form-group">
             <button class="btn btn-outline-danger mx-2" type="submit">Confirm</button>
-            <a class="btn btn-outline-secondary"
-               href="{% url 'article-details' article.slug %}">Cancel</a>
+            {% if article.is_published %}
+              <a class="btn btn-outline-secondary"
+                 href="{% url 'article-details' article.slug %}">Cancel</a>
+            {% else %}
+              <a class="btn btn-outline-secondary"
+                 href="{% url 'article-update' article.slug %}">Cancel</a>
+            {% endif %}
           </div>
         </form>
       </div>
