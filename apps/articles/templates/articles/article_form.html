@@ -6,7 +6,15 @@
     <section class="main-content col-md-10">
       <div class="row">
         <div class="col-12 mx-auto">
-          <h2 class="mb-5">Edit article</h2>
+          <h2 class="mb-5">
+            {% if article.status == "draft" %}
+              Edit draft
+            {% elif article.status == "pending_review" %}
+              Article pending review
+            {% elif article.status == "rejected" %}
+              Edit rejected draft
+            {% endif %}
+          </h2>
 
           {% if article.status == "draft" %}
             <div class="alert alert-secondary mb-4">
@@ -14,16 +22,19 @@
             </div>
           {% elif article.status == "pending_review" %}
             <div class="alert alert-warning mb-4">
-              Status: <strong>Pending review</strong>. This article has been submitted for review.
+              Status: <strong>Pending review</strong>. This article is under
+              review. Withdraw it from review to make changes.
             </div>
           {% elif article.status == "rejected" %}
             <div class="alert alert-danger mb-4">
               <div>
-                Status: <strong>Rejected</strong>. Please update the article and try again.
+                Status: <strong>Rejected</strong>. Please update the article and
+                try again.
               </div>
 
               <div class="mt-2 small">
-                After you save changes, this article will move back to <strong>Draft</strong>.
+                After you save changes, this article will move back to
+                <strong>Draft</strong>.
               </div>
 
               {% if article.review_note %}
@@ -41,10 +52,6 @@
                   {% if article.reviewed_by %}by {{ article.reviewed_by.username }}{% endif %}
                 </time>
               {% endif %}
-            </div>
-          {% elif article.status == "published" %}
-            <div class="alert alert-success mb-4">
-              Status: <strong>Published</strong>. This article is public.
             </div>
           {% endif %}
 
@@ -77,22 +84,11 @@
           </form>
 
           <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
-            {% if article.status == "draft" %}
+            {% if article.status == "draft" or article.status == "rejected" %}
               <button form="articleForm"
                       id="articleFormUpdateButton"
                       class="btn btn-success"
                       type="submit">Save draft</button>
-            {% elif article.status == "rejected" %}
-              <button form="articleForm"
-                      id="articleFormUpdateButton"
-                      class="btn btn-success"
-                      type="submit">Save and move to draft</button>
-            {% endif %}
-
-            {% if article.is_published %}
-              <a href="{{ article.get_absolute_url }}" class="btn btn-secondary">
-                View article
-              </a>
             {% endif %}
 
             {% if article.status == "draft" %}
@@ -100,21 +96,25 @@
                     action="{% url 'article-submit-for-review' article.slug %}"
                     class="d-inline">
                 {% csrf_token %}
-                <button class="btn btn-outline-primary" type="submit">
-                  Submit for review
-                </button>
+                <button class="btn btn-primary" type="submit">Submit for review</button>
               </form>
+
             {% elif article.status == "pending_review" %}
               <form method="post"
                     action="{% url 'article-withdraw-from-review' article.slug %}"
                     class="d-inline">
                 {% csrf_token %}
-                <button class="btn btn-outline-secondary" type="submit">
-                  Withdraw from review
-                </button>
+                <button class="btn btn-primary" type="submit">Withdraw from review</button>
               </form>
             {% endif %}
+
+            {% if article.status == "draft" or article.status == "rejected" %}
+              <a class="btn btn-danger" href="{% url 'article-delete' article.slug %}">Delete draft</a>
+            {% endif %}
+
           </div>
+
+          <a class="btn btn-outline-secondary mt-3" href="{% url 'my-articles' %}">Back to my articles</a>
         </div>
       </div>
     </section>
@@ -122,6 +122,8 @@
 {% endblock content-main %}
 
 {% block extra_scripts %}
-  {{ form.media }}
-  <script src="{% static 'js/article-form.js' %}"></script>
+  {% if article.status == "draft" or article.status == "rejected" %}
+    {{ form.media }}
+    <script src="{% static 'js/article-form.js' %}"></script>
+  {% endif %}
 {% endblock extra_scripts %}
