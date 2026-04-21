@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.messages import get_messages
 from django.http import Http404
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -77,8 +78,14 @@ class TestViews(TestCase):
             response = self.client.post(reverse("article-delete", args=[a.slug]))
 
             self.assertRedirects(
-                response, reverse("articles"), status_code=302, target_status_code=200
+                response,
+                reverse("my-articles"),
+                status_code=302,
+                target_status_code=200,
             )
+
+            messages = list(get_messages(response.wsgi_request))
+            assert any("deleted successfully" in str(m) for m in messages)
 
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)

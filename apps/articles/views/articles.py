@@ -9,12 +9,7 @@ from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import (
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
+from django.views.generic import DeleteView, DetailView, ListView, UpdateView
 from django_filters.views import FilterView
 
 from core.decorators import cache_page_for_anonymous
@@ -297,7 +292,17 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
     model = Article
     context_object_name = "article"
     slug_url_kwarg = "article_slug"
-    success_url = reverse_lazy("articles")
+    success_url = reverse_lazy("my-articles")
+
+    def form_valid(self, form) -> HttpResponse:
+        article = self.get_object()
+        response = super().form_valid(form)
+
+        messages.success(
+            request=self.request,
+            message=f'"{article.title or "Article"}" was deleted successfully.',
+        )
+        return response
 
 
 class ArticleLikeView(LoginRequiredMixin, View):
