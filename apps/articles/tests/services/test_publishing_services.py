@@ -151,6 +151,24 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article.refresh_from_db()
         self.assertEqual(article.status, ArticleStatus.DRAFT)
 
+    def test_clears_review_metadata(self):
+        reviewer = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com"
+        )
+        article = self.create_article(status=ArticleStatus.DRAFT)
+        article.review_note = "Old review note."
+        article.reviewed_at = timezone.now()
+        article.reviewed_by = reviewer
+        article.save(update_fields=["review_note", "reviewed_at", "reviewed_by"])
+
+        submit_article_for_review(article_id=article.id)
+
+        article.refresh_from_db()
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+        self.assertEqual(article.review_note, "")
+        self.assertIsNone(article.reviewed_at)
+        self.assertIsNone(article.reviewed_by)
+
 
 class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
 

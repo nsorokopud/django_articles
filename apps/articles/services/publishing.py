@@ -26,7 +26,10 @@ def submit_article_for_review(*, article_id: int) -> Article:
     _validate_article_ready(article, action="submission for review")
 
     article.status = ArticleStatus.PENDING_REVIEW
-    article.save(update_fields=["status"])
+    article.review_note = ""
+    article.reviewed_at = None
+    article.reviewed_by = None
+    article.save(update_fields=["status", "review_note", "reviewed_at", "reviewed_by"])
     return article
 
 
