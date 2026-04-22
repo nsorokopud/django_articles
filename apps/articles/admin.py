@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count
@@ -8,6 +10,7 @@ from django.utils.html import format_html_join
 
 from .forms import ArticleAdminForm, ArticleRejectAdminForm
 from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
+from .services.articles import save_article
 from .services.publishing import publish_article, reject_article, unpublish_article
 
 
@@ -107,9 +110,15 @@ class ArticleAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_readonly_fields(self, request, obj=None):
+        readonly = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            readonly += ("author",)
+        return readonly
+
     def save_model(self, request, obj, form, change):
-        """Even though workflow fields are excluded/read-only, prevents
-        the normal admin save flow to alter workflow state.
+        """Prevents regular admin saves from changing workflow state
+        (should only be changed via dedicated workflow actions).
         """
         if change:
             old_obj = Article.objects.only(
@@ -126,7 +135,13 @@ class ArticleAdmin(admin.ModelAdmin):
             obj.review_note = old_obj.review_note
             obj.reviewed_at = old_obj.reviewed_at
             obj.reviewed_by = old_obj.reviewed_by
-        super().save_model(request, obj, form, change)
+
+        save_article(
+            article=obj,
+            author=None if change else obj.author,
+            save_related=None,
+            restore_rejected_to_draft=False,
+        )
 
     @admin.display(description="PSeq", ordering="publish_sequence")
     def pub_seq(self, obj):
@@ -140,26 +155,23 @@ class ArticleAdmin(admin.ModelAdmin):
         buttons = []
 
         if obj.status == ArticleStatus.PENDING_REVIEW:
-            buttons.append(
-                (
-                    reverse("admin:articles_article_publish", args=[obj.pk]),
-                    "Publish",
-                )
+            buttons.extend(
+                [
+                    (
+                        reverse("admin:articles_article_publish", args=[obj.pk]),
+                        "Publish",
+                    ),
+                    (
+                        reverse("admin:articles_article_reject", args=[obj.pk]),
+                        "Reject",
+                    ),
+                ]
             )
-
-        if obj.status == ArticleStatus.PUBLISHED:
+        elif obj.status == ArticleStatus.PUBLISHED:
             buttons.append(
                 (
                     reverse("admin:articles_article_unpublish", args=[obj.pk]),
                     "Unpublish",
-                )
-            )
-
-        if obj.status == ArticleStatus.PENDING_REVIEW:
-            buttons.append(
-                (
-                    reverse("admin:articles_article_reject", args=[obj.pk]),
-                    "Reject",
                 )
             )
 
@@ -212,7 +224,7 @@ class ArticleAdmin(admin.ModelAdmin):
         action: str,
         title: str,
         confirm_label: str,
-        form=None,
+        form: Optional[ArticleRejectAdminForm] = None,
     ):
         opts = self.model._meta
         context = {
@@ -335,30 +347,35 @@ class ArticleAdmin(admin.ModelAdmin):
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
         updated_rows_count = 0
-        failed_rows_count = 0
+        failures = []
 
         for article in queryset:
             try:
                 publish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
-                failed_rows_count += 1
-                self.message_user(
-                    request,
-                    f"Could not publish article #{article.id}: {e}",
-                    level=messages.ERROR,
-                )
+                failures.append(f"#{article.id}: {e}")
             else:
                 updated_rows_count += 1
 
         if updated_rows_count:
             self.message_user(
                 request,
-                f"{updated_rows_count}"
-                f" article{' was' if updated_rows_count == 1 else 's were'} published.",
+                f"{updated_rows_count} "
+                f"article{' was' if updated_rows_count == 1 else 's were'} published.",
                 level=messages.SUCCESS,
             )
 
-        if failed_rows_count and not updated_rows_count:
+        if failures:
+            preview = "; ".join(failures[:5])
+            suffix = "" if len(failures) <= 5 else f" (and {len(failures) - 5} more)"
+            self.message_user(
+                request,
+                f"Could not publish {len(failures)} selected "
+                f"article{'s' if len(failures) != 1 else ''}: {preview}{suffix}",
+                level=messages.ERROR,
+            )
+
+        if not updated_rows_count and not failures:
             self.message_user(
                 request,
                 "No selected articles were published.",
@@ -368,18 +385,13 @@ class ArticleAdmin(admin.ModelAdmin):
     @admin.action(description="Unpublish selected articles", permissions=("change",))
     def unpublish(self, request, queryset):
         updated_rows_count = 0
-        failed_rows_count = 0
+        failures = []
 
         for article in queryset:
             try:
                 unpublish_article(article_id=article.id, actor=request.user)
             except ValueError as e:
-                failed_rows_count += 1
-                self.message_user(
-                    request,
-                    f"Could not unpublish article #{article.id}: {e}",
-                    level=messages.ERROR,
-                )
+                failures.append(f"#{article.id}: {e}")
             else:
                 updated_rows_count += 1
 
@@ -392,7 +404,17 @@ class ArticleAdmin(admin.ModelAdmin):
                 level=messages.SUCCESS,
             )
 
-        if failed_rows_count and not updated_rows_count:
+        if failures:
+            preview = "; ".join(failures[:5])
+            suffix = "" if len(failures) <= 5 else f" (and {len(failures) - 5} more)"
+            self.message_user(
+                request,
+                f"Could not unpublish {len(failures)} selected "
+                f"article{'s' if len(failures) != 1 else ''}: {preview}{suffix}",
+                level=messages.ERROR,
+            )
+
+        if not updated_rows_count and not failures:
             self.message_user(
                 request,
                 "No selected articles were unpublished.",
