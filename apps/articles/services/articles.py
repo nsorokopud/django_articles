@@ -9,6 +9,7 @@ from nanoid import generate
 from users.models import User
 
 from ..models import Article, ArticleStatus
+from ..search_utils import extract_searchable_text
 from .publishing import restore_article_to_draft
 from .sanitization import sanitize_article_html
 
@@ -54,6 +55,7 @@ def save_article(
         )
 
     article.content = sanitize_article_html(article.content)
+    article.content_text = extract_searchable_text(article.content)
 
     if _should_regenerate_slug(article, previous_article):
         _save_with_unique_slug(article)

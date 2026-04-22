@@ -17,6 +17,7 @@ if [ "$LOAD_INITIAL_FIXTURES" = "1" ]; then
     echo "Loading initial fixture data..."
     ./manage.py collect_fixture_media --noinput
     ./manage.py loaddata fixtures/initial_data.json
+    ./manage.py backfill_article_content_text
     ./manage.py reset_article_publish_sequence
 else
     echo "Skipping fixture load"

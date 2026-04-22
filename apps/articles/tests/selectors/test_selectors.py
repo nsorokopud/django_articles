@@ -144,7 +144,8 @@ class TestSelectors(TestCase):
             category=self.test_category,
             author=self.test_user,
             preview_text="text1",
-            content="content1",
+            content="<p>content1</p>",
+            content_text="content 1",
         )
         a1.tags.add("cat1", "tag1")
 
@@ -154,7 +155,8 @@ class TestSelectors(TestCase):
             category=self.test_category,
             author=self.test_user,
             preview_text="text2",
-            content="content2",
+            content="<p>content2</p>",
+            content_text="content",
         )
 
         a3 = self.create_published_article(
@@ -163,36 +165,47 @@ class TestSelectors(TestCase):
             category=cat1,
             author=self.test_user,
             preview_text="text3",
-            content="content3",
+            content="<p>content3</p>",
+            content_text="content",
         )
+
         a4 = self.create_published_article(
             title="a4",
             slug="a4",
             category=cat1,
             author=self.test_user,
             preview_text="text4",
-            content="content4",
+            content="<p>content4</p>",
+            content_text="content",
         )
         a4.tags.add("tag", "tag1", "tag2")
+
         self.create_article(
             title="a5",
             slug="a5",
             category=cat1,
             author=self.test_user,
             preview_text="text5",
-            content="content5",
+            content="<p>abc</p>",
+            content_text="abc",
         )
 
         self.assertCountEqual(find_articles_by_query("a"), [a1, a2, a3, a4])  # By title
-        self.assertCountEqual(
-            find_articles_by_query("content"), [a1, a2, a3, a4]
-        )  # By content
+
+        # By content
+        self.assertCountEqual(find_articles_by_query("content"), [a1, a2, a3, a4])
+        self.assertCountEqual(find_articles_by_query("content 1"), [a1])
+
         self.assertCountEqual(find_articles_by_query("test_"), [a1, a2])  # By category
         self.assertCountEqual(
             find_articles_by_query("cat1"), [a1, a3, a4]
         )  # By category + tag
         self.assertCountEqual(find_articles_by_query("tag1"), [a1, a4])  # By tag
         self.assertCountEqual(find_articles_by_query("agrj"), [])  # Not found
+
+        # Empty queries
+        self.assertCountEqual(find_articles_by_query(""), [a1, a2, a3, a4])
+        self.assertCountEqual(find_articles_by_query("   "), [a1, a2, a3, a4])
 
         # With queryset
         queryset = Article.objects.filter(id__in=[a1.id, a4.id])
@@ -204,6 +217,20 @@ class TestSelectors(TestCase):
         queryset = Article.objects.filter(id__in=[a1.id, a2.id, a3.id])
         self.assertCountEqual(find_articles_by_query("tag1", queryset), [a1])
         self.assertCountEqual(find_articles_by_query("agrj", queryset), [])
+
+    def test_find_articles_by_query_does_not_match_html_tags(self):
+        self.create_published_article(
+            title="x",
+            slug="x",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="preview",
+            content="<p>Hello <strong>world</strong></p>",
+            content_text="Hello world",
+        )
+
+        self.assertCountEqual(find_articles_by_query("<p>"), [])
+        self.assertCountEqual(find_articles_by_query("strong"), [])
 
     def test_find_comments_to_article(self):
         a1 = self.create_published_article(

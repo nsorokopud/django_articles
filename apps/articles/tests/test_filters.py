@@ -30,7 +30,8 @@ class TestArticleFilter(TestCase):
             author=self.user1,
             category=self.category1,
             preview_text="Preview1",
-            content="Content1",
+            content="Content 1",
+            content_text="Content 1",
             status=ArticleStatus.PUBLISHED,
             published_at=self.now - timedelta(days=100),
             publish_sequence=1,
@@ -46,7 +47,8 @@ class TestArticleFilter(TestCase):
             author=self.user2,
             category=self.category2,
             preview_text="Preview2",
-            content="Content2",
+            content="Content 2",
+            content_text="Content 2",
             status=ArticleStatus.PUBLISHED,
             published_at=self.now - timedelta(days=1),
             publish_sequence=2,
@@ -171,11 +173,11 @@ class TestArticleFilter(TestCase):
         filtered = ArticleFilter(data={"q": "a2"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
-        filtered = ArticleFilter(data={"q": "ent1"}, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1])
+        filtered = ArticleFilter(data={"q": "Content"}, queryset=base_qs).qs
+        self.assertCountEqual(filtered, [self.article1, self.article2])
 
-        filtered = ArticleFilter(data={"q": "content2"}, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article2])
+        filtered = ArticleFilter(data={"q": "Content 1"}, queryset=base_qs).qs
+        self.assertCountEqual(filtered, [self.article1])
 
         filtered = ArticleFilter(data={"q": "Cat1"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])

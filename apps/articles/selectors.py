@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Sequence
 
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from sql_util.utils import SubqueryAggregate
@@ -68,12 +69,25 @@ def find_articles_by_query(
     if queryset is None:
         queryset = find_published_articles()
 
-    return queryset.filter(
-        Q(title__icontains=q)
-        | Q(content__icontains=q)
-        | Q(category__title__icontains=q)
-        | Q(tags__name__icontains=q)
-    ).distinct()
+    q = (q or "").strip()
+    if not q:
+        return queryset
+
+    query = SearchQuery(q, config="english")
+
+    return (
+        queryset.annotate(
+            rank=SearchRank("search_vector", query),
+        )
+        .filter(
+            Q(search_vector=query)
+            | Q(title__icontains=q)
+            | Q(category__title__icontains=q)
+            | Q(tags__name__icontains=q)
+        )
+        .order_by("-rank", "-publish_sequence", "-id")
+        .distinct()
+    )
 
 
 def find_article_comments_liked_by_user(article: Article, user: User) -> QuerySet[int]:

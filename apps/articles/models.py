@@ -1,3 +1,5 @@
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.db import models
 from django.urls import reverse
 from taggit.managers import TaggableManager
@@ -29,6 +31,18 @@ class Article(models.Model):
     preview_text = models.TextField(max_length=512, blank=True)
     preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
     content = HTMLField(blank=True)
+    content_text = models.TextField(blank=True, editable=False)
+    search_vector = models.GeneratedField(
+        expression=(
+            SearchVector("title", weight="A", config="english")
+            + SearchVector("preview_text", weight="B", config="english")
+            + SearchVector("content_text", weight="C", config="english")
+        ),
+        output_field=SearchVectorField(),
+        db_persist=True,
+        null=True,
+        editable=False,
+    )
     status = models.CharField(
         max_length=20,
         choices=ArticleStatus.choices,
@@ -72,6 +86,7 @@ class Article(models.Model):
                 name="article_publish_seq_desc_idx",
                 condition=models.Q(status=ArticleStatus.PUBLISHED),
             ),
+            GinIndex(fields=["search_vector"], name="article_search_vector_gin_idx"),
         ]
 
         constraints = [

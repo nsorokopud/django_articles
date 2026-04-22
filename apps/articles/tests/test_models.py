@@ -1,9 +1,11 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
-from articles.models import Article
+from articles.models import Article, ArticleCategory, ArticleStatus
 from config.settings import CACHES
 
 
@@ -32,3 +34,44 @@ class TestArticleModel(TestCase):
             mock_get_cached.return_value = 5
             self.assertEqual(self.unpublished_article.views, 15)
             mock_get_cached.assert_called_once_with(self.unpublished_article.id)
+
+
+class TestArticleSearchVectorColumn(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.category = ArticleCategory.objects.create(title="cat", slug="cat")
+
+    def test_search_vector_is_generated_in_db(self):
+        article = Article.objects.create(
+            title="python tutorial",
+            slug="python-tutorial",
+            category=self.category,
+            author=self.user,
+            preview_text="learn django fast",
+            content="<p>Hello <strong>world</strong></p>",
+            content_text="Hello world",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    content_text,
+                    search_vector IS NOT NULL,
+                    search_vector::text
+                FROM articles_article
+                WHERE id = %s
+                """,
+                [article.id],
+            )
+            content_text, has_search_vector, search_vector_text = cursor.fetchone()
+
+        self.assertEqual(content_text, "Hello world")
+        self.assertTrue(has_search_vector)
+        self.assertIn("python", search_vector_text)
+        self.assertIn("django", search_vector_text)
+        self.assertIn("hello", search_vector_text)
+        self.assertIn("world", search_vector_text)
