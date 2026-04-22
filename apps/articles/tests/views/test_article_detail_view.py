@@ -6,8 +6,8 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 
 from articles.cache import (
-    ARTICLE_VIEWED_BY_KEY,
-    ARTICLE_VIEWS_KEY,
+    ARTICLE_UNIQUE_VIEW_KEY,
+    ARTICLE_VIEW_DELTA_KEY,
     VIEWED_ARTICLES_SET_KEY,
 )
 from articles.forms import ArticleCommentForm
@@ -118,12 +118,12 @@ class TestArticleDetailView(TestCase):
         self.article.views_count = 111
         self.article.save(update_fields=["views_count"])
 
-        views_key = ARTICLE_VIEWS_KEY.format(id=self.article.id)
-        viewed_by_key1 = ARTICLE_VIEWED_BY_KEY.format(
+        views_key = ARTICLE_VIEW_DELTA_KEY.format(id=self.article.id)
+        viewed_by_key1 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:anonymous"
         )
 
-        self.assertIsNone(self.redis_conn.get(VIEWED_ARTICLES_SET_KEY))
+        self.assertEqual(self.redis_conn.smembers(VIEWED_ARTICLES_SET_KEY), set())
         self.assertIsNone(self.redis_conn.get(views_key))
         self.assertIsNone(self.redis_conn.get(viewed_by_key1))
 
@@ -141,7 +141,7 @@ class TestArticleDetailView(TestCase):
             self.redis_conn.ttl(viewed_by_key1), ARTICLE_UNIQUE_VIEW_TIMEOUT
         )
 
-        viewed_by_key2 = ARTICLE_VIEWED_BY_KEY.format(
+        viewed_by_key2 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:test_user"
         )
         self.assertEqual(self.redis_conn.get(viewed_by_key1), b"1")

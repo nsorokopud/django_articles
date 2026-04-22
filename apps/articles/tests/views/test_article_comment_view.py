@@ -49,10 +49,7 @@ class TestArticleCommentView(TestCase):
         comment_data = {"text": ""}
 
         self.client.force_login(self.user)
-        with (
-            patch("articles.cache.get_redis_connection"),
-            patch("articles.views.decorators.get_redis_connection"),
-        ):
+        with patch("articles.cache.get_redis_connection"):
             response = self.client.post(self.url, comment_data)
             self.assertRedirects(
                 response,
@@ -70,10 +67,7 @@ class TestArticleCommentView(TestCase):
         comment_data = {"text": "text"}
 
         self.client.force_login(self.user)
-        with (
-            patch("articles.cache.get_redis_connection"),
-            patch("articles.views.decorators.get_redis_connection"),
-        ):
+        with patch("articles.cache.get_redis_connection"):
             response = self.client.post(self.url, comment_data)
             self.assertRedirects(
                 response,

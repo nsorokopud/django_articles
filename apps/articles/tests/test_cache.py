@@ -6,14 +6,15 @@ from django_redis import get_redis_connection
 from redis import RedisError
 
 from articles.cache import (
-    ARTICLE_VIEWS_KEY,
+    ARTICLE_UNIQUE_VIEW_KEY,
+    ARTICLE_VIEW_DELTA_KEY,
     VIEWED_ARTICLES_RETRY_SET_KEY,
     VIEWED_ARTICLES_SET_KEY,
     _decode_article_ids,
     _remove_synced_view_deltas_from_cache,
     _sync_article_batch,
     get_cached_article_views,
-    increment_cached_article_views,
+    register_article_view,
     sync_article_views,
 )
 from articles.settings import (
@@ -32,7 +33,8 @@ class TestGetCachedArticleViews(SimpleTestCase):
         mock_get_redis.return_value = mock_redis
         article_id = 1234
 
-        get_cached_article_views(article_id)
+        result = get_cached_article_views(article_id)
+        self.assertEqual(result, 0)
         mock_warning.assert_called_once_with(
             "Could not get cached views for article %s: %s",
             article_id,
@@ -58,31 +60,70 @@ class TestGetCachedArticleViews(SimpleTestCase):
         self.assertEqual(get_cached_article_views(article_id), 42)
 
 
-class TestIncrementCachedArticleViews(SimpleTestCase):
-    @patch("articles.cache.logger.error")
+class TestRegisterArticleView(SimpleTestCase):
     @patch("articles.cache.get_redis_connection")
-    def test_redis_error(self, mock_get_redis, mock_error):
+    def test_returns_false_when_unique_view_already_exists(self, mock_get_redis):
         mock_redis = Mock()
-        mock_redis.incr.side_effect = RedisError("Redis error")
+        mock_redis.set.return_value = False
         mock_get_redis.return_value = mock_redis
-        article_id = 1234
 
-        increment_cached_article_views(article_id)
-        mock_error.assert_called_once_with(
-            "Redis error when incrementing views for article %s: %s",
-            article_id,
-            mock_redis.incr.side_effect,
+        result = register_article_view(
+            article_id=123, viewer_id="user:1", unique_view_timeout=3600
         )
 
-    @patch("articles.cache.get_redis_connection")
-    def test_correct_case(self, mock_get_redis):
-        mock_redis = Mock()
-        mock_get_redis.return_value = mock_redis
-        article_id = 1234
+        self.assertFalse(result)
+        mock_redis.set.assert_called_once_with(
+            ARTICLE_UNIQUE_VIEW_KEY.format(article_id=123, viewer_id="user:1"),
+            "1",
+            ex=3600,
+            nx=True,
+        )
+        mock_redis.pipeline.assert_not_called()
 
-        increment_cached_article_views(article_id)
-        mock_redis.incr.assert_called_once_with(ARTICLE_VIEWS_KEY.format(id=article_id))
-        mock_redis.sadd.assert_called_once_with(VIEWED_ARTICLES_SET_KEY, article_id)
+    @patch("articles.cache.get_redis_connection")
+    def test_registers_new_unique_view(self, mock_get_redis):
+        mock_redis = Mock()
+        mock_pipe = MagicMock()
+        mock_pipe.__enter__.return_value = mock_pipe
+        mock_pipe.__exit__.return_value = None
+        mock_redis.set.return_value = True
+        mock_redis.pipeline.return_value = mock_pipe
+        mock_get_redis.return_value = mock_redis
+
+        result = register_article_view(
+            article_id=123, viewer_id="user:1", unique_view_timeout=3600
+        )
+
+        self.assertTrue(result)
+        mock_redis.set.assert_called_once_with(
+            ARTICLE_UNIQUE_VIEW_KEY.format(article_id=123, viewer_id="user:1"),
+            "1",
+            ex=3600,
+            nx=True,
+        )
+        mock_redis.pipeline.assert_called_once_with(transaction=True)
+        mock_pipe.incr.assert_called_once_with(ARTICLE_VIEW_DELTA_KEY.format(id=123))
+        mock_pipe.sadd.assert_called_once_with(VIEWED_ARTICLES_SET_KEY, 123)
+        mock_pipe.execute.assert_called_once()
+
+    @patch("articles.cache.logger.error")
+    @patch("articles.cache.get_redis_connection")
+    def test_returns_false_on_redis_error(self, mock_get_redis, mock_error):
+        mock_redis = Mock()
+        mock_redis.set.side_effect = RedisError("Redis error")
+        mock_get_redis.return_value = mock_redis
+
+        result = register_article_view(
+            article_id=123, viewer_id="user:1", unique_view_timeout=3600
+        )
+
+        self.assertFalse(result)
+        mock_error.assert_called_once_with(
+            "Redis error while registering view for article %s and viewer %s: %s",
+            123,
+            "user:1",
+            mock_redis.set.side_effect,
+        )
 
 
 class TestSyncArticleViews(TestCase):
@@ -127,16 +168,16 @@ class TestSyncArticleViews(TestCase):
             patch("articles.cache._sync_article_batch") as mock_sync,
             patch("articles.cache.logger") as mock_logger,
         ):
-
             sync_article_views()
-            mock_sync.assert_not_called()
-            self.assertEqual(
-                mock_logger.info.call_args_list,
-                [
-                    call("No valid article IDs in batch %s.", 0),
-                    call("No articles to sync; exiting on batch %d.", 1),
-                ],
-            )
+
+        mock_sync.assert_not_called()
+        self.assertEqual(
+            mock_logger.info.call_args_list,
+            [
+                call("No valid article IDs in batch %s.", 0),
+                call("No articles to sync; exiting on batch %d.", 1),
+            ],
+        )
 
     @override_settings(CACHES=CACHES)
     @patch("articles.cache.logger.info")
@@ -147,7 +188,7 @@ class TestSyncArticleViews(TestCase):
         r.flushdb()
 
         view_deltas = {9991: 3, 9992: "abc"}
-        keys = {id: ARTICLE_VIEWS_KEY.format(id=id) for id in view_deltas}
+        keys = {id: ARTICLE_VIEW_DELTA_KEY.format(id=id) for id in view_deltas}
 
         with r.pipeline() as pipe:
             for article_id, delta in view_deltas.items():
@@ -156,16 +197,16 @@ class TestSyncArticleViews(TestCase):
             pipe.execute()
 
         with r.pipeline() as pipe:
-            [pipe.get(keys[article_id]) for article_id in view_deltas]
+            for article_id in view_deltas:
+                pipe.get(keys[article_id])
             view_counts = pipe.execute()
         self.assertFalse(any(vc is None for vc in view_counts))
 
         sync_article_views()
-        expected_args = {9991: 3}
-        mock_increment.assert_called_once_with(expected_args)
+        mock_increment.assert_called_once_with({9991: 3})
         mock_warning.assert_called_once_with(
             "Invalid view delta value for key %s: %s",
-            ARTICLE_VIEWS_KEY.format(id=9992),
+            ARTICLE_VIEW_DELTA_KEY.format(id=9992),
             ANY,
         )
         self.assertIsInstance(mock_warning.call_args[0][2], ValueError)
@@ -176,11 +217,11 @@ class TestSyncArticleViews(TestCase):
             ]
         )
 
-        viewed_articles = r.smembers(VIEWED_ARTICLES_SET_KEY)
-        self.assertFalse(viewed_articles)
+        self.assertFalse(r.smembers(VIEWED_ARTICLES_SET_KEY))
 
         with r.pipeline() as pipe:
-            [pipe.get(keys[article_id]) for article_id in view_deltas]
+            for article_id in view_deltas:
+                pipe.get(keys[article_id])
             view_counts = pipe.execute()
         self.assertTrue(all(vc is None for vc in view_counts))
 
@@ -190,22 +231,23 @@ class TestSyncArticleViews(TestCase):
     @patch("articles.cache.get_redis_connection")
     @patch("articles.cache.logger")
     def test_redis_error_when_getting_views(
-        self, mock_logger, mock_get_redis, mock_remove
+        self,
+        mock_logger,
+        mock_get_redis,
+        mock_remove,
     ):
+        mock_get_redis.return_value.smembers.return_value = set()
         mock_get_redis.return_value.spop.side_effect = [{b"9999"}, set()]
         mock_get_redis.return_value.pipeline.side_effect = RedisError("pipeline failed")
 
         sync_article_views()
-        mock_remove.assert_called_once_with(ANY, [9999])
-
+        mock_remove.assert_called_once_with(mock_get_redis.return_value, [9999])
         mock_logger.error.assert_called_once_with(
             "Redis error when getting views for articles %s: %s", [9999], ANY
-        ),
-
+        )
         self.assertEqual(
             mock_logger.info.call_args_list,
             [
-                call("Re-queued %d failed article view syncs", 0),
                 call(
                     "No positive view deltas in batch %s for article IDs: %s",
                     0,
@@ -214,7 +256,6 @@ class TestSyncArticleViews(TestCase):
                 call("No articles to sync; exiting on batch %d.", 1),
             ],
         )
-        mock_remove.assert_called_once_with(mock_get_redis.return_value, [9999])
 
     @patch("articles.cache.logger")
     @patch("articles.cache._remove_synced_view_deltas_from_cache")
@@ -229,7 +270,7 @@ class TestSyncArticleViews(TestCase):
     ):
         article_ids = [9999]
         mock_redis = Mock()
-        mock_get_view_delta.return_value = article_ids
+        mock_get_view_delta.return_value = [b"9999"]
         mock_increment.side_effect = DatabaseError("DB error")
 
         _sync_article_batch(article_ids, 0, mock_redis)
@@ -244,15 +285,13 @@ class TestSyncArticleViews(TestCase):
         mock_remove.assert_not_called()
 
     @patch("articles.cache.logger")
-    @patch("articles.cache.get_redis_connection")
-    def test_redis_error_when_removing_deltas(self, mock_get_redis, mock_logger):
+    def test_redis_error_when_removing_deltas(self, mock_logger):
         mock_redis = Mock()
         mock_pipeline = MagicMock()
-        mock_pipeline.return_value.__enter__.return_value = mock_pipeline
-        mock_pipeline.return_value.__exit__.return_value = None
+        mock_pipeline.__enter__.return_value = mock_pipeline
+        mock_pipeline.__exit__.return_value = None
         mock_pipeline.execute.side_effect = RedisError("Redis error")
-        mock_redis.pipeline = mock_pipeline
-        mock_get_redis.return_value = mock_redis
+        mock_redis.pipeline.return_value = mock_pipeline
         article_ids = [111, 222, 333]
 
         _remove_synced_view_deltas_from_cache(mock_redis, article_ids)
@@ -272,7 +311,9 @@ class TestSyncArticleViews(TestCase):
 
         with patch("articles.cache._decode_article_ids") as mock_decode:
             sync_article_views()
-            mock_decode.assert_called_once_with([b"9991", b"9992"])
+
+        called_arg = mock_decode.call_args[0][0]
+        self.assertCountEqual(called_arg, [b"9991", b"9992"])
 
         self.assertEqual(r.smembers(VIEWED_ARTICLES_RETRY_SET_KEY), set())
         self.assertEqual(r.smembers(VIEWED_ARTICLES_SET_KEY), set())
@@ -285,14 +326,14 @@ class TestSyncArticleViews(TestCase):
         r = get_redis_connection("default")
         r.flushdb()
 
-        key = ARTICLE_VIEWS_KEY.format(id=9991)
+        key = ARTICLE_VIEW_DELTA_KEY.format(id=9991)
         r.set(key, 10)
         self.assertEqual(r.get(key), b"10")
         r.sadd(VIEWED_ARTICLES_SET_KEY, 9991)
 
         sync_article_views()
         mock_increment.assert_called_once_with({9991: 10})
-        self.assertEqual(r.get(key), None)
+        self.assertIsNone(r.get(key))
 
         r.flushdb()
 
@@ -304,7 +345,7 @@ class TestSyncArticleViews(TestCase):
         r.flushdb()
 
         view_deltas = {9991: 3, 9992: 0, 9993: 10}
-        keys = {id: ARTICLE_VIEWS_KEY.format(id=id) for id in view_deltas}
+        keys = {id: ARTICLE_VIEW_DELTA_KEY.format(id=id) for id in view_deltas}
 
         with r.pipeline() as pipe:
             for article_id, delta in view_deltas.items():
@@ -312,20 +353,23 @@ class TestSyncArticleViews(TestCase):
                 pipe.sadd(VIEWED_ARTICLES_SET_KEY, article_id)
             pipe.execute()
 
-            [pipe.get(keys[article_id]) for article_id in view_deltas]
+        with r.pipeline() as pipe:
+            for article_id in view_deltas:
+                pipe.get(keys[article_id])
             view_counts = pipe.execute()
-            self.assertFalse(any(vc is None for vc in view_counts))
+        self.assertFalse(any(vc is None for vc in view_counts))
 
-            sync_article_views()
-            expected_args = {k: v for k, v in view_deltas.items() if v > 0}
-            mock_increment.assert_called_once_with(expected_args)
+        sync_article_views()
+        expected_args = {k: v for k, v in view_deltas.items() if v > 0}
+        mock_increment.assert_called_once_with(expected_args)
 
-            viewed_articles = r.smembers(VIEWED_ARTICLES_SET_KEY)
-            self.assertFalse(viewed_articles)
+        self.assertFalse(r.smembers(VIEWED_ARTICLES_SET_KEY))
 
-            [pipe.get(keys[article_id]) for article_id in view_deltas]
+        with r.pipeline() as pipe:
+            for article_id in view_deltas:
+                pipe.get(keys[article_id])
             view_counts = pipe.execute()
-            self.assertTrue(all(vc is None for vc in view_counts))
+        self.assertTrue(all(vc is None for vc in view_counts))
 
         mock_info.assert_has_calls(
             [
@@ -345,7 +389,7 @@ class TestSyncArticleViews(TestCase):
         r.flushdb()
 
         view_deltas = {9991: 3, 9992: 1, 9993: 0, 9994: 0, 9995: 10}
-        keys = {id: ARTICLE_VIEWS_KEY.format(id=id) for id in view_deltas}
+        keys = {id: ARTICLE_VIEW_DELTA_KEY.format(id=id) for id in view_deltas}
 
         with r.pipeline() as pipe:
             for article_id, delta in view_deltas.items():
@@ -354,7 +398,8 @@ class TestSyncArticleViews(TestCase):
             pipe.execute()
 
         with r.pipeline() as pipe:
-            [pipe.get(keys[article_id]) for article_id in view_deltas]
+            for article_id in view_deltas:
+                pipe.get(keys[article_id])
             view_counts = pipe.execute()
         self.assertFalse(any(vc is None for vc in view_counts))
 
@@ -381,7 +426,8 @@ class TestSyncArticleViews(TestCase):
         )
 
         with r.pipeline() as pipe:
-            [pipe.get(keys[article_id]) for article_id in view_deltas]
+            for article_id in view_deltas:
+                pipe.get(keys[article_id])
             view_counts = pipe.execute()
         self.assertTrue(all(vc is None for vc in view_counts))
 
@@ -406,14 +452,15 @@ class TestSyncArticleViews(TestCase):
     @patch("articles.cache.get_redis_connection")
     def test_max_iterations(self, mock_get_redis, mock_sync, mock_decode):
         mock_redis = Mock()
-        article_ids = range(ARTICLE_VIEW_SYNC_MAX_ITERATIONS + 1)
+        article_ids = list(range(ARTICLE_VIEW_SYNC_MAX_ITERATIONS + 1))
+        mock_redis.smembers.return_value = set()
         mock_redis.spop.return_value = True
         mock_get_redis.return_value = mock_redis
         mock_decode.side_effect = [
             [aid] * ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE for aid in article_ids
         ]
 
-        with (patch("articles.cache._requeue_failed_view_syncs"),):
+        with patch("articles.cache._requeue_failed_view_syncs"):
             sync_article_views()
 
         self.assertEqual(
@@ -427,6 +474,6 @@ class TestSyncArticleViews(TestCase):
                 ),
             )
         self.assertNotIn(
-            call([article_ids[-1] * ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE], ANY, ANY),
+            call([article_ids[-1]] * ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE, ANY, ANY),
             mock_sync.call_args_list,
         )

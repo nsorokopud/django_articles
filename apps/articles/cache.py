@@ -12,8 +12,8 @@ from .settings import ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE, ARTICLE_VIEW_SYNC_MAX_IT
 logger = logging.getLogger(__name__)
 
 
-ARTICLE_VIEWED_BY_KEY = "articles:{article_id}:viewed_by:{viewer_id}"
-ARTICLE_VIEWS_KEY = "articles:{id}:views"
+ARTICLE_UNIQUE_VIEW_KEY = "articles:{article_id}:unique_view:{viewer_id}"
+ARTICLE_VIEW_DELTA_KEY = "articles:{id}:views_delta"
 
 VIEWED_ARTICLES_SET_KEY = "articles:viewed_to_sync"
 VIEWED_ARTICLES_RETRY_SET_KEY = "articles:viewed_to_sync-retry"
@@ -21,7 +21,7 @@ VIEWED_ARTICLES_RETRY_SET_KEY = "articles:viewed_to_sync-retry"
 
 def get_cached_article_views(article_id: int) -> int:
     redis_conn = get_redis_connection("default")
-    article_key = ARTICLE_VIEWS_KEY.format(id=article_id)
+    article_key = ARTICLE_VIEW_DELTA_KEY.format(id=article_id)
     try:
         return int(redis_conn.get(article_key) or 0)
     except (ValueError, TypeError, RedisError) as e:
@@ -29,16 +29,49 @@ def get_cached_article_views(article_id: int) -> int:
         return 0
 
 
-def increment_cached_article_views(article_id: int) -> None:
+def register_article_view(
+    *,
+    article_id: int,
+    viewer_id: str,
+    unique_view_timeout: int,
+) -> bool:
+    """Registers one unique view for an article within the timeout window.
+
+    Returns True if a new unique view was counted.
+    Returns False if the viewer had already viewed the article recently
+    or if Redis failed.
+    """
     redis_conn = get_redis_connection("default")
-    article_key = ARTICLE_VIEWS_KEY.format(id=article_id)
+    unique_view_key = ARTICLE_UNIQUE_VIEW_KEY.format(
+        article_id=article_id,
+        viewer_id=viewer_id,
+    )
+    article_delta_key = ARTICLE_VIEW_DELTA_KEY.format(id=article_id)
+
     try:
-        redis_conn.incr(article_key)
-        redis_conn.sadd(VIEWED_ARTICLES_SET_KEY, article_id)
+        was_added = redis_conn.set(
+            unique_view_key,
+            "1",
+            ex=unique_view_timeout,
+            nx=True,
+        )
+        if not was_added:
+            return False
+
+        with redis_conn.pipeline(transaction=True) as pipe:
+            pipe.incr(article_delta_key)
+            pipe.sadd(VIEWED_ARTICLES_SET_KEY, article_id)
+            pipe.execute()
+
+        return True
     except RedisError as e:
         logger.error(
-            "Redis error when incrementing views for article %s: %s", article_id, e
+            "Redis error while registering view for article %s and viewer %s: %s",
+            article_id,
+            viewer_id,
+            e,
         )
+        return False
 
 
 def sync_article_views() -> None:
@@ -51,10 +84,7 @@ def sync_article_views() -> None:
             VIEWED_ARTICLES_SET_KEY, ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE
         )
         if not encoded_article_ids:
-            logger.info(
-                "No articles to sync; exiting on batch %d.",
-                batch_index,
-            )
+            logger.info("No articles to sync; exiting on batch %d.", batch_index)
             break
 
         article_ids = _decode_article_ids(encoded_article_ids)
@@ -67,8 +97,6 @@ def sync_article_views() -> None:
 
 
 def _requeue_failed_view_syncs(redis_conn) -> None:
-    """Moves article IDs from retry set back to the main set for
-    reprocessing."""
     retry_ids = redis_conn.smembers(VIEWED_ARTICLES_RETRY_SET_KEY)
     if retry_ids:
         redis_conn.sadd(VIEWED_ARTICLES_SET_KEY, *retry_ids)
@@ -88,7 +116,9 @@ def _decode_article_ids(encoded_ids: Iterable[bytes]) -> list[int]:
 
 
 def _sync_article_batch(
-    article_ids: Iterable[int], batch_index: int, redis_conn
+    article_ids: Iterable[int],
+    batch_index: int,
+    redis_conn,
 ) -> None:
     view_delta_values = _get_view_delta_values_from_cache(redis_conn, article_ids)
     view_deltas = _build_view_deltas_dict(article_ids, view_delta_values)
@@ -118,23 +148,27 @@ def _sync_article_batch(
 
 
 def _get_view_delta_values_from_cache(
-    redis_conn, article_ids: Iterable[int]
+    redis_conn,
+    article_ids: Iterable[int],
 ) -> list[bytes]:
     try:
         with redis_conn.pipeline(transaction=True) as pipe:
             for article_id in article_ids:
-                pipe.get(ARTICLE_VIEWS_KEY.format(id=article_id))
+                pipe.get(ARTICLE_VIEW_DELTA_KEY.format(id=article_id))
             delta_values = pipe.execute()
         return delta_values
     except RedisError as e:
         logger.error(
-            "Redis error when getting views for articles %s: %s", article_ids, e
+            "Redis error when getting views for articles %s: %s",
+            article_ids,
+            e,
         )
         return []
 
 
 def _build_view_deltas_dict(
-    article_ids: Iterable[int], view_deltas: Iterable[bytes]
+    article_ids: Iterable[int],
+    view_deltas: Iterable[bytes],
 ) -> dict[int, int]:
     result = {}
     for article_id, delta_value in zip(article_ids, view_deltas):
@@ -145,19 +179,20 @@ def _build_view_deltas_dict(
         except (ValueError, TypeError) as e:
             logger.warning(
                 "Invalid view delta value for key %s: %s",
-                ARTICLE_VIEWS_KEY.format(id=article_id),
+                ARTICLE_VIEW_DELTA_KEY.format(id=article_id),
                 e,
             )
     return result
 
 
 def _remove_synced_view_deltas_from_cache(
-    redis_conn, article_ids: Iterable[int]
+    redis_conn,
+    article_ids: Iterable[int],
 ) -> None:
     try:
         with redis_conn.pipeline(transaction=True) as pipe:
             for article_id in article_ids:
-                pipe.delete(ARTICLE_VIEWS_KEY.format(id=article_id))
+                pipe.delete(ARTICLE_VIEW_DELTA_KEY.format(id=article_id))
             pipe.execute()
     except RedisError as e:
         logger.warning("Redis cleanup failed for article IDs %s: %s", article_ids, e)
