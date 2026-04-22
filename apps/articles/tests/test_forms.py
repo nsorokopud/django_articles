@@ -184,7 +184,7 @@ class TestArticleModelForm(TestCase):
 
         self.assertEqual(result, unsaved_result)
         mock_save_article.assert_called_once_with(
-            article=ANY, author=self.user, save_m2m=form.save_m2m
+            article=ANY, author=self.user, save_related=form.save_m2m
         )
 
         passed_article = mock_save_article.call_args.kwargs["article"]
@@ -219,7 +219,7 @@ class TestArticleModelForm(TestCase):
         mock_save_article.assert_called_once_with(
             article=ANY,
             author=None,
-            save_m2m=form.save_m2m,
+            save_related=form.save_m2m,
         )
 
         passed_article = mock_save_article.call_args.kwargs["article"]
@@ -369,7 +369,7 @@ class TestArticleModelForm(TestCase):
         mock_save_article.assert_called_once_with(
             article=ANY,
             author=None,
-            save_m2m=form.save_m2m,
+            save_related=form.save_m2m,
         )
 
         passed_article = mock_save_article.call_args.kwargs["article"]

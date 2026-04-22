@@ -127,7 +127,7 @@ class ArticleModelForm(forms.ModelForm):
         return save_article(
             article=instance,
             author=author,
-            save_m2m=self.save_m2m,
+            save_related=self.save_m2m,
         )
 
 

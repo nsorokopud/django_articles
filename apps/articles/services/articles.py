@@ -10,7 +10,6 @@ from users.models import User
 
 from ..models import Article, ArticleStatus
 from ..search_utils import extract_searchable_text
-from .publishing import restore_article_to_draft
 from .sanitization import sanitize_article_html
 
 
@@ -38,7 +37,8 @@ def save_article(
     *,
     article: Article,
     author: User | None = None,
-    save_m2m: Callable[[], None] | None = None,
+    save_related: Callable[[], None] | None = None,
+    restore_rejected_to_draft: bool = True,
 ) -> Article:
     is_new = article.pk is None
 
@@ -62,16 +62,17 @@ def save_article(
     else:
         article.save()
 
-    if save_m2m is not None:
-        save_m2m()
-
-    # Business rule:
-    # editing a rejected article reopens it as a draft.
+    # Business rule: editing a rejected article reopens it as a draft.
     if (
         previous_article is not None
         and previous_article.status == ArticleStatus.REJECTED
+        and restore_rejected_to_draft
     ):
-        article = restore_article_to_draft(article_id=article.id)
+        article.status = ArticleStatus.DRAFT
+        article.save(update_fields=["status"])
+
+    if save_related is not None:
+        save_related()
 
     return article
 

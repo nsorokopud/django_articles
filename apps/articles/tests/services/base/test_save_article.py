@@ -32,12 +32,12 @@ class TestSaveArticle(TestCase):
             preview_text="preview",
             content="content",
         )
-        save_m2m = Mock()
+        save_related = Mock()
 
         saved = save_article(
             article=article,
             author=self.author,
-            save_m2m=save_m2m,
+            save_related=save_related,
         )
 
         self.assertIsNotNone(saved.pk)
@@ -52,7 +52,7 @@ class TestSaveArticle(TestCase):
         self.assertIsNone(db_article.published_at)
         self.assertIsNone(db_article.publish_sequence)
 
-        save_m2m.assert_called_once_with()
+        save_related.assert_called_once_with()
 
     def test_updates_existing_article_without_replacing_author(self):
         article = Article.objects.create(
@@ -66,12 +66,12 @@ class TestSaveArticle(TestCase):
         article.title = "updated"
         article.preview_text = "updated preview"
 
-        save_m2m = Mock()
+        save_related = Mock()
 
         saved = save_article(
             article=article,
             author=self.other_user,
-            save_m2m=save_m2m,
+            save_related=save_related,
         )
 
         self.assertEqual(saved.pk, article.pk)
@@ -84,7 +84,7 @@ class TestSaveArticle(TestCase):
         self.assertEqual(article.title, "updated")
         self.assertEqual(article.preview_text, "updated preview")
 
-        save_m2m.assert_called_once_with()
+        save_related.assert_called_once_with()
 
     def test_raises_when_creating_article_without_author(self):
         article = Article(
@@ -94,22 +94,18 @@ class TestSaveArticle(TestCase):
             preview_text="preview",
             content="content",
         )
-        save_m2m = Mock()
+        save_related = Mock()
 
         with self.assertRaises(ValueError):
             save_article(
                 article=article,
-                save_m2m=save_m2m,
+                save_related=save_related,
             )
 
         self.assertEqual(Article.objects.count(), 0)
-        save_m2m.assert_not_called()
+        save_related.assert_not_called()
 
-    @patch("articles.services.articles.restore_article_to_draft")
-    def test_updates_rejected_article_calls_restore_to_draft(
-        self,
-        mock_restore_article_to_draft,
-    ):
+    def test_updates_rejected_article_calls_restore_to_draft(self):
         article = Article.objects.create(
             title="a1",
             slug="a1",
@@ -122,22 +118,18 @@ class TestSaveArticle(TestCase):
         )
         article.title = "updated"
 
-        mock_restore_article_to_draft.side_effect = (
-            lambda *, article_id: Article.objects.get(id=article_id)
-        )
-
-        save_m2m = Mock()
+        save_related = Mock()
 
         saved = save_article(
             article=article,
-            save_m2m=save_m2m,
+            save_related=save_related,
         )
 
         article.refresh_from_db()
         self.assertEqual(article.title, "updated")
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertEqual(saved.pk, article.pk)
-        save_m2m.assert_called_once_with()
-        mock_restore_article_to_draft.assert_called_once_with(article_id=article.id)
+        save_related.assert_called_once_with()
 
     def test_updates_rejected_article_restores_to_draft(self):
         article = Article.objects.create(
@@ -152,18 +144,18 @@ class TestSaveArticle(TestCase):
         )
         article.title = "updated"
 
-        save_m2m = Mock()
+        save_related = Mock()
 
         saved = save_article(
             article=article,
-            save_m2m=save_m2m,
+            save_related=save_related,
         )
 
         article.refresh_from_db()
         self.assertEqual(article.title, "updated")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertEqual(saved.pk, article.pk)
-        save_m2m.assert_called_once_with()
+        save_related.assert_called_once_with()
 
     def test_editing_rejected_article_non_title_field_restores_to_draft(self):
         article = Article.objects.create(
@@ -178,47 +170,20 @@ class TestSaveArticle(TestCase):
         )
         article.preview_text = "updated preview"
 
-        save_m2m = Mock()
+        save_related = Mock()
 
         saved = save_article(
             article=article,
-            save_m2m=save_m2m,
+            save_related=save_related,
         )
 
         article.refresh_from_db()
         self.assertEqual(saved.pk, article.pk)
         self.assertEqual(article.preview_text, "updated preview")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
-        save_m2m.assert_called_once_with()
+        save_related.assert_called_once_with()
 
-    @patch("articles.services.articles.restore_article_to_draft")
-    def test_existing_draft_does_not_restore_to_draft_again(
-        self,
-        mock_restore_article_to_draft,
-    ):
-        article = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.category,
-            author=self.author,
-            preview_text="preview",
-            content="content",
-            status=ArticleStatus.DRAFT,
-        )
-        article.title = "updated"
-
-        save_m2m = Mock()
-
-        saved = save_article(
-            article=article,
-            save_m2m=save_m2m,
-        )
-
-        self.assertEqual(saved.pk, article.pk)
-        save_m2m.assert_called_once_with()
-        mock_restore_article_to_draft.assert_not_called()
-
-    def test_saves_article_when_save_m2m_is_none(self):
+    def test_saves_article_when_save_related_is_none(self):
         article = Article(
             title="a1",
             slug="a1",
@@ -230,7 +195,7 @@ class TestSaveArticle(TestCase):
         saved = save_article(
             article=article,
             author=self.author,
-            save_m2m=None,
+            save_related=None,
         )
 
         self.assertIsNotNone(saved.pk)
