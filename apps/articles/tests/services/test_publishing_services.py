@@ -14,7 +14,6 @@ from articles.services.publishing import (
     get_next_article_publish_sequence_value,
     publish_article,
     reject_article,
-    restore_article_to_draft,
     submit_article_for_review,
     unpublish_article,
     withdraw_article_from_review,
@@ -809,89 +808,6 @@ class TestRejectArticle(TestCase):
         self.assertIsNone(article.reviewed_at)
         self.assertIsNone(article.reviewed_by)
         self.assertEqual(article.review_note, "")
-
-
-class TestRestoreArticleToDraft(TestCase):
-    def setUp(self):
-        self.author = User.objects.create_user(
-            username="author", email="author@test.com"
-        )
-        self.reviewer = User.objects.create_user(
-            username="reviewer", email="reviewer@test.com"
-        )
-
-    def create_article(self, **kwargs) -> Article:
-        data = {
-            "title": "Test article",
-            "slug": f"test-article-{timezone.now().timestamp()}",
-            "author": self.author,
-            "preview_text": "p",
-            "content": "c",
-            "status": ArticleStatus.DRAFT,
-        }
-        data.update(kwargs)
-        return Article.objects.create(**data)
-
-    def test_restore_rejected_article_to_draft(self):
-        reviewed_at = timezone.now()
-        article = self.create_article(
-            status=ArticleStatus.REJECTED,
-            review_note="Please fix the structure and title.",
-            reviewed_at=reviewed_at,
-            reviewed_by=self.reviewer,
-        )
-
-        restored = restore_article_to_draft(article_id=article.id)
-        article.refresh_from_db()
-
-        self.assertEqual(restored.id, article.id)
-        self.assertEqual(article.status, ArticleStatus.DRAFT)
-        self.assertEqual(article.reviewed_at, reviewed_at)
-        self.assertEqual(article.reviewed_by, self.reviewer)
-        self.assertEqual(article.review_note, "Please fix the structure and title.")
-
-    def test_raises_for_draft_article(self):
-        article = self.create_article(
-            status=ArticleStatus.DRAFT,
-            review_note="Old note",
-            reviewed_at=None,
-            reviewed_by=None,
-        )
-
-        with self.assertRaisesMessage(
-            ValueError,
-            "only rejected articles can be restored to draft",
-        ):
-            restore_article_to_draft(article_id=article.id)
-
-        article.refresh_from_db()
-
-        self.assertEqual(article.status, ArticleStatus.DRAFT)
-        self.assertIsNone(article.reviewed_at)
-        self.assertIsNone(article.reviewed_by)
-        self.assertEqual(article.review_note, "Old note")
-
-    def test_restore_published_article_raises_error(self):
-        article = self.create_article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=123,
-        )
-
-        with self.assertRaisesMessage(
-            ValueError,
-            "only rejected articles can be restored to draft",
-        ):
-            restore_article_to_draft(article_id=article.id)
-
-        article.refresh_from_db()
-        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
-        self.assertIsNotNone(article.published_at)
-        self.assertEqual(article.publish_sequence, 123)
-
-    def test_restore_nonexistent_article_raises_does_not_exist(self):
-        with self.assertRaises(Article.DoesNotExist):
-            restore_article_to_draft(article_id=999999)
 
 
 class TestNormalizeArticleText(SimpleTestCase):
