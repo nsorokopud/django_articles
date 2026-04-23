@@ -139,7 +139,6 @@ class ArticleAdmin(admin.ModelAdmin):
         save_article(
             article=obj,
             author=None if change else obj.author,
-            save_related=None,
             restore_rejected_to_draft=False,
         )
 

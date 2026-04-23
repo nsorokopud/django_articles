@@ -12,17 +12,12 @@ from users.models import User
 class TestSaveArticle(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
-            username="author",
-            email="author@test.com",
+            username="author", email="author@test.com"
         )
         self.other_user = User.objects.create_user(
-            username="other",
-            email="other@test.com",
+            username="other", email="other@test.com"
         )
-        self.category = ArticleCategory.objects.create(
-            title="cat",
-            slug="cat",
-        )
+        self.category = ArticleCategory.objects.create(title="cat", slug="cat")
 
     def test_creates_article_unpublished_by_default(self):
         article = Article(
@@ -32,13 +27,8 @@ class TestSaveArticle(TestCase):
             preview_text="preview",
             content="content",
         )
-        save_related = Mock()
 
-        saved = save_article(
-            article=article,
-            author=self.author,
-            save_related=save_related,
-        )
+        saved = save_article(article=article, author=self.author)
 
         self.assertIsNotNone(saved.pk)
         self.assertEqual(saved.author, self.author)
@@ -52,8 +42,6 @@ class TestSaveArticle(TestCase):
         self.assertIsNone(db_article.published_at)
         self.assertIsNone(db_article.publish_sequence)
 
-        save_related.assert_called_once_with()
-
     def test_updates_existing_article_without_replacing_author(self):
         article = Article.objects.create(
             title="a1",
@@ -66,13 +54,7 @@ class TestSaveArticle(TestCase):
         article.title = "updated"
         article.preview_text = "updated preview"
 
-        save_related = Mock()
-
-        saved = save_article(
-            article=article,
-            author=self.other_user,
-            save_related=save_related,
-        )
+        saved = save_article(article=article, author=self.other_user)
 
         self.assertEqual(saved.pk, article.pk)
         self.assertEqual(saved.author, self.author)
@@ -83,8 +65,6 @@ class TestSaveArticle(TestCase):
         self.assertEqual(article.author, self.author)
         self.assertEqual(article.title, "updated")
         self.assertEqual(article.preview_text, "updated preview")
-
-        save_related.assert_called_once_with()
 
     def test_raises_when_creating_article_without_author(self):
         article = Article(
@@ -97,10 +77,7 @@ class TestSaveArticle(TestCase):
         save_related = Mock()
 
         with self.assertRaises(ValueError):
-            save_article(
-                article=article,
-                save_related=save_related,
-            )
+            save_article(article=article)
 
         self.assertEqual(Article.objects.count(), 0)
         save_related.assert_not_called()
@@ -118,18 +95,11 @@ class TestSaveArticle(TestCase):
         )
         article.title = "updated"
 
-        save_related = Mock()
-
-        saved = save_article(
-            article=article,
-            save_related=save_related,
-        )
-
+        saved = save_article(article=article)
         article.refresh_from_db()
         self.assertEqual(article.title, "updated")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertEqual(saved.pk, article.pk)
-        save_related.assert_called_once_with()
 
     def test_updates_rejected_article_restores_to_draft(self):
         article = Article.objects.create(
@@ -144,18 +114,11 @@ class TestSaveArticle(TestCase):
         )
         article.title = "updated"
 
-        save_related = Mock()
-
-        saved = save_article(
-            article=article,
-            save_related=save_related,
-        )
-
+        saved = save_article(article=article)
         article.refresh_from_db()
         self.assertEqual(article.title, "updated")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertEqual(saved.pk, article.pk)
-        save_related.assert_called_once_with()
 
     def test_editing_rejected_article_non_title_field_restores_to_draft(self):
         article = Article.objects.create(
@@ -170,18 +133,11 @@ class TestSaveArticle(TestCase):
         )
         article.preview_text = "updated preview"
 
-        save_related = Mock()
-
-        saved = save_article(
-            article=article,
-            save_related=save_related,
-        )
-
+        saved = save_article(article=article)
         article.refresh_from_db()
         self.assertEqual(saved.pk, article.pk)
         self.assertEqual(article.preview_text, "updated preview")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
-        save_related.assert_called_once_with()
 
     def test_saves_article_when_save_related_is_none(self):
         article = Article(
@@ -192,12 +148,7 @@ class TestSaveArticle(TestCase):
             content="content",
         )
 
-        saved = save_article(
-            article=article,
-            author=self.author,
-            save_related=None,
-        )
-
+        saved = save_article(article=article, author=self.author)
         self.assertIsNotNone(saved.pk)
         self.assertEqual(saved.author, self.author)
         self.assertEqual(Article.objects.count(), 1)
@@ -325,9 +276,7 @@ class TestSaveArticle(TestCase):
         article.title = "new title"
         mock_build_slug.return_value = "new-title"
 
-        saved = save_article(
-            article=article,
-        )
+        saved = save_article(article=article)
 
         self.assertEqual(saved.slug, "new-title")
         mock_build_slug.assert_called_once_with("new title", use_suffix=False)
@@ -351,9 +300,7 @@ class TestSaveArticle(TestCase):
         )
         article.preview_text = "updated preview"
 
-        saved = save_article(
-            article=article,
-        )
+        saved = save_article(article=article)
 
         self.assertEqual(saved.slug, "title")
         mock_build_slug.assert_not_called()
@@ -379,9 +326,7 @@ class TestSaveArticle(TestCase):
         )
         article.title = "new published title"
 
-        saved = save_article(
-            article=article,
-        )
+        saved = save_article(article=article)
 
         self.assertEqual(saved.slug, "old-title")
         mock_build_slug.assert_not_called()
@@ -408,9 +353,7 @@ class TestSaveArticle(TestCase):
         article.title = "new rejected title"
         mock_build_slug.return_value = "new-rejected-title"
 
-        saved = save_article(
-            article=article,
-        )
+        saved = save_article(article=article)
 
         self.assertEqual(saved.slug, "new-rejected-title")
         mock_build_slug.assert_called_once_with(
@@ -448,10 +391,7 @@ class TestSaveArticle(TestCase):
             autospec=True,
             side_effect=save_side_effect,
         ):
-            saved = save_article(
-                article=article,
-                author=self.author,
-            )
+            saved = save_article(article=article, author=self.author)
 
         self.assertIsNotNone(saved.pk)
         self.assertEqual(saved.slug, "a1-suffix")
@@ -494,10 +434,7 @@ class TestSaveArticle(TestCase):
             ),
         ):
             with self.assertRaises(IntegrityError):
-                save_article(
-                    article=article,
-                    author=self.author,
-                )
+                save_article(article=article, author=self.author)
 
         self.assertEqual(mock_build_slug.call_count, MAX_SLUG_RETRY_ATTEMPTS)
         self.assertEqual(Article.objects.count(), 0)

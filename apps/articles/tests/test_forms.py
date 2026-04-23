@@ -153,17 +153,18 @@ class TestArticleModelForm(TestCase):
         )
 
     @patch("articles.forms.save_article")
-    def test_create_delegates_to_save_article(self, mock_save_article):
+    def test_create_delegates_to_save_article_with_author(self, mock_save_article):
         preview_image = self.get_preview_image()
 
-        unsaved_result = Article(
+        saved_result = Article.objects.create(
+            author=self.user,
             title="a2",
             slug="a2",
             category=self.category,
             preview_text="preview2",
             content="content2",
         )
-        mock_save_article.return_value = unsaved_result
+        mock_save_article.return_value = saved_result
 
         form = ArticleModelForm(
             user=self.user,
@@ -177,23 +178,14 @@ class TestArticleModelForm(TestCase):
             files={"preview_image": preview_image},
         )
 
-        self.assertTrue(form.is_valid())
-        self.assertEqual(form.errors, {})
+        self.assertTrue(form.is_valid(), form.errors)
 
-        result = form.save()
+        with patch.object(form, "_save_m2m") as mock_save_m2m:
+            result = form.save()
 
-        self.assertEqual(result, unsaved_result)
-        mock_save_article.assert_called_once_with(
-            article=ANY, author=self.user, save_related=form.save_m2m
-        )
-
-        passed_article = mock_save_article.call_args.kwargs["article"]
-        self.assertIsNone(passed_article.pk)
-        self.assertEqual(passed_article.title, "a2")
-        self.assertEqual(passed_article.category, self.category)
-        self.assertEqual(passed_article.preview_text, "preview2")
-        self.assertEqual(passed_article.content, "content2")
-        self.assertTrue(passed_article.preview_image.name.endswith("test_image.jpg"))
+        self.assertEqual(result, saved_result)
+        mock_save_article.assert_called_once_with(article=ANY, author=self.user)
+        mock_save_m2m.assert_called_once()
 
     @patch("articles.forms.save_article")
     def test_update_delegates_to_save_article_with_author_none(self, mock_save_article):
@@ -210,17 +202,14 @@ class TestArticleModelForm(TestCase):
             instance=self.article,
         )
 
-        self.assertTrue(form.is_valid())
-        self.assertEqual(form.errors, {})
+        self.assertTrue(form.is_valid(), form.errors)
 
-        result = form.save()
+        with patch.object(form, "_save_m2m") as mock_save_m2m:
+            result = form.save()
 
         self.assertEqual(result, self.article)
-        mock_save_article.assert_called_once_with(
-            article=ANY,
-            author=None,
-            save_related=form.save_m2m,
-        )
+        mock_save_article.assert_called_once_with(article=ANY, author=None)
+        mock_save_m2m.assert_called_once()
 
         passed_article = mock_save_article.call_args.kwargs["article"]
         self.assertEqual(passed_article.pk, self.article.pk)
@@ -247,6 +236,26 @@ class TestArticleModelForm(TestCase):
         self.assertEqual(article.title, "a2")
         self.assertEqual(article.preview_text, "preview2")
         self.assertEqual(article.content, "content2")
+
+    def test_save_persists_tags(self):
+        form = ArticleModelForm(
+            user=self.user,
+            data={
+                "title": "a2",
+                "category": self.category.id,
+                "tags": "tag1, tag2",
+                "preview_text": "preview2",
+                "content": "content2",
+            },
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        article = form.save()
+
+        self.assertEqual(article.author, self.user)
+        self.assertEqual(article.category, self.category)
+        self.assertSetEqual(set(article.tags.names()), {"tag1", "tag2"})
 
     def test_core_fields_are_not_required(self):
         form = ArticleModelForm(instance=self.article)
@@ -360,17 +369,14 @@ class TestArticleModelForm(TestCase):
             },
         )
 
-        self.assertTrue(form.is_valid())
-        self.assertEqual(form.errors, {})
+        self.assertTrue(form.is_valid(), form.errors)
 
-        result = form.save()
+        with patch.object(form, "_save_m2m") as mock_save_m2m:
+            result = form.save()
 
         self.assertEqual(result, self.article)
-        mock_save_article.assert_called_once_with(
-            article=ANY,
-            author=None,
-            save_related=form.save_m2m,
-        )
+        mock_save_article.assert_called_once_with(article=ANY, author=None)
+        mock_save_m2m.assert_called_once()
 
         passed_article = mock_save_article.call_args.kwargs["article"]
         self.assertEqual(passed_article.pk, self.article.pk)

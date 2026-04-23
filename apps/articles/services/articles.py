@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Optional
+from typing import Optional
 
 from django.conf import settings
 from django.db import DatabaseError, IntegrityError, connection, transaction
@@ -37,7 +37,6 @@ def save_article(
     *,
     article: Article,
     author: User | None = None,
-    save_related: Callable[[], None] | None = None,
     restore_rejected_to_draft: bool = True,
 ) -> Article:
     is_new = article.pk is None
@@ -70,9 +69,6 @@ def save_article(
     ):
         article.status = ArticleStatus.DRAFT
         article.save(update_fields=["status"])
-
-    if save_related is not None:
-        save_related()
 
     return article
 

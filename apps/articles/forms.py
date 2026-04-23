@@ -124,11 +124,10 @@ class ArticleModelForm(forms.ModelForm):
 
         author = self.user if instance.pk is None else None
 
-        return save_article(
-            article=instance,
-            author=author,
-            save_related=self.save_m2m,
-        )
+        article = save_article(article=instance, author=author)
+        self.save_m2m()
+
+        return article
 
 
 class AttachedFileUploadForm(forms.Form):
