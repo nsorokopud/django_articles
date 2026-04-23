@@ -7,7 +7,7 @@ from django_redis import get_redis_connection
 
 from articles.cache import (
     ARTICLE_UNIQUE_VIEW_KEY,
-    ARTICLE_VIEW_DELTA_KEY,
+    ARTICLE_UNSYNCED_VIEWS_KEY,
     VIEWED_ARTICLES_SET_KEY,
 )
 from articles.forms import ArticleCommentForm
@@ -118,7 +118,7 @@ class TestArticleDetailView(TestCase):
         self.article.views_count = 111
         self.article.save(update_fields=["views_count"])
 
-        views_key = ARTICLE_VIEW_DELTA_KEY.format(id=self.article.id)
+        views_key = ARTICLE_UNSYNCED_VIEWS_KEY.format(id=self.article.id)
         viewed_by_key1 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:anonymous"
         )

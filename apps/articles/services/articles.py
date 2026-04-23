@@ -2,7 +2,8 @@ import logging
 from typing import Optional
 
 from django.conf import settings
-from django.db import DatabaseError, IntegrityError, connection, transaction
+from django.db import DatabaseError, IntegrityError, transaction
+from django.db.models import Case, F, IntegerField, Value, When
 from django.template.defaultfilters import slugify
 from nanoid import generate
 
@@ -121,31 +122,20 @@ def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
         logger.warning("No deltas to process for bulk update.")
         return
 
-    case_statements = []
-    case_params = []
-    where_placeholders = []
-    where_params = []
-
-    for article_id, view_delta in sorted(view_deltas.items()):
-        case_statements.append("WHEN id = %s THEN views_count + %s")
-        case_params.extend([article_id, view_delta])
-        where_placeholders.append("%s")
-        where_params.append(article_id)
-
-    case_sql = "CASE " + " ".join(case_statements) + " END"
-    where_clause = f"id IN ({', '.join(where_placeholders)})"
-
-    sql_template = """
-        UPDATE articles_article
-        SET views_count = {case_sql}
-        WHERE {where_clause}
-    """
-    sql = sql_template.format(case_sql=case_sql, where_clause=where_clause)
-    params = case_params + where_params
+    when_clauses = [
+        When(pk=article_id, then=F("views_count") + Value(view_delta))
+        for article_id, view_delta in sorted(view_deltas.items())
+    ]
 
     try:
         with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute(sql, params)
-    except DatabaseError as e:
-        logger.exception("Failed to bulk update view counts: %s", e)
+            Article.objects.filter(pk__in=view_deltas).update(
+                views_count=Case(
+                    *when_clauses,
+                    default=F("views_count"),
+                    output_field=IntegerField(),
+                )
+            )
+    except DatabaseError:
+        logger.exception("Failed to bulk update view counts.")
+        raise
