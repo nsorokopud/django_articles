@@ -17,6 +17,7 @@ from users.services.subscriptions import (
     advance_subscriptions_last_seen_publish_sequence,
 )
 
+from ..cache.slug import invalidate_article_slug_id
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
 from ..models import Article, ArticleStatus
@@ -313,8 +314,10 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
     success_url = reverse_lazy("my-articles")
 
     def form_valid(self, form) -> HttpResponse:
-        article = self.get_object()
+        article = self.object
         response = super().form_valid(form)
+
+        invalidate_article_slug_id(article_slug=article.slug)
 
         messages.success(
             request=self.request,

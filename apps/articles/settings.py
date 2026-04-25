@@ -13,6 +13,9 @@ ARTICLE_UNIQUE_VIEW_TIMEOUT = int(
     os.getenv("ARTICLE_UNIQUE_VIEW_TIMEOUT", "3600")  # 1 hour
 )
 
+# Cache timeout for article slug to ID mapping in seconds.
+ARTICLE_SLUG_ID_CACHE_TIMEOUT = 60 * 60  # 1 hour
+
 # Article details page cache timeout (for anonymous users only) in seconds.
 ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT = int(
     os.getenv("ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT", "300")  # 5 minutes

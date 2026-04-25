@@ -4,8 +4,8 @@ from typing import Any, Callable
 
 from core.visitor_identifiers import get_visitor_id
 
+from ..cache.slug import get_cached_article_id_by_slug
 from ..cache.view_counts import register_article_view
-from ..models import Article
 from ..settings import ARTICLE_UNIQUE_VIEW_TIMEOUT
 
 
@@ -20,19 +20,17 @@ def increment_article_view_counter(view_func: Callable[..., Any]) -> Callable[..
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs) -> Any:
         article_slug = kwargs.get("article_slug")
+        article_id = None
+
         if article_slug:
-            try:
-                article_id = Article.objects.values_list("id", flat=True).get(
-                    slug=article_slug
-                )
-            except Article.DoesNotExist:
-                logger.warning("Article not found for slug '%s'.", article_slug)
-            else:
-                register_article_view(
-                    article_id=article_id,
-                    viewer_id=get_visitor_id(request),
-                    unique_view_timeout=ARTICLE_UNIQUE_VIEW_TIMEOUT,
-                )
+            article_id = get_cached_article_id_by_slug(article_slug)
+
+        if article_id is not None:
+            register_article_view(
+                article_id=article_id,
+                viewer_id=get_visitor_id(request),
+                unique_view_timeout=ARTICLE_UNIQUE_VIEW_TIMEOUT,
+            )
 
         return view_func(request, *args, **kwargs)
 

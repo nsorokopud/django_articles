@@ -2,7 +2,7 @@
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleStatus
@@ -218,7 +218,7 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         self.assertIsNotNone(article.publish_sequence)
 
 
-class TestPublishArticle(TestCase):
+class TestPublishArticle(TransactionTestCase):
     def setUp(self):
         self.author = User.objects.create_user(
             username="author",
@@ -498,6 +498,28 @@ class TestPublishArticle(TestCase):
         mock_advance.assert_not_called()
         mock_notify.assert_not_called()
 
+    @patch("articles.services.publishing.cache_article_slug_id")
+    @patch("articles.services.publishing.notify_article_published")
+    def test_caches_article_slug_id(self, mock_notify, mock_cache):
+        published = publish_article(article_id=self.article.id)
+
+        mock_cache.assert_called_once_with(
+            article_slug=published.slug, article_id=published.id
+        )
+
+    @patch("articles.services.publishing.cache_article_slug_id")
+    @patch("articles.services.publishing.notify_article_published")
+    def test_does_not_cache_when_publish_fails(self, mock_notify, mock_cache):
+        self.article.status = ArticleStatus.REJECTED
+        self.article.save(update_fields=["status"])
+
+        with self.assertRaisesMessage(
+            ValueError, "only articles pending review can be published"
+        ):
+            publish_article(article_id=self.article.id)
+
+        mock_cache.assert_not_called()
+
 
 class TestGetNextArticlePublishSequenceValue(TestCase):
     def test_returns_int(self):
@@ -512,7 +534,7 @@ class TestGetNextArticlePublishSequenceValue(TestCase):
         self.assertGreater(second, first)
 
 
-class TestUnpublishArticle(TestCase):
+class TestUnpublishArticle(TransactionTestCase):
     def setUp(self):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
@@ -656,6 +678,46 @@ class TestUnpublishArticle(TestCase):
             unpublish_article(article_id=999999)
 
         mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    @patch("articles.services.publishing.notify_article_unpublished")
+    def test_invalidates_article_slug_id(self, mock_notify, mock_invalidate):
+        article = Article.objects.create(
+            title="Published",
+            slug="published",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=123,
+        )
+
+        unpublish_article(article_id=article.id)
+        mock_invalidate.assert_called_once_with(article_slug="published")
+
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    @patch("articles.services.publishing.notify_article_unpublished")
+    def test_unpublish_does_not_invalidate_when_unpublish_fails(
+        self,
+        mock_notify,
+        mock_invalidate,
+    ):
+        article = Article.objects.create(
+            title="Draft",
+            slug="draft",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.DRAFT,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError, "only published articles can be unpublished"
+        ):
+            unpublish_article(article_id=article.id)
+
+        mock_invalidate.assert_not_called()
 
 
 class TestRejectArticle(TestCase):

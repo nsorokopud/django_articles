@@ -1,7 +1,7 @@
 from unittest.mock import Mock, call, patch
 
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleStatus
@@ -9,7 +9,7 @@ from articles.services.articles import MAX_SLUG_RETRY_ATTEMPTS, save_article
 from users.models import User
 
 
-class TestSaveArticle(TestCase):
+class TestSaveArticle(TransactionTestCase):
     def setUp(self):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
@@ -438,3 +438,55 @@ class TestSaveArticle(TestCase):
 
         self.assertEqual(mock_build_slug.call_count, MAX_SLUG_RETRY_ATTEMPTS)
         self.assertEqual(Article.objects.count(), 0)
+
+    @patch("articles.services.articles.invalidate_article_slug_id")
+    def test_invalidates_old_slug_when_slug_changes(self, mock_invalidate):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.DRAFT,
+        )
+        article.title = "new title"
+
+        save_article(article=article)
+        mock_invalidate.assert_called_once_with(article_slug="old-title")
+
+    @patch("articles.services.articles.cache_article_slug_id")
+    def test_caches_slug_id_when_saving_published_article(self, mock_cache):
+        article = Article.objects.create(
+            title="published",
+            slug="published",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+        article.preview_text = "updated preview"
+
+        save_article(article=article)
+        mock_cache.assert_called_once_with(
+            article_slug="published", article_id=article.id
+        )
+
+    @patch("articles.services.articles.cache_article_slug_id")
+    def test_does_not_cache_slug_id_when_saving_draft_article(self, mock_cache):
+        article = Article.objects.create(
+            title="draft",
+            slug="draft",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.DRAFT,
+        )
+        article.preview_text = "updated preview"
+
+        save_article(article=article)
+        mock_cache.assert_not_called()

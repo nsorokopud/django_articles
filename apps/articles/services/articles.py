@@ -9,6 +9,7 @@ from nanoid import generate
 
 from users.models import User
 
+from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..models import Article, ArticleStatus
 from ..search_utils import extract_searchable_text
 from .sanitization import sanitize_article_html
@@ -54,6 +55,8 @@ def save_article(
             .get(pk=article.pk)
         )
 
+    old_slug = previous_article.slug if previous_article is not None else None
+
     article.content = sanitize_article_html(article.content)
     article.content_text = extract_searchable_text(article.content)
 
@@ -70,6 +73,16 @@ def save_article(
     ):
         article.status = ArticleStatus.DRAFT
         article.save(update_fields=["status"])
+
+    if old_slug and old_slug != article.slug:
+        transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=old_slug))
+
+    if article.status == ArticleStatus.PUBLISHED:
+        transaction.on_commit(
+            lambda: cache_article_slug_id(
+                article_slug=article.slug, article_id=article.id
+            )
+        )
 
     return article
 

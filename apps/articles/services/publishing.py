@@ -13,6 +13,7 @@ from notifications.services.articles import (
 from users.models import User
 from users.services.users import advance_latest_article_publish_sequence
 
+from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..models import ARTICLE_PUBLISH_SEQUENCE_NAME, Article, ArticleStatus
 
 
@@ -74,6 +75,10 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
         ]
     )
 
+    transaction.on_commit(
+        lambda: cache_article_slug_id(article_slug=article.slug, article_id=article.id)
+    )
+
     advance_latest_article_publish_sequence(
         user_id=article.author_id, publish_sequence=seq
     )
@@ -104,6 +109,8 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
     article.published_at = None
     article.publish_sequence = None
     article.save(update_fields=["status", "published_at", "publish_sequence"])
+
+    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article.slug))
 
     if actor is not None and actor.id != article.author_id:
         notify_article_unpublished(

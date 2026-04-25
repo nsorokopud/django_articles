@@ -63,7 +63,8 @@ class TestViews(TestCase):
         self.client.get(url)
         self.assertRaises(Http404)
 
-    def test_article_delete_view_authorized(self):
+    @patch("articles.views.articles.invalidate_article_slug_id")
+    def test_article_delete_view_authorized(self, mock_invalidate):
         a = Article.objects.create(
             title="title",
             slug="slug",
@@ -74,18 +75,15 @@ class TestViews(TestCase):
         )
 
         self.client.force_login(self.test_user)
-        with patch("articles.cache.view_counts.get_redis_connection"):
-            response = self.client.post(reverse("article-delete", args=[a.slug]))
+        response = self.client.post(reverse("article-delete", args=[a.slug]))
 
-            self.assertRedirects(
-                response,
-                reverse("my-articles"),
-                status_code=302,
-                target_status_code=200,
-            )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("my-articles"))
 
-            messages = list(get_messages(response.wsgi_request))
-            assert any("deleted successfully" in str(m) for m in messages)
+        mock_invalidate.assert_called_once_with(article_slug="slug")
+
+        messages = list(get_messages(response.wsgi_request))
+        self.assertTrue(any("deleted successfully" in str(m) for m in messages))
 
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)
