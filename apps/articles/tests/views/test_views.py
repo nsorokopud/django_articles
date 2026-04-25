@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 from django.contrib.messages import get_messages
-from django.http import Http404
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -60,8 +59,9 @@ class TestViews(TestCase):
 
     def test_article_delete_view_unauthorized(self):
         url = reverse("article-delete", args=[self.test_article.slug])
-        self.client.get(url)
-        self.assertRaises(Http404)
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)
 
     @patch("articles.views.articles.invalidate_article_slug_id")
     def test_article_delete_view_authorized(self, mock_invalidate):
@@ -72,6 +72,7 @@ class TestViews(TestCase):
             preview_text="text",
             content="content",
             author=self.test_user,
+            status=ArticleStatus.DRAFT,
         )
 
         self.client.force_login(self.test_user)
@@ -87,3 +88,43 @@ class TestViews(TestCase):
 
         with self.assertRaises(Article.DoesNotExist):
             Article.objects.get(pk=a.pk)
+
+    @patch("articles.views.articles.invalidate_article_slug_id")
+    def test_article_delete_view_forbids_published_article(self, mock_invalidate):
+        article = Article.objects.create(
+            title="title",
+            slug="published-slug",
+            category=self.test_category,
+            preview_text="text",
+            content="content",
+            author=self.test_user,
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=2,
+        )
+
+        self.client.force_login(self.test_user)
+
+        response = self.client.post(reverse("article-delete", args=[article.slug]))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Article.objects.filter(pk=article.pk).exists())
+        mock_invalidate.assert_not_called()
+
+    @patch("articles.views.articles.invalidate_article_slug_id")
+    def test_article_delete_view_forbids_pending_review_article(self, mock_invalidate):
+        article = Article.objects.create(
+            title="title",
+            slug="pending-slug",
+            category=self.test_category,
+            preview_text="text",
+            content="content",
+            author=self.test_user,
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        self.client.force_login(self.test_user)
+        response = self.client.post(reverse("article-delete", args=[article.slug]))
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Article.objects.filter(pk=article.pk).exists())
+        mock_invalidate.assert_not_called()

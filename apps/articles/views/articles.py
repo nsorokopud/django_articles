@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
@@ -312,6 +313,17 @@ class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
     context_object_name = "article"
     slug_url_kwarg = "article_slug"
     success_url = reverse_lazy("my-articles")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        if self.object.status in {
+            ArticleStatus.PUBLISHED,
+            ArticleStatus.PENDING_REVIEW,
+        }:
+            raise PermissionDenied("This article cannot be deleted.")
+
+        return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form) -> HttpResponse:
         article = self.object
