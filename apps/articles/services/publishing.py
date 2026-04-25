@@ -31,6 +31,9 @@ def submit_article_for_review(*, article_id: int) -> Article:
     article.reviewed_at = None
     article.reviewed_by = None
     article.save(update_fields=["status", "review_note", "reviewed_at", "reviewed_by"])
+
+    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article.slug))
+
     return article
 
 
@@ -158,6 +161,8 @@ def reject_article(
             "reviewed_by",
         ]
     )
+
+    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article.slug))
 
     notify_article_rejected(
         recipient_id=article.author_id,
