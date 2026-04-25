@@ -5,7 +5,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from config.celery import app
 
-from .cache import sync_article_views
+from .cache.view_counts import sync_article_views
 from .services import delete_media_files_attached_to_article
 
 

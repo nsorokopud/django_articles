@@ -149,7 +149,7 @@ class Article(models.Model):
     @property
     def views(self) -> int:
         """Returns current total (DB + cache) view count."""
-        from .cache import get_cached_article_views
+        from .cache.view_counts import get_cached_article_views
 
         views_delta = get_cached_article_views(self.id)
         return self.views_count + views_delta

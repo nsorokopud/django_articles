@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
 
-from articles.cache import (
+from articles.cache.view_counts import (
     ARTICLE_UNIQUE_VIEW_KEY,
     ARTICLE_UNSYNCED_VIEWS_KEY,
     VIEWED_ARTICLES_SET_KEY,

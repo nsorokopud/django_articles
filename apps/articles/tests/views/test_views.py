@@ -36,7 +36,7 @@ class TestViews(TestCase):
         )
 
     def test_homepage_view(self):
-        with patch("articles.cache.get_redis_connection"):
+        with patch("articles.cache.view_counts.get_redis_connection"):
             response = self.client.get(reverse("home"))
 
             self.assertRedirects(
@@ -47,7 +47,7 @@ class TestViews(TestCase):
             )
 
     def test_article_list_filter_view(self):
-        with patch("articles.cache.get_redis_connection"):
+        with patch("articles.cache.view_counts.get_redis_connection"):
             response = self.client.get(reverse("articles"))
 
         self.assertEqual(response.status_code, 200)
@@ -74,7 +74,7 @@ class TestViews(TestCase):
         )
 
         self.client.force_login(self.test_user)
-        with patch("articles.cache.get_redis_connection"):
+        with patch("articles.cache.view_counts.get_redis_connection"):
             response = self.client.post(reverse("article-delete", args=[a.slug]))
 
             self.assertRedirects(

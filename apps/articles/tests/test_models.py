@@ -30,7 +30,9 @@ class TestArticleModel(TestCase):
         self.unpublished_article.views_count = 10
         self.unpublished_article.save(update_fields=["views_count"])
 
-        with patch("articles.cache.get_cached_article_views") as mock_get_cached:
+        with patch(
+            "articles.cache.view_counts.get_cached_article_views"
+        ) as mock_get_cached:
             mock_get_cached.return_value = 5
             self.assertEqual(self.unpublished_article.views, 15)
             mock_get_cached.assert_called_once_with(self.unpublished_article.id)

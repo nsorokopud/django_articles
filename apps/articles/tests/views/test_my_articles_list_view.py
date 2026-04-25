@@ -13,7 +13,7 @@ class TestMyArticlesListView(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.redis_patch = patch(
-            "articles.cache.get_cached_article_views", return_value=0
+            "articles.cache.view_counts.get_cached_article_views", return_value=0
         )
         cls.redis_patch.start()
         cls.addClassCleanup(cls.redis_patch.stop)

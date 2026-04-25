@@ -5,8 +5,11 @@ from django.db import DatabaseError
 from django_redis import get_redis_connection
 from redis import RedisError
 
-from .services import bulk_increment_article_view_counts
-from .settings import ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE, ARTICLE_VIEW_SYNC_MAX_ITERATIONS
+from ..services import bulk_increment_article_view_counts
+from ..settings import (
+    ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE,
+    ARTICLE_VIEW_SYNC_MAX_ITERATIONS,
+)
 
 
 logger = logging.getLogger(__name__)

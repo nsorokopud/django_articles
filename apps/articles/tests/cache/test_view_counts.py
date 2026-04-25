@@ -5,7 +5,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django_redis import get_redis_connection
 from redis import RedisError
 
-from articles.cache import (
+from articles.cache.view_counts import (
     ARTICLE_UNIQUE_VIEW_KEY,
     ARTICLE_UNSYNCED_VIEWS_KEY,
     REGISTER_ARTICLE_VIEW_LUA,
@@ -26,8 +26,8 @@ from config.settings import CACHES
 
 
 class TestGetCachedArticleViews(SimpleTestCase):
-    @patch("articles.cache.logger.warning")
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.logger.warning")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_redis_error(self, mock_get_redis, mock_warning):
         mock_redis = Mock()
         mock_redis.get.side_effect = RedisError("Redis error")
@@ -43,7 +43,7 @@ class TestGetCachedArticleViews(SimpleTestCase):
             mock_redis.get.side_effect,
         )
 
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_none_views(self, mock_get_redis):
         mock_redis = Mock()
         mock_redis.get.return_value = None
@@ -51,7 +51,7 @@ class TestGetCachedArticleViews(SimpleTestCase):
 
         self.assertEqual(get_cached_article_views(1234), 0)
 
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_correct_case(self, mock_get_redis):
         mock_redis = Mock()
         mock_redis.get.return_value = "42"
@@ -61,7 +61,7 @@ class TestGetCachedArticleViews(SimpleTestCase):
 
 
 class TestRegisterArticleView(SimpleTestCase):
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_returns_false_when_unique_view_already_exists(self, mock_get_redis):
         mock_redis = Mock()
         mock_redis.eval.return_value = 0
@@ -88,7 +88,7 @@ class TestRegisterArticleView(SimpleTestCase):
             123,
         )
 
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_registers_new_unique_view(self, mock_get_redis):
         mock_redis = Mock()
         mock_redis.eval.return_value = 1
@@ -115,8 +115,8 @@ class TestRegisterArticleView(SimpleTestCase):
             123,
         )
 
-    @patch("articles.cache.logger.error")
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.logger.error")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_returns_false_on_redis_error(self, mock_get_redis, mock_error):
         mock_redis = Mock()
         mock_redis.eval.side_effect = RedisError("Redis error")
@@ -136,7 +136,7 @@ class TestRegisterArticleView(SimpleTestCase):
             mock_redis.eval.side_effect,
         )
 
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_passes_expected_keys_and_args_to_eval(self, mock_get_redis):
         mock_redis = Mock()
         mock_redis.eval.return_value = 1
@@ -162,7 +162,7 @@ class TestRegisterArticleView(SimpleTestCase):
 
 
 class TestClaimAndRestoreViewDeltas(SimpleTestCase):
-    @patch("articles.cache.logger.error")
+    @patch("articles.cache.view_counts.logger.error")
     def test_claim_view_deltas_requeues_article_on_redis_error(self, mock_error):
         mock_redis = Mock()
         mock_redis.getdel.side_effect = [b"3", RedisError("error"), None]
@@ -175,7 +175,7 @@ class TestClaimAndRestoreViewDeltas(SimpleTestCase):
         )
         mock_redis.sadd.assert_called_once_with(VIEWED_ARTICLES_SET_KEY, 2)
 
-    @patch("articles.cache.logger.error")
+    @patch("articles.cache.view_counts.logger.error")
     def test_claim_view_deltas_logs_when_requeue_also_fails(self, mock_error):
         mock_redis = Mock()
         mock_redis.getdel.side_effect = RedisError("claim failed")
@@ -199,7 +199,7 @@ class TestClaimAndRestoreViewDeltas(SimpleTestCase):
             ]
         )
 
-    @patch("articles.cache.logger.warning")
+    @patch("articles.cache.view_counts.logger.warning")
     def test_claim_view_deltas_skips_invalid_values(self, mock_warning):
         mock_redis = Mock()
         mock_redis.getdel.side_effect = [b"10", b"abc", b"0"]
@@ -216,7 +216,7 @@ class TestClaimAndRestoreViewDeltas(SimpleTestCase):
     def test_restore_view_deltas_returns_true_for_empty_input(self):
         self.assertTrue(_restore_view_deltas(Mock(), {}))
 
-    @patch("articles.cache.logger.error")
+    @patch("articles.cache.view_counts.logger.error")
     def test_restore_view_deltas_returns_false_on_redis_error(self, mock_error):
         mock_redis = Mock()
         mock_pipe = MagicMock()
@@ -261,8 +261,8 @@ class TestClaimAndRestoreViewDeltas(SimpleTestCase):
 
 
 class TestSyncArticleViews(TestCase):
-    @patch("articles.cache.logger.info")
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.logger.info")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_no_articles(self, mock_get_redis, mock_info):
         mock_redis = Mock()
         mock_redis.spop.return_value = []
@@ -276,8 +276,8 @@ class TestSyncArticleViews(TestCase):
         )
         mock_info.assert_called_with("No articles to sync; exiting on batch %d.", 0)
 
-    @patch("articles.cache.logger.error")
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts.logger.error")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_breaks_on_spop_redis_error(self, mock_get_redis, mock_error):
         mock_redis = Mock()
         mock_redis.spop.side_effect = RedisError("error")
@@ -295,7 +295,7 @@ class TestSyncArticleViews(TestCase):
         self.assertEqual(_decode_article_ids(encoded_ids), [9991, 9992, 9993])
 
         encoded_ids = [b"9991", b"abc"]
-        with patch("articles.cache.logger") as mock_logger:
+        with patch("articles.cache.view_counts.logger") as mock_logger:
             self.assertEqual(_decode_article_ids(encoded_ids), [9991])
             mock_logger.warning.assert_called_once_with(
                 "Skipping invalid article ID: %s (%s)",
@@ -307,14 +307,14 @@ class TestSyncArticleViews(TestCase):
                 ValueError,
             )
 
-    @patch("articles.cache._sync_article_batch")
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts._sync_article_batch")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_no_valid_article_ids(self, mock_get_redis, mock_sync):
         mock_redis = Mock()
         mock_redis.spop.side_effect = [{b"abc", b"xyz"}, set()]
         mock_get_redis.return_value = mock_redis
 
-        with patch("articles.cache.logger") as mock_logger:
+        with patch("articles.cache.view_counts.logger") as mock_logger:
             sync_article_views()
 
         mock_sync.assert_not_called()
@@ -326,9 +326,9 @@ class TestSyncArticleViews(TestCase):
             ],
         )
 
-    @patch("articles.cache.logger.critical")
-    @patch("articles.cache._restore_view_deltas")
-    @patch("articles.cache.bulk_increment_article_view_counts")
+    @patch("articles.cache.view_counts.logger.critical")
+    @patch("articles.cache.view_counts._restore_view_deltas")
+    @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_db_error_when_syncing_views_and_restore_fails(
         self,
         mock_increment,
@@ -340,7 +340,9 @@ class TestSyncArticleViews(TestCase):
         mock_increment.side_effect = DatabaseError("DB error")
         mock_restore.return_value = False
 
-        with patch("articles.cache._claim_view_deltas", return_value={9999: 7}):
+        with patch(
+            "articles.cache.view_counts._claim_view_deltas", return_value={9999: 7}
+        ):
             _sync_article_batch(article_ids, 0, mock_redis)
 
         mock_restore.assert_called_once_with(mock_redis, {9999: 7})
@@ -350,9 +352,9 @@ class TestSyncArticleViews(TestCase):
             [9999],
         )
 
-    @patch("articles.cache.logger.error")
-    @patch("articles.cache._restore_view_deltas")
-    @patch("articles.cache.bulk_increment_article_view_counts")
+    @patch("articles.cache.view_counts.logger.error")
+    @patch("articles.cache.view_counts._restore_view_deltas")
+    @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_db_error_when_syncing_views_and_restore_succeeds(
         self,
         mock_increment,
@@ -364,7 +366,9 @@ class TestSyncArticleViews(TestCase):
         mock_increment.side_effect = DatabaseError("DB error")
         mock_restore.return_value = True
 
-        with patch("articles.cache._claim_view_deltas", return_value={9999: 7}):
+        with patch(
+            "articles.cache.view_counts._claim_view_deltas", return_value={9999: 7}
+        ):
             _sync_article_batch(article_ids, 0, mock_redis)
 
         mock_restore.assert_called_once_with(mock_redis, {9999: 7})
@@ -374,9 +378,9 @@ class TestSyncArticleViews(TestCase):
         )
 
     @override_settings(CACHES=CACHES)
-    @patch("articles.cache.logger.info")
-    @patch("articles.cache.logger.warning")
-    @patch("articles.cache.bulk_increment_article_view_counts")
+    @patch("articles.cache.view_counts.logger.info")
+    @patch("articles.cache.view_counts.logger.warning")
+    @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_invalid_claimed_view_deltas_are_logged_and_dropped(
         self, mock_increment, mock_warning, mock_info
     ):
@@ -416,7 +420,7 @@ class TestSyncArticleViews(TestCase):
         r.flushdb()
 
     @override_settings(CACHES=CACHES)
-    @patch("articles.cache.bulk_increment_article_view_counts")
+    @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_synced_view_delta_key_is_cleared_after_claim(self, mock_increment):
         r = get_redis_connection("default")
         r.flushdb()
@@ -433,8 +437,8 @@ class TestSyncArticleViews(TestCase):
         r.flushdb()
 
     @override_settings(CACHES=CACHES)
-    @patch("articles.cache.logger.info")
-    @patch("articles.cache.bulk_increment_article_view_counts")
+    @patch("articles.cache.view_counts.logger.info")
+    @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_single_batch(self, mock_increment, mock_info):
         r = get_redis_connection("default")
         r.flushdb()
@@ -468,9 +472,9 @@ class TestSyncArticleViews(TestCase):
         r.flushdb()
 
     @override_settings(CACHES=CACHES)
-    @patch("articles.cache.ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE", 2)
-    @patch("articles.cache.logger.info")
-    @patch("articles.cache.bulk_increment_article_view_counts")
+    @patch("articles.cache.view_counts.ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE", 2)
+    @patch("articles.cache.view_counts.logger.info")
+    @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_multiple_batches(self, mock_increment, mock_info):
         r = get_redis_connection("default")
         r.flushdb()
@@ -521,9 +525,9 @@ class TestSyncArticleViews(TestCase):
 
         r.flushdb()
 
-    @patch("articles.cache._decode_article_ids")
-    @patch("articles.cache._sync_article_batch")
-    @patch("articles.cache.get_redis_connection")
+    @patch("articles.cache.view_counts._decode_article_ids")
+    @patch("articles.cache.view_counts._sync_article_batch")
+    @patch("articles.cache.view_counts.get_redis_connection")
     def test_max_iterations(self, mock_get_redis, mock_sync, mock_decode):
         mock_redis = Mock()
         article_ids = list(range(ARTICLE_VIEW_SYNC_MAX_ITERATIONS + 1))

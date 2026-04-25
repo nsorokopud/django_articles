@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 from core.visitor_identifiers import get_visitor_id
 
-from ..cache import register_article_view
+from ..cache.view_counts import register_article_view
 from ..models import Article
 from ..settings import ARTICLE_UNIQUE_VIEW_TIMEOUT
 
