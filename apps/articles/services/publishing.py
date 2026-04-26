@@ -1,3 +1,4 @@
+from datetime import datetime
 from html import unescape
 
 from django.conf import settings
@@ -32,7 +33,7 @@ def submit_article_for_review(*, article_id: int) -> Article:
     article.reviewed_by = None
     article.save(update_fields=["status", "review_note", "reviewed_at", "reviewed_by"])
 
-    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article.slug))
+    _invalidate_article_slug_id_cache_on_commit(article)
 
     return article
 
@@ -58,11 +59,10 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
 
     _validate_article_ready(article, action="publishing")
 
-    seq = get_next_article_publish_sequence_value()
+    publish_sequence = get_next_article_publish_sequence_value()
     article.status = ArticleStatus.PUBLISHED
     article.published_at = timezone.now()
-    article.publish_sequence = seq
-
+    article.publish_sequence = publish_sequence
     article.review_note = ""
     article.reviewed_at = None
     article.reviewed_by = None
@@ -78,23 +78,13 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
         ]
     )
 
-    transaction.on_commit(
-        lambda: cache_article_slug_id(article_slug=article.slug, article_id=article.id)
+    _cache_article_slug_id_on_commit(article)
+    _advance_author_latest_publish_sequence_on_commit(
+        article=article, publish_sequence=publish_sequence
     )
-
-    advance_latest_article_publish_sequence(
-        user_id=article.author_id, publish_sequence=seq
+    _notify_article_published_on_commit(
+        article=article, actor=actor, publish_sequence=publish_sequence
     )
-
-    if actor is None or actor.id != article.author_id:
-        notify_article_published(
-            recipient_id=article.author_id,
-            article_id=article.id,
-            article_slug=article.slug,
-            article_title=article.title,
-            actor_id=actor.id if actor else None,
-            publish_sequence=article.publish_sequence,
-        )
 
     return article
 
@@ -113,27 +103,19 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
     article.publish_sequence = None
     article.save(update_fields=["status", "published_at", "publish_sequence"])
 
-    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article.slug))
-
-    if actor is not None and actor.id != article.author_id:
-        notify_article_unpublished(
-            recipient_id=article.author_id,
-            article_id=article.id,
-            article_slug=article.slug,
-            article_title=article.title,
-            actor_id=actor.id,
-            unpublished_at_ts=unpublished_at.isoformat(),
-        )
+    _invalidate_article_slug_id_cache_on_commit(article)
+    _notify_article_unpublished_on_commit(
+        article=article,
+        actor=actor,
+        unpublished_at=unpublished_at,
+    )
 
     return article
 
 
 @transaction.atomic
 def reject_article(
-    *,
-    article_id: int,
-    reviewer: User | None = None,
-    reason: str = "",
+    *, article_id: int, reviewer: User | None = None, reason: str = ""
 ) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
@@ -162,17 +144,8 @@ def reject_article(
         ]
     )
 
-    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article.slug))
-
-    notify_article_rejected(
-        recipient_id=article.author_id,
-        article_id=article.id,
-        article_slug=article.slug,
-        article_title=article.title,
-        review_note=article.review_note,
-        reviewer_id=reviewer.id if reviewer else None,
-        reviewed_at_ts=article.reviewed_at.isoformat() if article.reviewed_at else None,
-    )
+    _invalidate_article_slug_id_cache_on_commit(article)
+    _notify_article_rejected_on_commit(article=article, reviewer=reviewer)
 
     return article
 
@@ -205,3 +178,103 @@ def _has_meaningful_html_content(html: str | None) -> bool:
     text = unescape(strip_tags(html or ""))
     normalized = text.replace("\xa0", " ").strip()
     return bool(normalized)
+
+
+def _cache_article_slug_id_on_commit(article: Article) -> None:
+    article_id = article.id
+    article_slug = article.slug
+
+    transaction.on_commit(
+        lambda: cache_article_slug_id(article_slug=article_slug, article_id=article_id)
+    )
+
+
+def _invalidate_article_slug_id_cache_on_commit(article: Article) -> None:
+    article_slug = article.slug
+
+    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article_slug))
+
+
+def _advance_author_latest_publish_sequence_on_commit(
+    *, article: Article, publish_sequence: int
+) -> None:
+    author_id = article.author_id
+
+    transaction.on_commit(
+        lambda: advance_latest_article_publish_sequence(
+            user_id=author_id, publish_sequence=publish_sequence
+        )
+    )
+
+
+def _notify_article_published_on_commit(
+    *, article: Article, actor: User | None, publish_sequence: int
+) -> None:
+    article_id = article.id
+    author_id = article.author_id
+    article_slug = article.slug
+    article_title = article.title
+    actor_id = actor.id if actor else None
+
+    if actor_id == author_id:
+        return
+
+    transaction.on_commit(
+        lambda: notify_article_published(
+            recipient_id=author_id,
+            article_id=article_id,
+            article_slug=article_slug,
+            article_title=article_title,
+            actor_id=actor_id,
+            publish_sequence=publish_sequence,
+        )
+    )
+
+
+def _notify_article_unpublished_on_commit(
+    *, article: Article, actor: User | None, unpublished_at: datetime
+) -> None:
+    if actor is None or actor.id == article.author_id:
+        return
+
+    article_id = article.id
+    author_id = article.author_id
+    article_slug = article.slug
+    article_title = article.title
+    actor_id = actor.id
+    unpublished_at_ts = unpublished_at.isoformat()
+
+    transaction.on_commit(
+        lambda: notify_article_unpublished(
+            recipient_id=author_id,
+            article_id=article_id,
+            article_slug=article_slug,
+            article_title=article_title,
+            actor_id=actor_id,
+            unpublished_at_ts=unpublished_at_ts,
+        )
+    )
+
+
+def _notify_article_rejected_on_commit(
+    *, article: Article, reviewer: User | None
+) -> None:
+    article_id = article.id
+    author_id = article.author_id
+    article_slug = article.slug
+    article_title = article.title
+    review_note = article.review_note
+    reviewer_id = reviewer.id if reviewer else None
+    reviewed_at_ts = article.reviewed_at.isoformat() if article.reviewed_at else None
+
+    transaction.on_commit(
+        lambda: notify_article_rejected(
+            recipient_id=author_id,
+            article_id=article_id,
+            article_slug=article_slug,
+            article_title=article_title,
+            review_note=review_note,
+            reviewer_id=reviewer_id,
+            reviewed_at_ts=reviewed_at_ts,
+        )
+    )

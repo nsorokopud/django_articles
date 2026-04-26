@@ -2,7 +2,7 @@
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import SimpleTestCase, TestCase, TransactionTestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleStatus
@@ -168,9 +168,37 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         self.assertIsNone(article.reviewed_at)
         self.assertIsNone(article.reviewed_by)
 
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    def test_invalidates_article_slug_id_cache(self, mock_invalidate):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            submit_article_for_review(article_id=article.id)
+
+        mock_invalidate.assert_called_once_with(article_slug=article.slug)
+
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    def test_does_not_invalidate_cache_before_commit(self, mock_invalidate):
+        article = self.create_article(status=ArticleStatus.DRAFT)
+
+        with self.captureOnCommitCallbacks(execute=False):
+            submit_article_for_review(article_id=article.id)
+
+        mock_invalidate.assert_not_called()
+
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    def test_does_not_invalidate_cache_when_submit_fails(self, mock_invalidate):
+        article = self.create_article(status=ArticleStatus.REJECTED)
+
+        with self.assertRaisesMessage(
+            ValueError, "only draft articles can be submitted for review"
+        ):
+            submit_article_for_review(article_id=article.id)
+
+        mock_invalidate.assert_not_called()
+
 
 class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
-
     def test_withdraw_article_from_review_from_pending_review(self):
         article = self.create_article(status=ArticleStatus.PENDING_REVIEW)
         result = withdraw_article_from_review(article_id=article.id)
@@ -218,7 +246,7 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         self.assertIsNotNone(article.publish_sequence)
 
 
-class TestPublishArticle(TransactionTestCase):
+class TestPublishArticle(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
             username="author",
@@ -237,7 +265,8 @@ class TestPublishArticle(TransactionTestCase):
     def test_sets_published_fields_and_updates_author_sequence(self, mock_notify):
         before = timezone.now()
 
-        published = publish_article(article_id=self.article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            published = publish_article(article_id=self.article.id)
 
         after = timezone.now()
 
@@ -281,7 +310,8 @@ class TestPublishArticle(TransactionTestCase):
             ]
         )
 
-        publish_article(article_id=self.article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            publish_article(article_id=self.article.id)
 
         self.article.refresh_from_db()
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
@@ -370,7 +400,8 @@ class TestPublishArticle(TransactionTestCase):
     ):
         mock_get_next.return_value = 777
 
-        publish_article(article_id=self.article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            publish_article(article_id=self.article.id)
 
         mock_advance.assert_called_once_with(
             user_id=self.author.id,
@@ -392,7 +423,8 @@ class TestPublishArticle(TransactionTestCase):
 
     @patch("articles.services.publishing.notify_article_published")
     def test_publish_notifies_author_when_actor_is_none(self, mock_notify):
-        published = publish_article(article_id=self.article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            published = publish_article(article_id=self.article.id)
 
         mock_notify.assert_called_once_with(
             recipient_id=self.author.id,
@@ -407,7 +439,8 @@ class TestPublishArticle(TransactionTestCase):
     def test_publish_notifies_author_when_actor_is_not_author(self, mock_notify):
         editor = User.objects.create_user(username="editor", email="editor@test.com")
 
-        published = publish_article(article_id=self.article.id, actor=editor)
+        with self.captureOnCommitCallbacks(execute=True):
+            published = publish_article(article_id=self.article.id, actor=editor)
 
         mock_notify.assert_called_once_with(
             recipient_id=self.author.id,
@@ -420,9 +453,18 @@ class TestPublishArticle(TransactionTestCase):
 
     @patch("articles.services.publishing.notify_article_published")
     def test_publish_does_not_notify_when_actor_is_author(self, mock_notify):
-        publish_article(article_id=self.article.id, actor=self.author)
+        with self.captureOnCommitCallbacks(execute=True):
+            publish_article(article_id=self.article.id, actor=self.author)
 
         mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_published")
+    def test_publish_does_not_notify_before_commit(self, mock_notify):
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            publish_article(article_id=self.article.id)
+
+        mock_notify.assert_not_called()
+        self.assertEqual(len(callbacks), 3)
 
     @patch("articles.services.publishing.notify_article_published")
     def test_raises_for_missing_article(self, mock_notify):
@@ -501,7 +543,8 @@ class TestPublishArticle(TransactionTestCase):
     @patch("articles.services.publishing.cache_article_slug_id")
     @patch("articles.services.publishing.notify_article_published")
     def test_caches_article_slug_id(self, mock_notify, mock_cache):
-        published = publish_article(article_id=self.article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            published = publish_article(article_id=self.article.id)
 
         mock_cache.assert_called_once_with(
             article_slug=published.slug, article_id=published.id
@@ -534,7 +577,7 @@ class TestGetNextArticlePublishSequenceValue(TestCase):
         self.assertGreater(second, first)
 
 
-class TestUnpublishArticle(TransactionTestCase):
+class TestUnpublishArticle(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
@@ -553,7 +596,9 @@ class TestUnpublishArticle(TransactionTestCase):
             publish_sequence=123,
         )
 
-        returned_article = unpublish_article(article_id=article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            returned_article = unpublish_article(article_id=article.id)
+
         article.refresh_from_db()
 
         self.assertEqual(returned_article.id, article.id)
@@ -627,7 +672,8 @@ class TestUnpublishArticle(TransactionTestCase):
             publish_sequence=123,
         )
 
-        result = unpublish_article(article_id=article.id, actor=editor)
+        with self.captureOnCommitCallbacks(execute=True):
+            result = unpublish_article(article_id=article.id, actor=editor)
 
         mock_notify.assert_called_once()
         kwargs = mock_notify.call_args.kwargs
@@ -651,7 +697,8 @@ class TestUnpublishArticle(TransactionTestCase):
             publish_sequence=123,
         )
 
-        unpublish_article(article_id=article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            unpublish_article(article_id=article.id)
 
         mock_notify.assert_not_called()
 
@@ -668,9 +715,30 @@ class TestUnpublishArticle(TransactionTestCase):
             publish_sequence=123,
         )
 
-        unpublish_article(article_id=article.id, actor=self.author)
+        with self.captureOnCommitCallbacks(execute=True):
+            unpublish_article(article_id=article.id, actor=self.author)
 
         mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_unpublished")
+    def test_unpublish_does_not_notify_before_commit(self, mock_notify):
+        article = Article.objects.create(
+            title="Published",
+            slug="published",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=123,
+        )
+        editor = User.objects.create_user(username="editor", email="editor@test.com")
+
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            unpublish_article(article_id=article.id, actor=editor)
+
+        mock_notify.assert_not_called()
+        self.assertEqual(len(callbacks), 2)
 
     @patch("articles.services.publishing.notify_article_unpublished")
     def test_raises_for_missing_article(self, mock_notify):
@@ -693,7 +761,9 @@ class TestUnpublishArticle(TransactionTestCase):
             publish_sequence=123,
         )
 
-        unpublish_article(article_id=article.id)
+        with self.captureOnCommitCallbacks(execute=True):
+            unpublish_article(article_id=article.id)
+
         mock_invalidate.assert_called_once_with(article_slug="published")
 
     @patch("articles.services.publishing.invalidate_article_slug_id")
@@ -730,7 +800,7 @@ class TestRejectArticle(TestCase):
         )
 
     @patch("articles.services.publishing.notify_article_rejected")
-    def test_reject_draft_article_marks_it_rejected(self, mock_notify):
+    def test_reject_pending_article_marks_it_rejected(self, mock_notify):
         article = Article.objects.create(
             title="Draft",
             slug="draft",
@@ -741,11 +811,12 @@ class TestRejectArticle(TestCase):
         )
 
         before = timezone.now()
-        result = reject_article(
-            article_id=article.id,
-            reviewer=self.reviewer,
-            reason="Please improve structure.",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            result = reject_article(
+                article_id=article.id,
+                reviewer=self.reviewer,
+                reason="Please improve structure.",
+            )
         after = timezone.now()
 
         article.refresh_from_db()
@@ -791,11 +862,12 @@ class TestRejectArticle(TestCase):
         )
 
         before = timezone.now()
-        result = reject_article(
-            article_id=article.id,
-            reviewer=new_reviewer,
-            reason="Please fix formatting and sources.",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            result = reject_article(
+                article_id=article.id,
+                reviewer=new_reviewer,
+                reason="Please fix formatting and sources.",
+            )
         after = timezone.now()
 
         article.refresh_from_db()
@@ -870,6 +942,64 @@ class TestRejectArticle(TestCase):
         self.assertIsNone(article.reviewed_at)
         self.assertIsNone(article.reviewed_by)
         self.assertEqual(article.review_note, "")
+
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    @patch("articles.services.publishing.notify_article_rejected")
+    def test_reject_invalidates_article_slug_id(self, mock_notify, mock_invalidate):
+        article = Article.objects.create(
+            title="Pending",
+            slug="pending",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            reject_article(
+                article_id=article.id,
+                reviewer=self.reviewer,
+                reason="Please improve structure.",
+            )
+
+        mock_invalidate.assert_called_once_with(article_slug="pending")
+
+    @patch("articles.services.publishing.notify_article_rejected")
+    def test_reject_does_not_notify_before_commit(self, mock_notify):
+        article = Article.objects.create(
+            title="Pending",
+            slug="pending",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        with self.captureOnCommitCallbacks(execute=False) as callbacks:
+            reject_article(
+                article_id=article.id,
+                reviewer=self.reviewer,
+                reason="Please improve structure.",
+            )
+
+        mock_notify.assert_not_called()
+        self.assertEqual(len(callbacks), 2)
+
+    @patch("articles.services.publishing.invalidate_article_slug_id")
+    def test_does_not_invalidate_when_reject_fails(self, mock_invalidate):
+        article = Article.objects.create(
+            title="Pending",
+            slug="pending",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        with self.assertRaisesMessage(ValueError, "rejection reason is required"):
+            reject_article(article_id=article.id, reviewer=self.reviewer)
+
+        mock_invalidate.assert_not_called()
 
 
 class TestNormalizeArticleText(SimpleTestCase):
