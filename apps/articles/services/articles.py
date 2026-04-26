@@ -87,6 +87,22 @@ def save_article(
     return article
 
 
+@transaction.atomic
+def delete_article(*, article_id: int) -> None:
+    article = Article.objects.select_for_update().get(id=article_id)
+
+    if article.status in {
+        ArticleStatus.PUBLISHED,
+        ArticleStatus.PENDING_REVIEW,
+    }:
+        raise ValueError("published or pending-review articles cannot be deleted")
+
+    article_slug = article.slug
+    article.delete()
+
+    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article_slug))
+
+
 def _save_with_unique_slug(article: Article) -> None:
     for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
         article.slug = _build_article_slug_candidate(
