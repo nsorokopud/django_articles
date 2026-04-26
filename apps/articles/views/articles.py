@@ -18,7 +18,6 @@ from users.services.subscriptions import (
     advance_subscriptions_last_seen_publish_sequence,
 )
 
-from ..cache.slug import invalidate_article_slug_id
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
 from ..models import Article, ArticleStatus
@@ -32,14 +31,13 @@ from ..selectors import (
     get_published_article_by_slug,
 )
 from ..services import toggle_article_like
-from ..services.articles import create_empty_draft
+from ..services.articles import create_empty_draft, delete_article
 from ..services.publishing import (
     submit_article_for_review,
     withdraw_article_from_review,
 )
 from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
 from .decorators import increment_article_view_counter
-from .mixins import AllowOnlyAuthorMixin
 
 
 logger = logging.getLogger(__name__)
@@ -308,34 +306,28 @@ class ArticleWithdrawFromReviewView(LoginRequiredMixin, View):
         return redirect("article-update", article_slug=article.slug)
 
 
-class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
+class ArticleDeleteView(LoginRequiredMixin, DeleteView):
     model = Article
     context_object_name = "article"
     slug_url_kwarg = "article_slug"
     success_url = reverse_lazy("my-articles")
 
-    def dispatch(self, request, *args, **kwargs):
-        self.object = self.get_object()
+    def get_queryset(self):
+        return Article.objects.filter(author=self.request.user)
 
-        if self.object.status in {
-            ArticleStatus.PUBLISHED,
-            ArticleStatus.PENDING_REVIEW,
-        }:
-            raise PermissionDenied("This article cannot be deleted.")
+    def form_valid(self, form) -> HttpResponseRedirect:
+        article = self.get_object()
 
-        return super().dispatch(request, *args, **kwargs)
-
-    def form_valid(self, form) -> HttpResponse:
-        article = self.object
-        response = super().form_valid(form)
-
-        invalidate_article_slug_id(article_slug=article.slug)
+        try:
+            delete_article(article_id=article.id)
+        except ValueError as e:
+            raise PermissionDenied("This article cannot be deleted.") from e
 
         messages.success(
-            request=self.request,
-            message=f'"{article.title or "Article"}" was deleted successfully.',
+            self.request,
+            f'"{article.title or "Article"}" was deleted successfully.',
         )
-        return response
+        return HttpResponseRedirect(self.get_success_url())
 
 
 class ArticleLikeView(LoginRequiredMixin, View):
