@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
@@ -371,6 +372,88 @@ class TestArticleAdmin(TestCase):
         )
 
         self.assertEqual(mock_unpublish.call_count, 2)
+
+    @patch("articles.admin.delete_article")
+    def test_delete_model_calls_delete_service(self, mock_delete):
+        article = self._article()
+        request = self._request("post")
+
+        self.article_admin.delete_model(request, article)
+
+        mock_delete.assert_called_once_with(article_id=article.id)
+
+    @patch("articles.admin.delete_article", side_effect=ValueError("Cannot delete"))
+    def test_delete_model_raises_permission_denied_on_service_error(self, mock_delete):
+        article = self._article()
+        request = self._request("post")
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.delete_model(request, article)
+
+        mock_delete.assert_called_once_with(article_id=article.id)
+
+    def test_has_delete_permission_false_for_published_article(self):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=999,
+        )
+        request = self._request()
+
+        self.assertFalse(self.article_admin.has_delete_permission(request, article))
+
+    def test_has_delete_permission_false_for_pending_review_article(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        request = self._request()
+
+        self.assertFalse(self.article_admin.has_delete_permission(request, article))
+
+    def test_has_delete_permission_true_for_draft_article(self):
+        article = self._article(status=ArticleStatus.DRAFT)
+        request = self._request()
+
+        self.assertTrue(self.article_admin.has_delete_permission(request, article))
+
+    @patch("articles.admin.delete_article")
+    def test_delete_queryset_calls_delete_service_for_each_article(self, mock_delete):
+        article_1 = self._article(slug="delete-1")
+        article_2 = self._article(slug="delete-2")
+        request = self._request("post")
+
+        self.article_admin.delete_queryset(
+            request,
+            Article.objects.filter(pk__in=[article_1.pk, article_2.pk]),
+        )
+
+        self.assertEqual(mock_delete.call_count, 2)
+        mock_delete.assert_any_call(article_id=article_1.id)
+        mock_delete.assert_any_call(article_id=article_2.id)
+
+    @patch("articles.admin.delete_article")
+    def test_delete_queryset_reports_partial_failures(self, mock_delete):
+        article_1 = self._article(slug="delete-ok")
+        article_2 = self._article(slug="delete-fail")
+
+        mock_delete.side_effect = [
+            None,
+            ValueError("published or pending-review articles cannot be deleted"),
+        ]
+
+        request = self._request("post")
+
+        self.article_admin.delete_queryset(
+            request,
+            Article.objects.filter(pk__in=[article_1.pk, article_2.pk]).order_by("pk"),
+        )
+
+        messages_list = [str(m) for m in get_messages(request)]
+
+        self.assertEqual(mock_delete.call_count, 2)
+        self.assertTrue(any("1 article was deleted" in msg for msg in messages_list))
+        self.assertTrue(
+            any("1 selected article was not deleted" in msg for msg in messages_list)
+        )
+        self.assertTrue(any(f"#{article_2.id}" in msg for msg in messages_list))
 
 
 class TestCommentInlineAdmin(TestCase):

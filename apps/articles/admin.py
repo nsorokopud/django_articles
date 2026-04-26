@@ -10,7 +10,7 @@ from django.utils.html import format_html_join
 
 from .forms import ArticleAdminForm, ArticleRejectAdminForm
 from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from .services.articles import save_article
+from .services.articles import delete_article, save_article
 from .services.publishing import publish_article, reject_article, unpublish_article
 
 
@@ -141,6 +141,53 @@ class ArticleAdmin(admin.ModelAdmin):
             author=None if change else obj.author,
             restore_rejected_to_draft=False,
         )
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.status in {
+            ArticleStatus.PUBLISHED,
+            ArticleStatus.PENDING_REVIEW,
+        }:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_model(self, request, obj):
+        try:
+            delete_article(article_id=obj.id)
+        except ValueError as e:
+            self.message_user(request, str(e), level=messages.ERROR)
+            raise PermissionDenied(str(e)) from e
+
+    def delete_queryset(self, request, queryset):
+        deleted_count = 0
+        failures = []
+
+        for article in queryset:
+            try:
+                delete_article(article_id=article.id)
+            except ValueError as e:
+                failures.append(f"#{article.id}: {e}")
+            else:
+                deleted_count += 1
+
+        if deleted_count:
+            self.message_user(
+                request,
+                f"{deleted_count} "
+                f"article{' was' if deleted_count == 1 else 's were'} deleted.",
+                level=messages.SUCCESS,
+            )
+
+        if failures:
+            preview = "; ".join(failures[:5])
+            suffix = "" if len(failures) <= 5 else f" (and {len(failures) - 5} more)"
+
+            self.message_user(
+                request,
+                f"{len(failures)} selected "
+                f"article{' was' if len(failures) == 1 else 's were'} not deleted: "
+                f"{preview}{suffix}",
+                level=messages.ERROR,
+            )
 
     @admin.display(description="PSeq", ordering="publish_sequence")
     def pub_seq(self, obj):
