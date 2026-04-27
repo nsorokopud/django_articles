@@ -31,13 +31,25 @@ class ArticleAdminForm(forms.ModelForm):
             "preview_image",
             "content",
         )
-        help_texts = {
-            "slug": "Leave blank to automatically generate a new slug from the title.",
-        }
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.fields["slug"].required = False
+
+        slug_field = self.fields.get("slug")
+        if not slug_field:
+            return
+
+        slug_field.required = False
+
+        instance = getattr(self, "instance", None)
+        if (
+            not instance
+            or not instance.pk
+            or instance.status in {ArticleStatus.DRAFT, ArticleStatus.REJECTED}
+        ):
+            slug_field.help_text = (
+                "Leave blank to automatically generate a new slug from the title."
+            )
 
 
 class ArticleRejectAdminForm(forms.Form):

@@ -455,6 +455,69 @@ class TestArticleAdmin(TestCase):
         )
         self.assertTrue(any(f"#{article_2.id}" in msg for msg in messages_list))
 
+    def test_get_prepopulated_fields_for_new_article(self):
+        request = self._request()
+
+        result = self.article_admin.get_prepopulated_fields(request, None)
+        self.assertEqual(result, {"slug": ("title",)})
+
+    def test_get_prepopulated_fields_for_draft_article(self):
+        article = self._article(status=ArticleStatus.DRAFT)
+        request = self._request()
+
+        result = self.article_admin.get_prepopulated_fields(request, article)
+        self.assertEqual(result, {"slug": ("title",)})
+
+    def test_get_prepopulated_fields_for_rejected_article(self):
+        article = self._article(status=ArticleStatus.REJECTED)
+        request = self._request()
+
+        result = self.article_admin.get_prepopulated_fields(request, article)
+        self.assertEqual(result, {"slug": ("title",)})
+
+    def test_get_prepopulated_fields_for_published_article_is_empty(self):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=999,
+        )
+        request = self._request()
+
+        result = self.article_admin.get_prepopulated_fields(request, article)
+        self.assertEqual(result, {})
+
+    def test_get_prepopulated_fields_for_pending_review_article_is_empty(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        request = self._request()
+
+        result = self.article_admin.get_prepopulated_fields(request, article)
+        self.assertEqual(result, {})
+
+    def test_slug_is_readonly_for_published_article(self):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=999,
+        )
+        request = self._request()
+
+        readonly_fields = self.article_admin.get_readonly_fields(request, article)
+        self.assertIn("slug", readonly_fields)
+
+    def test_slug_is_readonly_for_pending_review_article(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        request = self._request()
+
+        readonly_fields = self.article_admin.get_readonly_fields(request, article)
+        self.assertIn("slug", readonly_fields)
+
+    def test_slug_is_not_readonly_for_draft_article(self):
+        article = self._article(status=ArticleStatus.DRAFT)
+        request = self._request()
+
+        readonly_fields = self.article_admin.get_readonly_fields(request, article)
+        self.assertNotIn("slug", readonly_fields)
+
 
 class TestCommentInlineAdmin(TestCase):
     def setUp(self):

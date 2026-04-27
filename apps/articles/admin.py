@@ -61,7 +61,6 @@ class ArticleAdmin(admin.ModelAdmin):
         "modified_at",
         "workflow_buttons",
     )
-    prepopulated_fields = {"slug": ("title",)}
     actions = ("publish", "unpublish")
     inlines = (CommentInline,)
     save_on_top = True
@@ -110,10 +109,18 @@ class ArticleAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_prepopulated_fields(self, request, obj=None):
+        if obj is None or obj.status in {ArticleStatus.DRAFT, ArticleStatus.REJECTED}:
+            return {"slug": ("title",)}
+
+        return {}
+
     def get_readonly_fields(self, request, obj=None):
         readonly = tuple(super().get_readonly_fields(request, obj))
         if obj is not None:
             readonly += ("author",)
+            if obj.status in {ArticleStatus.PUBLISHED, ArticleStatus.PENDING_REVIEW}:
+                readonly += ("slug",)
         return readonly
 
     def save_model(self, request, obj, form, change):
