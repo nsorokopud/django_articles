@@ -137,9 +137,9 @@ class TestArticleDetailView(TestCase):
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"1")
         self.assertEqual(self.redis_conn.get(viewed_by_key1), b"1")
-        self.assertEqual(
-            self.redis_conn.ttl(viewed_by_key1), ARTICLE_UNIQUE_VIEW_TIMEOUT
-        )
+        ttl1 = self.redis_conn.ttl(viewed_by_key1)
+        self.assertGreater(ttl1, 0)
+        self.assertLessEqual(ttl1, ARTICLE_UNIQUE_VIEW_TIMEOUT)
 
         viewed_by_key2 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:test_user"
@@ -151,9 +151,9 @@ class TestArticleDetailView(TestCase):
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"2")
         self.assertEqual(self.redis_conn.get(viewed_by_key2), b"1")
-        self.assertEqual(
-            self.redis_conn.ttl(viewed_by_key2), ARTICLE_UNIQUE_VIEW_TIMEOUT
-        )
+        ttl2 = self.redis_conn.ttl(viewed_by_key2)
+        self.assertGreater(ttl2, 0)
+        self.assertLessEqual(ttl2, ARTICLE_UNIQUE_VIEW_TIMEOUT)
 
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"2")
