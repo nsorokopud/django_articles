@@ -7,14 +7,41 @@ from articles.tasks import delete_article_inline_media_task, sync_article_views_
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
-class TestTasks(SimpleTestCase):
+class TestSyncArticleViewsTask(SimpleTestCase):
+    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
-    @patch("articles.tasks.sync_article_views")
-    def test_sync_article_views_task(self, mock_sync, mock_logger):
-        res = sync_article_views_task()
-        self.assertIsNone(res)
+    @patch("articles.cache.view_counts.sync_article_views")
+    def test_sync_article_views_task_runs_and_updates_views(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+
+        result = sync_article_views_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_cache.add.assert_called_once()
         mock_sync.assert_called_once()
-        mock_logger.info.assert_called_once_with("Updated article view counts")
+        mock_logger.info.assert_any_call("Updated article view counts.")
+        mock_cache.get.assert_called_once()
+        mock_cache.delete.assert_called_once()
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.cache.view_counts.sync_article_views")
+    def test_sync_article_views_task_skips_when_lock_exists(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = False
+
+        result = sync_article_views_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_sync.assert_not_called()
+        mock_logger.info.assert_called_once_with(
+            "Article view sync skipped: already running."
+        )
+        mock_cache.delete.assert_not_called()
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)

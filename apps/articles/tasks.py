@@ -2,19 +2,47 @@ import logging
 
 from botocore.exceptions import BotoCoreError, ClientError
 from celery.exceptions import SoftTimeLimitExceeded
+from django.core.cache import cache
+from django.db import DatabaseError
+from django_redis.exceptions import ConnectionInterrupted
+from redis import RedisError
 
 from config.celery import app
-
-from .cache.view_counts import sync_article_views
 
 
 logger = logging.getLogger(__name__)
 
 
-@app.task
-def sync_article_views_task() -> None:
-    sync_article_views()
-    logger.info("Updated article view counts")
+ARTICLE_SYNC_VIEWS_LOCK_KEY = "articles_sync_views_lock"
+ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS = 300
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(DatabaseError, RedisError, ConnectionInterrupted),
+    retry_backoff=60,
+    retry_jitter=True,
+    max_retries=3,
+)
+def sync_article_views_task(self) -> None:
+    from .cache.view_counts import sync_article_views
+
+    lock_value = self.request.id
+
+    if not cache.add(
+        ARTICLE_SYNC_VIEWS_LOCK_KEY,
+        lock_value,
+        timeout=ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS,
+    ):
+        logger.info("Article view sync skipped: already running.")
+        return
+
+    try:
+        sync_article_views()
+        logger.info("Updated article view counts.")
+    finally:
+        if cache.get(ARTICLE_SYNC_VIEWS_LOCK_KEY) == lock_value:
+            cache.delete(ARTICLE_SYNC_VIEWS_LOCK_KEY)
 
 
 @app.task(
