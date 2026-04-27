@@ -70,7 +70,7 @@ class Article(models.Model):
     users_that_liked = models.ManyToManyField(
         User, related_name="liked_articles", blank=True
     )
-    views_count = models.IntegerField(default=0)
+    views_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         verbose_name_plural = "Articles"
