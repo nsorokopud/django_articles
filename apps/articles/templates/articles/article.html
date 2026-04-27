@@ -70,12 +70,6 @@
                     {{ article.likes_count }}</span>
                   </span>
                 </span>
-                {% if article.author == request.user %}
-                  <div class="mt-4">
-                    <a class="btn btn-danger btn-sm"
-                       href="{% url 'article-delete' article.slug %}">Delete</a>
-                  </div>
-                {% endif %}
               </div>
             </div>
           </article>
