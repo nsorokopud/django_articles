@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Sequence
 
 from django.contrib.postgres.search import SearchQuery, SearchRank
-from django.db.models import Count, Q
+from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.db.models.query import QuerySet
 from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
@@ -75,18 +75,42 @@ def find_articles_by_query(
 
     query = SearchQuery(q, config="english")
 
-    return (
-        queryset.annotate(
-            rank=SearchRank("search_vector", query),
-        )
+    base_ids = queryset.values("id")
+
+    matching_ids = (
+        Article.objects.filter(id__in=base_ids)
         .filter(
             Q(search_vector=query)
             | Q(title__icontains=q)
             | Q(category__title__icontains=q)
             | Q(tags__name__icontains=q)
         )
-        .order_by("-rank", "-publish_sequence", "-id")
+        .values("id")
         .distinct()
+    )
+
+    return (
+        queryset.filter(id__in=matching_ids)
+        .annotate(
+            rank=SearchRank("search_vector", query),
+            exact_title_match=Case(
+                When(title__iexact=q, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+            title_contains_match=Case(
+                When(title__icontains=q, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by(
+            "-exact_title_match",
+            "-title_contains_match",
+            "-rank",
+            "-publish_sequence",
+            "-id",
+        )
     )
 
 
