@@ -11,6 +11,7 @@ from PIL import Image
 from articles.forms import (
     ARTICLE_REJECT_REASON_MAX_LENGTH,
     ARTICLE_REJECT_REASON_MIN_LENGTH,
+    ArticleAdminForm,
     ArticleCommentForm,
     ArticleModelForm,
     ArticleRejectAdminForm,
@@ -19,6 +20,61 @@ from articles.forms import (
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from core.exceptions import InvalidUpload
 from users.models import User
+
+
+class TestArticleAdminForm(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+
+    def test_slug_is_not_required(self):
+        form = ArticleAdminForm()
+
+        self.assertFalse(form.fields["slug"].required)
+
+    def test_slug_help_text_shown_for_new_article(self):
+        form = ArticleAdminForm()
+
+        self.assertEqual(
+            form.fields["slug"].help_text,
+            "Leave blank to automatically generate a new slug from the title.",
+        )
+
+    def test_slug_help_text_shown_for_draft_article(self):
+        article = Article.objects.create(
+            title="Draft",
+            slug="draft",
+            author=self.author,
+            status=ArticleStatus.DRAFT,
+        )
+
+        form = ArticleAdminForm(instance=article)
+
+        self.assertEqual(
+            form.fields["slug"].help_text,
+            "Leave blank to automatically generate a new slug from the title.",
+        )
+
+    def test_slug_help_text_shown_for_rejected_article(self):
+        article = Article.objects.create(
+            title="Rejected",
+            slug="rejected",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.REJECTED,
+            reviewed_at=timezone.now(),
+            review_note="Fix grammar.",
+        )
+
+        form = ArticleAdminForm(instance=article)
+
+        self.assertEqual(
+            form.fields["slug"].help_text,
+            "Leave blank to automatically generate a new slug from the title.",
+        )
 
 
 class TestArticleRejectAdminForm(SimpleTestCase):
