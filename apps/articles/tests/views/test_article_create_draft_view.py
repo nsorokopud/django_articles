@@ -37,26 +37,47 @@ class TestArticleCreateDraftView(TestCase):
             reverse("article-update", kwargs={"article_slug": article.slug}),
         )
 
-    def test_each_post_creates_new_draft(self):
+    def test_repeated_post_reuses_existing_empty_draft(self):
         self.client.force_login(self.user)
 
         response1 = self.client.post(self.url)
         response2 = self.client.post(self.url)
 
-        self.assertEqual(Article.objects.count(), 2)
+        self.assertEqual(Article.objects.count(), 1)
 
-        articles = Article.objects.order_by("id")
-        self.assertNotEqual(articles[0].slug, articles[1].slug)
-        self.assertEqual(articles[0].status, ArticleStatus.DRAFT)
-        self.assertEqual(articles[1].status, ArticleStatus.DRAFT)
+        article = Article.objects.get()
 
         self.assertRedirects(
             response1,
-            reverse("article-update", kwargs={"article_slug": articles[0].slug}),
+            reverse("article-update", kwargs={"article_slug": article.slug}),
         )
         self.assertRedirects(
             response2,
-            reverse("article-update", kwargs={"article_slug": articles[1].slug}),
+            reverse("article-update", kwargs={"article_slug": article.slug}),
+        )
+
+    def test_post_creates_new_draft_if_existing_draft_is_not_empty(self):
+        self.client.force_login(self.user)
+
+        Article.objects.create(
+            author=self.user,
+            title="Real draft",
+            slug="real-draft",
+            preview_text="Some preview",
+            content="Some content",
+            content_text="Some content",
+            status=ArticleStatus.DRAFT,
+        )
+
+        response = self.client.post(self.url)
+
+        self.assertEqual(Article.objects.count(), 2)
+
+        new_article = Article.objects.exclude(slug="real-draft").get()
+        self.assertEqual(new_article.title, "Untitled article")
+        self.assertRedirects(
+            response,
+            reverse("article-update", kwargs={"article_slug": new_article.slug}),
         )
 
     def test_get_is_not_allowed(self):

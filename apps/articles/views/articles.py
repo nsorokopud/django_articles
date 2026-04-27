@@ -31,7 +31,7 @@ from ..selectors import (
     get_published_article_by_slug,
 )
 from ..services import toggle_article_like
-from ..services.articles import create_empty_draft, delete_article
+from ..services.articles import delete_article, get_or_create_empty_draft
 from ..services.publishing import (
     submit_article_for_review,
     withdraw_article_from_review,
@@ -211,7 +211,7 @@ class ArticleDetailView(DetailView):
 
 class ArticleCreateDraftView(LoginRequiredMixin, View):
     def post(self, request) -> HttpResponseRedirect:
-        article = create_empty_draft(author=request.user)
+        article = get_or_create_empty_draft(author=request.user)
         return redirect("article-update", article_slug=article.slug)
 
 

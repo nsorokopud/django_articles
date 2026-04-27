@@ -21,17 +21,27 @@ logger = logging.getLogger(__name__)
 
 
 @transaction.atomic
-def create_empty_draft(*, author: User) -> Article:
-    article = Article(
-        author=author,
-        title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
-        preview_text="",
-        content="",
-        status=ArticleStatus.DRAFT,
+def get_or_create_empty_draft(*, author: User) -> Article:
+    User.objects.select_for_update().only("id").get(pk=author.pk)
+
+    existing_draft = (
+        Article.objects.select_for_update()
+        .filter(
+            author_id=author.pk,
+            status=ArticleStatus.DRAFT,
+            title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+            preview_text="",
+            content="",
+            content_text="",
+        )
+        .order_by("-created_at", "-id")
+        .first()
     )
 
-    _save_with_unique_slug(article)
-    return article
+    if existing_draft:
+        return existing_draft
+
+    return _create_empty_draft(author=author)
 
 
 @transaction.atomic
@@ -101,6 +111,19 @@ def delete_article(*, article_id: int) -> None:
     article.delete()
 
     transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article_slug))
+
+
+def _create_empty_draft(*, author: User) -> Article:
+    article = Article(
+        author=author,
+        title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+        preview_text="",
+        content="",
+        content_text="",
+        status=ArticleStatus.DRAFT,
+    )
+    _save_with_unique_slug(article)
+    return article
 
 
 def _save_with_unique_slug(article: Article) -> None:

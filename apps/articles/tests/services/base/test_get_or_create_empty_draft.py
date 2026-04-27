@@ -5,18 +5,44 @@ from django.db import IntegrityError
 from django.test import TestCase, override_settings
 
 from articles.models import Article, ArticleStatus
-from articles.services.articles import MAX_SLUG_RETRY_ATTEMPTS, create_empty_draft
+from articles.services.articles import (
+    MAX_SLUG_RETRY_ATTEMPTS,
+    get_or_create_empty_draft,
+)
 from users.models import User
 
 
-class TestCreateEmptyDraft(TestCase):
+class TestGetOrCreateEmptyDraft(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
         )
 
+    def test_reuses_existing_empty_draft(self):
+        existing = get_or_create_empty_draft(author=self.author)
+        result = get_or_create_empty_draft(author=self.author)
+
+        self.assertEqual(result, existing)
+        self.assertEqual(Article.objects.count(), 1)
+
+    def test_creates_new_draft_when_existing_draft_is_not_empty(self):
+        Article.objects.create(
+            author=self.author,
+            title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+            slug="existing-draft",
+            preview_text="changed",
+            content="",
+            content_text="",
+            status=ArticleStatus.DRAFT,
+        )
+
+        article = get_or_create_empty_draft(author=self.author)
+
+        self.assertNotEqual(article.slug, "existing-draft")
+        self.assertEqual(Article.objects.count(), 2)
+
     def test_creates_expected_article(self):
-        article = create_empty_draft(author=self.author)
+        article = get_or_create_empty_draft(author=self.author)
 
         self.assertIsNotNone(article.pk)
         self.assertEqual(article.author, self.author)
@@ -47,7 +73,7 @@ class TestCreateEmptyDraft(TestCase):
             "articles.services.articles._build_article_slug_candidate",
             side_effect=["untitled-article", "untitled-article-abc12345"],
         ) as mocked_builder:
-            article = create_empty_draft(author=self.author)
+            article = get_or_create_empty_draft(author=self.author)
 
         self.assertEqual(article.slug, "untitled-article-abc12345")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
@@ -69,7 +95,7 @@ class TestCreateEmptyDraft(TestCase):
             ) as mocked_save,
         ):
             with self.assertRaises(IntegrityError):
-                create_empty_draft(author=self.author)
+                get_or_create_empty_draft(author=self.author)
 
         self.assertEqual(mocked_save.call_count, MAX_SLUG_RETRY_ATTEMPTS)
         self.assertEqual(Article.objects.count(), 0)
