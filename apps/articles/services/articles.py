@@ -108,9 +108,17 @@ def delete_article(*, article_id: int) -> None:
         raise ValueError("published or pending-review articles cannot be deleted")
 
     article_slug = article.slug
+    author_id = article.author_id
+
     article.delete()
 
-    transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article_slug))
+    def after_commit() -> None:
+        from ..tasks import delete_article_inline_media_task
+
+        invalidate_article_slug_id(article_slug=article_slug)
+        delete_article_inline_media_task.delay(article_id, author_id)
+
+    transaction.on_commit(after_commit)
 
 
 def _create_empty_draft(*, author: User) -> Article:

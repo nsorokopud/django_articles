@@ -74,11 +74,34 @@ class TestDeleteArticle(TestCase):
 
         self.assertTrue(Article.objects.filter(pk=article.pk).exists())
 
+    @patch("articles.tasks.delete_article_inline_media_task.delay")
     @patch("articles.services.articles.invalidate_article_slug_id")
-    def test_invalidates_slug_cache_on_commit(self, mock_invalidate):
+    def test_after_commit_invalidates_slug_cache_and_schedules_media_cleanup(
+        self, mock_invalidate, mock_delete_media_task
+    ):
         article = self._article(slug="cached-slug")
+        article_id = article.id
+        author_id = article.author_id
 
         with self.captureOnCommitCallbacks(execute=True):
-            delete_article(article_id=article.id)
+            delete_article(article_id=article_id)
 
         mock_invalidate.assert_called_once_with(article_slug="cached-slug")
+        mock_delete_media_task.assert_called_once_with(article_id, author_id)
+
+    @patch("articles.tasks.delete_article_inline_media_task.delay")
+    def test_does_not_schedule_media_cleanup_when_delete_rejected(
+        self, mock_delete_media_task
+    ):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=123,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError, "published or pending-review articles cannot be deleted"
+        ):
+            delete_article(article_id=article.id)
+
+        mock_delete_media_task.assert_not_called()

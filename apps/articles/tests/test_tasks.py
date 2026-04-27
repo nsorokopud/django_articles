@@ -25,7 +25,7 @@ class TestDeleteArticleInlineMediaTask(SimpleTestCase):
 
     @patch("celery.app.task.Task.request")
     @patch("articles.tasks.logger")
-    @patch("articles.tasks.delete_media_files_attached_to_article")
+    @patch("articles.services.media.delete_media_files_attached_to_article")
     def test_success(self, mock_delete, mock_logger, mock_request):
         mock_request.id = 12345
         delete_article_inline_media_task.delay(self.article_id, self.author_id)
@@ -40,7 +40,7 @@ class TestDeleteArticleInlineMediaTask(SimpleTestCase):
 
     @patch("celery.app.task.Task.request")
     @patch(
-        "articles.tasks.delete_media_files_attached_to_article",
+        "articles.services.media.delete_media_files_attached_to_article",
         side_effect=OSError("OS error"),
     )
     def test_retriable_exception(self, mock_delete, mock_request):
@@ -54,7 +54,7 @@ class TestDeleteArticleInlineMediaTask(SimpleTestCase):
 
     @patch("celery.app.task.Task.request")
     @patch(
-        "articles.tasks.delete_media_files_attached_to_article",
+        "articles.services.media.delete_media_files_attached_to_article",
         side_effect=ZeroDivisionError("Non-retriable"),
     )
     def test_non_retriable_exception(self, mock_delete, mock_request):

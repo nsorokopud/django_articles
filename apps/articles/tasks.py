@@ -6,7 +6,6 @@ from celery.exceptions import SoftTimeLimitExceeded
 from config.celery import app
 
 from .cache.view_counts import sync_article_views
-from .services import delete_media_files_attached_to_article
 
 
 logger = logging.getLogger(__name__)
@@ -26,10 +25,12 @@ def sync_article_views_task() -> None:
     reject_on_worker_lost=True,
     max_retries=3,
     retry_backoff=60,
-    retry_jitter=False,
+    retry_jitter=True,
     autoretry_for=(OSError, BotoCoreError, ClientError, SoftTimeLimitExceeded),
 )
 def delete_article_inline_media_task(self, article_id: int, author_id: int) -> None:
+    from .services.media import delete_media_files_attached_to_article
+
     logger.info(
         "Deleting inline media for article %s by author %s. Task ID: %s.",
         article_id,
