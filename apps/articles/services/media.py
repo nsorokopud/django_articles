@@ -65,7 +65,7 @@ def delete_media_files_attached_to_article(article_id: int, author_id: int) -> N
 def _build_safe_file_path(file: BinaryIO, article: Article) -> str:
     base_name, extension = os.path.splitext(file.name)
     safe_base_name = get_valid_filename(base_name)
-    filename = f"{safe_base_name}_{uuid4().hex}.{extension.lower()}"
+    filename = f"{safe_base_name}_{uuid4().hex}{extension.lower()}"
     directory = posixpath.join(
         "articles", "uploads", str(article.author.id), str(article.id)
     )

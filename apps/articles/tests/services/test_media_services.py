@@ -348,8 +348,8 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
             title="a1", slug="a1", content="content", author=self.user
         )
 
-    @patch("articles.services.logger")
-    @patch("articles.services.default_storage.save")
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.default_storage.save")
     def test_successful_file_save(self, mock_save, mock_logger):
         file = SimpleUploadedFile("img.jpeg", b"jpeg data", content_type="image/jpeg")
         mock_save.return_value = "articles/uploads/img.jpeg"
@@ -361,12 +361,20 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
         path_arg_value = mock_save.call_args_list[0][0][0]
         *_, file_name = path_arg_value.split("/")
         folder_path = path_arg_value.rsplit("/", 1)[0]
-        file_base, file_ext = file_name.rsplit(".", 1)
+
         self.assertEqual(
             folder_path, f"articles/uploads/{self.user.id}/{self.article.id}"
         )
-        self.assertIn("img", file_base)
-        self.assertEqual(file_ext, "jpeg")
+
+        self.assertNotIn("..", file_name)
+
+        name, ext = file_name.rsplit(".", 1)
+        self.assertEqual(ext, "jpeg")
+
+        prefix, uuid_part = name.rsplit("_", 1)
+        self.assertEqual(prefix, "img")
+        self.assertEqual(len(uuid_part), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
 
         mock_logger.warning.assert_not_called()
         mock_logger.exception.assert_not_called()
@@ -392,12 +400,20 @@ class TestSaveMediaFileAttachedToArticle(TestCase):
         path_arg_value = mock_logger.exception.call_args_list[0][0][2]
         *_, file_name = path_arg_value.split("/")
         folder_path = path_arg_value.rsplit("/", 1)[0]
-        file_base, file_ext = file_name.rsplit(".", 1)
+
         self.assertEqual(
             folder_path, f"articles/uploads/{self.user.id}/{self.article.id}"
         )
-        self.assertIn("file", file_base)
-        self.assertEqual(file_ext, "jpeg")
+
+        self.assertNotIn("..", file_name)
+
+        name, ext = file_name.rsplit(".", 1)
+        self.assertEqual(ext, "jpeg")
+
+        prefix, uuid_part = name.rsplit("_", 1)
+        self.assertEqual(prefix, "file")
+        self.assertEqual(len(uuid_part), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
 
 
 class TestDeleteAuthorMediaDir(SimpleTestCase):
