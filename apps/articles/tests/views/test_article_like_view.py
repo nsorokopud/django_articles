@@ -1,8 +1,9 @@
 from django.db.models import Count
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from articles.models import Article
+from articles.models import Article, ArticleStatus
 from config.settings import LOGIN_URL
 from users.models import User
 
@@ -18,6 +19,9 @@ class TestArticleLikeView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.url = reverse("article-like", args=[self.article.slug])
 

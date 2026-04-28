@@ -1,8 +1,9 @@
 from django.db.models import Count
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from articles.models import Article, ArticleComment
+from articles.models import Article, ArticleComment, ArticleStatus
 from users.models import User
 
 
@@ -16,6 +17,9 @@ class TestCommentLikeView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
         self.comment = ArticleComment.objects.create(
             article=self.article, author=self.user, text="text"

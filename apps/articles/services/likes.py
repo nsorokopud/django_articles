@@ -1,22 +1,24 @@
-import logging
-from typing import Optional
-
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 
-from ..models import Article, ArticleComment
-
-
-logger = logging.getLogger(__name__)
+from ..models import Article, ArticleComment, ArticleStatus
 
 
 def toggle_article_like(article_slug: str, user_id: int) -> int:
-    article = get_object_or_404(Article, slug=article_slug)
+    article = get_object_or_404(
+        Article,
+        slug=article_slug,
+        status=ArticleStatus.PUBLISHED,
+    )
     return toggle_like(article, user_id)
 
 
-def toggle_comment_like(comment_id: int, user_id: int) -> Optional[int]:
-    comment = get_object_or_404(ArticleComment, id=comment_id)
+def toggle_comment_like(comment_id: int, user_id: int) -> int:
+    comment = get_object_or_404(
+        ArticleComment,
+        id=comment_id,
+        article__status=ArticleStatus.PUBLISHED,
+    )
     return toggle_like(comment, user_id)
 
 
