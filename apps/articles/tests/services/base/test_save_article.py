@@ -82,25 +82,6 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(Article.objects.count(), 0)
         save_related.assert_not_called()
 
-    def test_updates_rejected_article_calls_restore_to_draft(self):
-        article = Article.objects.create(
-            title="a1",
-            slug="a1",
-            category=self.category,
-            author=self.author,
-            preview_text="preview",
-            content="content",
-            status=ArticleStatus.REJECTED,
-            review_note="Needs work",
-        )
-        article.title = "updated"
-
-        saved = save_article(article=article)
-        article.refresh_from_db()
-        self.assertEqual(article.title, "updated")
-        self.assertEqual(article.status, ArticleStatus.DRAFT)
-        self.assertEqual(saved.pk, article.pk)
-
     def test_updates_rejected_article_restores_to_draft(self):
         article = Article.objects.create(
             title="a1",
