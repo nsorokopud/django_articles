@@ -347,6 +347,31 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(article.status, ArticleStatus.DRAFT)
 
     @patch("articles.services.articles._build_article_slug_candidate")
+    def test_does_not_regenerate_slug_when_title_changed_for_pending_review_article(
+        self,
+        mock_build_slug,
+    ):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+        article.title = "new pending title"
+
+        saved = save_article(article=article)
+
+        self.assertEqual(saved.slug, "old-title")
+        mock_build_slug.assert_not_called()
+
+        article.refresh_from_db()
+        self.assertEqual(article.slug, "old-title")
+        self.assertEqual(article.title, "new pending title")
+
+    @patch("articles.services.articles._build_article_slug_candidate")
     def test_retries_slug_generation_on_integrity_error(self, mock_build_slug):
         article = Article(
             title="a1",

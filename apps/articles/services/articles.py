@@ -166,9 +166,12 @@ def _should_regenerate_slug(
         return False
 
     title_changed = article.title != previous_article.title
-    was_unpublished = previous_article.status != ArticleStatus.PUBLISHED
+    slug_can_change = previous_article.status in {
+        ArticleStatus.DRAFT,
+        ArticleStatus.REJECTED,
+    }
 
-    return title_changed and was_unpublished
+    return title_changed and slug_can_change
 
 
 def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
