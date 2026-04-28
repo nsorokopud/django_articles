@@ -75,11 +75,11 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn("javascript:", cleaned)
         self.assertNotIn('href="', cleaned)
 
-    def test_keeps_mailto_href(self):
+    def test_removes_mailto_href(self):
         html = '<a href="mailto:test@test.com">Email</a>'
         cleaned = sanitize_article_html(html)
 
-        self.assertIn('href="mailto:test@test.com"', cleaned)
+        self.assertNotIn('href="mailto:test@test.com"', cleaned)
 
     def test_keeps_http_and_https_image_src(self):
         html = (

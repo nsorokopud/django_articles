@@ -50,7 +50,7 @@ ALLOWED_ATTRIBUTES.setdefault("img", set()).update(
     }
 )
 
-ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
+ALLOWED_URL_SCHEMES = {"http", "https"}
 
 
 def sanitize_article_html(html: str) -> str:
