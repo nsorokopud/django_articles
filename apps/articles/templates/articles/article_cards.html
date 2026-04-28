@@ -68,11 +68,12 @@
       {% with tags=article.tags.all %}
         {% if tags %}
           <ul class="article-tags-list">
-            <span class="tags-span">Tags:</span>
+            <li class="tags-span">Tags:</li>
             {% for tag in tags %}
               <li>
-                <a class="article-tag-link" href="{{ tag_filter_url }}?tags={{ tag }}">
-                  #{{ tag }}
+                <a class="article-tag-link"
+                   href="{{ tag_filter_url }}?tags={{ tag.name|urlencode }}">
+                  #{{ tag.name }}
                 </a>
               </li>
             {% endfor %}
