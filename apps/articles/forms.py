@@ -181,7 +181,7 @@ class ArticleCommentForm(forms.ModelForm):
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
-        if not self.user:
+        if not self.user or not self.user.is_authenticated:
             raise ValidationError("User is required to save the comment.")
         if not self.article:
             raise ValidationError("Article is required to save the comment.")

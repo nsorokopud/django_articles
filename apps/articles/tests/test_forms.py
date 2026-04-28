@@ -513,6 +513,19 @@ class TestArticleCommentForm(TestCase):
             {"__all__": ["User is required to save the comment."]},
         )
 
+    def test_anonymous_user(self):
+        form = ArticleCommentForm(
+            data={"text": "abc"},
+            user=AnonymousUser(),
+            article=self.article,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {"__all__": ["User is required to save the comment."]},
+        )
+
     def test_no_article(self):
         form = ArticleCommentForm(
             data={"text": "abc"},
