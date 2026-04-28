@@ -17,6 +17,9 @@ ARTICLE_TITLE_SLUG_HELP = (
     "Changing the title may update the article URL until publication."
 )
 
+ARTICLE_COMMENT_MIN_LENGTH = 3
+ARTICLE_COMMENT_MAX_LENGTH = 2000
+
 
 class ArticleAdminForm(forms.ModelForm):
     class Meta:
@@ -158,6 +161,18 @@ class ArticleCommentForm(forms.ModelForm):
     class Meta:
         model = ArticleComment
         fields = ["text"]
+        labels = {
+            "text": "",
+        }
+        widgets = {
+            "text": forms.Textarea(
+                attrs={
+                    "maxlength": ARTICLE_COMMENT_MAX_LENGTH,
+                    "rows": 4,
+                    "placeholder": "Write your comment...",
+                }
+            )
+        }
 
     def __init__(self, *args, user=None, article=None, **kwargs) -> None:
         self.user = user
@@ -171,6 +186,22 @@ class ArticleCommentForm(forms.ModelForm):
         if not self.article:
             raise ValidationError("Article is required to save the comment.")
         return cleaned_data
+
+    def clean_text(self) -> str:
+        text = (self.cleaned_data.get("text") or "").strip()
+
+        if len(text) < ARTICLE_COMMENT_MIN_LENGTH:
+            raise ValidationError(
+                f"Comment must be at least {ARTICLE_COMMENT_MIN_LENGTH} "
+                "characters long."
+            )
+
+        if len(text) > ARTICLE_COMMENT_MAX_LENGTH:
+            raise ValidationError(
+                f"Comment cannot exceed {ARTICLE_COMMENT_MAX_LENGTH} characters."
+            )
+
+        return text
 
     def save(self, commit=True) -> ArticleComment:
         if not commit:

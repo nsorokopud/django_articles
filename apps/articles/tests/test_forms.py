@@ -9,6 +9,7 @@ from django.utils import timezone
 from PIL import Image
 
 from articles.forms import (
+    ARTICLE_COMMENT_MAX_LENGTH,
     ARTICLE_REJECT_REASON_MAX_LENGTH,
     ARTICLE_REJECT_REASON_MIN_LENGTH,
     ArticleAdminForm,
@@ -535,6 +536,41 @@ class TestArticleCommentForm(TestCase):
         self.assertEqual(
             form.errors,
             {"text": ["This field is required."]},
+        )
+
+    def test_text_too_short(self):
+        form = ArticleCommentForm(
+            data={"text": "x"}, user=self.user, article=self.article
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("text", form.errors)
+
+    def test_text_too_long(self):
+        form = ArticleCommentForm(
+            data={"text": "x" * (ARTICLE_COMMENT_MAX_LENGTH + 1)},
+            user=self.user,
+            article=self.article,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("text", form.errors)
+
+    @patch("articles.forms.create_article_comment")
+    def test_text_is_trimmed_before_save(self, mock_create_article_comment):
+        comment = ArticleComment(
+            text="abc",
+            author=self.user,
+            article=self.article,
+        )
+        mock_create_article_comment.return_value = comment
+
+        form = ArticleCommentForm(
+            data={"text": "  abc  "}, user=self.user, article=self.article
+        )
+        self.assertTrue(form.is_valid())
+        form.save()
+
+        mock_create_article_comment.assert_called_once_with(
+            article=self.article, user=self.user, text="abc"
         )
 
     def test_commit_false_is_not_supported(self):
