@@ -261,6 +261,52 @@ class TestPublishArticle(TestCase):
             status=ArticleStatus.PENDING_REVIEW,
         )
 
+    def test_publishing_two_articles_assigns_unique_increasing_sequences(self):
+        first_article = Article.objects.create(
+            author=self.author,
+            title="First article",
+            slug="first-article",
+            preview_text="First preview",
+            content="<p>First body</p>",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+        second_article = Article.objects.create(
+            author=self.author,
+            title="Second article",
+            slug="second-article",
+            preview_text="Second preview",
+            content="<p>Second body</p>",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            first_published = publish_article(article_id=first_article.id)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            second_published = publish_article(article_id=second_article.id)
+
+        first_article.refresh_from_db()
+        second_article.refresh_from_db()
+        self.author.refresh_from_db()
+
+        self.assertEqual(first_article.status, ArticleStatus.PUBLISHED)
+        self.assertEqual(second_article.status, ArticleStatus.PUBLISHED)
+
+        sequences = [first_article.publish_sequence, second_article.publish_sequence]
+
+        self.assertNotIn(None, sequences)
+        self.assertEqual(len(set(sequences)), 2)
+        self.assertGreater(
+            second_article.publish_sequence, first_article.publish_sequence
+        )
+
+        self.assertEqual(
+            self.author.latest_article_publish_sequence, second_article.publish_sequence
+        )
+
+        self.assertEqual(first_published.id, first_article.id)
+        self.assertEqual(second_published.id, second_article.id)
+
     @patch("articles.services.publishing.notify_article_published")
     def test_sets_published_fields_and_updates_author_sequence(self, mock_notify):
         before = timezone.now()
@@ -280,8 +326,7 @@ class TestPublishArticle(TestCase):
         self.assertGreaterEqual(self.article.published_at, before)
         self.assertLessEqual(self.article.published_at, after)
         self.assertEqual(
-            self.author.latest_article_publish_sequence,
-            self.article.publish_sequence,
+            self.author.latest_article_publish_sequence, self.article.publish_sequence
         )
 
         mock_notify.assert_called_once_with(
