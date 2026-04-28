@@ -3,6 +3,7 @@ from typing import Any, Optional
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -173,11 +174,6 @@ class ArticleDetailView(DetailView):
     context_object_name = "article"
     template_name = "articles/article.html"
 
-    @method_decorator(increment_article_view_counter)
-    @method_decorator(cache_page_for_anonymous(ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT))
-    def dispatch(self, request, *args, **kwargs) -> HttpResponse:
-        return super().dispatch(request, *args, **kwargs)
-
     def get_object(self) -> Article:
         article_slug = self.kwargs.get(self.slug_url_kwarg)
         try:
@@ -186,6 +182,11 @@ class ArticleDetailView(DetailView):
             logger.warning("Published article with '%s' slug not found.", article_slug)
             raise Http404("Article not found") from e
         return article
+
+    @method_decorator(increment_article_view_counter)
+    @method_decorator(cache_page_for_anonymous(ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT))
+    def get(self, request, *args, **kwargs) -> HttpResponse:
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         article = self.object
@@ -201,12 +202,27 @@ class ArticleDetailView(DetailView):
         )
 
         if self.request.user.is_authenticated:
-            context["form"] = ArticleCommentForm()
+            context["form"] = kwargs.get("form") or ArticleCommentForm()
             context["liked_comments"] = set(
                 find_article_comments_liked_by_user(article, self.request.user)
             )
 
         return context
+
+    def post(self, request, *args, **kwargs) -> HttpResponse | HttpResponseRedirect:
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+
+        self.object = self.get_object()
+        form = ArticleCommentForm(request.POST, user=request.user, article=self.object)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your comment has been posted.")
+            return redirect("article-details", article_slug=self.object.slug)
+
+        messages.error(request, "Your comment could not be posted.")
+        return self.render_to_response(self.get_context_data(form=form), status=400)
 
 
 class ArticleCreateDraftView(LoginRequiredMixin, View):

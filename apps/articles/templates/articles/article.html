@@ -99,7 +99,7 @@
                   <h5>Add a comment</h5>
                   <form class="form-outline"
                         method="post"
-                        action="{% url 'article-comment' article.slug %}">
+                        action="{% url 'article-details' article.slug %}">
                     {% csrf_token %}
                     {{ form|crispy }}
                     <button type="submit" class="btn btn-success mt-3">

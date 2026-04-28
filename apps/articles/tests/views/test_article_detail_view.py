@@ -181,3 +181,56 @@ class TestArticleDetailView(TestCase):
     def test_nonexistent_article_returns_404(self):
         response = self.client.get(reverse("article-details", args=["missing-slug"]))
         self.assertEqual(response.status_code, 404)
+
+    def test_authenticated_user_can_post_valid_comment(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"text": "New valid comment"})
+
+        self.assertRedirects(response, self.url)
+        self.assertTrue(
+            ArticleComment.objects.filter(
+                article=self.article,
+                author=self.user,
+                text="New valid comment",
+            ).exists()
+        )
+
+    def test_authenticated_user_sees_form_errors_for_invalid_comment(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"text": "x"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTemplateUsed(response, "articles/article.html")
+        self.assertIsInstance(response.context["form"], ArticleCommentForm)
+        self.assertTrue(response.context["form"].errors)
+        self.assertIn("text", response.context["form"].errors)
+        self.assertEqual(ArticleComment.objects.count(), 1)
+
+    def test_authenticated_user_cannot_post_comment_to_unpublished_article(self):
+        self.client.force_login(self.user)
+
+        draft = Article.objects.create(
+            title="draft",
+            slug="draft",
+            category=self.category,
+            author=self.user,
+            preview_text="draft preview",
+            content="draft content",
+            status=ArticleStatus.DRAFT,
+        )
+
+        response = self.client.post(
+            reverse("article-details", args=[draft.slug]), {"text": "New valid comment"}
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(ArticleComment.objects.count(), 1)
+
+    def test_anonymous_user_cannot_post_comment(self):
+        response = self.client.post(self.url, {"text": "New comment"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.url)
+        self.assertEqual(ArticleComment.objects.count(), 1)
