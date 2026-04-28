@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -77,3 +77,112 @@ class TestArticleSearchVectorColumn(TestCase):
         self.assertIn("django", search_vector_text)
         self.assertIn("hello", search_vector_text)
         self.assertIn("world", search_vector_text)
+
+
+class TestArticleModelConstraints(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+
+    def test_published_requires_published_at_and_publish_sequence(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Article.objects.create(
+                    title="Published",
+                    slug="bad-published",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    status=ArticleStatus.PUBLISHED,
+                    published_at=None,
+                    publish_sequence=None,
+                )
+
+    def test_draft_cannot_have_publication_fields(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Article.objects.create(
+                    title="Draft",
+                    slug="bad-draft",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    status=ArticleStatus.DRAFT,
+                    published_at=timezone.now(),
+                    publish_sequence=1,
+                )
+
+    def test_published_at_and_publish_sequence_must_be_set_together(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Article.objects.create(
+                    title="Draft",
+                    slug="no-sequence",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    status=ArticleStatus.DRAFT,
+                    published_at=timezone.now(),
+                    publish_sequence=None,
+                )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Article.objects.create(
+                    title="Draft",
+                    slug="no-published-at",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    status=ArticleStatus.DRAFT,
+                    published_at=None,
+                    publish_sequence=1,
+                )
+
+    def test_publish_sequence_must_be_unique_when_not_null(self):
+        Article.objects.create(
+            title="Article 1",
+            slug="article-1",
+            author=self.user,
+            preview_text="Preview",
+            content="Content",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=100,
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Article.objects.create(
+                    title="Article 2",
+                    slug="article-2",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    status=ArticleStatus.PUBLISHED,
+                    published_at=timezone.now(),
+                    publish_sequence=100,
+                )
+
+    def test_non_draft_requires_title_preview_and_content(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Article.objects.create(
+                    title="",
+                    slug="bad-pending",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    status=ArticleStatus.PENDING_REVIEW,
+                )
+
+    def test_draft_allows_blank_core_fields(self):
+        article = Article.objects.create(
+            title="",
+            slug="blank-draft",
+            author=self.user,
+            preview_text="",
+            content="",
+            status=ArticleStatus.DRAFT,
+        )
+
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
