@@ -51,6 +51,11 @@ urlpatterns = [
         name="article-like",
     ),
     path(
+        "articles/<slug:article_slug>/comments/",
+        views.ArticleCommentsListView.as_view(),
+        name="article-comments-list",
+    ),
+    path(
         "comments/<int:comment_id>/like",
         views.CommentLikeView.as_view(),
         name="comment-like",

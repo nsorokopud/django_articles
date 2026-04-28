@@ -1,5 +1,6 @@
 import logging
 
+from django.core.paginator import Page, Paginator
 from django.db import IntegrityError, transaction
 
 from notifications.services.creation import create_new_comment_notification
@@ -7,6 +8,8 @@ from notifications.services.dispatch import dispatch_notification_after_commit
 from users.models import User
 
 from ..models import Article, ArticleComment
+from ..selectors import find_article_comments_liked_by_user, find_comments_to_article
+from ..settings import ARTICLE_COMMENTS_PER_PAGE
 
 
 logger = logging.getLogger(__name__)
@@ -51,3 +54,22 @@ def create_article_comment(
         )
 
     return comment
+
+
+def get_article_comments_page(
+    *,
+    article: Article,
+    page_number: int | str | None = 1,
+    user: User | None = None,
+) -> tuple[Page, set[int]]:
+    comments_qs = find_comments_to_article(article)
+    paginator = Paginator(comments_qs, ARTICLE_COMMENTS_PER_PAGE)
+    comments_page = paginator.get_page(page_number)
+
+    liked_comments: set[int] = set()
+    if user and user.is_authenticated:
+        comment_ids = [comment.id for comment in comments_page.object_list]
+        if comment_ids:
+            liked_comments = set(find_article_comments_liked_by_user(comment_ids, user))
+
+    return comments_page, liked_comments

@@ -1,10 +1,12 @@
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.like-link').forEach((link) => {
-    link.addEventListener('click', function (e) {
-      e.preventDefault();
-      handleLike(link);
-    });
-  });
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('.like-link');
+
+  if (!link) {
+    return;
+  }
+
+  e.preventDefault();
+  handleLike(link);
 });
 
 function handleLike(linkEl) {

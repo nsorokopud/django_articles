@@ -325,7 +325,9 @@ class TestSelectors(TestCase):
         comment1 = ArticleComment.objects.create(
             article=a1, author=self.test_user, text="text"
         )
-        ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment2 = ArticleComment.objects.create(
+            article=a1, author=self.test_user, text="text"
+        )
         comment3 = ArticleComment.objects.create(
             article=a1, author=self.test_user, text="text"
         )
@@ -334,8 +336,11 @@ class TestSelectors(TestCase):
         comment3.users_that_liked.add(self.test_user)
 
         self.assertCountEqual(
-            find_article_comments_liked_by_user(a1, self.test_user),
-            [comment1.id, comment3.id],
+            find_article_comments_liked_by_user(
+                [comment1.id, comment2.id],
+                self.test_user,
+            ),
+            [comment1.id],
         )
 
     def test_find_published_articles_ordered_by_publish_sequence_desc(self):

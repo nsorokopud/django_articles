@@ -1,0 +1,32 @@
+{% load tz %}
+
+{% for comment in comments %}
+  <div class="d-flex flex-start mb-4">
+    <img class="rounded-circle shadow-1-strong me-3"
+         src="{{ comment.author.profile.image.url }}"
+         alt="avatar"
+         width="65"
+         height="65" />
+    <div class="card w-100">
+      <div class="card-body p-4">
+        <h5>{{ comment.author.username }}</h5>
+        <p class="small">{{ comment.created_at|localtime|date:'H:i d.m.Y' }}</p>
+        <p>{{ comment.text }}</p>
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center">
+            <a href="{% url 'comment-like' comment.id %}"
+               class="like-link link-muted me-2"
+               data-type="comment"
+               data-id="{{ comment.id }}"
+               data-logged-in="{{ request.user.is_authenticated|yesno }}">
+              <i class="like-icon article-icon fas fa-thumbs-up m-1
+                        {% if comment.id in liked_comments %}active{% endif %}">
+              </i>
+              <span class="like-counter comment-like-count">{{ comment.likes_count }}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}

@@ -114,10 +114,12 @@ def find_articles_by_query(
     )
 
 
-def find_article_comments_liked_by_user(article: Article, user: User) -> QuerySet[int]:
-    """Returns ids of `ArticleComment` instances liked by the user"""
+def find_article_comments_liked_by_user(
+    comment_ids: Sequence[int], user: User
+) -> QuerySet[int]:
     return ArticleComment.objects.filter(
-        article=article, users_that_liked=user
+        id__in=comment_ids,
+        users_that_liked=user,
     ).values_list("id", flat=True)
 
 

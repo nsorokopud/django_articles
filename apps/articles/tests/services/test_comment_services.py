@@ -1,10 +1,13 @@
+# pylint: disable=R0801
+
 from unittest.mock import patch
 
 from django.db import IntegrityError
 from django.test import TestCase
+from django.utils import timezone
 
-from articles.models import Article, ArticleComment
-from articles.services.comments import create_article_comment
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
+from articles.services.comments import create_article_comment, get_article_comments_page
 from users.models import User
 
 
@@ -196,3 +199,111 @@ class TestCreateArticleComment(TestCase):
         )
         mock_dispatch.assert_not_called()
         mock_log_exception.assert_called_once()
+
+
+@patch("articles.services.comments.ARTICLE_COMMENTS_PER_PAGE", 2)
+class TestGetArticleCommentsPage(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.other_user = User.objects.create_user(
+            username="other", email="other@test.com"
+        )
+        self.category = ArticleCategory.objects.create(title="cat", slug="cat")
+        self.article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.user,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+
+        self.comment1 = ArticleComment.objects.create(
+            article=self.article,
+            author=self.user,
+            text="comment 1",
+        )
+        self.comment2 = ArticleComment.objects.create(
+            article=self.article,
+            author=self.user,
+            text="comment 2",
+        )
+        self.comment3 = ArticleComment.objects.create(
+            article=self.article,
+            author=self.user,
+            text="comment 3",
+        )
+
+    def test_returns_requested_comments_page(self):
+        comments_page, liked_comments = get_article_comments_page(
+            article=self.article,
+            page_number=1,
+            user=None,
+        )
+
+        self.assertEqual(comments_page.number, 1)
+        self.assertTrue(comments_page.has_next())
+        self.assertEqual(comments_page.next_page_number(), 2)
+        self.assertCountEqual(
+            [comment.id for comment in comments_page.object_list],
+            [self.comment3.id, self.comment2.id],
+        )
+        self.assertEqual(liked_comments, set())
+
+    def test_returns_next_comments_page(self):
+        comments_page, liked_comments = get_article_comments_page(
+            article=self.article,
+            page_number=2,
+            user=None,
+        )
+
+        self.assertEqual(comments_page.number, 2)
+        self.assertFalse(comments_page.has_next())
+        self.assertCountEqual(
+            [comment.id for comment in comments_page.object_list],
+            [self.comment1.id],
+        )
+        self.assertEqual(liked_comments, set())
+
+    def test_returns_liked_comments_for_authenticated_user_on_current_page_only(self):
+        self.comment1.users_that_liked.add(self.user)
+        self.comment3.users_that_liked.add(self.user)
+
+        comments_page, liked_comments = get_article_comments_page(
+            article=self.article,
+            page_number=1,
+            user=self.user,
+        )
+
+        self.assertCountEqual(
+            [comment.id for comment in comments_page.object_list],
+            [self.comment3.id, self.comment2.id],
+        )
+        self.assertEqual(liked_comments, {self.comment3.id})
+
+    def test_invalid_page_number_falls_back_to_valid_page(self):
+        comments_page, liked_comments = get_article_comments_page(
+            article=self.article,
+            page_number="invalid",
+            user=None,
+        )
+
+        self.assertEqual(comments_page.number, 1)
+        self.assertEqual(liked_comments, set())
+
+    def test_out_of_range_page_number_returns_last_page(self):
+        comments_page, liked_comments = get_article_comments_page(
+            article=self.article,
+            page_number=999,
+            user=None,
+        )
+
+        self.assertEqual(comments_page.number, 2)
+        self.assertCountEqual(
+            [comment.id for comment in comments_page.object_list],
+            [self.comment1.id],
+        )
+        self.assertEqual(liked_comments, set())

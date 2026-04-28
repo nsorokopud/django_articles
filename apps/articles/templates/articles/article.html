@@ -114,44 +114,27 @@
             <a href="{% url 'login' %}?next={% url 'article-details' article.slug %}"
                class="link-green">Log in to leave comments</a>
           {% endif %}
-          <div class="article-comments-container row d-flex justify-content-center my-5">
-            <div class="col-12">
-              {% for comment in comments %}
-                <div class="d-flex flex-start mb-4">
-                  <img class="rounded-circle shadow-1-strong me-3"
-                       src="{{ comment.author.profile.image.url }}"
-                       alt="avatar"
-                       width="65"
-                       height="65" />
-                  <div class="card w-100">
-                    <div class="card-body p-4">
-                      <h5>{{ comment.author.username }}</h5>
-                      <p class="small">{{ comment.created_at|localtime|date:'H:i d.m.Y' }}</p>
-                      <p>{{ comment.text }}</p>
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                          <a href="{% url 'comment-like' comment.id %}"
-                             class="like-link link-muted me-2"
-                             data-type="comment"
-                             data-id="{{ comment.id }}"
-                             data-logged-in="{{ request.user.is_authenticated|yesno }}">
-                            <i class="like-icon article-icon fas fa-thumbs-up m-1
-                                      {% if comment.id in liked_comments %}active{% endif %}">
-                            </i>
-                            <span class="like-counter comment-like-count">{{ comment.likes_count }}</span>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
+          <div id="commentsContainer"
+               class="article-comments-container row d-flex justify-content-center my-5">
+            <div class="col-12">{% include "articles/comment_list.html" %}</div>
           </div>
+
+          {% if comments_page_obj.has_next %}
+            <div class="text-center mb-5">
+              <button id="loadMoreCommentsButton"
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-next-page="{{ comments_page_obj.next_page_number }}"
+                      data-comments-url="{% url 'article-comments-list' article.slug %}">
+                Load more comments
+              </button>
+            </div>
+          {% endif %}
         </div>
       </div>
     </section>
   </div>
   <!-- End of container 2 -->
   <script src="{% static 'js/likes.js' %}"></script>
+  <script src="{% static 'js/article-comments.js' %}"></script>
 {% endblock content-bottom %}

@@ -23,9 +23,7 @@ from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
 from ..models import Article, ArticleStatus
 from ..selectors import (
-    find_article_comments_liked_by_user,
     find_articles_by_author,
-    find_comments_to_article,
     find_published_articles,
     find_subscription_feed_articles,
     get_article_for_author_by_slug,
@@ -33,6 +31,7 @@ from ..selectors import (
 )
 from ..services import toggle_article_like
 from ..services.articles import delete_article, get_or_create_empty_draft
+from ..services.comments import get_article_comments_page
 from ..services.publishing import (
     submit_article_for_review,
     withdraw_article_from_review,
@@ -192,9 +191,13 @@ class ArticleDetailView(DetailView):
         article = self.object
         context = super().get_context_data(**kwargs)
 
-        comments = list(find_comments_to_article(article))
-        context["comments"] = comments
-        context["comments_count"] = len(comments)
+        comments_page, liked_comments = get_article_comments_page(
+            article=article, page_number=1, user=self.request.user
+        )
+
+        context["comments"] = comments_page.object_list
+        context["comments_page_obj"] = comments_page
+        context["comments_count"] = comments_page.paginator.count
 
         context["user_liked"] = (
             self.request.user.is_authenticated
@@ -203,9 +206,7 @@ class ArticleDetailView(DetailView):
 
         if self.request.user.is_authenticated:
             context["form"] = kwargs.get("form") or ArticleCommentForm()
-            context["liked_comments"] = set(
-                find_article_comments_liked_by_user(article, self.request.user)
-            )
+            context["liked_comments"] = liked_comments
 
         return context
 

@@ -234,3 +234,39 @@ class TestArticleDetailView(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/login", response.url)
         self.assertEqual(ArticleComment.objects.count(), 1)
+
+    @patch("articles.services.comments.ARTICLE_COMMENTS_PER_PAGE", 2)
+    def test_shows_only_first_comments_page(self):
+        ArticleComment.objects.all().delete()
+
+        comment1 = ArticleComment.objects.create(
+            article=self.article,
+            author=self.user,
+            text="comment 1",
+        )
+        comment2 = ArticleComment.objects.create(
+            article=self.article,
+            author=self.user,
+            text="comment 2",
+        )
+        comment3 = ArticleComment.objects.create(
+            article=self.article,
+            author=self.user,
+            text="comment 3",
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["comments_count"], 3)
+        self.assertEqual(len(response.context["comments"]), 2)
+        self.assertContains(response, "Load more comments")
+        self.assertContains(
+            response, reverse("article-comments-list", args=[self.article.slug])
+        )
+
+        visible_comment_ids = [comment.id for comment in response.context["comments"]]
+
+        self.assertIn(comment3.id, visible_comment_ids)
+        self.assertIn(comment2.id, visible_comment_ids)
+        self.assertNotIn(comment1.id, visible_comment_ids)
