@@ -416,7 +416,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = bool(
 CELERY_BEAT_SCHEDULE = {
     "articles.sync-view-counts": {
         "task": "articles.tasks.sync_article_views_task",
-        "schedule": timedelta(minutes=30),
+        "schedule": timedelta(minutes=5),
     },
     "notifications.cleanup-old-read": {
         "task": "notifications.tasks_retention.cleanup_old_read_notifications_task",

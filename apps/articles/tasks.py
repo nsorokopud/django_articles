@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 ARTICLE_SYNC_VIEWS_LOCK_KEY = "articles_sync_views_lock"
-ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS = 300
+ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS = 10 * 60  # 10 min
 
 
 @app.task(
