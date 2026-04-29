@@ -3,9 +3,9 @@ import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic.base import RedirectView
-from taggit.views import get_object_or_404
 
 from core.exceptions import MediaSaveError
 
@@ -28,10 +28,12 @@ class AttachedFileUploadView(LoginRequiredMixin, View):
         except (TypeError, ValueError):
             return self._error("Invalid or missing article ID", 400)
 
-        article = get_object_or_404(Article, id=article_id)
+        article = get_object_or_404(
+            Article.objects.only("id", "author_id", "status"), id=article_id
+        )
 
-        if request.user != article.author:
-            return self._error("No permission to edit this article", 403)
+        if request.user.id != article.author_id:
+            return self._error("No permission to edit this article.", 403)
 
         form = AttachedFileUploadForm(request.POST, request.FILES)
         if not form.is_valid():

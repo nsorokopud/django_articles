@@ -128,7 +128,7 @@ class TestAttachedFileUploadView(TestCase):
             response.json(),
             {
                 "status": "error",
-                "message": "No permission to edit this article",
+                "message": "No permission to edit this article.",
             },
         )
 
