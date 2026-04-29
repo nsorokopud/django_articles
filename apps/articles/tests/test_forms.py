@@ -274,25 +274,22 @@ class TestArticleModelForm(TestCase):
         self.assertEqual(passed_article.preview_text, "preview2")
         self.assertEqual(passed_article.content, "content2")
 
-    def test_save_with_commit_false_returns_unsaved_instance(self):
+    def test_save_with_commit_false_raises_error(self):
         form = ArticleModelForm(
             user=self.user,
-            data={
-                "title": "a2",
-                "preview_text": "preview2",
-                "content": "content2",
-            },
+            data={"title": "commit-false", "preview_text": "p", "content": "c"},
         )
 
         self.assertTrue(form.is_valid())
 
-        article = form.save(commit=False)
+        with self.assertRaises(ValueError) as context:
+            form.save(commit=False)
 
-        self.assertIsNone(article.pk)
-        self.assertIsNone(article.author_id)
-        self.assertEqual(article.title, "a2")
-        self.assertEqual(article.preview_text, "preview2")
-        self.assertEqual(article.content, "content2")
+        self.assertFalse(Article.objects.filter(title="commit-false").exists())
+        self.assertEqual(
+            str(context.exception),
+            "commit=False is not supported for ArticleModelForm.",
+        )
 
     def test_save_persists_tags(self):
         form = ArticleModelForm(

@@ -132,11 +132,10 @@ class ArticleModelForm(forms.ModelForm):
         return cleaned_data
 
     def save(self, commit=True) -> Article:
-        instance = super().save(commit=False)
-
         if not commit:
-            return instance
+            raise ValueError("commit=False is not supported for ArticleModelForm.")
 
+        instance = super().save(commit=False)
         author = self.user if instance.pk is None else None
 
         article = save_article(article=instance, author=author)
