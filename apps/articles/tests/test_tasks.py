@@ -3,7 +3,7 @@ from unittest.mock import patch
 from celery.exceptions import Retry
 from django.test import SimpleTestCase, override_settings
 
-from articles.tasks import delete_article_inline_media_task, sync_article_views_task
+from articles.tasks import delete_article_media_task, sync_article_views_task
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -45,29 +45,31 @@ class TestSyncArticleViewsTask(SimpleTestCase):
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
-class TestDeleteArticleInlineMediaTask(SimpleTestCase):
+class TestDeleteArticleMediaTask(SimpleTestCase):
     def setUp(self):
         self.article_id = 123
         self.author_id = 5
+        self.preview_image_name = "preview.jpg"
 
     @patch("celery.app.task.Task.request")
-    @patch("articles.tasks.logger")
-    @patch("articles.services.media.delete_media_files_attached_to_article")
-    def test_success(self, mock_delete, mock_logger, mock_request):
+    @patch("articles.services.media.delete_article_media_files")
+    def test_success(self, mock_delete, mock_request):
         mock_request.id = 12345
-        delete_article_inline_media_task.delay(self.article_id, self.author_id)
+        delete_article_media_task.delay(
+            article_id=self.article_id,
+            author_id=self.author_id,
+            preview_image_name=self.preview_image_name,
+        )
 
-        mock_delete.assert_called_once_with(self.article_id, self.author_id)
-        mock_logger.info.assert_called_once_with(
-            "Deleting inline media for article %s by author %s. Task ID: %s.",
-            self.article_id,
-            self.author_id,
-            mock_request.id,
+        mock_delete.assert_called_once_with(
+            article_id=self.article_id,
+            author_id=self.author_id,
+            preview_image_name=self.preview_image_name,
         )
 
     @patch("celery.app.task.Task.request")
     @patch(
-        "articles.services.media.delete_media_files_attached_to_article",
+        "articles.services.media.delete_article_media_files",
         side_effect=OSError("OS error"),
     )
     def test_retriable_exception(self, mock_delete, mock_request):
@@ -75,13 +77,13 @@ class TestDeleteArticleInlineMediaTask(SimpleTestCase):
         mock_request.called_directly = False
 
         with self.assertRaises(Retry) as context:
-            delete_article_inline_media_task.delay(self.article_id, self.author_id)
+            delete_article_media_task.delay(self.article_id, self.author_id, "")
 
         self.assertEqual(context.exception.exc, mock_delete.side_effect)
 
     @patch("celery.app.task.Task.request")
     @patch(
-        "articles.services.media.delete_media_files_attached_to_article",
+        "articles.services.media.delete_article_media_files",
         side_effect=ZeroDivisionError("Non-retriable"),
     )
     def test_non_retriable_exception(self, mock_delete, mock_request):
@@ -89,6 +91,6 @@ class TestDeleteArticleInlineMediaTask(SimpleTestCase):
         mock_request.called_directly = False
 
         with self.assertRaises(ZeroDivisionError) as context:
-            delete_article_inline_media_task.delay(self.article_id, self.author_id)
+            delete_article_media_task.delay(self.article_id, self.author_id, "")
 
         self.assertEqual(context.exception, mock_delete.side_effect)

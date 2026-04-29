@@ -109,14 +109,19 @@ def delete_article(*, article_id: int) -> None:
 
     article_slug = article.slug
     author_id = article.author_id
+    preview_image_name = article.preview_image.name
 
     article.delete()
 
     def after_commit() -> None:
-        from ..tasks import delete_article_inline_media_task
+        from ..tasks import delete_article_media_task
 
         invalidate_article_slug_id(article_slug=article_slug)
-        delete_article_inline_media_task.delay(article_id, author_id)
+        delete_article_media_task.delay(
+            article_id=article_id,
+            author_id=author_id,
+            preview_image_name=preview_image_name,
+        )
 
     transaction.on_commit(after_commit)
 

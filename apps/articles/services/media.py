@@ -8,12 +8,12 @@ from uuid import uuid4
 
 from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import BotoCoreError, ClientError
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.utils.text import get_valid_filename
 from storages.backends.s3boto3 import S3Boto3Storage
 
-from config.settings import MEDIA_ROOT
 from core.exceptions import MediaSaveError
 
 from ..models import Article
@@ -25,9 +25,24 @@ MAX_S3_DELETE_BATCH_SIZE = 1000
 ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE = "articles/uploads/{author_id}/{article_id}"
 
 
-def save_media_file_attached_to_article(
-    file: BinaryIO, article: Article
-) -> tuple[str, str]:
+def delete_article_media_files(
+    *, article_id: int, author_id: int, preview_image_name: str = ""
+) -> None:
+    delete_article_inline_media_files(article_id=article_id, author_id=author_id)
+
+    if preview_image_name:
+        try:
+            default_storage.delete(preview_image_name)
+        except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+            logger.exception(
+                "Failed to delete preview image %s for article %s.",
+                preview_image_name,
+                article_id,
+            )
+            raise
+
+
+def save_article_inline_media_file(file: BinaryIO, article: Article) -> tuple[str, str]:
     file_path = _build_safe_file_path(file, article)
 
     try:
@@ -49,7 +64,7 @@ def save_media_file_attached_to_article(
     return file_path, article.get_absolute_url()
 
 
-def delete_media_files_attached_to_article(article_id: int, author_id: int) -> None:
+def delete_article_inline_media_files(article_id: int, author_id: int) -> None:
     article_dir = ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE.format(
         author_id=author_id, article_id=article_id
     )
@@ -79,7 +94,7 @@ def _delete_local_filesystem_media(
         raise ImproperlyConfigured("Unexpected media storage backend.")
 
     local_path = os.path.join(storage.location, article_media_dir)
-    media_root = os.path.realpath(MEDIA_ROOT)
+    media_root = os.path.realpath(settings.MEDIA_ROOT)
 
     if not os.path.commonpath([media_root, os.path.realpath(local_path)]) == media_root:
         logger.error(

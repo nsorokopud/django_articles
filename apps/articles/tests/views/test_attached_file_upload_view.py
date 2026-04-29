@@ -26,7 +26,7 @@ class TestAttachedFileUploadView(TestCase):
 
     @patch("articles.views.base.default_storage.url")
     @patch("articles.forms.validate_uploaded_file")
-    @patch("articles.views.base.save_media_file_attached_to_article")
+    @patch("articles.views.base.save_article_inline_media_file")
     def test_successful_upload(self, mock_save_media, mock_validate, mock_url):
         mock_save_media.return_value = (
             "path/to/file",
@@ -194,7 +194,7 @@ class TestAttachedFileUploadView(TestCase):
         )
 
     @patch(
-        "articles.views.base.save_media_file_attached_to_article",
+        "articles.views.base.save_article_inline_media_file",
         side_effect=MediaSaveError("Media save error"),
     )
     @patch("articles.views.base.logger")
@@ -219,7 +219,7 @@ class TestAttachedFileUploadView(TestCase):
         )
 
     @patch(
-        "articles.views.base.save_media_file_attached_to_article",
+        "articles.views.base.save_article_inline_media_file",
         side_effect=ZeroDivisionError("Unexpected error"),
     )
     @patch("articles.views.base.logger")

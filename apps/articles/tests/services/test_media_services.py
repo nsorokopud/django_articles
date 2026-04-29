@@ -18,14 +18,163 @@ from articles.services.media import (
     _delete_author_media_dir,
     _delete_local_filesystem_media,
     _delete_s3_media,
-    delete_media_files_attached_to_article,
-    save_media_file_attached_to_article,
+    delete_article_inline_media_files,
+    delete_article_media_files,
+    save_article_inline_media_file,
 )
 from core.exceptions import MediaSaveError
 from users.models import User
 
 
-class TestDeleteMediaFilesAttachedToArticle(SimpleTestCase):
+class TestDeleteArticleMediaFiles(SimpleTestCase):
+    def setUp(self):
+        self.article_id = 123
+        self.author_id = 1
+        self.preview_image_name = "articles/preview_images/preview.jpg"
+
+    @patch("articles.services.media.default_storage.delete")
+    @patch("articles.services.media.delete_article_inline_media_files")
+    def test_deletes_inline_media_and_preview_image(
+        self, mock_delete_inline_media, mock_storage_delete
+    ):
+        delete_article_media_files(
+            article_id=self.article_id,
+            author_id=self.author_id,
+            preview_image_name=self.preview_image_name,
+        )
+
+        mock_delete_inline_media.assert_called_once_with(
+            article_id=self.article_id,
+            author_id=self.author_id,
+        )
+        mock_storage_delete.assert_called_once_with(self.preview_image_name)
+
+    @patch("articles.services.media.default_storage.delete")
+    @patch("articles.services.media.delete_article_inline_media_files")
+    def test_deletes_only_inline_media_when_preview_image_missing(
+        self, mock_delete_inline_media, mock_storage_delete
+    ):
+        delete_article_media_files(
+            article_id=self.article_id,
+            author_id=self.author_id,
+            preview_image_name="",
+        )
+
+        mock_delete_inline_media.assert_called_once_with(
+            article_id=self.article_id,
+            author_id=self.author_id,
+        )
+        mock_storage_delete.assert_not_called()
+
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.default_storage.delete")
+    @patch("articles.services.media.delete_article_inline_media_files")
+    def test_preview_image_delete_error_is_logged_and_raised(
+        self, mock_delete_inline_media, mock_storage_delete, mock_logger
+    ):
+        mock_storage_delete.side_effect = OSError("delete failed")
+
+        with self.assertRaises(OSError):
+            delete_article_media_files(
+                article_id=self.article_id,
+                author_id=self.author_id,
+                preview_image_name=self.preview_image_name,
+            )
+
+        mock_delete_inline_media.assert_called_once_with(
+            article_id=self.article_id,
+            author_id=self.author_id,
+        )
+        mock_storage_delete.assert_called_once_with(self.preview_image_name)
+        mock_logger.exception.assert_called_once_with(
+            "Failed to delete preview image %s for article %s.",
+            self.preview_image_name,
+            self.article_id,
+        )
+
+
+class TestSaveArticleInlineMediaFile(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester")
+        self.article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            content="content",
+            author=self.user,
+        )
+
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.default_storage.save")
+    def test_successful_file_save(self, mock_save, mock_logger):
+        file = SimpleUploadedFile("img.jpeg", b"jpeg data", content_type="image/jpeg")
+        mock_save.return_value = "articles/uploads/img.jpeg"
+
+        file_path, url = save_article_inline_media_file(file, self.article)
+
+        self.assertEqual(file_path, "articles/uploads/img.jpeg")
+        self.assertEqual(url, self.article.get_absolute_url())
+
+        mock_save.assert_called_once()
+        path_arg_value = mock_save.call_args_list[0][0][0]
+        *_, file_name = path_arg_value.split("/")
+        folder_path = path_arg_value.rsplit("/", 1)[0]
+
+        self.assertEqual(
+            folder_path,
+            f"articles/uploads/{self.user.id}/{self.article.id}",
+        )
+        self.assertNotIn("..", file_name)
+
+        name, ext = file_name.rsplit(".", 1)
+        self.assertEqual(ext, "jpeg")
+
+        prefix, uuid_part = name.rsplit("_", 1)
+        self.assertEqual(prefix, "img")
+        self.assertEqual(len(uuid_part), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
+
+        mock_logger.warning.assert_not_called()
+        mock_logger.exception.assert_not_called()
+
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.default_storage.save")
+    def test_storage_save_failure(self, mock_save, mock_logger):
+        mock_save.side_effect = OSError("Disk error")
+        file = SimpleUploadedFile("file.jpeg", b"test", content_type="image/jpeg")
+
+        with self.assertRaises(MediaSaveError) as context:
+            save_article_inline_media_file(file, self.article)
+
+        self.assertEqual(str(context.exception), "Could not save the uploaded file.")
+        self.assertIsInstance(context.exception.__cause__, OSError)
+
+        mock_logger.exception.assert_called_once_with(
+            "Failed to save file for article %s: %s (%s)",
+            self.article.id,
+            ANY,
+            "OSError",
+        )
+
+        path_arg_value = mock_logger.exception.call_args_list[0][0][2]
+        *_, file_name = path_arg_value.split("/")
+        folder_path = path_arg_value.rsplit("/", 1)[0]
+
+        self.assertEqual(
+            folder_path,
+            f"articles/uploads/{self.user.id}/{self.article.id}",
+        )
+        self.assertNotIn("..", file_name)
+
+        name, ext = file_name.rsplit(".", 1)
+        self.assertEqual(ext, "jpeg")
+
+        prefix, uuid_part = name.rsplit("_", 1)
+        self.assertEqual(prefix, "file")
+        self.assertEqual(len(uuid_part), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
+
+
+class TestDeleteArticleInlineMediaFiles(SimpleTestCase):
     def setUp(self):
         self.article_id = 123
         self.author_id = 1
@@ -34,9 +183,7 @@ class TestDeleteMediaFilesAttachedToArticle(SimpleTestCase):
         )
 
     @override_settings(
-        STORAGES={
-            "default": {"BACKEND": ("django.core.files.storage.FileSystemStorage")}
-        }
+        STORAGES={"default": {"BACKEND": "django.core.files.storage.FileSystemStorage"}}
     )
     def test_local_fs_storage(self):
         self.assertIsInstance(default_storage, FileSystemStorage)
@@ -44,25 +191,29 @@ class TestDeleteMediaFilesAttachedToArticle(SimpleTestCase):
         with patch(
             "articles.services.media._delete_local_filesystem_media"
         ) as mock_delete:
-            delete_media_files_attached_to_article(self.article_id, self.author_id)
+            delete_article_inline_media_files(self.article_id, self.author_id)
 
         mock_delete.assert_called_once_with(
-            self.article_dir, self.article_id, default_storage
+            self.article_dir,
+            self.article_id,
+            default_storage,
         )
 
     @override_settings(
-        STORAGES={"default": {"BACKEND": ("storages.backends.s3boto3.S3Boto3Storage")}}
+        STORAGES={"default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}}
     )
     def test_s3_storage(self):
         with patch("articles.services.media._delete_s3_media") as mock_delete:
-            delete_media_files_attached_to_article(self.article_id, self.author_id)
+            delete_article_inline_media_files(self.article_id, self.author_id)
 
         mock_delete.assert_called_once_with(
-            self.article_dir, self.article_id, default_storage
+            self.article_dir,
+            self.article_id,
+            default_storage,
         )
 
     @override_settings(
-        STORAGES={"default": {"BACKEND": ("django.core.files.storage.InMemoryStorage")}}
+        STORAGES={"default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}}
     )
     def test_unsupported_storage(self):
         with (
@@ -72,7 +223,7 @@ class TestDeleteMediaFilesAttachedToArticle(SimpleTestCase):
             patch("articles.services.media._delete_s3_media") as mock_delete_s3,
             self.assertRaises(ImproperlyConfigured) as context,
         ):
-            delete_media_files_attached_to_article(self.article_id, self.author_id)
+            delete_article_inline_media_files(self.article_id, self.author_id)
 
         self.assertEqual(str(context.exception), "Media storage not supported.")
         mock_delete_local.assert_not_called()
@@ -116,15 +267,20 @@ class TestDeleteS3Media(SimpleTestCase):
         self.storage.listdir.return_value = ([], file_names)
 
         _delete_s3_media(self.article_dir, self.article_id, self.storage)
-        self.assertEqual(self.s3_client.delete_objects.call_count, 2)
+
         call_1_keys = [
             {"Key": f"{self.posix_dir}/img_{i}.jpg"}
             for i in range(MAX_S3_DELETE_BATCH_SIZE)
         ]
         call_2_keys = [
             {"Key": f"{self.posix_dir}/img_{i}.jpg"}
-            for i in range(MAX_S3_DELETE_BATCH_SIZE, MAX_S3_DELETE_BATCH_SIZE + 10)
+            for i in range(
+                MAX_S3_DELETE_BATCH_SIZE,
+                MAX_S3_DELETE_BATCH_SIZE + 10,
+            )
         ]
+
+        self.assertEqual(self.s3_client.delete_objects.call_count, 2)
         self.assertEqual(
             self.s3_client.delete_objects.call_args_list,
             [
@@ -164,7 +320,9 @@ class TestDeleteS3Media(SimpleTestCase):
     def test_unsupported_storage(self):
         with self.assertRaises(ImproperlyConfigured):
             _delete_s3_media(
-                self.article_dir, self.article_id, storage=FileSystemStorage()
+                self.article_dir,
+                self.article_id,
+                storage=FileSystemStorage(),
             )
 
     def test_listdir_exception(self):
@@ -184,7 +342,7 @@ class TestDeleteS3Media(SimpleTestCase):
 
     @patch("articles.services.media.logger")
     def test_delete_objects_exception(self, mock_logger):
-        self.storage.listdir.return_value = [[], ["file1", "file2"]]
+        self.storage.listdir.return_value = ([], ["file1", "file2"])
         self.storage.connection.meta.client.delete_objects.side_effect = OSError(
             "Error"
         )
@@ -193,7 +351,9 @@ class TestDeleteS3Media(SimpleTestCase):
             _delete_s3_media(self.article_dir, self.article_id, self.storage)
 
         mock_logger.exception.assert_called_with(
-            "Failed to delete media (batch %s) for article %s.", 1, self.article_id
+            "Failed to delete media (batch %s) for article %s.",
+            1,
+            self.article_id,
         )
 
 
@@ -202,19 +362,25 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
         self.temp_media_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.temp_media_root)
 
-        self.mock_media_root = patch(
-            "articles.services.media.MEDIA_ROOT", self.temp_media_root
-        )
-        self.mock_media_root.start()
-        self.addCleanup(self.mock_media_root.stop)
+        self.override_media_root = override_settings(MEDIA_ROOT=self.temp_media_root)
+        self.override_media_root.enable()
+        self.addCleanup(self.override_media_root.disable)
 
         self.storage = FileSystemStorage(location=self.temp_media_root)
 
         self.author_id = 42
         self.article_id = 101
-        self.author_path = os.path.join(self.temp_media_root, str(self.author_id))
-        self.article_media_dir = f"{self.author_id}/{self.article_id}"
-        self.article_path = os.path.join(self.temp_media_root, self.article_media_dir)
+        self.author_path = os.path.join(
+            self.temp_media_root,
+            "articles",
+            "uploads",
+            str(self.author_id),
+        )
+        self.article_media_dir = f"articles/uploads/{self.author_id}/{self.article_id}"
+        self.article_path = os.path.join(
+            self.temp_media_root,
+            self.article_media_dir,
+        )
         os.makedirs(self.article_path)
 
         self.file_path = os.path.join(self.article_path, "file1.txt")
@@ -227,7 +393,9 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
     def test_wrong_storage_type(self, mock_rmtree, mock_delete, mock_logger):
         with self.assertRaises(ImproperlyConfigured):
             _delete_local_filesystem_media(
-                self.article_media_dir, self.article_id, storage=S3Boto3Storage()
+                self.article_media_dir,
+                self.article_id,
+                storage=S3Boto3Storage(),
             )
 
         mock_rmtree.assert_not_called()
@@ -241,18 +409,20 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
     def test_path_outside_media_root(self, mock_delete, mock_logger):
         invalid_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, invalid_root)
+
         storage = FileSystemStorage(location=invalid_root)
         article_path = os.path.join(storage.location, self.article_media_dir)
         os.makedirs(article_path)
-        file = os.path.join(self.article_path, "file1.txt")
-        with open(file, "w", encoding="utf-8") as f:
+
+        file_path = os.path.join(article_path, "file1.txt")
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write("content")
 
-        self.assertTrue(os.path.exists(file))
+        self.assertTrue(os.path.exists(file_path))
 
         _delete_local_filesystem_media(self.article_media_dir, self.article_id, storage)
 
-        self.assertTrue(os.path.exists(file))
+        self.assertTrue(os.path.exists(file_path))
         mock_delete.assert_not_called()
         mock_logger.error.assert_called_once_with(
             "Attempted to delete a path ('%s') outside MEDIA_ROOT ('%s').",
@@ -269,7 +439,9 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
         self.assertFalse(os.path.exists(self.article_path))
 
         _delete_local_filesystem_media(
-            self.article_media_dir, self.article_id, self.storage
+            self.article_media_dir,
+            self.article_id,
+            self.storage,
         )
 
         mock_delete.assert_not_called()
@@ -278,7 +450,6 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
             self.article_path,
             self.article_id,
         )
-
         self.assertTrue(os.path.exists(self.author_path))
 
     @patch("articles.services.media.logger")
@@ -289,12 +460,18 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
     )
     def test_file_not_found_when_deleting(self, mock_rmtree, mock_delete, mock_logger):
         _delete_local_filesystem_media(
-            self.article_media_dir, self.article_id, self.storage
+            self.article_media_dir,
+            self.article_id,
+            self.storage,
         )
+
+        mock_rmtree.assert_called_once_with(self.article_path)
         mock_delete.assert_called_once_with(self.author_path)
         mock_logger.info.assert_not_called()
         mock_logger.warning.assert_called_once_with(
-            "Directory or file %s does not exist: %s.", self.article_path, "Not found"
+            "Directory or file %s does not exist: %s.",
+            self.article_path,
+            "Not found",
         )
         mock_logger.error.assert_not_called()
         self.assertTrue(os.path.exists(self.file_path))
@@ -308,11 +485,14 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
     def test_os_error_when_deleting(self, mock_rmtree, mock_delete, mock_logger):
         with self.assertRaises(OSError) as context:
             _delete_local_filesystem_media(
-                self.article_media_dir, self.article_id, self.storage
+                self.article_media_dir,
+                self.article_id,
+                self.storage,
             )
 
         self.assertEqual(str(context.exception), "OS error")
-        mock_logger.delete.assert_not_called()
+        mock_rmtree.assert_called_once_with(self.article_path)
+        mock_delete.assert_not_called()
         mock_logger.info.assert_not_called()
         mock_logger.warning.assert_not_called()
         mock_logger.error.assert_called_once_with(
@@ -329,7 +509,9 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
         self.assertTrue(os.path.exists(self.file_path))
 
         _delete_local_filesystem_media(
-            self.article_media_dir, self.article_id, self.storage
+            self.article_media_dir,
+            self.article_id,
+            self.storage,
         )
 
         self.assertFalse(os.path.exists(self.article_path))
@@ -341,86 +523,12 @@ class TestDeleteLocalFileSystemMedia(SimpleTestCase):
         )
 
 
-class TestSaveMediaFileAttachedToArticle(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(username="tester")
-        self.article = Article.objects.create(
-            title="a1", slug="a1", content="content", author=self.user
-        )
-
-    @patch("articles.services.media.logger")
-    @patch("articles.services.media.default_storage.save")
-    def test_successful_file_save(self, mock_save, mock_logger):
-        file = SimpleUploadedFile("img.jpeg", b"jpeg data", content_type="image/jpeg")
-        mock_save.return_value = "articles/uploads/img.jpeg"
-        file_path, url = save_media_file_attached_to_article(file, self.article)
-        self.assertEqual(file_path, "articles/uploads/img.jpeg")
-        self.assertEqual(url, self.article.get_absolute_url())
-
-        mock_save.assert_called_once()
-        path_arg_value = mock_save.call_args_list[0][0][0]
-        *_, file_name = path_arg_value.split("/")
-        folder_path = path_arg_value.rsplit("/", 1)[0]
-
-        self.assertEqual(
-            folder_path, f"articles/uploads/{self.user.id}/{self.article.id}"
-        )
-
-        self.assertNotIn("..", file_name)
-
-        name, ext = file_name.rsplit(".", 1)
-        self.assertEqual(ext, "jpeg")
-
-        prefix, uuid_part = name.rsplit("_", 1)
-        self.assertEqual(prefix, "img")
-        self.assertEqual(len(uuid_part), 32)
-        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
-
-        mock_logger.warning.assert_not_called()
-        mock_logger.exception.assert_not_called()
-
-    @patch("articles.services.media.logger")
-    @patch("articles.services.media.default_storage.save")
-    def test_storage_save_failure(self, mock_save, mock_logger):
-        mock_save.side_effect = OSError("Disk error")
-        file = SimpleUploadedFile("file.jpeg", b"test", content_type="image/jpeg")
-
-        with self.assertRaises(MediaSaveError) as context:
-            save_media_file_attached_to_article(file, self.article)
-
-        self.assertEqual(str(context.exception), "Could not save the uploaded file.")
-        self.assertIsInstance(context.exception.__cause__, OSError)
-
-        mock_logger.exception.assert_called_once_with(
-            "Failed to save file for article %s: %s (%s)",
-            self.article.id,
-            ANY,
-            "OSError",
-        )
-        path_arg_value = mock_logger.exception.call_args_list[0][0][2]
-        *_, file_name = path_arg_value.split("/")
-        folder_path = path_arg_value.rsplit("/", 1)[0]
-
-        self.assertEqual(
-            folder_path, f"articles/uploads/{self.user.id}/{self.article.id}"
-        )
-
-        self.assertNotIn("..", file_name)
-
-        name, ext = file_name.rsplit(".", 1)
-        self.assertEqual(ext, "jpeg")
-
-        prefix, uuid_part = name.rsplit("_", 1)
-        self.assertEqual(prefix, "file")
-        self.assertEqual(len(uuid_part), 32)
-        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
-
-
 class TestDeleteAuthorMediaDir(SimpleTestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
         self.addCleanup(
-            lambda x: shutil.rmtree(x) if os.path.exists(x) else ..., self.dir
+            lambda path: shutil.rmtree(path) if os.path.exists(path) else None,
+            self.dir,
         )
 
     @patch("articles.services.media.logger")
@@ -429,6 +537,7 @@ class TestDeleteAuthorMediaDir(SimpleTestCase):
         self.assertFalse(os.path.exists(path))
 
         _delete_author_media_dir(path)
+
         mock_logger.info.assert_not_called()
         mock_logger.warning.assert_not_called()
         self.assertTrue(os.path.exists(self.dir))
@@ -438,29 +547,33 @@ class TestDeleteAuthorMediaDir(SimpleTestCase):
         self.assertTrue(os.path.exists(self.dir))
 
         _delete_author_media_dir(self.dir)
+
         mock_logger.info.assert_called_once_with(
-            "Removed empty author media folder: %s", self.dir
+            "Removed empty author media folder: %s",
+            self.dir,
         )
         mock_logger.warning.assert_not_called()
         self.assertFalse(os.path.exists(self.dir))
 
     @patch("articles.services.media.logger")
     def test_non_empty_dir(self, mock_logger):
-        self.file_path = os.path.join(self.dir, "file1.txt")
-        with open(self.file_path, "w", encoding="utf-8") as f:
+        file_path = os.path.join(self.dir, "file1.txt")
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write("content")
 
-        self.assertTrue(os.path.exists(self.file_path))
+        self.assertTrue(os.path.exists(file_path))
 
         _delete_author_media_dir(self.dir)
+
         mock_logger.info.assert_not_called()
         mock_logger.warning.assert_not_called()
-        self.assertTrue(os.path.exists(self.file_path))
+        self.assertTrue(os.path.exists(file_path))
 
     @patch("articles.services.media.logger")
     @patch("articles.services.media.os.rmdir", side_effect=OSError("OS error"))
     def test_os_error_when_deleting(self, mock_rmdir, mock_logger):
         _delete_author_media_dir(self.dir)
+
         mock_logger.info.assert_not_called()
         mock_logger.warning.assert_called_once_with(
             "Failed to remove author media folder %s: %s",

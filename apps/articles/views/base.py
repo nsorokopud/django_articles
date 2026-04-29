@@ -11,7 +11,7 @@ from core.exceptions import MediaSaveError
 
 from ..forms import AttachedFileUploadForm
 from ..models import Article, ArticleStatus
-from ..services import save_media_file_attached_to_article
+from ..services import save_article_inline_media_file
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class AttachedFileUploadView(LoginRequiredMixin, View):
         file = form.cleaned_data["file"]
 
         try:
-            file_path, article_url = save_media_file_attached_to_article(file, article)
+            file_path, article_url = save_article_inline_media_file(file, article)
             data = {
                 "location": default_storage.url(file_path),
                 "articleUrl": article_url,

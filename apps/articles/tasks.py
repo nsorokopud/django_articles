@@ -46,7 +46,6 @@ def sync_article_views_task(self) -> None:
 
 
 @app.task(
-    bind=True,
     soft_time_limit=300,
     time_limit=310,
     acks_late=True,
@@ -56,13 +55,15 @@ def sync_article_views_task(self) -> None:
     retry_jitter=True,
     autoretry_for=(OSError, BotoCoreError, ClientError, SoftTimeLimitExceeded),
 )
-def delete_article_inline_media_task(self, article_id: int, author_id: int) -> None:
-    from .services.media import delete_media_files_attached_to_article
+def delete_article_media_task(
+    article_id: int,
+    author_id: int,
+    preview_image_name: str = "",
+) -> None:
+    from .services.media import delete_article_media_files
 
-    logger.info(
-        "Deleting inline media for article %s by author %s. Task ID: %s.",
-        article_id,
-        author_id,
-        self.request.id,
+    delete_article_media_files(
+        article_id=article_id,
+        author_id=author_id,
+        preview_image_name=preview_image_name,
     )
-    delete_media_files_attached_to_article(article_id, author_id)
