@@ -67,7 +67,7 @@ def _build_safe_file_path(file: BinaryIO, article: Article) -> str:
     safe_base_name = get_valid_filename(base_name)
     filename = f"{safe_base_name}_{uuid4().hex}{extension.lower()}"
     directory = posixpath.join(
-        "articles", "uploads", str(article.author.id), str(article.id)
+        "articles", "uploads", str(article.author_id), str(article.id)
     )
     return posixpath.join(directory, filename)
 
