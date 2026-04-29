@@ -10,7 +10,7 @@ from django.views.generic.base import RedirectView
 from core.exceptions import MediaSaveError
 
 from ..forms import AttachedFileUploadForm
-from ..models import Article
+from ..models import Article, ArticleStatus
 from ..services import save_media_file_attached_to_article
 
 
@@ -34,6 +34,9 @@ class AttachedFileUploadView(LoginRequiredMixin, View):
 
         if request.user.id != article.author_id:
             return self._error("No permission to edit this article.", 403)
+
+        if article.status not in {ArticleStatus.DRAFT, ArticleStatus.REJECTED}:
+            return self._error("This article cannot be edited.", 403)
 
         form = AttachedFileUploadForm(request.POST, request.FILES)
         if not form.is_valid():

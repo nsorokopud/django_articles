@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from articles.models import Article
 from core.exceptions import MediaSaveError
@@ -23,11 +24,14 @@ class TestAttachedFileUploadView(TestCase):
         self.client = Client()
         self.url = reverse("attached-file-upload")
 
-    @patch("articles.views.default_storage.url")
+    @patch("articles.views.base.default_storage.url")
     @patch("articles.forms.validate_uploaded_file")
-    @patch("articles.views.save_media_file_attached_to_article")
+    @patch("articles.views.base.save_media_file_attached_to_article")
     def test_successful_upload(self, mock_save_media, mock_validate, mock_url):
-        mock_save_media.return_value = ("path/to/file", f"/article/{self.article.id}/")
+        mock_save_media.return_value = (
+            "path/to/file",
+            f"/articles/{self.article.slug}",
+        )
         mock_url.return_value = f"{self.article.id}-location"
 
         self.client.force_login(self.user)
@@ -62,6 +66,27 @@ class TestAttachedFileUploadView(TestCase):
             f"{reverse('login')}?next={reverse('attached-file-upload')}",
             302,
             200,
+        )
+
+    def test_cannot_upload_to_published_article(self):
+        self.article.status = "published"
+        self.article.published_at = timezone.now()
+        self.article.publish_sequence = 1
+        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+
+        self.client.force_login(self.user)
+        file = SimpleUploadedFile("test.jpg", b"hello")
+
+        response = self.client.post(
+            self.url,
+            {"file": file, "articleId": self.article.id},
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json(),
+            {"status": "error", "message": "This article cannot be edited."},
         )
 
     def test_missing_article_id(self):
