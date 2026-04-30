@@ -37,7 +37,7 @@
                     {% for tag in tags %}
                       <li>
                         <a class="article-tag-link"
-                           href="{{ tag_filter_url }}?tags={{ tag.name|urlencode }}">
+                           href="{% url 'articles' %}?tags={{ tag.name|urlencode }}">
                           #{{ tag.name }}
                         </a>
                       </li>
