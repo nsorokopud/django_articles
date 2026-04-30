@@ -25,11 +25,11 @@ class TestArticleFilter(TestCase):
         self.tag2 = Tag.objects.create(name="tag2")
 
         self.article1 = Article.objects.create(
-            title="a1",
+            title="Article1",
             slug="a1",
             author=self.user1,
             category=self.category1,
-            preview_text="Preview1",
+            preview_text="Preview 1",
             content="Content 1",
             content_text="Content 1",
             status=ArticleStatus.PUBLISHED,
@@ -42,11 +42,11 @@ class TestArticleFilter(TestCase):
         self.article1.tags.add(self.tag1, self.tag2)
 
         self.article2 = Article.objects.create(
-            title="a2",
+            title="Article2",
             slug="a2",
             author=self.user2,
             category=self.category2,
-            preview_text="Preview2",
+            preview_text="Preview 2",
             content="Content 2",
             content_text="Content 2",
             status=ArticleStatus.PUBLISHED,
@@ -167,23 +167,20 @@ class TestArticleFilter(TestCase):
     def test_filter_by_search(self):
         base_qs = self.get_base_queryset()
 
-        filtered = ArticleFilter(data={"q": "a1"}, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1])
+        filtered = ArticleFilter(data={"q": "article"}, queryset=base_qs).qs
+        self.assertCountEqual(filtered, [self.article1, self.article2])
 
-        filtered = ArticleFilter(data={"q": "a2"}, queryset=base_qs).qs
+        filtered = ArticleFilter(data={"q": "ticle2"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
+
+        filtered = ArticleFilter(data={"q": "preview"}, queryset=base_qs).qs
+        self.assertCountEqual(filtered, [self.article1, self.article2])
 
         filtered = ArticleFilter(data={"q": "Content"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1, self.article2])
 
         filtered = ArticleFilter(data={"q": "Content 1"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
-
-        filtered = ArticleFilter(data={"q": "Cat1"}, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1])
-
-        filtered = ArticleFilter(data={"q": "at2"}, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article2])
 
         filtered = ArticleFilter(data={"q": "qafwejkfb"}, queryset=base_qs).qs
         self.assertCountEqual(filtered, [])

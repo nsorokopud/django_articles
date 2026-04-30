@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Sequence
 
-from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.db.models.query import QuerySet
 from sql_util.utils import SubqueryAggregate
@@ -73,26 +73,14 @@ def find_articles_by_query(
     if not q:
         return queryset
 
-    query = SearchQuery(q, config="english")
-
-    base_ids = queryset.values("id")
-
-    matching_ids = (
-        Article.objects.filter(id__in=base_ids)
-        .filter(
-            Q(search_vector=query)
-            | Q(title__icontains=q)
-            | Q(category__title__icontains=q)
-            | Q(tags__name__icontains=q)
-        )
-        .values("id")
-        .distinct()
-    )
+    query = SearchQuery(q, config="english", search_type="websearch")
 
     return (
-        queryset.filter(id__in=matching_ids)
-        .annotate(
-            rank=SearchRank("search_vector", query),
+        queryset.annotate(
+            rank=SearchRank(
+                "search_vector", query, cover_density=True, normalization=32
+            ),
+            title_similarity=TrigramSimilarity("title", q),
             exact_title_match=Case(
                 When(title__iexact=q, then=Value(1)),
                 default=Value(0),
@@ -104,10 +92,12 @@ def find_articles_by_query(
                 output_field=IntegerField(),
             ),
         )
+        .filter(Q(search_vector=query) | Q(title__trigram_similar=q))
         .order_by(
             "-exact_title_match",
             "-title_contains_match",
             "-rank",
+            "-title_similarity",
             "-publish_sequence",
             "-id",
         )

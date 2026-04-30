@@ -86,6 +86,12 @@ class Article(models.Model):
                 name="article_publish_seq_desc_idx",
                 condition=models.Q(status=ArticleStatus.PUBLISHED),
             ),
+            GinIndex(
+                fields=["title"],
+                name="article_title_trigram_idx",
+                opclasses=["gin_trgm_ops"],
+                condition=models.Q(status=ArticleStatus.PUBLISHED),
+            ),
             GinIndex(fields=["search_vector"], name="article_search_vector_gin_idx"),
         ]
 
