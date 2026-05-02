@@ -109,10 +109,9 @@ class TestSaveArticleInlineMediaFile(TestCase):
         file = SimpleUploadedFile("img.jpeg", b"jpeg data", content_type="image/jpeg")
         mock_save.return_value = "articles/uploads/img.jpeg"
 
-        file_path, url = save_article_inline_media_file(file, self.article)
+        file_path = save_article_inline_media_file(file, self.article)
 
         self.assertEqual(file_path, "articles/uploads/img.jpeg")
-        self.assertEqual(url, self.article.get_absolute_url())
 
         mock_save.assert_called_once()
         path_arg_value = mock_save.call_args_list[0][0][0]

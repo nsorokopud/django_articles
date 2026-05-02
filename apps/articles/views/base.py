@@ -44,11 +44,8 @@ class AttachedFileUploadView(LoginRequiredMixin, View):
         file = form.cleaned_data["file"]
 
         try:
-            file_path, article_url = save_article_inline_media_file(file, article)
-            data = {
-                "location": default_storage.url(file_path),
-                "articleUrl": article_url,
-            }
+            file_path = save_article_inline_media_file(file, article)
+            data = {"location": default_storage.url(file_path)}
             return JsonResponse({"status": "success", "data": data}, status=200)
         except MediaSaveError:
             logger.exception("Error while saving uploaded file.")

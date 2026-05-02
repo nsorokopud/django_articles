@@ -28,10 +28,7 @@ class TestAttachedFileUploadView(TestCase):
     @patch("articles.forms.validate_uploaded_file")
     @patch("articles.views.base.save_article_inline_media_file")
     def test_successful_upload(self, mock_save_media, mock_validate, mock_url):
-        mock_save_media.return_value = (
-            "path/to/file",
-            f"/articles/{self.article.slug}",
-        )
+        mock_save_media.return_value = "path/to/file"
         mock_url.return_value = f"{self.article.id}-location"
 
         self.client.force_login(self.user)
@@ -47,10 +44,7 @@ class TestAttachedFileUploadView(TestCase):
             response.json(),
             {
                 "status": "success",
-                "data": {
-                    "articleUrl": f"/articles/{self.article.slug}",
-                    "location": mock_url.return_value,
-                },
+                "data": {"location": mock_url.return_value},
             },
         )
 

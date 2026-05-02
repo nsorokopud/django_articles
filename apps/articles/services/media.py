@@ -42,11 +42,11 @@ def delete_article_media_files(
             raise
 
 
-def save_article_inline_media_file(file: BinaryIO, article: Article) -> tuple[str, str]:
+def save_article_inline_media_file(file: BinaryIO, article: Article) -> str:
     file_path = _build_safe_file_path(file, article)
 
     try:
-        file_path = default_storage.save(file_path, file)
+        return default_storage.save(file_path, file)
     except (
         OSError,
         SuspiciousFileOperation,
@@ -60,8 +60,6 @@ def save_article_inline_media_file(file: BinaryIO, article: Article) -> tuple[st
             type(e).__name__,
         )
         raise MediaSaveError("Could not save the uploaded file.") from e
-
-    return file_path, article.get_absolute_url()
 
 
 def delete_article_inline_media_files(article_id: int, author_id: int) -> None:
