@@ -93,7 +93,11 @@ class Article(models.Model):
                 opclasses=["gin_trgm_ops"],
                 condition=models.Q(status=ArticleStatus.PUBLISHED),
             ),
-            GinIndex(fields=["search_vector"], name="article_search_vector_gin_idx"),
+            GinIndex(
+                fields=["search_vector"],
+                name="article_search_vector_gin_idx",
+                condition=models.Q(status=ArticleStatus.PUBLISHED),
+            ),
         ]
 
         constraints = [

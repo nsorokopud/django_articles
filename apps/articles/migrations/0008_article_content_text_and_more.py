@@ -45,6 +45,7 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="article",
             index=django.contrib.postgres.indexes.GinIndex(
+                condition=models.Q(("status", "published")),
                 fields=["search_vector"],
                 name="article_search_vector_gin_idx",
             ),
