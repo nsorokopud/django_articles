@@ -168,7 +168,7 @@ class Article(models.Model):
 
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
-    slug = models.CharField(max_length=256, unique=True, db_index=True)
+    slug = models.SlugField(max_length=256, unique=True)
     image = models.ImageField(upload_to="categories/images/", blank=True)
 
     class Meta:
