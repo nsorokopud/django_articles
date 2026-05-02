@@ -2,7 +2,6 @@ from typing import Optional
 
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
 from django.http import Http404, HttpRequest, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -25,14 +24,6 @@ class CommentInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.annotate(_likes_count=Count("users_that_liked", distinct=True))
-
-    @admin.display(description="Likes")
-    def likes_count(self, obj):
-        return getattr(obj, "_likes_count", 0)
 
 
 @admin.register(Article)
@@ -60,7 +51,10 @@ class ArticleAdmin(admin.ModelAdmin):
         "created_at",
         "modified_at",
         "workflow_buttons",
+        "views_count",
+        "likes_count",
     )
+    exclude = ("users_that_liked",)
     actions = ("publish", "unpublish")
     inlines = (CommentInline,)
     save_on_top = True
@@ -104,6 +98,15 @@ class ArticleAdmin(admin.ModelAdmin):
                     "review_note",
                     "reviewed_at",
                     "reviewed_by",
+                )
+            },
+        ),
+        (
+            "Popularity",
+            {
+                "fields": (
+                    "views_count",
+                    "likes_count",
                 )
             },
         ),
@@ -485,8 +488,10 @@ class ArticleCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(ArticleComment)
 class ArticleCommentAdmin(admin.ModelAdmin):
-    list_display = ("article", "author", "text")
+    list_display = ("article", "author", "text", "likes_count")
     list_display_links = ("article", "text")
     list_filter = ("created_at", "author", "article")
     search_fields = ("article__title", "author__username")
+    readonly_fields = ("likes_count",)
+    exclude = ("users_that_liked",)
     save_as = True

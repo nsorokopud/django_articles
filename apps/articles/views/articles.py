@@ -29,7 +29,7 @@ from ..selectors import (
     get_article_for_author_by_slug,
     get_published_article_by_slug,
 )
-from ..services import toggle_article_like
+from ..services import set_article_like
 from ..services.articles import delete_article, get_or_create_empty_draft
 from ..services.comments import get_article_comments_page
 from ..services.publishing import (
@@ -38,6 +38,7 @@ from ..services.publishing import (
 )
 from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
 from .decorators import increment_article_view_counter
+from .http import parse_liked_payload
 
 
 logger = logging.getLogger(__name__)
@@ -349,5 +350,17 @@ class ArticleDeleteView(LoginRequiredMixin, DeleteView):
 
 class ArticleLikeView(LoginRequiredMixin, View):
     def post(self, request, article_slug) -> JsonResponse:
-        data = {"likes": toggle_article_like(article_slug, request.user.id)}
-        return JsonResponse({"status": "success", "data": data}, status=200)
+        liked = parse_liked_payload(request)
+        if liked is None:
+            return JsonResponse(
+                {"status": "fail", "message": "'liked' must be true or false."},
+                status=400,
+            )
+
+        likes, liked = set_article_like(
+            article_slug=article_slug, user_id=request.user.id, liked=liked
+        )
+
+        return JsonResponse(
+            {"status": "success", "data": {"likes": likes, "liked": liked}}
+        )

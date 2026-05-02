@@ -54,16 +54,6 @@ class TestGetArticleForAuthorBySlug(TestCase):
                 author_id=self.author1.id,
             )
 
-    def test_annotates_likes_count(self):
-        self.article.users_that_liked.add(self.user1, self.user2)
-
-        article = get_article_for_author_by_slug(
-            article_slug="a",
-            author_id=self.author1.id,
-        )
-
-        self.assertEqual(article.likes_count, 2)
-
     def test_prefetches_tags(self):
         self.article.tags.add("tag1", "tag2")
 

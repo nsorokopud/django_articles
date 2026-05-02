@@ -419,6 +419,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "articles.tasks.sync_article_views_task",
         "schedule": timedelta(minutes=5),
     },
+    "articles.sync-article-likes-counts": {
+        "task": "articles.tasks.sync_article_likes_count_task",
+        "schedule": timedelta(hours=1),
+    },
+    "articles.sync-comment-likes-counts": {
+        "task": "articles.tasks.sync_comment_likes_count_task",
+        "schedule": timedelta(hours=1),
+    },
     "notifications.cleanup-old-read": {
         "task": "notifications.tasks_retention.cleanup_old_read_notifications_task",
         "schedule": timedelta(hours=1),

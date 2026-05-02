@@ -14,7 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 ARTICLE_SYNC_VIEWS_LOCK_KEY = "articles_sync_views_lock"
+ARTICLE_SYNC_LIKES_LOCK_KEY = "articles_sync_likes_lock"
+COMMENT_SYNC_LIKES_LOCK_KEY = "comments_sync_likes_lock"
+
 ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS = 10 * 60  # 10 min
+SYNC_LIKES_LOCK_TIMEOUT_SECONDS = 30 * 60  # 30 minutes
 
 
 @app.task(
@@ -41,8 +45,61 @@ def sync_article_views_task(self) -> None:
         sync_article_views()
         logger.info("Updated article view counts.")
     finally:
-        if cache.get(ARTICLE_SYNC_VIEWS_LOCK_KEY) == lock_value:
-            cache.delete(ARTICLE_SYNC_VIEWS_LOCK_KEY)
+        _release_lock(lock_key=ARTICLE_SYNC_VIEWS_LOCK_KEY, lock_value=lock_value)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(DatabaseError, RedisError, ConnectionInterrupted),
+    retry_backoff=60,
+    retry_jitter=True,
+    max_retries=3,
+)
+def sync_article_likes_count_task(self) -> None:
+    from .services.likes import sync_article_likes_count
+
+    lock_value = self.request.id
+
+    if not cache.add(
+        ARTICLE_SYNC_LIKES_LOCK_KEY,
+        lock_value,
+        timeout=SYNC_LIKES_LOCK_TIMEOUT_SECONDS,
+    ):
+        logger.info("Article likes sync skipped: already running.")
+        return
+
+    try:
+        sync_article_likes_count()
+        logger.info("Synced article likes counts.")
+    finally:
+        _release_lock(lock_key=ARTICLE_SYNC_LIKES_LOCK_KEY, lock_value=lock_value)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(DatabaseError, RedisError, ConnectionInterrupted),
+    retry_backoff=60,
+    retry_jitter=True,
+    max_retries=3,
+)
+def sync_comment_likes_count_task(self) -> None:
+    from .services.likes import sync_comment_likes_count
+
+    lock_value = self.request.id
+
+    if not cache.add(
+        COMMENT_SYNC_LIKES_LOCK_KEY,
+        lock_value,
+        timeout=SYNC_LIKES_LOCK_TIMEOUT_SECONDS,
+    ):
+        logger.info("Comment likes sync skipped: already running.")
+        return
+
+    try:
+        sync_comment_likes_count()
+        logger.info("Synced comment likes counts.")
+    finally:
+        _release_lock(lock_key=COMMENT_SYNC_LIKES_LOCK_KEY, lock_value=lock_value)
 
 
 @app.task(
@@ -67,3 +124,8 @@ def delete_article_media_task(
         author_id=author_id,
         preview_image_name=preview_image_name,
     )
+
+
+def _release_lock(*, lock_key: str, lock_value: str) -> None:
+    if cache.get(lock_key) == lock_value:
+        cache.delete(lock_key)

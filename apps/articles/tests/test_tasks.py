@@ -3,7 +3,12 @@ from unittest.mock import patch
 from celery.exceptions import Retry
 from django.test import SimpleTestCase, override_settings
 
-from articles.tasks import delete_article_media_task, sync_article_views_task
+from articles.tasks import (
+    delete_article_media_task,
+    sync_article_likes_count_task,
+    sync_article_views_task,
+    sync_comment_likes_count_task,
+)
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -40,6 +45,82 @@ class TestSyncArticleViewsTask(SimpleTestCase):
         mock_sync.assert_not_called()
         mock_logger.info.assert_called_once_with(
             "Article view sync skipped: already running."
+        )
+        mock_cache.delete.assert_not_called()
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
+class TestSyncArticleLikesCountTask(SimpleTestCase):
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.likes.sync_article_likes_count")
+    def test_sync_article_likes_count_task_runs(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+
+        result = sync_article_likes_count_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_cache.add.assert_called_once()
+        mock_sync.assert_called_once()
+        mock_logger.info.assert_any_call("Synced article likes counts.")
+        mock_cache.get.assert_called_once()
+        mock_cache.delete.assert_called_once()
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.likes.sync_article_likes_count")
+    def test_sync_article_likes_count_task_skips_when_lock_exists(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = False
+
+        result = sync_article_likes_count_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_sync.assert_not_called()
+        mock_logger.info.assert_called_once_with(
+            "Article likes sync skipped: already running."
+        )
+        mock_cache.delete.assert_not_called()
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
+class TestSyncCommentLikesCountTask(SimpleTestCase):
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.likes.sync_comment_likes_count")
+    def test_sync_comment_likes_count_task_runs(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+
+        result = sync_comment_likes_count_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_cache.add.assert_called_once()
+        mock_sync.assert_called_once()
+        mock_logger.info.assert_any_call("Synced comment likes counts.")
+        mock_cache.get.assert_called_once()
+        mock_cache.delete.assert_called_once()
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.likes.sync_comment_likes_count")
+    def test_sync_comment_likes_count_task_skips_when_lock_exists(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = False
+
+        result = sync_comment_likes_count_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_sync.assert_not_called()
+        mock_logger.info.assert_called_once_with(
+            "Comment likes sync skipped: already running."
         )
         mock_cache.delete.assert_not_called()
 

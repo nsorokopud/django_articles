@@ -76,27 +76,3 @@ class TestGetPublishedArticleBySlug(TestCase):
         self.assertEqual(result.author.id, self.author.id)
         self.assertEqual(result.category.id, self.category.id)
         self.assertEqual(result.category.title, "cat")
-
-    def test_annotates_likes_count(self):
-        article = self.create_article(
-            title="Liked article",
-            slug="liked-article",
-            published=True,
-        )
-        article.users_that_liked.add(self.user)
-
-        result = get_published_article_by_slug("liked-article")
-
-        self.assertEqual(result.likes_count, 1)
-
-    def test_annotates_likes_count_with_multiple_users(self):
-        other_user = User.objects.create_user(username="u2", email="u2@test.com")
-        article = self.create_article(
-            title="Popular article",
-            slug="popular-article",
-            published=True,
-        )
-        article.users_that_liked.add(self.user, other_user)
-
-        result = get_published_article_by_slug("popular-article")
-        self.assertEqual(result.likes_count, 2)

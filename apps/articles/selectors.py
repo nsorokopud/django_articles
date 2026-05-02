@@ -19,7 +19,6 @@ def find_published_articles() -> QuerySet[Article]:
         Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
         .annotate(comments_count=Count("articlecomment", distinct=True))
         .order_by("-publish_sequence", "-id")
     )
@@ -57,7 +56,6 @@ def find_articles_by_author(author: User) -> QuerySet[Article]:
         Article.objects.filter(author=author)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
         .annotate(comments_count=Count("articlecomment", distinct=True))
         .order_by("-modified_at", "-id")
     )
@@ -117,7 +115,6 @@ def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
     return (
         ArticleComment.objects.filter(article=article)
         .select_related("author", "author__profile")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
         .order_by("-created_at", "-id")
     )
 
@@ -126,7 +123,6 @@ def get_article_by_slug(article_slug: str) -> Article:
     return (
         Article.objects.select_related("author", "author__profile")
         .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
         .get(slug=article_slug)
     )
 
@@ -136,7 +132,6 @@ def get_published_article_by_slug(article_slug: str) -> Article:
         Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("author", "author__profile", "category")
         .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
         .get(slug=article_slug)
     )
 
@@ -145,7 +140,6 @@ def get_article_for_author_by_slug(*, article_slug: str, author_id: int) -> Arti
     return (
         Article.objects.select_related("author", "author__profile", "category")
         .prefetch_related("tags")
-        .annotate(likes_count=Count("users_that_liked", distinct=True))
         .get(slug=article_slug, author_id=author_id)
     )
 

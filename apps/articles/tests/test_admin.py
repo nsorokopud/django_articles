@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from articles.admin import ArticleAdmin, CommentInline
-from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
+from articles.models import Article, ArticleCategory, ArticleStatus
 
 
 User = get_user_model()
@@ -547,25 +547,3 @@ class TestCommentInlineAdmin(TestCase):
         request.user = self.admin_user
 
         self.assertFalse(self.inline.has_add_permission(request, self.article))
-
-    def test_get_queryset_annotates_likes_count(self):
-        comment = ArticleComment.objects.create(
-            article=self.article, author=self.author, text="Nice article"
-        )
-        comment.users_that_liked.add(self.liker)
-
-        request = self.factory.get("/admin/")
-        request.user = self.admin_user
-
-        queryset = self.inline.get_queryset(request)
-        annotated_comment = queryset.get(pk=comment.pk)
-
-        self.assertEqual(annotated_comment._likes_count, 1)
-        self.assertEqual(self.inline.likes_count(annotated_comment), 1)
-
-    def test_likes_count_defaults_to_zero_without_annotation(self):
-        comment = ArticleComment.objects.create(
-            article=self.article, author=self.author, text="Nice article"
-        )
-
-        self.assertEqual(self.inline.likes_count(comment), 0)

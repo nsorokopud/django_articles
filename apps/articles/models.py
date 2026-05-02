@@ -71,6 +71,7 @@ class Article(models.Model):
         User, related_name="liked_articles", blank=True
     )
     views_count = models.PositiveIntegerField(default=0)
+    likes_count = models.PositiveIntegerField(default=0, db_index=True)
 
     class Meta:
         verbose_name_plural = "Articles"
@@ -182,6 +183,7 @@ class ArticleComment(models.Model):
     users_that_liked = models.ManyToManyField(
         User, related_name="liked_comments", blank=True
     )
+    likes_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         verbose_name_plural = "Comments"

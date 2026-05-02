@@ -53,6 +53,7 @@ class TestArticleFilter(TestCase):
             published_at=self.now - timedelta(days=1),
             publish_sequence=2,
             views_count=100,
+            likes_count=1,
         )
         self.article2.created_at = self.article2.published_at
         self.article2.save(update_fields=["created_at"])

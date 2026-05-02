@@ -5,8 +5,9 @@ from django.views import View
 
 from ..models import Article
 from ..selectors import get_published_article_by_slug
-from ..services import toggle_comment_like
+from ..services import set_comment_like
 from ..services.comments import get_article_comments_page
+from .http import parse_liked_payload
 
 
 class ArticleCommentsListView(View):
@@ -48,5 +49,17 @@ class ArticleCommentsListView(View):
 
 class CommentLikeView(LoginRequiredMixin, View):
     def post(self, request, comment_id: int) -> JsonResponse:
-        data = {"likes": toggle_comment_like(comment_id, request.user.id)}
-        return JsonResponse({"status": "success", "data": data}, status=200)
+        liked = parse_liked_payload(request)
+        if liked is None:
+            return JsonResponse(
+                {"status": "fail", "message": "'liked' must be true or false."},
+                status=400,
+            )
+
+        likes, liked = set_comment_like(
+            comment_id=comment_id, user_id=request.user.id, liked=liked
+        )
+
+        return JsonResponse(
+            {"status": "success", "data": {"likes": likes, "liked": liked}}
+        )
