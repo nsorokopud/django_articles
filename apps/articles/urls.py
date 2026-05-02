@@ -6,7 +6,7 @@ from articles import views
 urlpatterns = [
     path("", views.HomePageView.as_view(), name="home"),
     path(
-        "tinymce/upload",
+        "tinymce/upload/",
         views.AttachedFileUploadView.as_view(),
         name="attached-file-upload",
     ),
@@ -21,32 +21,32 @@ urlpatterns = [
         name="article-create-draft",
     ),
     path(
-        "articles/<slug:article_slug>/edit",
+        "articles/<slug:article_slug>/edit/",
         views.ArticleUpdateView.as_view(),
         name="article-update",
     ),
     path(
-        "articles/<slug:article_slug>/submit-for-review",
+        "articles/<slug:article_slug>/submit-for-review/",
         views.ArticleSubmitForReviewView.as_view(),
         name="article-submit-for-review",
     ),
     path(
-        "articles/<slug:article_slug>/withdraw-from-review",
+        "articles/<slug:article_slug>/withdraw-from-review/",
         views.ArticleWithdrawFromReviewView.as_view(),
         name="article-withdraw-from-review",
     ),
     path(
-        "articles/<slug:article_slug>/delete",
+        "articles/<slug:article_slug>/delete/",
         views.ArticleDeleteView.as_view(),
         name="article-delete",
     ),
     path(
-        "articles/<slug:article_slug>",
+        "articles/<slug:article_slug>/",
         views.ArticleDetailView.as_view(),
         name="article-details",
     ),
     path(
-        "articles/<slug:article_slug>/like",
+        "articles/<slug:article_slug>/like/",
         views.ArticleLikeView.as_view(),
         name="article-like",
     ),
@@ -56,7 +56,7 @@ urlpatterns = [
         name="article-comments-list",
     ),
     path(
-        "comments/<int:comment_id>/like",
+        "comments/<int:comment_id>/like/",
         views.CommentLikeView.as_view(),
         name="comment-like",
     ),

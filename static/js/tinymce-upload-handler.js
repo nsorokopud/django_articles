@@ -3,7 +3,7 @@ function tinymceUploadHandler(blobInfo, progress) {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
 
-    xhr.open('POST', '/tinymce/upload');
+    xhr.open('POST', '/tinymce/upload/');
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
     xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
     xhr.withCredentials = false;

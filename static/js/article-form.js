@@ -45,7 +45,7 @@ function onArticleFormSaveButtonClick() {
 
 function updateArticle(articleSlug, form, editor) {
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', `/articles/${articleSlug}/edit`);
+  xhr.open('POST', `/articles/${articleSlug}/edit/`);
   xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
   xhr.timeout = 30000;

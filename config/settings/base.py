@@ -325,7 +325,7 @@ TINYMCE_DEFAULT_CONFIG = {
         "fontfamily fontsize | bold italic underline strikethrough | removeformat",
     ],
     "file_picker_types": "image",
-    "images_upload_url": "/tinymce/upload",
+    "images_upload_url": "/tinymce/upload/",
     "images_upload_handler": "tinymceUploadHandler",
     "automatic_uploads": False,
     "convert_urls": False,
