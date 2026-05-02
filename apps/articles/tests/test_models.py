@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.search import SearchQuery
 from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -77,6 +78,52 @@ class TestArticleSearchVectorColumn(TestCase):
         self.assertIn("django", search_vector_text)
         self.assertIn("hello", search_vector_text)
         self.assertIn("world", search_vector_text)
+
+    def test_search_vector_updates_when_fields_change(self):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.user,
+            preview_text="old preview",
+            content="old content",
+            content_text="old content",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+
+        article.title = "quantum django"
+        article.preview_text = "postgres search"
+        article.content_text = "generated vector update"
+        article.save(update_fields=["title", "preview_text", "content_text"])
+
+        self.assertTrue(
+            Article.objects.filter(
+                pk=article.pk,
+                search_vector=SearchQuery(
+                    "postgres", config="english", search_type="websearch"
+                ),
+            ).exists()
+        )
+
+        self.assertTrue(
+            Article.objects.filter(
+                pk=article.pk,
+                search_vector=SearchQuery(
+                    "quantum", config="english", search_type="websearch"
+                ),
+            ).exists()
+        )
+
+        self.assertTrue(
+            Article.objects.filter(
+                pk=article.pk,
+                search_vector=SearchQuery(
+                    "vector update", config="english", search_type="websearch"
+                ),
+            ).exists()
+        )
 
 
 class TestArticleModelConstraints(TestCase):
