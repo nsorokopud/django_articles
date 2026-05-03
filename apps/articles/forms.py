@@ -2,6 +2,7 @@ from typing import Any
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from core.exceptions import InvalidUpload
 from core.validators import validate_uploaded_file
@@ -135,11 +136,15 @@ class ArticleModelForm(forms.ModelForm):
         if not commit:
             raise ValueError("commit=False is not supported for ArticleModelForm.")
 
-        instance = super().save(commit=False)
-        author = self.user if instance.pk is None else None
+        is_new = self.instance.pk is None
 
-        article = save_article(article=instance, author=author)
-        self.save_m2m()
+        instance = super().save(commit=False)
+
+        with transaction.atomic():
+            article = save_article(
+                article=instance, author=self.user if is_new else None
+            )
+            self.save_m2m()
 
         return article
 
