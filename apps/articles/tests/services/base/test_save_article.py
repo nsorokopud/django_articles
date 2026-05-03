@@ -169,6 +169,29 @@ class TestSaveArticle(TransactionTestCase):
         self.assertIn("<p>Hello</p>", saved.content)
         self.assertNotIn("<script", saved.content)
 
+    def test_clears_review_metadata_when_restoring_to_draft(self):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            status=ArticleStatus.REJECTED,
+            review_note="note",
+            reviewed_at=timezone.now(),
+            reviewed_by=self.other_user,
+        )
+        article.title = "updated"
+
+        saved = save_article(article=article)
+        article.refresh_from_db()
+        self.assertEqual(saved.pk, article.pk)
+        self.assertEqual(article.title, "updated")
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+        self.assertEqual(article.review_note, "")
+        self.assertIsNone(article.reviewed_at)
+        self.assertIsNone(article.reviewed_by)
+
     def test_generates_slug_for_new_article_when_slug_blank(self):
         article = Article(
             title="Hello World",

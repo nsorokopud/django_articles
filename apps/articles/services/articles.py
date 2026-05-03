@@ -70,19 +70,21 @@ def save_article(
     article.content = sanitize_article_html(article.content)
     article.content_text = extract_searchable_text(article.content)
 
-    if _should_regenerate_slug(article, previous_article):
-        _save_with_unique_slug(article)
-    else:
-        article.save()
-
-    # Business rule: editing a rejected article reopens it as a draft.
+    # Editing a rejected article reopens it as a draft.
     if (
         previous_article is not None
         and previous_article.status == ArticleStatus.REJECTED
         and restore_rejected_to_draft
     ):
         article.status = ArticleStatus.DRAFT
-        article.save(update_fields=["status"])
+        article.review_note = ""
+        article.reviewed_at = None
+        article.reviewed_by = None
+
+    if _should_regenerate_slug(article, previous_article):
+        _save_with_unique_slug(article)
+    else:
+        article.save()
 
     if old_slug and old_slug != article.slug:
         transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=old_slug))
