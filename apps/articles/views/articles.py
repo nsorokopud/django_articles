@@ -331,7 +331,10 @@ class ArticleDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy("my-articles")
 
     def get_queryset(self):
-        return Article.objects.filter(author=self.request.user)
+        return Article.objects.filter(
+            author=self.request.user,
+            status__in=(ArticleStatus.DRAFT, ArticleStatus.REJECTED),
+        )
 
     def form_valid(self, form) -> HttpResponseRedirect:
         article = self.get_object()

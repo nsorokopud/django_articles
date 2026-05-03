@@ -92,7 +92,7 @@ class TestArticleDeleteView(TestCase):
             reverse("article-delete", args=[self.test_article.slug])
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
         self.assertTrue(Article.objects.filter(pk=self.test_article.pk).exists())
 
     def test_forbids_pending_review_article(self):
@@ -104,7 +104,7 @@ class TestArticleDeleteView(TestCase):
         self.client.force_login(self.test_user)
         response = self.client.post(reverse("article-delete", args=[article.slug]))
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
         self.assertTrue(Article.objects.filter(pk=article.pk).exists())
 
     def test_forbids_access_not_by_author(self):
