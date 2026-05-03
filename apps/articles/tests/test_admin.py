@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.exceptions import PermissionDenied
@@ -31,9 +32,28 @@ class TestArticleAdmin(TestCase):
         )
         self.category = ArticleCategory.objects.create(title="Cat", slug="cat")
 
-    def _request(self, method="get", path="/admin/"):
-        request = getattr(self.factory, method)(path)
-        request.user = self.admin_user
+        self.change_article_permission = Permission.objects.get(
+            codename="change_article"
+        )
+        self.review_article_permission = Permission.objects.get(
+            codename="can_review_article"
+        )
+
+        self.editor_user = User.objects.create_user(
+            username="editor", email="editor@test.com", is_staff=True
+        )
+        self.editor_user.user_permissions.add(self.change_article_permission)
+
+        self.reviewer_user = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com", is_staff=True
+        )
+        self.reviewer_user.user_permissions.add(
+            self.change_article_permission, self.review_article_permission
+        )
+
+    def _request(self, method="get", path="/admin/", user=None, data=None):
+        request = getattr(self.factory, method)(path, data=data or {})
+        request.user = user or self.admin_user
 
         setattr(request, "session", self.client.session)
         messages = FallbackStorage(request)
@@ -160,47 +180,103 @@ class TestArticleAdmin(TestCase):
 
         self.assertEqual(self.article_admin.pub_seq(article), 10)
 
-    def test_workflow_buttons_for_unsaved_article(self):
-        article = Article(title="Unsaved")
-
-        result = self.article_admin.workflow_buttons(article)
-
-        self.assertEqual(result, "Save the article first to use workflow actions.")
-
-    def test_workflow_buttons_for_draft_article(self):
-        article = self._article(status=ArticleStatus.DRAFT)
-
-        result = self.article_admin.workflow_buttons(article)
-
-        self.assertEqual(result, "-")
-
-    def test_workflow_buttons_for_pending_review_article(self):
+    def test_change_view_adds_review_permission_to_context_for_reviewer(self):
+        self.client.force_login(self.reviewer_user)
         article = self._article(status=ArticleStatus.PENDING_REVIEW)
 
-        result = str(self.article_admin.workflow_buttons(article))
-
-        self.assertIn("Publish", result)
-        self.assertIn("Reject", result)
-        self.assertIn(
-            reverse("admin:articles_article_publish", args=[article.pk]), result
-        )
-        self.assertIn(
-            reverse("admin:articles_article_reject", args=[article.pk]), result
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
         )
 
-    def test_workflow_buttons_for_published_article(self):
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["can_review_article"])
+
+    def test_change_view_adds_false_review_permission_to_context_for_editor(self):
+        self.client.force_login(self.editor_user)
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["can_review_article"])
+
+    def test_change_form_shows_workflow_buttons_for_reviewer(self):
+        self.client.force_login(self.reviewer_user)
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
+        )
+
+        self.assertContains(response, "Publish")
+        self.assertContains(response, "Reject")
+        self.assertContains(
+            response, reverse("admin:articles_article_publish", args=[article.pk])
+        )
+        self.assertContains(
+            response, reverse("admin:articles_article_reject", args=[article.pk])
+        )
+
+    def test_change_form_hides_workflow_buttons_without_review_permission(self):
+        self.client.force_login(self.editor_user)
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
+        )
+
+        self.assertNotContains(
+            response, reverse("admin:articles_article_publish", args=[article.pk])
+        )
+        self.assertNotContains(
+            response, reverse("admin:articles_article_reject", args=[article.pk])
+        )
+
+    def test_change_form_shows_unpublish_button_for_published_article_reviewer(self):
+        self.client.force_login(self.reviewer_user)
         article = self._article(
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=20,
         )
 
-        result = str(self.article_admin.workflow_buttons(article))
-
-        self.assertIn("Unpublish", result)
-        self.assertIn(
-            reverse("admin:articles_article_unpublish", args=[article.pk]), result
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
         )
+
+        self.assertContains(response, "Unpublish")
+        self.assertContains(
+            response, reverse("admin:articles_article_unpublish", args=[article.pk])
+        )
+
+    def test_get_actions_hides_workflow_actions_without_review_permission(self):
+        request = self._request(user=self.editor_user)
+
+        actions = self.article_admin.get_actions(request)
+
+        self.assertNotIn("publish", actions)
+        self.assertNotIn("unpublish", actions)
+
+    def test_get_actions_keeps_workflow_actions_with_review_permission(self):
+        request = self._request(user=self.reviewer_user)
+
+        actions = self.article_admin.get_actions(request)
+
+        self.assertIn("publish", actions)
+        self.assertIn("unpublish", actions)
+
+    def test_require_review_permission_allows_reviewer(self):
+        request = self._request(user=self.reviewer_user)
+
+        self.article_admin._require_review_permission(request)
+
+    def test_require_review_permission_denies_editor_without_review_permission(self):
+        request = self._request(user=self.editor_user)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin._require_review_permission(request)
 
     def test_get_article_or_404_raises_404_for_missing_article(self):
         request = self._request()
@@ -230,6 +306,13 @@ class TestArticleAdmin(TestCase):
         self.assertEqual(response.template_name, "articles/admin/workflow_confirm.html")
         self.assertEqual(response.context_data["action"], "publish")
         self.assertEqual(response.context_data["confirm_label"], "Publish")
+
+    def test_process_publish_get_requires_review_permission(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        request = self._request("get", user=self.editor_user)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.process_publish(request, article.pk)
 
     @patch("articles.admin.publish_article")
     def test_process_publish_post_calls_service_and_redirects(self, mock_publish):
@@ -270,6 +353,17 @@ class TestArticleAdmin(TestCase):
         self.assertEqual(response.context_data["action"], "unpublish")
         self.assertEqual(response.context_data["confirm_label"], "Unpublish")
 
+    def test_process_unpublish_get_requires_review_permission(self):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=30,
+        )
+        request = self._request("get", user=self.editor_user)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.process_unpublish(request, article.pk)
+
     @patch("articles.admin.unpublish_article")
     def test_process_unpublish_post_calls_service_and_redirects(self, mock_unpublish):
         article = self._article(
@@ -304,12 +398,16 @@ class TestArticleAdmin(TestCase):
             response.context_data["form"].initial["reason"], "Needs more detail"
         )
 
+    def test_process_reject_get_requires_review_permission(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        request = self._request("get", user=self.editor_user)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.process_reject(request, article.pk)
+
     def test_process_reject_post_invalid_form_rerenders_confirmation(self):
         article = self._article(status=ArticleStatus.PENDING_REVIEW)
-        request = self.factory.post("/admin/", {"reason": "short"})
-        request.user = self.admin_user
-        setattr(request, "session", self.client.session)
-        setattr(request, "_messages", FallbackStorage(request))
+        request = self._request("post", user=self.admin_user, data={"reason": "short"})
 
         response = self.article_admin.process_reject(request, article.pk)
 
@@ -320,12 +418,11 @@ class TestArticleAdmin(TestCase):
     @patch("articles.admin.reject_article")
     def test_process_reject_post_calls_service_and_redirects(self, mock_reject):
         article = self._article(status=ArticleStatus.PENDING_REVIEW)
-        request = self.factory.post(
-            "/admin/", {"reason": "This article needs a clearer introduction."}
+        request = self._request(
+            "post",
+            user=self.admin_user,
+            data={"reason": "This article needs a clearer introduction."},
         )
-        request.user = self.admin_user
-        setattr(request, "session", self.client.session)
-        setattr(request, "_messages", FallbackStorage(request))
 
         response = self.article_admin.process_reject(request, article.pk)
 
@@ -351,6 +448,16 @@ class TestArticleAdmin(TestCase):
 
         self.assertEqual(mock_publish.call_count, 2)
 
+    @patch("articles.admin.publish_article")
+    def test_publish_action_requires_review_permission(self, mock_publish):
+        article = self._article(slug="article-1")
+        request = self._request("post", user=self.editor_user)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.publish(request, Article.objects.filter(pk=article.pk))
+
+        mock_publish.assert_not_called()
+
     @patch("articles.admin.unpublish_article")
     def test_unpublish_action_calls_service_for_each_article(self, mock_unpublish):
         article_1 = self._article(
@@ -372,6 +479,20 @@ class TestArticleAdmin(TestCase):
         )
 
         self.assertEqual(mock_unpublish.call_count, 2)
+
+    @patch("articles.admin.unpublish_article")
+    def test_unpublish_action_requires_review_permission(self, mock_unpublish):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=101,
+        )
+        request = self._request("post", user=self.editor_user)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.unpublish(request, Article.objects.filter(pk=article.pk))
+
+        mock_unpublish.assert_not_called()
 
     @patch("articles.admin.delete_article")
     def test_delete_model_calls_delete_service(self, mock_delete):
@@ -421,8 +542,7 @@ class TestArticleAdmin(TestCase):
         request = self._request("post")
 
         self.article_admin.delete_queryset(
-            request,
-            Article.objects.filter(pk__in=[article_1.pk, article_2.pk]),
+            request, Article.objects.filter(pk__in=[article_1.pk, article_2.pk])
         )
 
         self.assertEqual(mock_delete.call_count, 2)

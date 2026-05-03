@@ -77,6 +77,8 @@ class Article(models.Model):
     class Meta:
         verbose_name_plural = "Articles"
 
+        permissions = [("can_review_article", "Can review articles")]
+
         indexes = [
             models.Index(
                 fields=["author", "-publish_sequence", "-id"],

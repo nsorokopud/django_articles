@@ -5,7 +5,6 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpRequest, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
-from django.utils.html import format_html_join
 
 from .forms import ArticleAdminForm, ArticleRejectAdminForm
 from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
@@ -29,6 +28,8 @@ class CommentInline(admin.TabularInline):
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm
+    change_form_template = "articles/admin/article_change_form.html"
+
     list_display = (
         "id",
         "pub_seq",
@@ -50,7 +51,6 @@ class ArticleAdmin(admin.ModelAdmin):
         "reviewed_by",
         "created_at",
         "modified_at",
-        "workflow_buttons",
         "views_count",
         "likes_count",
         "comments_count",
@@ -84,7 +84,6 @@ class ArticleAdmin(admin.ModelAdmin):
                     "status",
                     "published_at",
                     "publish_sequence",
-                    "workflow_buttons",
                 )
             },
         ),
@@ -127,6 +126,22 @@ class ArticleAdmin(admin.ModelAdmin):
             if obj.status in {ArticleStatus.PUBLISHED, ArticleStatus.PENDING_REVIEW}:
                 readonly += ("slug",)
         return readonly
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["can_review_article"] = request.user.has_perm(
+            "articles.can_review_article"
+        )
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+
+        if not request.user.has_perm("articles.can_review_article"):
+            actions.pop("publish", None)
+            actions.pop("unpublish", None)
+
+        return actions
 
     def save_model(self, request, obj, form, change):
         """Prevents regular admin saves from changing workflow state
@@ -205,46 +220,6 @@ class ArticleAdmin(admin.ModelAdmin):
     def pub_seq(self, obj):
         return obj.publish_sequence if obj.publish_sequence is not None else "-"
 
-    @admin.display(description="Workflow")
-    def workflow_buttons(self, obj):
-        if not obj.pk:
-            return "Save the article first to use workflow actions."
-
-        buttons = []
-
-        if obj.status == ArticleStatus.PENDING_REVIEW:
-            buttons.extend(
-                [
-                    (
-                        reverse("admin:articles_article_publish", args=[obj.pk]),
-                        "Publish",
-                    ),
-                    (
-                        reverse("admin:articles_article_reject", args=[obj.pk]),
-                        "Reject",
-                    ),
-                ]
-            )
-        elif obj.status == ArticleStatus.PUBLISHED:
-            buttons.append(
-                (
-                    reverse("admin:articles_article_unpublish", args=[obj.pk]),
-                    "Unpublish",
-                )
-            )
-
-        if not buttons:
-            return "-"
-
-        return format_html_join(
-            "",
-            (
-                '<span style="margin-right: 8px;">'
-                '<a class="button" href="{}">{}</a></span>'
-            ),
-            buttons,
-        )
-
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -265,6 +240,10 @@ class ArticleAdmin(admin.ModelAdmin):
             ),
         ]
         return custom_urls + urls
+
+    def _require_review_permission(self, request) -> None:
+        if not request.user.has_perm("articles.can_review_article"):
+            raise PermissionDenied("You do not have permission to review articles.")
 
     def _get_article_or_404(self, request: HttpRequest, article_id: int) -> Article:
         article = self.get_object(request, article_id)
@@ -304,6 +283,7 @@ class ArticleAdmin(admin.ModelAdmin):
         )
 
     def process_publish(self, request: HttpRequest, article_id: int):
+        self._require_review_permission(request)
         article = self._get_article_or_404(request, article_id)
 
         if request.method == "GET":
@@ -330,6 +310,7 @@ class ArticleAdmin(admin.ModelAdmin):
         )
 
     def process_unpublish(self, request: HttpRequest, article_id: int):
+        self._require_review_permission(request)
         article = self._get_article_or_404(request, article_id)
 
         if request.method == "GET":
@@ -360,6 +341,7 @@ class ArticleAdmin(admin.ModelAdmin):
         )
 
     def process_reject(self, request: HttpRequest, article_id: int):
+        self._require_review_permission(request)
         article = self._get_article_or_404(request, article_id)
 
         if request.method == "GET":
@@ -404,6 +386,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
     @admin.action(description="Publish selected articles", permissions=("change",))
     def publish(self, request, queryset):
+        self._require_review_permission(request)
         updated_rows_count = 0
         failures = []
 
@@ -442,6 +425,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
     @admin.action(description="Unpublish selected articles", permissions=("change",))
     def unpublish(self, request, queryset):
+        self._require_review_permission(request)
         updated_rows_count = 0
         failures = []
 
