@@ -198,7 +198,7 @@ class ArticleDetailView(DetailView):
 
         context["comments"] = comments_page.object_list
         context["comments_page_obj"] = comments_page
-        context["comments_count"] = comments_page.paginator.count
+        context["comments_count"] = article.comments_count
 
         context["user_liked"] = (
             self.request.user.is_authenticated

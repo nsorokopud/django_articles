@@ -53,6 +53,7 @@ class ArticleAdmin(admin.ModelAdmin):
         "workflow_buttons",
         "views_count",
         "likes_count",
+        "comments_count",
     )
     exclude = ("users_that_liked",)
     actions = ("publish", "unpublish")
@@ -107,6 +108,7 @@ class ArticleAdmin(admin.ModelAdmin):
                 "fields": (
                     "views_count",
                     "likes_count",
+                    "comments_count",
                 )
             },
         ),

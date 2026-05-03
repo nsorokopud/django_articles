@@ -19,7 +19,6 @@ def find_published_articles() -> QuerySet[Article]:
         Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
-        .annotate(comments_count=Count("articlecomment", distinct=True))
         .order_by("-publish_sequence", "-id")
     )
 
@@ -56,7 +55,6 @@ def find_articles_by_author(author: User) -> QuerySet[Article]:
         Article.objects.filter(author=author)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
-        .annotate(comments_count=Count("articlecomment", distinct=True))
         .order_by("-modified_at", "-id")
     )
 

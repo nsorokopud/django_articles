@@ -2,6 +2,7 @@ import logging
 
 from django.core.paginator import Page, Paginator
 from django.db import IntegrityError, transaction
+from django.db.models import Count, F
 
 from notifications.services.creation import create_new_comment_notification
 from notifications.services.dispatch import dispatch_notification_after_commit
@@ -19,11 +20,7 @@ def create_article_comment(
     *, article: Article, user: User, text: str
 ) -> ArticleComment:
     """Creates an article comment and schedules related notification dispatch."""
-    comment = ArticleComment.objects.create(
-        article=article,
-        author=user,
-        text=text,
-    )
+    comment = ArticleComment.objects.create(article=article, author=user, text=text)
 
     try:
         with transaction.atomic():
@@ -56,6 +53,16 @@ def create_article_comment(
     return comment
 
 
+def increment_article_comments_count(*, article_id: int) -> None:
+    Article.objects.filter(pk=article_id).update(comments_count=F("comments_count") + 1)
+
+
+def decrement_article_comments_count(*, article_id: int) -> None:
+    Article.objects.filter(pk=article_id, comments_count__gt=0).update(
+        comments_count=F("comments_count") - 1
+    )
+
+
 def get_article_comments_page(
     *,
     article: Article,
@@ -73,3 +80,26 @@ def get_article_comments_page(
             liked_comments = set(find_article_comments_liked_by_user(comment_ids, user))
 
     return comments_page, liked_comments
+
+
+def sync_article_comments_count(*, batch_size: int = 1000) -> None:
+    last_id = 0
+
+    while True:
+        articles = list(
+            Article.objects.filter(id__gt=last_id)
+            .order_by("id")
+            .annotate(real_comments_count=Count("articlecomment", distinct=True))
+            .only("id", "comments_count")[:batch_size]
+        )
+
+        if not articles:
+            break
+
+        for article in articles:
+            if article.comments_count != article.real_comments_count:
+                Article.objects.filter(pk=article.pk).update(
+                    comments_count=article.real_comments_count
+                )
+
+        last_id = articles[-1].id

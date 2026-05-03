@@ -7,19 +7,23 @@ from django.test import TestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from articles.services.comments import create_article_comment, get_article_comments_page
+from articles.services.comments import (
+    create_article_comment,
+    decrement_article_comments_count,
+    get_article_comments_page,
+    increment_article_comments_count,
+    sync_article_comments_count,
+)
 from users.models import User
 
 
 class TestCreateArticleComment(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
-            username="author",
-            email="author@test.com",
+            username="author", email="author@test.com"
         )
         self.commenter = User.objects.create_user(
-            username="commenter",
-            email="commenter@test.com",
+            username="commenter", email="commenter@test.com"
         )
         self.article = Article.objects.create(
             title="article",
@@ -201,6 +205,62 @@ class TestCreateArticleComment(TestCase):
         mock_log_exception.assert_called_once()
 
 
+class TestIncrementArticleCommentsCount(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.article = Article.objects.create(
+            title="Article", slug="article", author=self.author, comments_count=0
+        )
+
+    def test_increments_comments_count_by_one(self):
+        increment_article_comments_count(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
+
+    def test_multiple_increments_are_accumulative(self):
+        increment_article_comments_count(article_id=self.article.id)
+        increment_article_comments_count(article_id=self.article.id)
+        increment_article_comments_count(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 3)
+
+    def test_does_nothing_for_nonexistent_article(self):
+        increment_article_comments_count(article_id=999999)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 0)
+
+
+class TestDecrementArticleCommentsCount(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.article = Article.objects.create(
+            title="Article", slug="article", author=self.author, comments_count=0
+        )
+
+    def test_decrements_existing_count(self):
+        Article.objects.filter(pk=self.article.pk).update(comments_count=2)
+
+        decrement_article_comments_count(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
+
+    def test_count_does_not_go_below_zero(self):
+        Article.objects.filter(pk=self.article.pk).update(comments_count=0)
+
+        decrement_article_comments_count(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 0)
+
+
 @patch("articles.services.comments.ARTICLE_COMMENTS_PER_PAGE", 2)
 class TestGetArticleCommentsPage(TestCase):
     def setUp(self):
@@ -247,7 +307,7 @@ class TestGetArticleCommentsPage(TestCase):
         self.assertEqual(comments_page.number, 1)
         self.assertTrue(comments_page.has_next())
         self.assertEqual(comments_page.next_page_number(), 2)
-        self.assertCountEqual(
+        self.assertEqual(
             [comment.id for comment in comments_page.object_list],
             [self.comment3.id, self.comment2.id],
         )
@@ -262,7 +322,7 @@ class TestGetArticleCommentsPage(TestCase):
 
         self.assertEqual(comments_page.number, 2)
         self.assertFalse(comments_page.has_next())
-        self.assertCountEqual(
+        self.assertEqual(
             [comment.id for comment in comments_page.object_list],
             [self.comment1.id],
         )
@@ -278,7 +338,7 @@ class TestGetArticleCommentsPage(TestCase):
             user=self.user,
         )
 
-        self.assertCountEqual(
+        self.assertEqual(
             [comment.id for comment in comments_page.object_list],
             [self.comment3.id, self.comment2.id],
         )
@@ -302,8 +362,46 @@ class TestGetArticleCommentsPage(TestCase):
         )
 
         self.assertEqual(comments_page.number, 2)
-        self.assertCountEqual(
+        self.assertEqual(
             [comment.id for comment in comments_page.object_list],
             [self.comment1.id],
         )
         self.assertEqual(liked_comments, set())
+
+
+class TestSyncArticleCommentsCount(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.commenter = User.objects.create_user(
+            username="commenter", email="commenter@test.com"
+        )
+        self.article = Article.objects.create(
+            title="Article", slug="article", author=self.author, comments_count=0
+        )
+
+    def test_repairs_too_low_count(self):
+        ArticleComment.objects.create(
+            article=self.article, author=self.commenter, text="First comment"
+        )
+        ArticleComment.objects.create(
+            article=self.article, author=self.commenter, text="Second comment"
+        )
+        Article.objects.filter(pk=self.article.pk).update(comments_count=0)
+
+        sync_article_comments_count(batch_size=1)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 2)
+
+    def test_repairs_too_high_count(self):
+        ArticleComment.objects.create(
+            article=self.article, author=self.commenter, text="Comment"
+        )
+        Article.objects.filter(pk=self.article.pk).update(comments_count=10)
+
+        sync_article_comments_count(batch_size=1)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)

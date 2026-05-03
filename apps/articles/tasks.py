@@ -16,9 +16,11 @@ logger = logging.getLogger(__name__)
 ARTICLE_SYNC_VIEWS_LOCK_KEY = "articles_sync_views_lock"
 ARTICLE_SYNC_LIKES_LOCK_KEY = "articles_sync_likes_lock"
 COMMENT_SYNC_LIKES_LOCK_KEY = "comments_sync_likes_lock"
+ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY = "articles_sync_comment_counts_lock"
 
 ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS = 10 * 60  # 10 min
 SYNC_LIKES_LOCK_TIMEOUT_SECONDS = 30 * 60  # 30 minutes
+ARTICLE_SYNC_COMMENT_COUNTS_LOCK_TIMEOUT_SECONDS = 30 * 60  # 30 min
 
 
 @app.task(
@@ -100,6 +102,35 @@ def sync_comment_likes_count_task(self) -> None:
         logger.info("Synced comment likes counts.")
     finally:
         _release_lock(lock_key=COMMENT_SYNC_LIKES_LOCK_KEY, lock_value=lock_value)
+
+
+@app.task(
+    bind=True,
+    autoretry_for=(DatabaseError, RedisError, ConnectionInterrupted),
+    retry_backoff=60,
+    retry_jitter=True,
+    max_retries=3,
+)
+def sync_article_comments_count_task(self, *, batch_size: int = 1000) -> None:
+    from .services.comments import sync_article_comments_count
+
+    lock_value = self.request.id
+
+    if not cache.add(
+        ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY,
+        lock_value,
+        timeout=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_TIMEOUT_SECONDS,
+    ):
+        logger.info("Article comments count sync skipped: already running.")
+        return
+
+    try:
+        sync_article_comments_count(batch_size=batch_size)
+        logger.info("Synced article comments counts.")
+    finally:
+        _release_lock(
+            lock_key=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY, lock_value=lock_value
+        )
 
 
 @app.task(

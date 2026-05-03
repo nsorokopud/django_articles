@@ -5,6 +5,7 @@ from django.test import SimpleTestCase, override_settings
 
 from articles.tasks import (
     delete_article_media_task,
+    sync_article_comments_count_task,
     sync_article_likes_count_task,
     sync_article_views_task,
     sync_comment_likes_count_task,
@@ -121,6 +122,58 @@ class TestSyncCommentLikesCountTask(SimpleTestCase):
         mock_sync.assert_not_called()
         mock_logger.info.assert_called_once_with(
             "Comment likes sync skipped: already running."
+        )
+        mock_cache.delete.assert_not_called()
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
+class TestSyncArticleCommentsCountTask(SimpleTestCase):
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.comments.sync_article_comments_count")
+    def test_sync_article_comments_count_task_runs(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+
+        result = sync_article_comments_count_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_cache.add.assert_called_once()
+        mock_sync.assert_called_once_with(batch_size=1000)
+        mock_logger.info.assert_any_call("Synced article comments counts.")
+        mock_cache.get.assert_called_once()
+        mock_cache.delete.assert_called_once()
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.comments.sync_article_comments_count")
+    def test_sync_article_comments_count_task_runs_with_custom_batch_size(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+
+        result = sync_article_comments_count_task.apply(kwargs={"batch_size": 25}).get()
+
+        self.assertIsNone(result)
+        mock_sync.assert_called_once_with(batch_size=25)
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.comments.sync_article_comments_count")
+    def test_sync_article_comments_count_task_skips_when_lock_exists(
+        self, mock_sync, mock_logger, mock_cache
+    ):
+        mock_cache.add.return_value = False
+
+        result = sync_article_comments_count_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_sync.assert_not_called()
+        mock_logger.info.assert_called_once_with(
+            "Article comments count sync skipped: already running."
         )
         mock_cache.delete.assert_not_called()
 

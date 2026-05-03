@@ -72,6 +72,7 @@ class Article(models.Model):
     )
     views_count = models.PositiveIntegerField(default=0)
     likes_count = models.PositiveIntegerField(default=0, db_index=True)
+    comments_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         verbose_name_plural = "Articles"
