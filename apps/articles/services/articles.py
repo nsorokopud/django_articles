@@ -53,27 +53,27 @@ def save_article(
 ) -> Article:
     is_new = article.pk is None
 
-    previous_article = None
+    original_article = None
     if is_new:
         if author is None:
             raise ValueError("author is required when creating an article")
         article.author = author
     else:
-        previous_article = (
+        original_article = (
             Article.objects.select_for_update()
             .only("title", "slug", "status")
             .get(pk=article.pk)
         )
 
-    old_slug = previous_article.slug if previous_article is not None else None
+    old_slug = original_article.slug if original_article is not None else None
 
     article.content = sanitize_article_html(article.content)
     article.content_text = extract_searchable_text(article.content)
 
     # Editing a rejected article reopens it as a draft.
     if (
-        previous_article is not None
-        and previous_article.status == ArticleStatus.REJECTED
+        original_article is not None
+        and original_article.status == ArticleStatus.REJECTED
         and restore_rejected_to_draft
     ):
         article.status = ArticleStatus.DRAFT
@@ -81,7 +81,7 @@ def save_article(
         article.reviewed_at = None
         article.reviewed_by = None
 
-    if _should_regenerate_slug(article, previous_article):
+    if _should_regenerate_slug(article, original_article):
         _save_with_unique_slug(article)
     else:
         article.save()
@@ -164,16 +164,16 @@ def _build_article_slug_candidate(title: str, *, use_suffix: bool) -> str:
 
 
 def _should_regenerate_slug(
-    article: Article, previous_article: Optional[Article]
+    article: Article, original_article: Optional[Article]
 ) -> bool:
     if not article.slug:
         return True
 
-    if previous_article is None:
+    if original_article is None:
         return False
 
-    title_changed = article.title != previous_article.title
-    slug_can_change = previous_article.status in {
+    title_changed = article.title != original_article.title
+    slug_can_change = original_article.status in {
         ArticleStatus.DRAFT,
         ArticleStatus.REJECTED,
     }
