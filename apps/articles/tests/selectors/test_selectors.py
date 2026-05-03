@@ -12,7 +12,6 @@ from articles.selectors import (
     find_subscription_feed_articles,
     get_all_categories,
     get_all_tags,
-    get_article_by_slug,
     get_comment_by_id,
 )
 from users.models import AuthorSubscription, User
@@ -285,26 +284,6 @@ class TestSelectors(TestCase):
         a2.tags.add("tag2", "tag3")
         res = [tag.name for tag in get_all_tags()]
         self.assertCountEqual(res, ["tag1", "tag2", "tag3"])
-
-    def test_get_article_by_slug(self):
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_slug("a1")
-
-        a = self.create_article(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-
-        res = get_article_by_slug("a1")
-        self.assertEqual(res, a)
-
-        a.delete()
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_slug("a1")
 
     def test_find_article_comments_liked_by_user(self):
         a1 = self.create_published_article(

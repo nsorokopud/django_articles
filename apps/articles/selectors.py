@@ -119,14 +119,6 @@ def find_comments_to_article(article: Article) -> QuerySet[ArticleComment]:
     )
 
 
-def get_article_by_slug(article_slug: str) -> Article:
-    return (
-        Article.objects.select_related("author", "author__profile")
-        .prefetch_related("tags")
-        .get(slug=article_slug)
-    )
-
-
 def get_published_article_by_slug(article_slug: str) -> Article:
     return (
         Article.objects.filter(status=ArticleStatus.PUBLISHED)
