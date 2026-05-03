@@ -305,7 +305,7 @@ HCAPTCHA_SECRET = os.environ["HCAPTCHA_SECRET"]
 TINYMCE_JS_URL = "https://cdn.jsdelivr.net/npm/tinymce@7.3.0/tinymce.min.js"
 
 TINYMCE_EXTRA_MEDIA = {
-    "js": ["js/tinymce-upload-handler.js"],
+    "js": ["js/tinymce-upload-handler.js", "js/tinymce-setup.js"],
 }
 
 TINYMCE_DEFAULT_CONFIG = {
@@ -319,12 +319,13 @@ TINYMCE_DEFAULT_CONFIG = {
         "autolink link image advlist lists table codesample charmap fullscreen"
     ),
     "toolbar": [
-        "undo redo | fullscreen | hr image table codesample blockquote | charmap",
+        "undo redo | fullscreen | hr uploadimage table codesample blockquote | charmap",
         "blocks | bullist numlist indent outdent | alignleft aligncenter alignright"
         " alignjustify",
         "fontfamily fontsize | bold italic underline strikethrough | removeformat",
     ],
     "file_picker_types": "image",
+    "image_url_input": False,
     "images_upload_url": "/tinymce/upload/",
     "images_upload_handler": "tinymceUploadHandler",
     "automatic_uploads": False,
@@ -334,6 +335,7 @@ TINYMCE_DEFAULT_CONFIG = {
     "invalid_elements": (
         "script,iframe,object,embed,form,input,button,select,textarea,style"
     ),
+    "setup": "tinymceCustomSetup",
 }
 
 

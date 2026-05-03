@@ -16,6 +16,8 @@ class TestSanitizeArticleHtml(SimpleTestCase):
             "<blockquote>Quote</blockquote>"
             "<pre><code>print('x')</code></pre>"
             "<ul><li>Item</li></ul>"
+            "<table><thead><tr><th>Head</th></tr></thead>"
+            "<tbody><tr><td>Cell</td></tr></tbody></table>"
         )
 
         cleaned = sanitize_article_html(html)
@@ -24,17 +26,22 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn("<blockquote>Quote</blockquote>", cleaned)
         self.assertIn("<pre><code>print('x')</code></pre>", cleaned)
         self.assertIn("<ul><li>Item</li></ul>", cleaned)
+        self.assertIn("<table>", cleaned)
+        self.assertIn("<th>Head</th>", cleaned)
+        self.assertIn("<td>Cell</td>", cleaned)
 
     def test_removes_script_tag(self):
         html = '<p>Hello</p><script>alert("xss")</script>'
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn("<p>Hello</p>", cleaned)
-        self.assertNotIn("<script>", cleaned)
+        self.assertNotIn("<script", cleaned)
         self.assertNotIn("alert", cleaned)
 
     def test_removes_iframe_tag(self):
         html = '<p>Text</p><iframe src="https://test.com"></iframe>'
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn("<p>Text</p>", cleaned)
@@ -42,12 +49,14 @@ class TestSanitizeArticleHtml(SimpleTestCase):
 
     def test_removes_event_handler_attributes(self):
         html = (
-            '<p onclick="alert(1)">Click me</p><img src="/img.jpg" onerror="alert(1)">'
+            '<p onclick="alert(1)">Click me</p>'
+            '<img src="/media/articles/uploads/1/2/img.jpg" onerror="alert(1)">'
         )
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn("<p>Click me</p>", cleaned)
-        self.assertIn('<img src="/img.jpg">', cleaned)
+        self.assertIn('src="/media/articles/uploads/1/2/img.jpg"', cleaned)
         self.assertNotIn("onclick", cleaned)
         self.assertNotIn("onerror", cleaned)
 
@@ -57,6 +66,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
             "Example"
             "</a>"
         )
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn('href="https://test.com"', cleaned)
@@ -69,6 +79,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
 
     def test_removes_javascript_href(self):
         html = '<a href="javascript:alert(1)">Bad link</a>'
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn(">Bad link</a>", cleaned)
@@ -77,45 +88,113 @@ class TestSanitizeArticleHtml(SimpleTestCase):
 
     def test_removes_mailto_href(self):
         html = '<a href="mailto:test@test.com">Email</a>'
+
         cleaned = sanitize_article_html(html)
 
         self.assertNotIn('href="mailto:test@test.com"', cleaned)
 
-    def test_keeps_http_and_https_image_src(self):
+    def test_removes_remote_image_src(self):
         html = (
             '<img src="http://test.com/image.jpg" alt="a">'
             '<img src="https://test.com/image.jpg" alt="b">'
+            '<img src="//test.com/image.jpg" alt="c">'
+            '<img src="data:image/png;base64,abc" alt="d">'
+            '<img src="blob:https://test.com/abc" alt="e">'
         )
+
         cleaned = sanitize_article_html(html)
 
-        self.assertIn('src="http://test.com/image.jpg"', cleaned)
-        self.assertIn('src="https://test.com/image.jpg"', cleaned)
-        self.assertIn('alt="a"', cleaned)
-        self.assertIn('alt="b"', cleaned)
+        self.assertNotIn("http://test.com/image.jpg", cleaned)
+        self.assertNotIn("https://test.com/image.jpg", cleaned)
+        self.assertNotIn("//test.com/image.jpg", cleaned)
+        self.assertNotIn("data:image", cleaned)
+        self.assertNotIn("blob:", cleaned)
 
     def test_removes_javascript_image_src(self):
         html = '<img src="javascript:alert(1)" alt="x">'
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn("<img", cleaned)
         self.assertNotIn("javascript:", cleaned)
         self.assertNotIn('src="javascript:alert(1)"', cleaned)
 
-    def test_keeps_allowed_image_attributes(self):
+    def test_keeps_allowed_local_upload_image_attributes(self):
         html = (
-            '<img src="/media/test.jpg" alt="preview" title="Title" '
-            'width="640" height="480">'
+            '<img src="/media/articles/uploads/1/2/test.jpg" '
+            'alt="preview" title="Title" width="640" height="480">'
         )
+
         cleaned = sanitize_article_html(html)
 
-        self.assertIn('src="/media/test.jpg"', cleaned)
+        self.assertIn('src="/media/articles/uploads/1/2/test.jpg"', cleaned)
         self.assertIn('alt="preview"', cleaned)
         self.assertIn('title="Title"', cleaned)
         self.assertIn('width="640"', cleaned)
         self.assertIn('height="480"', cleaned)
 
+    def test_removes_non_upload_local_image_src(self):
+        html = '<img src="/media/test.jpg" alt="preview">'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn('src="/media/test.jpg"', cleaned)
+        self.assertIn('alt="preview"', cleaned)
+
+    def test_removes_path_traversal_image_src(self):
+        html = '<img src="/media/articles/uploads/1/2/../../evil.jpg" alt="x">'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("src=", cleaned)
+        self.assertIn('alt="x"', cleaned)
+
+    def test_keeps_text_alignment_style(self):
+        html = '<p style="text-align: center; color: red;">Hello</p>'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertIn('style="text-align: center;"', cleaned)
+        self.assertNotIn("color", cleaned)
+
+    def test_keeps_alignment_on_allowed_tags(self):
+        html = (
+            '<h2 style="text-align: right;">Heading</h2>'
+            '<blockquote style="text-align: justify;">Quote</blockquote>'
+            '<li style="text-align: center;">Item</li>'
+            '<table><tbody><tr><td style="text-align: left;">Cell'
+            "</td></tr></tbody></table>"
+        )
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertIn('<h2 style="text-align: right;">Heading</h2>', cleaned)
+        self.assertIn(
+            '<blockquote style="text-align: justify;">Quote</blockquote>',
+            cleaned,
+        )
+        self.assertIn('<li style="text-align: center;">Item</li>', cleaned)
+        self.assertIn('<td style="text-align: left;">Cell</td>', cleaned)
+
+    def test_removes_invalid_alignment_style_value(self):
+        html = '<p style="text-align: evil;">Hello</p>'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("style=", cleaned)
+
+    def test_removes_non_alignment_style(self):
+        html = '<p style="color: red; background-image: url(x);">Hello</p>'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("style=", cleaned)
+        self.assertNotIn("color", cleaned)
+        self.assertNotIn("background-image", cleaned)
+
     def test_removes_disallowed_attributes_but_keeps_allowed_tags(self):
         html = '<a href="https://test.com" onclick="alert(1)" data-id="123">Link</a>'
+
         cleaned = sanitize_article_html(html)
 
         self.assertIn('href="https://test.com"', cleaned)
