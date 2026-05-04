@@ -132,8 +132,8 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn('src="/media/articles/uploads/1/2/test.jpg"', cleaned)
         self.assertIn('alt="preview"', cleaned)
         self.assertIn('title="Title"', cleaned)
-        self.assertIn('width="640"', cleaned)
-        self.assertIn('height="480"', cleaned)
+        self.assertNotIn("width=", cleaned)
+        self.assertNotIn("height=", cleaned)
 
     @override_settings(MEDIA_URL="/media/")
     def test_removes_non_upload_local_image_src(self):

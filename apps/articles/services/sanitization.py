@@ -59,9 +59,7 @@ ALLOWED_ATTRIBUTES = deepcopy(nh3.ALLOWED_ATTRIBUTES)
 
 ALLOWED_ATTRIBUTES.setdefault("a", set()).update({"href", "title", "target"})
 
-ALLOWED_ATTRIBUTES.setdefault("img", set()).update(
-    {"src", "alt", "title", "width", "height"}
-)
+ALLOWED_ATTRIBUTES["img"] = {"src", "alt", "title"}
 
 for tag_name in ALIGNABLE_TAGS:
     ALLOWED_ATTRIBUTES.setdefault(tag_name, set()).add("style")
