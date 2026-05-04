@@ -90,39 +90,92 @@ class TestArticleAdmin(TestCase):
 
         self.assertNotIn("author", readonly_fields)
 
-    def test_save_model_preserves_workflow_fields_on_regular_admin_save(self):
-        published_at = timezone.now()
-        reviewed_at = timezone.now()
-
+    def test_published_article_core_fields_are_readonly(self):
         article = self._article(
             status=ArticleStatus.PUBLISHED,
-            published_at=published_at,
+            published_at=timezone.now(),
             publish_sequence=123,
-            reviewed_at=reviewed_at,
-            reviewed_by=self.admin_user,
-            review_note="Original review note",
         )
+        request = self._request()
 
+        readonly_fields = self.article_admin.get_readonly_fields(request, article)
+
+        for field_name in (
+            "title",
+            "slug",
+            "category",
+            "tags",
+            "preview_text",
+            "preview_image",
+            "content",
+        ):
+            self.assertIn(field_name, readonly_fields)
+
+    def test_pending_review_article_core_fields_are_readonly(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        request = self._request()
+
+        readonly_fields = self.article_admin.get_readonly_fields(request, article)
+
+        for field_name in (
+            "title",
+            "slug",
+            "category",
+            "tags",
+            "preview_text",
+            "preview_image",
+            "content",
+        ):
+            self.assertIn(field_name, readonly_fields)
+
+    def test_draft_article_core_fields_are_editable_except_author(self):
+        article = self._article(status=ArticleStatus.DRAFT)
+        request = self._request()
+
+        readonly_fields = self.article_admin.get_readonly_fields(request, article)
+
+        for field_name in (
+            "title",
+            "slug",
+            "category",
+            "tags",
+            "preview_text",
+            "preview_image",
+            "content",
+        ):
+            self.assertNotIn(field_name, readonly_fields)
+
+        self.assertIn("author", readonly_fields)
+
+    def test_save_model_denies_direct_edit_for_published_article(self):
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=123,
+        )
         article.title = "Changed title"
-        article.status = ArticleStatus.DRAFT
-        article.published_at = None
-        article.publish_sequence = None
-        article.reviewed_at = None
-        article.reviewed_by = None
-        article.review_note = ""
 
         request = self._request()
-        self.article_admin.save_model(request, article, form=None, change=True)
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.save_model(request, article, form=None, change=True)
 
         article.refresh_from_db()
-
-        self.assertEqual(article.title, "Changed title")
+        self.assertEqual(article.title, "Test article")
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(article.published_at, published_at)
-        self.assertEqual(article.publish_sequence, 123)
-        self.assertEqual(article.reviewed_at, reviewed_at)
-        self.assertEqual(article.reviewed_by, self.admin_user)
-        self.assertEqual(article.review_note, "Original review note")
+
+    def test_save_model_denies_direct_edit_for_pending_review_article(self):
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+        article.title = "Changed title"
+
+        request = self._request()
+
+        with self.assertRaises(PermissionDenied):
+            self.article_admin.save_model(request, article, form=None, change=True)
+
+        article.refresh_from_db()
+        self.assertEqual(article.title, "Test article")
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
 
     def test_save_model_updates_content_text_through_save_article_service(self):
         article = self._article(content="<p>Old body</p>", content_text="Old body")
@@ -136,7 +189,7 @@ class TestArticleAdmin(TestCase):
 
         self.assertIn("New searchable body", article.content_text)
 
-    def test_admin_change_view_saves_tags(self):
+    def test_admin_change_view_saves_tags_for_draft_article(self):
         self.client.force_login(self.admin_user)
 
         article = self._article()
@@ -201,6 +254,52 @@ class TestArticleAdmin(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["can_review_article"])
+
+    def test_change_view_hides_save_buttons_for_published_article(self):
+        self.client.force_login(self.admin_user)
+        article = self._article(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=20,
+        )
+
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["show_save"])
+        self.assertFalse(response.context["show_save_and_continue"])
+        self.assertFalse(response.context["show_save_and_add_another"])
+        self.assertFalse(response.context["show_save_as_new"])
+
+    def test_change_view_hides_save_buttons_for_pending_review_article(self):
+        self.client.force_login(self.admin_user)
+        article = self._article(status=ArticleStatus.PENDING_REVIEW)
+
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["show_save"])
+        self.assertFalse(response.context["show_save_and_continue"])
+        self.assertFalse(response.context["show_save_and_add_another"])
+        self.assertFalse(response.context["show_save_as_new"])
+
+    def test_change_view_shows_save_buttons_for_draft_article(self):
+        self.client.force_login(self.admin_user)
+        article = self._article(status=ArticleStatus.DRAFT)
+
+        response = self.client.get(
+            reverse("admin:articles_article_change", args=[article.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["show_save"])
+        self.assertTrue(response.context["show_save_and_continue"])
+        self.assertTrue(response.context["show_save_and_add_another"])
+        self.assertFalse(response.context["show_save_as_new"])
 
     def test_change_form_shows_workflow_buttons_for_reviewer(self):
         self.client.force_login(self.reviewer_user)
@@ -651,7 +750,6 @@ class TestCommentInlineAdmin(TestCase):
         self.author = User.objects.create_user(
             username="author", email="author@test.com"
         )
-        self.liker = User.objects.create_user(username="liker", email="liker@test.com")
         self.article = Article.objects.create(
             title="Article",
             slug="article",
@@ -667,3 +765,23 @@ class TestCommentInlineAdmin(TestCase):
         request.user = self.admin_user
 
         self.assertFalse(self.inline.has_add_permission(request, self.article))
+
+    def test_has_delete_permission_is_true_for_draft(self):
+        request = self.factory.get("/admin/")
+        request.user = self.admin_user
+
+        self.assertTrue(self.inline.has_delete_permission(request, self.article))
+
+    def test_has_delete_permission_is_false_for_published(self):
+        request = self.factory.get("/admin/")
+        request.user = self.admin_user
+        self.article.status = ArticleStatus.PUBLISHED
+
+        self.assertFalse(self.inline.has_delete_permission(request, self.article))
+
+    def test_has_delete_permission_is_false_for_pending_review(self):
+        request = self.factory.get("/admin/")
+        request.user = self.admin_user
+        self.article.status = ArticleStatus.PENDING_REVIEW
+
+        self.assertFalse(self.inline.has_delete_permission(request, self.article))

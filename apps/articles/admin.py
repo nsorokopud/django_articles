@@ -24,6 +24,14 @@ class CommentInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.status in {
+            ArticleStatus.PUBLISHED,
+            ArticleStatus.PENDING_REVIEW,
+        }:
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
@@ -120,18 +128,40 @@ class ArticleAdmin(admin.ModelAdmin):
         return {}
 
     def get_readonly_fields(self, request, obj=None):
-        readonly = tuple(super().get_readonly_fields(request, obj))
+        readonly = list(super().get_readonly_fields(request, obj))
+
         if obj is not None:
-            readonly += ("author",)
+            readonly.append("author")
+
             if obj.status in {ArticleStatus.PUBLISHED, ArticleStatus.PENDING_REVIEW}:
-                readonly += ("slug",)
-        return readonly
+                readonly += [
+                    "title",
+                    "slug",
+                    "category",
+                    "tags",
+                    "preview_text",
+                    "preview_image",
+                    "content",
+                ]
+
+        return tuple(readonly)
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         extra_context = extra_context or {}
+
+        article = self.get_object(request, object_id)
+        is_locked = article and article.status in {
+            ArticleStatus.PUBLISHED,
+            ArticleStatus.PENDING_REVIEW,
+        }
+
         extra_context["can_review_article"] = request.user.has_perm(
             "articles.can_review_article"
         )
+        extra_context["show_save"] = not is_locked
+        extra_context["show_save_and_continue"] = not is_locked
+        extra_context["show_save_and_add_another"] = not is_locked
+
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_actions(self, request):
@@ -144,24 +174,16 @@ class ArticleAdmin(admin.ModelAdmin):
         return actions
 
     def save_model(self, request, obj, form, change):
-        """Prevents regular admin saves from changing workflow state
-        (should only be changed via dedicated workflow actions).
-        """
         if change:
-            old_obj = Article.objects.only(
-                "status",
-                "published_at",
-                "publish_sequence",
-                "review_note",
-                "reviewed_at",
-                "reviewed_by",
-            ).get(pk=obj.pk)
-            obj.status = old_obj.status
-            obj.published_at = old_obj.published_at
-            obj.publish_sequence = old_obj.publish_sequence
-            obj.review_note = old_obj.review_note
-            obj.reviewed_at = old_obj.reviewed_at
-            obj.reviewed_by = old_obj.reviewed_by
+            old_obj = Article.objects.only("status").get(pk=obj.pk)
+
+            if old_obj.status in {
+                ArticleStatus.PUBLISHED,
+                ArticleStatus.PENDING_REVIEW,
+            }:
+                raise PermissionDenied(
+                    "Published or pending-review articles cannot be edited directly."
+                )
 
         save_article(
             article=obj,
