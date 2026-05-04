@@ -19,10 +19,7 @@ class TestArticleUpdateView(TestCase):
         )
 
         self.category = ArticleCategory.objects.create(title="cat1", slug="cat1")
-        self.other_category = ArticleCategory.objects.create(
-            title="cat2",
-            slug="cat2",
-        )
+        self.other_category = ArticleCategory.objects.create(title="cat2", slug="cat2")
 
         self.published_article = Article.objects.create(
             title="article",
@@ -48,12 +45,10 @@ class TestArticleUpdateView(TestCase):
         self.draft_article.tags.add("draft-tag")
 
         self.published_url = reverse(
-            "article-update",
-            kwargs={"article_slug": self.published_article.slug},
+            "article-update", kwargs={"article_slug": self.published_article.slug}
         )
         self.draft_url = reverse(
-            "article-update",
-            kwargs={"article_slug": self.draft_article.slug},
+            "article-update", kwargs={"article_slug": self.draft_article.slug}
         )
 
     def test_get_anonymous_user_redirects_to_login(self):
@@ -70,10 +65,7 @@ class TestArticleUpdateView(TestCase):
 
     def test_get_non_existent_article_returns_404(self):
         self.client.force_login(self.author)
-        url = reverse(
-            "article-update",
-            kwargs={"article_slug": "non-existent-article"},
-        )
+        url = reverse("article-update", kwargs={"article_slug": "non-existent-article"})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
@@ -99,8 +91,7 @@ class TestArticleUpdateView(TestCase):
     @override_settings(CACHES=CACHES)
     def test_get_for_published_article_redirects_to_detail_page(self):
         redirect_url = reverse(
-            "article-details",
-            kwargs={"article_slug": self.published_article.slug},
+            "article-details", kwargs={"article_slug": self.published_article.slug}
         )
         self.client.force_login(self.author)
         response = self.client.get(self.published_url)
@@ -139,14 +130,9 @@ class TestArticleUpdateView(TestCase):
 
     def test_post_non_existent_article_returns_404(self):
         self.client.force_login(self.author)
-        url = reverse(
-            "article-update",
-            kwargs={"article_slug": "non-existent-article"},
-        )
+        url = reverse("article-update", kwargs={"article_slug": "non-existent-article"})
         response = self.client.post(
-            url,
-            {"title": "new title"},
-            headers={"X-Requested-With": "XMLHttpRequest"},
+            url, {"title": "new title"}, headers={"X-Requested-With": "XMLHttpRequest"}
         )
         self.assertEqual(response.status_code, 404)
 
@@ -176,6 +162,7 @@ class TestArticleUpdateView(TestCase):
             "preview_text": "updated draft preview text",
             "content": "updated draft content",
             "tags": "tag2, tag3",
+            "action": "save_draft",
         }
 
         self.client.force_login(self.author)
@@ -202,17 +189,105 @@ class TestArticleUpdateView(TestCase):
         self.assertEqual(self.draft_article.title, "updated draft title")
         self.assertEqual(self.draft_article.slug, "updated-draft-title")
         self.assertEqual(self.draft_article.category, self.other_category)
-        self.assertEqual(
-            self.draft_article.preview_text,
-            "updated draft preview text",
-        )
+        self.assertEqual(self.draft_article.preview_text, "updated draft preview text")
         self.assertEqual(self.draft_article.content, "updated draft content")
+        self.assertEqual(self.draft_article.status, ArticleStatus.DRAFT)
+        self.assertIsNone(self.draft_article.published_at)
+        self.assertIsNone(self.draft_article.publish_sequence)
+        self.assertCountEqual(
+            [tag.name for tag in self.draft_article.tags.all()], ["tag2", "tag3"]
+        )
+
+    def test_post_submit_for_review_saves_changes_then_submits_article(self):
+        updated_data = {
+            "title": "ready for review",
+            "category": self.other_category.id,
+            "preview_text": "updated preview before review",
+            "content": "<p>updated content before review</p>",
+            "tags": "review-tag, django",
+            "action": "submit_for_review",
+        }
+
+        self.client.force_login(self.author)
+        response = self.client.post(self.draft_url, updated_data)
+
+        self.assertEqual(response.status_code, 200)
+
+        self.draft_article.refresh_from_db()
+
+        self.assertEqual(response.json()["status"], "success")
+        self.assertEqual(self.draft_article.title, "ready for review")
+        self.assertEqual(self.draft_article.slug, "ready-for-review")
+        self.assertEqual(self.draft_article.category, self.other_category)
+        self.assertEqual(
+            self.draft_article.preview_text, "updated preview before review"
+        )
+        self.assertEqual(
+            self.draft_article.content, "<p>updated content before review</p>"
+        )
+        self.assertEqual(self.draft_article.status, ArticleStatus.PENDING_REVIEW)
         self.assertIsNone(self.draft_article.published_at)
         self.assertIsNone(self.draft_article.publish_sequence)
         self.assertCountEqual(
             [tag.name for tag in self.draft_article.tags.all()],
-            ["tag2", "tag3"],
+            ["review-tag", "django"],
         )
+
+    def test_post_submit_for_review_returns_error_when_article_is_not_ready(self):
+        updated_data = {
+            "title": "",
+            "category": self.category.id,
+            "preview_text": "preview exists",
+            "content": "<p>content exists</p>",
+            "action": "submit_for_review",
+        }
+
+        self.client.force_login(self.author)
+        response = self.client.post(self.draft_url, updated_data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "fail",
+                "data": {
+                    "__all__": ["Title is required before submission for review."],
+                },
+            },
+        )
+
+        self.draft_article.refresh_from_db()
+        self.assertEqual(self.draft_article.status, ArticleStatus.DRAFT)
+
+    def test_post_submit_for_review_from_rejected_article_saves_and_resubmits(self):
+        self.draft_article.status = ArticleStatus.REJECTED
+        self.draft_article.review_note = "Please improve the article."
+        self.draft_article.reviewed_at = timezone.now()
+        self.draft_article.reviewed_by = self.other_user
+        self.draft_article.save(
+            update_fields=["status", "review_note", "reviewed_at", "reviewed_by"]
+        )
+
+        updated_data = {
+            "title": "fixed rejected article",
+            "category": self.category.id,
+            "preview_text": "fixed preview text",
+            "content": "<p>fixed content</p>",
+            "action": "submit_for_review",
+        }
+
+        self.client.force_login(self.author)
+        response = self.client.post(self.draft_url, updated_data)
+
+        self.assertEqual(response.status_code, 200)
+
+        self.draft_article.refresh_from_db()
+
+        self.assertEqual(self.draft_article.status, ArticleStatus.PENDING_REVIEW)
+        self.assertEqual(self.draft_article.title, "fixed rejected article")
+        self.assertEqual(self.draft_article.review_note, "")
+        self.assertIsNone(self.draft_article.reviewed_at)
+        self.assertIsNone(self.draft_article.reviewed_by)
 
     def test_post_correct_does_not_change_author(self):
         updated_data = {
@@ -220,6 +295,7 @@ class TestArticleUpdateView(TestCase):
             "category": self.category.id,
             "preview_text": "preview unchanged author",
             "content": "content unchanged author",
+            "action": "save_draft",
         }
 
         self.client.force_login(self.author)
@@ -243,6 +319,7 @@ class TestArticleUpdateView(TestCase):
                 "category": self.other_category.id,
                 "preview_text": "hacked preview",
                 "content": "hacked content",
+                "action": "submit_for_review",
             },
             headers={"X-Requested-With": "XMLHttpRequest"},
         )

@@ -26,11 +26,6 @@ urlpatterns = [
         name="article-update",
     ),
     path(
-        "articles/<slug:article_slug>/submit-for-review/",
-        views.ArticleSubmitForReviewView.as_view(),
-        name="article-submit-for-review",
-    ),
-    path(
         "articles/<slug:article_slug>/withdraw-from-review/",
         views.ArticleWithdrawFromReviewView.as_view(),
         name="article-withdraw-from-review",

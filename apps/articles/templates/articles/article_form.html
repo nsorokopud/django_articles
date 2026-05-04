@@ -33,8 +33,8 @@
               </div>
 
               <div class="mt-2 small">
-                After you save changes, this article will move back to
-                <strong>Draft</strong>.
+                You can save changes as a draft, or resubmit the updated article
+                for review.
               </div>
 
               {% if article.review_note %}
@@ -88,17 +88,22 @@
               <button form="articleForm"
                       id="articleFormUpdateButton"
                       class="btn btn-success"
-                      type="submit">Save draft</button>
-            {% endif %}
+                      type="submit"
+                      name="action"
+                      value="save_draft">Save draft</button>
 
-            {% if article.status == "draft" %}
-              <form method="post"
-                    action="{% url 'article-submit-for-review' article.slug %}"
-                    class="d-inline">
-                {% csrf_token %}
-                <button class="btn btn-primary" type="submit">Submit for review</button>
-              </form>
-
+              <button form="articleForm"
+                      id="articleSubmitForReviewButton"
+                      class="btn btn-primary"
+                      type="submit"
+                      name="action"
+                      value="submit_for_review">
+                {% if article.status == "rejected" %}
+                  Resubmit for review
+                {% else %}
+                  Submit for review
+                {% endif %}
+              </button>
             {% elif article.status == "pending_review" %}
               <form method="post"
                     action="{% url 'article-withdraw-from-review' article.slug %}"
@@ -111,8 +116,13 @@
             {% if article.status == "draft" or article.status == "rejected" %}
               <a class="btn btn-danger" href="{% url 'article-delete' article.slug %}">Delete draft</a>
             {% endif %}
-
           </div>
+
+          {% if article.status == "draft" or article.status == "rejected" %}
+            <p class="form-text mt-2">
+              Submitting for review will save your current changes first.
+            </p>
+          {% endif %}
 
           <a class="btn btn-outline-secondary mt-3" href="{% url 'my-articles' %}">Back to my articles</a>
         </div>

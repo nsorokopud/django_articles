@@ -273,6 +273,17 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form) -> JsonResponse:
         article = form.save()
 
+        if self.request.POST.get("action") == "submit_for_review":
+            try:
+                submit_article_for_review(article_id=article.id)
+            except ValueError as e:
+                return JsonResponse(
+                    {"status": "fail", "data": {"__all__": [str(e)]}},
+                    status=400,
+                )
+
+            messages.success(self.request, "Article was submitted for review.")
+
         data = {
             "articleUrl": reverse(
                 "article-update", kwargs={"article_slug": article.slug}
@@ -282,26 +293,6 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_invalid(self, form) -> JsonResponse:
         return JsonResponse({"status": "fail", "data": form.errors}, status=400)
-
-
-class ArticleSubmitForReviewView(LoginRequiredMixin, View):
-    def post(self, request, article_slug) -> HttpResponseRedirect:
-        try:
-            article = get_article_for_author_by_slug(
-                article_slug=article_slug,
-                author_id=request.user.id,
-            )
-        except Article.DoesNotExist as e:
-            raise Http404("Article not found") from e
-
-        try:
-            submit_article_for_review(article_id=article.id)
-        except ValueError as e:
-            messages.error(request, str(e))
-        else:
-            messages.success(request, "Article was submitted for review.")
-
-        return redirect("article-update", article_slug=article.slug)
 
 
 class ArticleWithdrawFromReviewView(LoginRequiredMixin, View):

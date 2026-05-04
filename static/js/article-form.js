@@ -10,13 +10,14 @@ document.getElementById('articleForm').addEventListener('submit', (e) => {
   }
 
   e.preventDefault();
-  onArticleFormSaveButtonClick();
+  onArticleFormSaveButtonClick(e.submitter);
 });
 
-function onArticleFormSaveButtonClick() {
-  const saveButton = document.getElementById('articleFormUpdateButton');
+function onArticleFormSaveButtonClick(submitter) {
+  const button =
+    submitter || document.getElementById('articleFormUpdateButton');
 
-  if (saveButton && saveButton.disabled) {
+  if (button && button.disabled) {
     return;
   }
 
@@ -26,10 +27,10 @@ function onArticleFormSaveButtonClick() {
   const articleSlug = document.getElementById('articleSlug').value;
   const editor = tinymce.activeEditor;
 
-  setSaveButtonLoading(saveButton);
+  setSubmitButtonLoading(button, submitter);
 
   if (!editor) {
-    restoreSaveButton(saveButton);
+    restoreSubmitButton(button);
     alert('Editor is not ready yet. Please try again.');
     return;
   }
@@ -37,11 +38,11 @@ function onArticleFormSaveButtonClick() {
   editor
     .uploadImages()
     .then(() => {
-      updateArticle(articleSlug, form, editor, saveButton);
+      updateArticle(articleSlug, form, editor, button, submitter);
     })
     .catch((error) => {
       console.error('TinyMCE image upload failed:', error);
-      restoreSaveButton(saveButton);
+      restoreSubmitButton(button);
 
       showEditorNotification(
         editor,
@@ -51,8 +52,9 @@ function onArticleFormSaveButtonClick() {
     });
 }
 
-function updateArticle(articleSlug, form, editor, saveButton) {
+function updateArticle(articleSlug, form, editor, button, submitter) {
   const xhr = new XMLHttpRequest();
+
   xhr.open('POST', `/articles/${articleSlug}/edit/`);
   xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
@@ -64,7 +66,7 @@ function updateArticle(articleSlug, form, editor, saveButton) {
     try {
       response = JSON.parse(xhr.responseText);
     } catch (err) {
-      restoreSaveButton(saveButton);
+      restoreSubmitButton(button);
       alert('Unexpected server response while updating article.');
       console.error('Invalid JSON response:', xhr.responseText);
       return;
@@ -75,7 +77,7 @@ function updateArticle(articleSlug, form, editor, saveButton) {
       return;
     }
 
-    restoreSaveButton(saveButton);
+    restoreSubmitButton(button);
 
     if (xhr.status === 400 && response.status === 'fail') {
       displayFormValidationErrors(response);
@@ -87,41 +89,47 @@ function updateArticle(articleSlug, form, editor, saveButton) {
   };
 
   xhr.onerror = () => {
-    restoreSaveButton(saveButton);
+    restoreSubmitButton(button);
     alert('Network error while updating article. Please try again.');
   };
 
   xhr.ontimeout = () => {
-    restoreSaveButton(saveButton);
+    restoreSubmitButton(button);
     alert('Article update timed out. Please try again.');
   };
 
   const formData = new FormData(form);
+
+  if (submitter?.name && submitter?.value) {
+    formData.set(submitter.name, submitter.value);
+  }
+
   formData.set('content', editor.getContent());
   xhr.send(formData);
 }
 
-function setSaveButtonLoading(saveButton) {
-  if (!saveButton) {
+function setSubmitButtonLoading(button, submitter) {
+  if (!button) {
     return;
   }
 
-  saveButton.disabled = true;
+  button.disabled = true;
 
-  if (!saveButton.dataset.originalText) {
-    saveButton.dataset.originalText = saveButton.textContent;
+  if (!button.dataset.originalText) {
+    button.dataset.originalText = button.textContent;
   }
 
-  saveButton.textContent = 'Saving...';
+  button.textContent =
+    submitter?.value === 'submit_for_review' ? 'Submitting...' : 'Saving...';
 }
 
-function restoreSaveButton(saveButton) {
-  if (!saveButton) {
+function restoreSubmitButton(button) {
+  if (!button) {
     return;
   }
 
-  saveButton.disabled = false;
-  saveButton.textContent = saveButton.dataset.originalText || 'Save draft';
+  button.disabled = false;
+  button.textContent = button.dataset.originalText || 'Save draft';
 }
 
 function showEditorNotification(editor, message, type = 'info') {
@@ -143,14 +151,21 @@ function removeFormValidationErrors() {
 
 function displayFormValidationErrors(response) {
   for (const field in response.data) {
+    if (field === '__all__') {
+      alert(response.data[field][0]);
+      continue;
+    }
+
     const fieldId = 'id_' + field;
     const input = document.getElementById(fieldId);
 
     if (input && !input.classList.contains('is-invalid')) {
       input.classList.add('is-invalid');
+
       const errorMessage = document.createElement('div');
       errorMessage.classList.add('invalid-feedback');
       errorMessage.innerText = response.data[field][0];
+
       input.parentNode.appendChild(errorMessage);
     }
   }
