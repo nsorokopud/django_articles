@@ -339,6 +339,7 @@ TINYMCE_DEFAULT_CONFIG = {
         "script,iframe,object,embed,form,input,button,select,textarea,style"
     ),
     "setup": "tinymceCustomSetup",
+    "content_css": ["/static/css/tinymce-content.css"],
     "object_resizing": "table",
 }
 
