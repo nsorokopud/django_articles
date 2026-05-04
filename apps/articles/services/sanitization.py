@@ -95,11 +95,37 @@ def _is_allowed_image_src(src: str) -> bool:
 
     parsed = urlparse(src)
 
-    # Reject anything with scheme or host (http, https, //, data, blob, etc.)
     if parsed.scheme or parsed.netloc:
-        return False
+        return _is_allowed_absolute_media_src(parsed)
 
     return _is_allowed_local_media_src(src)
+
+
+def _is_allowed_absolute_media_src(parsed) -> bool:
+    if parsed.scheme != "https":
+        return False
+
+    allowed_bases = getattr(settings, "MEDIA_ALLOWED_BASE_URLS", [])
+
+    path = unquote(parsed.path or "")
+    if "\x00" in path or ".." in path.split("/"):
+        return False
+
+    normalized_path = normpath(path)
+
+    for base_url in allowed_bases:
+        base = urlparse(base_url)
+
+        if parsed.scheme != base.scheme or parsed.netloc != base.netloc:
+            continue
+
+        base_path = normpath(base.path or "/").rstrip("/")
+        prefix = _join_url_path_prefix(base_path, "articles/uploads")
+
+        if normalized_path.startswith(prefix):
+            return True
+
+    return False
 
 
 def _is_allowed_local_media_src(src: str) -> bool:
@@ -120,7 +146,7 @@ def _is_allowed_local_media_src(src: str) -> bool:
         normalized = f"/{normalized}"
 
     media_path = urlparse(settings.MEDIA_URL).path.rstrip("/")
-    allowed_prefix = f"{media_path}/articles/uploads/"
+    allowed_prefix = _join_url_path_prefix(media_path, "articles/uploads")
 
     return normalized.startswith(allowed_prefix)
 
@@ -139,3 +165,13 @@ def _clean_alignment_style(style: str) -> str | None:
             return f"text-align: {align};"
 
     return None
+
+
+def _join_url_path_prefix(base_path: str, suffix: str) -> str:
+    base = (base_path or "").rstrip("/")
+    suffix = suffix.strip("/")
+
+    if not base:
+        return f"/{suffix}/"
+
+    return f"{base}/{suffix}/"

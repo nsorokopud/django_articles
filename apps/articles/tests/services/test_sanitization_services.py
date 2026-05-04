@@ -1,4 +1,4 @@
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from articles.services.sanitization import sanitize_article_html
 
@@ -47,6 +47,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn("<p>Text</p>", cleaned)
         self.assertNotIn("<iframe", cleaned)
 
+    @override_settings(MEDIA_URL="/media/")
     def test_removes_event_handler_attributes(self):
         html = (
             '<p onclick="alert(1)">Click me</p>'
@@ -93,7 +94,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
 
         self.assertNotIn('href="mailto:test@test.com"', cleaned)
 
-    def test_removes_remote_image_src(self):
+    def test_removes_unallowlisted_remote_image_src(self):
         html = (
             '<img src="http://test.com/image.jpg" alt="a">'
             '<img src="https://test.com/image.jpg" alt="b">'
@@ -119,6 +120,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn("javascript:", cleaned)
         self.assertNotIn('src="javascript:alert(1)"', cleaned)
 
+    @override_settings(MEDIA_URL="/media/")
     def test_keeps_allowed_local_upload_image_attributes(self):
         html = (
             '<img src="/media/articles/uploads/1/2/test.jpg" '
@@ -133,6 +135,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn('width="640"', cleaned)
         self.assertIn('height="480"', cleaned)
 
+    @override_settings(MEDIA_URL="/media/")
     def test_removes_non_upload_local_image_src(self):
         html = '<img src="/media/test.jpg" alt="preview">'
 
@@ -141,8 +144,91 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn('src="/media/test.jpg"', cleaned)
         self.assertIn('alt="preview"', cleaned)
 
+    @override_settings(MEDIA_URL="/media/")
     def test_removes_path_traversal_image_src(self):
         html = '<img src="/media/articles/uploads/1/2/../../evil.jpg" alt="x">'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("src=", cleaned)
+        self.assertIn('alt="x"', cleaned)
+
+    @override_settings(
+        MEDIA_ALLOWED_BASE_URLS=["https://bucket.s3.amazonaws.com/"],
+    )
+    def test_keeps_allowed_absolute_s3_upload_image_src(self):
+        html = (
+            '<img src="https://bucket.s3.amazonaws.com/articles/uploads/1/2/test.jpg" '
+            'alt="x">'
+        )
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertIn(
+            'src="https://bucket.s3.amazonaws.com/articles/uploads/1/2/test.jpg"',
+            cleaned,
+        )
+        self.assertIn('alt="x"', cleaned)
+
+    @override_settings(
+        MEDIA_ALLOWED_BASE_URLS=["https://bucket.s3.amazonaws.com/media/"],
+    )
+    def test_keeps_allowed_absolute_s3_upload_image_src_with_base_path(self):
+        url = "https://bucket.s3.amazonaws.com/media/articles/uploads/1/2/test.jpg"
+        html = f'<img src="{url}" alt="x">'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertIn(f'src="{url}"', cleaned)
+        self.assertIn('alt="x"', cleaned)
+
+    @override_settings(
+        MEDIA_ALLOWED_BASE_URLS=["https://bucket.s3.amazonaws.com/"],
+    )
+    def test_removes_http_absolute_media_image_src(self):
+        html = (
+            '<img src="http://bucket.s3.amazonaws.com/articles/uploads/1/2/test.jpg" '
+            'alt="x">'
+        )
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("http://bucket.s3.amazonaws.com", cleaned)
+        self.assertIn('alt="x"', cleaned)
+
+    @override_settings(
+        MEDIA_ALLOWED_BASE_URLS=["https://bucket.s3.amazonaws.com/"],
+    )
+    def test_removes_absolute_media_image_src_from_unallowed_host(self):
+        html = (
+            '<img src="https://evil.example.com/articles/uploads/1/2/test.jpg" '
+            'alt="x">'
+        )
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("https://evil.example.com", cleaned)
+        self.assertIn('alt="x"', cleaned)
+
+    @override_settings(
+        MEDIA_ALLOWED_BASE_URLS=["https://bucket.s3.amazonaws.com/"],
+    )
+    def test_removes_absolute_media_image_src_outside_uploads(self):
+        html = '<img src="https://bucket.s3.amazonaws.com/other/test.jpg" alt="x">'
+
+        cleaned = sanitize_article_html(html)
+
+        self.assertNotIn("https://bucket.s3.amazonaws.com/other/test.jpg", cleaned)
+        self.assertIn('alt="x"', cleaned)
+
+    @override_settings(
+        MEDIA_ALLOWED_BASE_URLS=["https://bucket.s3.amazonaws.com/"],
+    )
+    def test_removes_absolute_media_image_src_with_path_traversal(self):
+        html = (
+            '<img src="https://bucket.s3.amazonaws.com/articles/uploads/1/../evil.jpg" '
+            'alt="x">'
+        )
 
         cleaned = sanitize_article_html(html)
 

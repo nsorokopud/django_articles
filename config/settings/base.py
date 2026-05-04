@@ -265,6 +265,9 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
+# Allowed base URLs for media files (for validating external image URLs in TinyMCE)
+MEDIA_ALLOWED_BASE_URLS = os.environ["MEDIA_ALLOWED_BASE_URLS"].split(" ")
+
 ALLOWED_UPLOAD_FILE_TYPES = {
     "jpg": "image/jpeg",
     "jpeg": "image/jpeg",
