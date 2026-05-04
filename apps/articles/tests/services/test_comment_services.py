@@ -31,7 +31,23 @@ class TestCreateArticleComment(TestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
         )
+
+    @patch("articles.services.comments.dispatch_notification_after_commit")
+    @patch("articles.services.comments.create_new_comment_notification")
+    def test_raises_value_error_when_article_not_published(
+        self, mock_create_notification, mock_dispatch
+    ):
+        self.article.status = ArticleStatus.DRAFT
+        self.article.published_at = None
+        self.article.publish_sequence = None
+        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+
+        with self.assertRaises(ValueError):
+            create_article_comment(article=self.article, user=self.commenter, text="c")
 
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")

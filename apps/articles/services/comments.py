@@ -8,7 +8,7 @@ from notifications.services.creation import create_new_comment_notification
 from notifications.services.dispatch import dispatch_notification_after_commit
 from users.models import User
 
-from ..models import Article, ArticleComment
+from ..models import Article, ArticleComment, ArticleStatus
 from ..selectors import find_article_comments_liked_by_user, find_comments_to_article
 from ..settings import ARTICLE_COMMENTS_PER_PAGE
 
@@ -20,6 +20,9 @@ def create_article_comment(
     *, article: Article, user: User, text: str
 ) -> ArticleComment:
     """Creates an article comment and schedules related notification dispatch."""
+    if article.status != ArticleStatus.PUBLISHED:
+        raise ValueError("comments can only be added to published articles")
+
     comment = ArticleComment.objects.create(article=article, author=user, text=text)
 
     try:
