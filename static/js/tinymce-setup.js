@@ -24,7 +24,18 @@ function tinymceCustomSetup(editor) {
           editor.insertContent(
             '<p><img src="' + blobInfo.blobUri() + '" alt=""></p>',
           );
-          editor.uploadImages();
+
+          editor.notificationManager.open({
+            text: 'Image added. It will be uploaded when you save the draft.',
+            type: 'info',
+          });
+        };
+
+        reader.onerror = function () {
+          editor.notificationManager.open({
+            text: 'Could not read the selected image. Please try again.',
+            type: 'error',
+          });
         };
 
         reader.readAsDataURL(file);

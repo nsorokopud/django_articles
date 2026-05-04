@@ -1,8 +1,7 @@
 document.getElementById('articleForm').addEventListener('submit', (e) => {
   const form = e.target;
-  const isFormValid = form.checkValidity();
 
-  if (!isFormValid) {
+  if (!form.checkValidity()) {
     document.documentElement.style.scrollBehavior = 'auto';
     form.reportValidity();
     document.documentElement.style.scrollBehavior = '';
@@ -27,11 +26,7 @@ function onArticleFormSaveButtonClick() {
   const articleSlug = document.getElementById('articleSlug').value;
   const editor = tinymce.activeEditor;
 
-  if (saveButton) {
-    saveButton.disabled = true;
-    saveButton.dataset.originalText = saveButton.textContent;
-    saveButton.textContent = 'Saving...';
-  }
+  setSaveButtonLoading(saveButton);
 
   if (!editor) {
     restoreSaveButton(saveButton);
@@ -39,23 +34,21 @@ function onArticleFormSaveButtonClick() {
     return;
   }
 
-  const content = editor.getBody();
-  const containsUploadedImages = checkIfContentContainsUploadedImages(content);
+  editor
+    .uploadImages()
+    .then(() => {
+      updateArticle(articleSlug, form, editor, saveButton);
+    })
+    .catch((error) => {
+      console.error('TinyMCE image upload failed:', error);
+      restoreSaveButton(saveButton);
 
-  if (containsUploadedImages) {
-    editor
-      .uploadImages()
-      .then(() => {
-        updateArticle(articleSlug, form, editor, saveButton);
-      })
-      .catch((error) => {
-        console.error('TinyMCE image upload failed:', error);
-        restoreSaveButton(saveButton);
-        alert('Image upload failed. Please try again.');
-      });
-  } else {
-    updateArticle(articleSlug, form, editor, saveButton);
-  }
+      showEditorNotification(
+        editor,
+        error?.message || 'Image upload failed. Please try again.',
+        'error',
+      );
+    });
 }
 
 function updateArticle(articleSlug, form, editor, saveButton) {
@@ -79,14 +72,18 @@ function updateArticle(articleSlug, form, editor, saveButton) {
 
     if (xhr.status === 200 && response.status === 'success') {
       window.location.replace(response.data.articleUrl);
-    } else if (xhr.status === 400 && response.status === 'fail') {
-      restoreSaveButton(saveButton);
-      displayFormValidationErrors(response);
-    } else {
-      restoreSaveButton(saveButton);
-      alert('Error while updating article!');
-      console.log(response);
+      return;
     }
+
+    restoreSaveButton(saveButton);
+
+    if (xhr.status === 400 && response.status === 'fail') {
+      displayFormValidationErrors(response);
+      return;
+    }
+
+    alert(response?.message || 'Error while updating article!');
+    console.log(response);
   };
 
   xhr.onerror = () => {
@@ -104,12 +101,18 @@ function updateArticle(articleSlug, form, editor, saveButton) {
   xhr.send(formData);
 }
 
-function checkIfContentContainsUploadedImages(content) {
-  const images = content.getElementsByTagName('img');
-  for (const el of images) {
-    if (el.src.startsWith('blob:')) return true;
+function setSaveButtonLoading(saveButton) {
+  if (!saveButton) {
+    return;
   }
-  return false;
+
+  saveButton.disabled = true;
+
+  if (!saveButton.dataset.originalText) {
+    saveButton.dataset.originalText = saveButton.textContent;
+  }
+
+  saveButton.textContent = 'Saving...';
 }
 
 function restoreSaveButton(saveButton) {
@@ -119,6 +122,18 @@ function restoreSaveButton(saveButton) {
 
   saveButton.disabled = false;
   saveButton.textContent = saveButton.dataset.originalText || 'Save draft';
+}
+
+function showEditorNotification(editor, message, type = 'info') {
+  if (editor?.notificationManager) {
+    editor.notificationManager.open({
+      text: message,
+      type,
+    });
+    return;
+  }
+
+  alert(message);
 }
 
 function removeFormValidationErrors() {
