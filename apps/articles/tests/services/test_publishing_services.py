@@ -521,50 +521,6 @@ class TestPublishArticle(TestCase):
     @patch("articles.services.publishing.notify_article_published")
     @patch("articles.services.publishing.advance_latest_article_publish_sequence")
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_raises_when_title_is_blank(self, mock_get_next, mock_advance, mock_notify):
-        self.article.title = "   "
-        self.article.save(update_fields=["title"])
-
-        with self.assertRaisesMessage(
-            ValueError,
-            "Title is required before publishing.",
-        ):
-            publish_article(article_id=self.article.id)
-
-        self.article.refresh_from_db()
-        self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
-        self.assertIsNone(self.article.published_at)
-        self.assertIsNone(self.article.publish_sequence)
-        mock_get_next.assert_not_called()
-        mock_advance.assert_not_called()
-        mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
-    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_raises_when_preview_text_is_blank(
-        self, mock_get_next, mock_advance, mock_notify
-    ):
-        self.article.preview_text = "   "
-        self.article.save(update_fields=["preview_text"])
-
-        with self.assertRaisesMessage(
-            ValueError,
-            "Preview text is required before publishing.",
-        ):
-            publish_article(article_id=self.article.id)
-
-        self.article.refresh_from_db()
-        self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
-        self.assertIsNone(self.article.published_at)
-        self.assertIsNone(self.article.publish_sequence)
-        mock_get_next.assert_not_called()
-        mock_advance.assert_not_called()
-        mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
-    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
     def test_raises_when_content_is_empty_html(
         self, mock_get_next, mock_advance, mock_notify
     ):

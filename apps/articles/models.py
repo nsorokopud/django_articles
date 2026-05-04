@@ -1,6 +1,9 @@
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.db import models
+from django.db.models import Q, Value
+from django.db.models.functions import Length, Trim
+from django.db.models.lookups import GreaterThan
 from django.urls import reverse
 from taggit.managers import TaggableManager
 from tinymce.models import HTMLField
@@ -83,49 +86,47 @@ class Article(models.Model):
             models.Index(
                 fields=["author", "-publish_sequence", "-id"],
                 name="art_author_pub_seq_id_desc_idx",
-                condition=models.Q(status=ArticleStatus.PUBLISHED),
+                condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             models.Index(
                 fields=["-publish_sequence"],
                 name="article_publish_seq_desc_idx",
-                condition=models.Q(status=ArticleStatus.PUBLISHED),
+                condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             GinIndex(
                 fields=["title"],
                 name="article_title_trigram_idx",
                 opclasses=["gin_trgm_ops"],
-                condition=models.Q(status=ArticleStatus.PUBLISHED),
+                condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             GinIndex(
                 fields=["search_vector"],
                 name="article_search_vector_gin_idx",
-                condition=models.Q(status=ArticleStatus.PUBLISHED),
+                condition=Q(status=ArticleStatus.PUBLISHED),
             ),
         ]
 
         constraints = [
             models.UniqueConstraint(
                 fields=["publish_sequence"],
-                condition=models.Q(publish_sequence__isnull=False),
+                condition=Q(publish_sequence__isnull=False),
                 name="uniq_article_publish_sequence_not_null",
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(published_at__isnull=True, publish_sequence__isnull=True)
-                    | models.Q(
-                        published_at__isnull=False, publish_sequence__isnull=False
-                    )
+                    Q(published_at__isnull=True, publish_sequence__isnull=True)
+                    | Q(published_at__isnull=False, publish_sequence__isnull=False)
                 ),
                 name="article_publish_fields_consistent",
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(
+                    Q(
                         status=ArticleStatus.PUBLISHED,
                         published_at__isnull=False,
                         publish_sequence__isnull=False,
                     )
-                    | models.Q(
+                    | Q(
                         status__in=[
                             ArticleStatus.DRAFT,
                             ArticleStatus.PENDING_REVIEW,
@@ -139,14 +140,14 @@ class Article(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(status=ArticleStatus.DRAFT)
+                    Q(status=ArticleStatus.DRAFT)
                     | (
-                        ~models.Q(title="")
-                        & ~models.Q(preview_text="")
-                        & ~models.Q(content="")
+                        GreaterThan(Length(Trim("title")), Value(0))
+                        & GreaterThan(Length(Trim("preview_text")), Value(0))
+                        & GreaterThan(Length(Trim("content")), Value(0))
                     )
                 ),
-                name="art_non_draft_core_fields_not_blank",
+                name="art_non_draft_core_fields_have_text",
             ),
         ]
 

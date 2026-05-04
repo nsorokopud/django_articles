@@ -210,7 +210,25 @@ class TestArticleModelConstraints(TestCase):
                     publish_sequence=100,
                 )
 
-    def test_non_draft_requires_title_preview_and_content(self):
+    def test_non_draft_requires_non_whitespace_title_preview_and_content(self):
+        cases = [
+            {"title": "   ", "preview_text": "Preview", "content": "Content"},
+            {"title": "Title", "preview_text": "   ", "content": "Content"},
+            {"title": "Title", "preview_text": "Preview", "content": "   "},
+        ]
+
+        for index, data in enumerate(cases):
+            with self.subTest(data=data):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        Article.objects.create(
+                            slug=f"bad-whitespace-{index}",
+                            author=self.user,
+                            status=ArticleStatus.PENDING_REVIEW,
+                            **data,
+                        )
+
+    def test_non_draft_requires_non_blank_core_fields(self):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 Article.objects.create(
