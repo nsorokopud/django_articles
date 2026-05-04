@@ -296,6 +296,18 @@ span.article-preview-icon-counter {
   font-weight: 500;
 }
 
+#articleForm img,
+.article-content img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 80vh;
+  height: auto;
+  object-fit: contain;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 @media screen and (max-width: 767px) {
   main {
     padding-top: 50px;
