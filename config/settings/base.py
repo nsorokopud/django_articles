@@ -313,7 +313,7 @@ TINYMCE_EXTRA_MEDIA = {
 
 TINYMCE_DEFAULT_CONFIG = {
     "theme": "silver",
-    "height": 500,
+    "height": 750,
     "width": "100%",
     "menubar": False,
     "promotion": False,
@@ -339,6 +339,7 @@ TINYMCE_DEFAULT_CONFIG = {
         "script,iframe,object,embed,form,input,button,select,textarea,style"
     ),
     "setup": "tinymceCustomSetup",
+    "object_resizing": "table",
 }
 
 
