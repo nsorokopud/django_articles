@@ -51,7 +51,7 @@ def withdraw_article_from_review(*, article_id: int) -> Article:
 
 
 @transaction.atomic
-def publish_article(*, article_id: int, actor: User | None = None) -> Article:
+def publish_article(*, article_id: int, reviewer: User | None = None) -> Article:
     article = Article.objects.select_for_update().get(id=article_id)
 
     if article.status != ArticleStatus.PENDING_REVIEW:
@@ -59,13 +59,15 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
 
     _validate_article_ready(article, action="publishing")
 
+    now = timezone.now()
     publish_sequence = get_next_article_publish_sequence_value()
+
     article.status = ArticleStatus.PUBLISHED
-    article.published_at = timezone.now()
+    article.published_at = now
     article.publish_sequence = publish_sequence
     article.review_note = ""
-    article.reviewed_at = None
-    article.reviewed_by = None
+    article.reviewed_at = now
+    article.reviewed_by = reviewer
 
     article.save(
         update_fields=[
@@ -83,7 +85,7 @@ def publish_article(*, article_id: int, actor: User | None = None) -> Article:
         article=article, publish_sequence=publish_sequence
     )
     _notify_article_published_on_commit(
-        article=article, actor=actor, publish_sequence=publish_sequence
+        article=article, actor=reviewer, publish_sequence=publish_sequence
     )
 
     return article

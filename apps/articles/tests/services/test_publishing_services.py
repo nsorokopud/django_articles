@@ -60,8 +60,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article = self.create_article(status=ArticleStatus.PENDING_REVIEW)
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only draft articles can be submitted for review",
+            ValueError, "only draft articles can be submitted for review"
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -72,8 +71,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article = self.create_article(status=ArticleStatus.PUBLISHED)
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only draft articles can be submitted for review",
+            ValueError, "only draft articles can be submitted for review"
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -86,8 +84,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article = self.create_article(status=ArticleStatus.REJECTED)
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only draft articles can be submitted for review",
+            ValueError, "only draft articles can be submitted for review"
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -100,8 +97,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article.save(update_fields=["title"])
 
         with self.assertRaisesMessage(
-            ValueError,
-            "Title is required before submission for review.",
+            ValueError, "Title is required before submission for review."
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -114,8 +110,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article.save(update_fields=["title"])
 
         with self.assertRaisesMessage(
-            ValueError,
-            "Title is required before submission for review.",
+            ValueError, "Title is required before submission for review."
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -128,8 +123,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article.save(update_fields=["preview_text"])
 
         with self.assertRaisesMessage(
-            ValueError,
-            "Preview text is required before submission for review.",
+            ValueError, "Preview text is required before submission for review."
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -142,8 +136,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article.save(update_fields=["content"])
 
         with self.assertRaisesMessage(
-            ValueError,
-            "Content is required before submission for review.",
+            ValueError, "Content is required before submission for review."
         ):
             submit_article_for_review(article_id=article.id)
 
@@ -211,8 +204,7 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         article = self.create_article(status=ArticleStatus.DRAFT)
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only articles pending review can be withdrawn from review",
+            ValueError, "only articles pending review can be withdrawn from review"
         ):
             withdraw_article_from_review(article_id=article.id)
 
@@ -223,8 +215,7 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         article = self.create_article(status=ArticleStatus.REJECTED)
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only articles pending review can be withdrawn from review",
+            ValueError, "only articles pending review can be withdrawn from review"
         ):
             withdraw_article_from_review(article_id=article.id)
 
@@ -235,8 +226,7 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         article = self.create_article(status=ArticleStatus.PUBLISHED)
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only articles pending review can be withdrawn from review",
+            ValueError, "only articles pending review can be withdrawn from review"
         ):
             withdraw_article_from_review(article_id=article.id)
 
@@ -308,11 +298,17 @@ class TestPublishArticle(TestCase):
         self.assertEqual(second_published.id, second_article.id)
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_sets_published_fields_and_updates_author_sequence(self, mock_notify):
+    def test_sets_published_fields_review_metadata_and_updates_author_sequence(
+        self, mock_notify
+    ):
+        reviewer = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com"
+        )
+
         before = timezone.now()
 
         with self.captureOnCommitCallbacks(execute=True):
-            published = publish_article(article_id=self.article.id)
+            published = publish_article(article_id=self.article.id, reviewer=reviewer)
 
         after = timezone.now()
 
@@ -323,11 +319,70 @@ class TestPublishArticle(TestCase):
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(self.article.published_at)
         self.assertIsNotNone(self.article.publish_sequence)
+
         self.assertGreaterEqual(self.article.published_at, before)
         self.assertLessEqual(self.article.published_at, after)
+
+        self.assertEqual(self.article.review_note, "")
+        self.assertIsNotNone(self.article.reviewed_at)
+        self.assertGreaterEqual(self.article.reviewed_at, before)
+        self.assertLessEqual(self.article.reviewed_at, after)
+        self.assertEqual(self.article.reviewed_by, reviewer)
+
         self.assertEqual(
             self.author.latest_article_publish_sequence, self.article.publish_sequence
         )
+
+        mock_notify.assert_called_once_with(
+            recipient_id=self.author.id,
+            article_id=self.article.id,
+            article_slug=self.article.slug,
+            article_title=self.article.title,
+            actor_id=reviewer.id,
+            publish_sequence=self.article.publish_sequence,
+        )
+
+    @patch("articles.services.publishing.notify_article_published")
+    def test_sets_review_metadata_when_publishing(self, mock_notify):
+        reviewer = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com"
+        )
+        self.article.review_note = "Old review note."
+        self.article.reviewed_at = timezone.now()
+        self.article.reviewed_by = None
+        self.article.save(update_fields=["review_note", "reviewed_at", "reviewed_by"])
+
+        before = timezone.now()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            publish_article(article_id=self.article.id, reviewer=reviewer)
+
+        after = timezone.now()
+
+        self.article.refresh_from_db()
+
+        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
+        self.assertEqual(self.article.review_note, "")
+        self.assertIsNotNone(self.article.reviewed_at)
+        self.assertGreaterEqual(self.article.reviewed_at, before)
+        self.assertLessEqual(self.article.reviewed_at, after)
+        self.assertEqual(self.article.reviewed_by, reviewer)
+
+        mock_notify.assert_called_once()
+
+    @patch("articles.services.publishing.notify_article_published")
+    def test_sets_review_metadata_to_none_when_published_without_reviewer(
+        self, mock_notify
+    ):
+        with self.captureOnCommitCallbacks(execute=True):
+            publish_article(article_id=self.article.id)
+
+        self.article.refresh_from_db()
+
+        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
+        self.assertEqual(self.article.review_note, "")
+        self.assertIsNotNone(self.article.reviewed_at)
+        self.assertIsNone(self.article.reviewed_by)
 
         mock_notify.assert_called_once_with(
             recipient_id=self.author.id,
@@ -339,37 +394,9 @@ class TestPublishArticle(TestCase):
         )
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_clears_review_metadata_when_publishing(self, mock_notify):
-        reviewer = User.objects.create_user(
-            username="reviewer",
-            email="reviewer@test.com",
-        )
-        self.article.review_note = "Old review note."
-        self.article.reviewed_at = timezone.now()
-        self.article.reviewed_by = reviewer
-        self.article.save(
-            update_fields=[
-                "review_note",
-                "reviewed_at",
-                "reviewed_by",
-            ]
-        )
-
-        with self.captureOnCommitCallbacks(execute=True):
-            publish_article(article_id=self.article.id)
-
-        self.article.refresh_from_db()
-        self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(self.article.review_note, "")
-        self.assertIsNone(self.article.reviewed_at)
-        self.assertIsNone(self.article.reviewed_by)
-        mock_notify.assert_called_once()
-
-    @patch("articles.services.publishing.notify_article_published")
     def test_raises_when_not_pending_review(self, mock_notify):
         reviewer = User.objects.create_user(
-            username="reviewer",
-            email="reviewer@test.com",
+            username="reviewer", email="reviewer@test.com"
         )
         reviewed_at = timezone.now()
 
@@ -378,19 +405,13 @@ class TestPublishArticle(TestCase):
         self.article.reviewed_at = reviewed_at
         self.article.reviewed_by = reviewer
         self.article.save(
-            update_fields=[
-                "status",
-                "review_note",
-                "reviewed_at",
-                "reviewed_by",
-            ]
+            update_fields=["status", "review_note", "reviewed_at", "reviewed_by"]
         )
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only articles pending review can be published",
+            ValueError, "only articles pending review can be published"
         ):
-            publish_article(article_id=self.article.id)
+            publish_article(article_id=self.article.id, reviewer=reviewer)
 
         self.article.refresh_from_db()
 
@@ -408,20 +429,34 @@ class TestPublishArticle(TestCase):
     def test_raises_for_already_published_article(
         self, mock_advance, mock_get_next, mock_notify
     ):
+        reviewer = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com"
+        )
         published_at = timezone.now()
+        reviewed_at = timezone.now()
+
         self.article.status = ArticleStatus.PUBLISHED
         self.article.published_at = published_at
         self.article.publish_sequence = 123
-        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+        self.article.reviewed_at = reviewed_at
+        self.article.reviewed_by = reviewer
+        self.article.save(
+            update_fields=[
+                "status",
+                "published_at",
+                "publish_sequence",
+                "reviewed_at",
+                "reviewed_by",
+            ]
+        )
 
         self.author.latest_article_publish_sequence = 123
         self.author.save(update_fields=["latest_article_publish_sequence"])
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only articles pending review can be published",
+            ValueError, "only articles pending review can be published"
         ):
-            publish_article(article_id=self.article.id)
+            publish_article(article_id=self.article.id, reviewer=reviewer)
 
         self.article.refresh_from_db()
         self.author.refresh_from_db()
@@ -429,7 +464,10 @@ class TestPublishArticle(TestCase):
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertEqual(self.article.publish_sequence, 123)
         self.assertEqual(self.article.published_at, published_at)
+        self.assertEqual(self.article.reviewed_at, reviewed_at)
+        self.assertEqual(self.article.reviewed_by, reviewer)
         self.assertEqual(self.author.latest_article_publish_sequence, 123)
+
         mock_get_next.assert_not_called()
         mock_advance.assert_not_called()
         mock_notify.assert_not_called()
@@ -449,14 +487,17 @@ class TestPublishArticle(TestCase):
             publish_article(article_id=self.article.id)
 
         mock_advance.assert_called_once_with(
-            user_id=self.author.id,
-            publish_sequence=777,
+            user_id=self.author.id, publish_sequence=777
         )
 
         self.article.refresh_from_db()
+
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertEqual(self.article.publish_sequence, 777)
         self.assertIsNotNone(self.article.published_at)
+        self.assertIsNotNone(self.article.reviewed_at)
+        self.assertIsNone(self.article.reviewed_by)
+
         mock_notify.assert_called_once_with(
             recipient_id=self.author.id,
             article_id=self.article.id,
@@ -467,7 +508,7 @@ class TestPublishArticle(TestCase):
         )
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_publish_notifies_author_when_actor_is_none(self, mock_notify):
+    def test_publish_notifies_author_when_reviewer_is_none(self, mock_notify):
         with self.captureOnCommitCallbacks(execute=True):
             published = publish_article(article_id=self.article.id)
 
@@ -481,26 +522,35 @@ class TestPublishArticle(TestCase):
         )
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_publish_notifies_author_when_actor_is_not_author(self, mock_notify):
-        editor = User.objects.create_user(username="editor", email="editor@test.com")
+    def test_publish_notifies_author_when_reviewer_is_not_author(self, mock_notify):
+        reviewer = User.objects.create_user(
+            username="reviewer", email="reviewer@test.com"
+        )
 
         with self.captureOnCommitCallbacks(execute=True):
-            published = publish_article(article_id=self.article.id, actor=editor)
+            published = publish_article(article_id=self.article.id, reviewer=reviewer)
+
+        self.article.refresh_from_db()
+
+        self.assertEqual(self.article.reviewed_by, reviewer)
 
         mock_notify.assert_called_once_with(
             recipient_id=self.author.id,
             article_id=published.id,
             article_slug=published.slug,
             article_title=published.title,
-            actor_id=editor.id,
+            actor_id=reviewer.id,
             publish_sequence=published.publish_sequence,
         )
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_publish_does_not_notify_when_actor_is_author(self, mock_notify):
+    def test_publish_does_not_notify_when_reviewer_is_author(self, mock_notify):
         with self.captureOnCommitCallbacks(execute=True):
-            publish_article(article_id=self.article.id, actor=self.author)
+            publish_article(article_id=self.article.id, reviewer=self.author)
 
+        self.article.refresh_from_db()
+
+        self.assertEqual(self.article.reviewed_by, self.author)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_published")
@@ -528,15 +578,16 @@ class TestPublishArticle(TestCase):
         self.article.save(update_fields=["content"])
 
         with self.assertRaisesMessage(
-            ValueError,
-            "Content is required before publishing.",
+            ValueError, "Content is required before publishing."
         ):
             publish_article(article_id=self.article.id)
 
         self.article.refresh_from_db()
+
         self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
         self.assertIsNone(self.article.published_at)
         self.assertIsNone(self.article.publish_sequence)
+
         mock_get_next.assert_not_called()
         mock_advance.assert_not_called()
         mock_notify.assert_not_called()
@@ -622,8 +673,7 @@ class TestUnpublishArticle(TestCase):
         )
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only published articles can be unpublished",
+            ValueError, "only published articles can be unpublished"
         ):
             unpublish_article(article_id=article.id)
 
@@ -647,8 +697,7 @@ class TestUnpublishArticle(TestCase):
         )
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only published articles can be unpublished",
+            ValueError, "only published articles can be unpublished"
         ):
             unpublish_article(article_id=article.id)
 
@@ -858,8 +907,7 @@ class TestRejectArticle(TestCase):
         )
 
         new_reviewer = User.objects.create_user(
-            username="editor2",
-            email="editor2@test.com",
+            username="editor2", email="editor2@test.com"
         )
 
         before = timezone.now()
@@ -887,10 +935,7 @@ class TestRejectArticle(TestCase):
         self.assertEqual(kwargs["article_id"], result.id)
         self.assertEqual(kwargs["article_slug"], result.slug)
         self.assertEqual(kwargs["article_title"], result.title)
-        self.assertEqual(
-            kwargs["review_note"],
-            "Please fix formatting and sources.",
-        )
+        self.assertEqual(kwargs["review_note"], "Please fix formatting and sources.")
         self.assertEqual(kwargs["reviewer_id"], new_reviewer.id)
         self.assertIsNotNone(kwargs["reviewed_at_ts"])
 
@@ -906,8 +951,7 @@ class TestRejectArticle(TestCase):
         )
 
         with self.assertRaisesMessage(
-            ValueError,
-            "only articles pending review can be rejected",
+            ValueError, "only articles pending review can be rejected"
         ):
             reject_article(article_id=article.id)
 
@@ -932,10 +976,7 @@ class TestRejectArticle(TestCase):
             status=ArticleStatus.PENDING_REVIEW,
         )
 
-        with self.assertRaisesMessage(
-            ValueError,
-            "rejection reason is required",
-        ):
+        with self.assertRaisesMessage(ValueError, "rejection reason is required"):
             reject_article(article_id=article.id, reason="   ")
 
         article.refresh_from_db()

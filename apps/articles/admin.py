@@ -321,7 +321,7 @@ class ArticleAdmin(admin.ModelAdmin):
             raise PermissionDenied
 
         try:
-            publish_article(article_id=article.id, actor=request.user)
+            publish_article(article_id=article.id, reviewer=request.user)
         except ValueError as e:
             self.message_user(request, str(e), level=messages.ERROR)
         else:
@@ -414,7 +414,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
         for article in queryset:
             try:
-                publish_article(article_id=article.id, actor=request.user)
+                publish_article(article_id=article.id, reviewer=request.user)
             except ValueError as e:
                 failures.append(f"#{article.id}: {e}")
             else:

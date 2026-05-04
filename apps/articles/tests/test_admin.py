@@ -421,7 +421,7 @@ class TestArticleAdmin(TestCase):
         response = self.article_admin.process_publish(request, article.pk)
 
         mock_publish.assert_called_once_with(
-            article_id=article.id, actor=self.admin_user
+            article_id=article.id, reviewer=self.admin_user
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
