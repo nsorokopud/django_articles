@@ -500,6 +500,9 @@ class ArticleCommentAdmin(admin.ModelAdmin):
     list_display_links = ("article", "text")
     list_filter = ("created_at", "author", "article")
     search_fields = ("article__title", "author__username")
-    readonly_fields = ("likes_count",)
+    readonly_fields = ("article", "author", "likes_count")
     exclude = ("users_that_liked",)
-    save_as = True
+    save_as = False
+
+    def has_add_permission(self, request):
+        return False

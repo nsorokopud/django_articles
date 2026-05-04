@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from articles.admin import ArticleAdmin, CommentInline
-from articles.models import Article, ArticleCategory, ArticleStatus
+from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 
 
 User = get_user_model()
@@ -785,3 +785,40 @@ class TestCommentInlineAdmin(TestCase):
         self.article.status = ArticleStatus.PENDING_REVIEW
 
         self.assertFalse(self.inline.has_delete_permission(request, self.article))
+
+
+class TestArticleCommentAdmin(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="admin", email="admin@test.com"
+        )
+        self.client.force_login(self.admin_user)
+
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.article = Article.objects.create(
+            title="Article",
+            slug="article",
+            author=self.author,
+            preview_text="Preview",
+            content="<p>Body</p>",
+            content_text="Body",
+            status=ArticleStatus.DRAFT,
+        )
+        self.comment = ArticleComment.objects.create(
+            article=self.article, author=self.author, text="Comment"
+        )
+
+    def test_article_comment_admin_disallows_add(self):
+        url = reverse("admin:articles_articlecomment_add")
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_article_comment_admin_does_not_show_save_as(self):
+        url = reverse("admin:articles_articlecomment_change", args=[self.comment.id])
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="_saveasnew"')
