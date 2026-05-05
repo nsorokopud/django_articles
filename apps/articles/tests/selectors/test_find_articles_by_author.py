@@ -123,6 +123,7 @@ class TestFindArticlesByAuthor(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status="rejected",
         )
         published = Article.objects.create(
@@ -131,6 +132,7 @@ class TestFindArticlesByAuthor(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status="published",
             published_at=timezone.now(),
             publish_sequence=1,

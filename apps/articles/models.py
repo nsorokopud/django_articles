@@ -144,7 +144,7 @@ class Article(models.Model):
                     | (
                         GreaterThan(Length(Trim("title")), Value(0))
                         & GreaterThan(Length(Trim("preview_text")), Value(0))
-                        & GreaterThan(Length(Trim("content")), Value(0))
+                        & GreaterThan(Length(Trim("content_text")), Value(0))
                     )
                 ),
                 name="art_non_draft_core_fields_have_text",

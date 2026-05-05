@@ -35,6 +35,7 @@ class TestSelectors(TestCase):
             "author": self.test_user,
             "preview_text": "text",
             "content": "content",
+            "content_text": "content",
             "status": ArticleStatus.DRAFT,
             "published_at": None,
             "publish_sequence": None,
@@ -60,6 +61,7 @@ class TestSelectors(TestCase):
             author=self.test_user,
             preview_text="text1",
             content="content1",
+            content_text="content 1",
         )
         self.create_article(
             title="a2",
@@ -76,6 +78,7 @@ class TestSelectors(TestCase):
             author=self.test_user,
             preview_text="text3",
             content="content3",
+            content_text="content 3",
         )
         self.assertCountEqual(find_published_articles(), [a1, a3])
 
@@ -370,6 +373,7 @@ class TestFindSubscriptionFeedArticles(TestCase):
             author=self.author,
             preview_text="text1",
             content="content1",
+            content_text="content 1",
             status=ArticleStatus.PUBLISHED,
             publish_sequence=1,
             published_at=timezone.now(),
@@ -386,6 +390,7 @@ class TestFindSubscriptionFeedArticles(TestCase):
             author=self.other_author,
             preview_text="text2",
             content="content2",
+            content_text="content 2",
             status=ArticleStatus.PUBLISHED,
             publish_sequence=2,
             published_at=timezone.now(),

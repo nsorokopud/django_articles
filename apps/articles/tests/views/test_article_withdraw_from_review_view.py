@@ -25,6 +25,7 @@ class TestArticleWithdrawFromReviewView(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 

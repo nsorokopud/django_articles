@@ -27,25 +27,20 @@ class TestArticleCommentsListView(TestCase):
             author=self.user,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
         )
 
         self.comment1 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 1",
+            article=self.article, author=self.user, text="comment 1"
         )
         self.comment2 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 2",
+            article=self.article, author=self.user, text="comment 2"
         )
         self.comment3 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 3",
+            article=self.article, author=self.user, text="comment 3"
         )
 
         self.url = reverse("article-comments-list", args=[self.article.slug])
@@ -111,16 +106,14 @@ class TestArticleCommentsListView(TestCase):
         )
 
         response = self.client.get(
-            reverse("article-comments-list", args=[draft.slug]),
-            {"page": 1},
+            reverse("article-comments-list", args=[draft.slug]), {"page": 1}
         )
 
         self.assertEqual(response.status_code, 404)
 
     def test_missing_article_returns_404(self):
         response = self.client.get(
-            reverse("article-comments-list", args=["missing-slug"]),
-            {"page": 1},
+            reverse("article-comments-list", args=["missing-slug"]), {"page": 1}
         )
 
         self.assertEqual(response.status_code, 404)

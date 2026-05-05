@@ -41,6 +41,7 @@ class ArticleServiceBaseTestCase(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=status,
             published_at=published_at,
             publish_sequence=publish_sequence,
@@ -248,6 +249,7 @@ class TestPublishArticle(TestCase):
             title="a",
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 
@@ -258,6 +260,7 @@ class TestPublishArticle(TestCase):
             slug="first-article",
             preview_text="First preview",
             content="<p>First body</p>",
+            content_text="First body",
             status=ArticleStatus.PENDING_REVIEW,
         )
         second_article = Article.objects.create(
@@ -266,6 +269,7 @@ class TestPublishArticle(TestCase):
             slug="second-article",
             preview_text="Second preview",
             content="<p>Second body</p>",
+            content_text="Second body",
             status=ArticleStatus.PENDING_REVIEW,
         )
 
@@ -643,6 +647,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=123,
@@ -667,6 +672,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.DRAFT,
             published_at=None,
             publish_sequence=None,
@@ -691,6 +697,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.REJECTED,
             published_at=None,
             publish_sequence=None,
@@ -717,6 +724,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=123,
@@ -742,6 +750,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=123,
@@ -760,6 +769,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=123,
@@ -778,6 +788,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=123,
@@ -806,6 +817,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=123,
@@ -829,6 +841,7 @@ class TestUnpublishArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.DRAFT,
         )
 
@@ -857,6 +870,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 
@@ -900,6 +914,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
             review_note="Old note",
             reviewed_at=old_reviewed_at,
@@ -947,6 +962,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.REJECTED,
         )
 
@@ -973,6 +989,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 
@@ -994,6 +1011,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 
@@ -1014,6 +1032,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 
@@ -1035,6 +1054,7 @@ class TestRejectArticle(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
 

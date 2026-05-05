@@ -45,6 +45,7 @@ class TestArticleDetailView(TestCase):
             author=self.user,
             preview_text="1",
             content="1",
+            content_text="1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,

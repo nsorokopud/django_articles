@@ -25,6 +25,7 @@ class TestGetPublishedArticleBySlug(TestCase):
             author=self.author,
             preview_text="Preview text",
             content="<p>Article content</p>",
+            content_text="Article content",
             status=ArticleStatus.DRAFT,
         )
 

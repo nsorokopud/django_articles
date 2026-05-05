@@ -197,6 +197,7 @@ class TestArticleModelForm(TestCase):
             author=self.user,
             preview_text="preview1",
             content="content1",
+            content_text="content1",
         )
         self.category = ArticleCategory.objects.create(title="cat1", slug="cat1")
 

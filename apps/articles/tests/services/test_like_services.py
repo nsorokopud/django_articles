@@ -28,6 +28,7 @@ class TestSetLikeServices(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
@@ -37,9 +38,7 @@ class TestSetLikeServices(TestCase):
         article = self.create_published_article()
 
         likes_count, liked = set_article_like(
-            article_slug=article.slug,
-            user_id=self.user.id,
-            liked=True,
+            article_slug=article.slug, user_id=self.user.id, liked=True
         )
 
         article.refresh_from_db()
@@ -270,9 +269,7 @@ class TestSyncLikeCountServices(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="user@test.com")
         self.other_user = User.objects.create_user(
-            username="user1",
-            email="test@test.com",
-            password="12345",
+            username="user1", email="test@test.com"
         )
         self.category = ArticleCategory.objects.create(title="cat", slug="cat")
 
@@ -284,6 +281,7 @@ class TestSyncLikeCountServices(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=publish_sequence,

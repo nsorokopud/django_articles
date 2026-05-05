@@ -20,6 +20,7 @@ class TestAttachedFileUploadView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            content_text="content1",
         )
         self.client = Client()
         self.url = reverse("attached-file-upload")

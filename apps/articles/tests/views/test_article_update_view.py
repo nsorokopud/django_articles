@@ -28,6 +28,7 @@ class TestArticleUpdateView(TestCase):
             author=self.author,
             preview_text="text1",
             content="content1",
+            content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
@@ -41,6 +42,7 @@ class TestArticleUpdateView(TestCase):
             author=self.author,
             preview_text="draft text",
             content="draft content",
+            content_text="draft content",
         )
         self.draft_article.tags.add("draft-tag")
 

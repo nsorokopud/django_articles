@@ -31,6 +31,7 @@ class TestCreateArticleComment(TestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
@@ -57,16 +58,12 @@ class TestCreateArticleComment(TestCase):
         mock_dispatch,
     ):
         notification = type(
-            "NotificationStub",
-            (),
-            {"id": 123, "notification_type": "new_comment"},
+            "NotificationStub", (), {"id": 123, "notification_type": "new_comment"}
         )()
         mock_create_notification.return_value = (notification, True)
 
         comment = create_article_comment(
-            article=self.article,
-            user=self.commenter,
-            text="hello world",
+            article=self.article, user=self.commenter, text="hello world"
         )
 
         self.assertIsInstance(comment, ArticleComment)
@@ -89,9 +86,7 @@ class TestCreateArticleComment(TestCase):
             article_title=self.article.title,
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=123,
-            notification_type="new_comment",
-            is_new_unread=True,
+            notification_id=123, notification_type="new_comment", is_new_unread=True
         )
 
     @patch("articles.services.comments.dispatch_notification_after_commit")
@@ -102,16 +97,12 @@ class TestCreateArticleComment(TestCase):
         mock_dispatch,
     ):
         notification = type(
-            "NotificationStub",
-            (),
-            {"id": 456, "notification_type": "new_comment"},
+            "NotificationStub", (), {"id": 456, "notification_type": "new_comment"}
         )()
         mock_create_notification.return_value = (notification, False)
 
         comment = create_article_comment(
-            article=self.article,
-            user=self.commenter,
-            text="another comment",
+            article=self.article, user=self.commenter, text="another comment"
         )
 
         self.assertTrue(
@@ -124,9 +115,7 @@ class TestCreateArticleComment(TestCase):
         )
 
         mock_dispatch.assert_called_once_with(
-            notification_id=456,
-            notification_type="new_comment",
-            is_new_unread=False,
+            notification_id=456, notification_type="new_comment", is_new_unread=False
         )
 
     @patch("articles.services.comments.dispatch_notification_after_commit")
@@ -139,9 +128,7 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.return_value = None
 
         comment = create_article_comment(
-            article=self.article,
-            user=self.commenter,
-            text="no notification",
+            article=self.article, user=self.commenter, text="no notification"
         )
 
         self.assertTrue(
@@ -176,9 +163,7 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.side_effect = RuntimeError("notification failure")
 
         comment = create_article_comment(
-            article=self.article,
-            user=self.commenter,
-            text="should persist",
+            article=self.article, user=self.commenter, text="should persist"
         )
 
         self.assertTrue(
@@ -204,9 +189,7 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.side_effect = IntegrityError("db failure")
 
         comment = create_article_comment(
-            article=self.article,
-            user=self.commenter,
-            text="should also persist",
+            article=self.article, user=self.commenter, text="should also persist"
         )
 
         self.assertTrue(
@@ -292,32 +275,25 @@ class TestGetArticleCommentsPage(TestCase):
             author=self.user,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
         )
 
         self.comment1 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 1",
+            article=self.article, author=self.user, text="comment 1"
         )
         self.comment2 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 2",
+            article=self.article, author=self.user, text="comment 2"
         )
         self.comment3 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 3",
+            article=self.article, author=self.user, text="comment 3"
         )
 
     def test_returns_requested_comments_page(self):
         comments_page, liked_comments = get_article_comments_page(
-            article=self.article,
-            page_number=1,
-            user=None,
+            article=self.article, page_number=1, user=None
         )
 
         self.assertEqual(comments_page.number, 1)
@@ -331,16 +307,13 @@ class TestGetArticleCommentsPage(TestCase):
 
     def test_returns_next_comments_page(self):
         comments_page, liked_comments = get_article_comments_page(
-            article=self.article,
-            page_number=2,
-            user=None,
+            article=self.article, page_number=2, user=None
         )
 
         self.assertEqual(comments_page.number, 2)
         self.assertFalse(comments_page.has_next())
         self.assertEqual(
-            [comment.id for comment in comments_page.object_list],
-            [self.comment1.id],
+            [comment.id for comment in comments_page.object_list], [self.comment1.id]
         )
         self.assertEqual(liked_comments, set())
 
@@ -349,9 +322,7 @@ class TestGetArticleCommentsPage(TestCase):
         self.comment3.users_that_liked.add(self.user)
 
         comments_page, liked_comments = get_article_comments_page(
-            article=self.article,
-            page_number=1,
-            user=self.user,
+            article=self.article, page_number=1, user=self.user
         )
 
         self.assertEqual(
@@ -362,9 +333,7 @@ class TestGetArticleCommentsPage(TestCase):
 
     def test_invalid_page_number_falls_back_to_valid_page(self):
         comments_page, liked_comments = get_article_comments_page(
-            article=self.article,
-            page_number="invalid",
-            user=None,
+            article=self.article, page_number="invalid", user=None
         )
 
         self.assertEqual(comments_page.number, 1)
@@ -372,15 +341,12 @@ class TestGetArticleCommentsPage(TestCase):
 
     def test_out_of_range_page_number_returns_last_page(self):
         comments_page, liked_comments = get_article_comments_page(
-            article=self.article,
-            page_number=999,
-            user=None,
+            article=self.article, page_number=999, user=None
         )
 
         self.assertEqual(comments_page.number, 2)
         self.assertEqual(
-            [comment.id for comment in comments_page.object_list],
-            [self.comment1.id],
+            [comment.id for comment in comments_page.object_list], [self.comment1.id]
         )
         self.assertEqual(liked_comments, set())
 

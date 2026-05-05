@@ -19,6 +19,7 @@ class TestArticleLikeView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
@@ -27,16 +28,12 @@ class TestArticleLikeView(TestCase):
 
     def post_like(self, liked: bool):
         return self.client.post(
-            self.url,
-            data=json.dumps({"liked": liked}),
-            content_type="application/json",
+            self.url, data=json.dumps({"liked": liked}), content_type="application/json"
         )
 
     def test_anonymous_user_gets_redirected(self):
         response = self.client.post(
-            self.url,
-            data=json.dumps({"liked": True}),
-            content_type="application/json",
+            self.url, data=json.dumps({"liked": True}), content_type="application/json"
         )
 
         self.assertRedirects(
@@ -58,8 +55,7 @@ class TestArticleLikeView(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(),
-            {"status": "success", "data": {"likes": 1, "liked": True}},
+            response.json(), {"status": "success", "data": {"likes": 1, "liked": True}}
         )
 
         self.article.refresh_from_db()
@@ -74,8 +70,7 @@ class TestArticleLikeView(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(),
-            {"status": "success", "data": {"likes": 1, "liked": True}},
+            response.json(), {"status": "success", "data": {"likes": 1, "liked": True}}
         )
 
         self.article.refresh_from_db()
@@ -90,8 +85,7 @@ class TestArticleLikeView(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.json(),
-            {"status": "success", "data": {"likes": 0, "liked": False}},
+            response.json(), {"status": "success", "data": {"likes": 0, "liked": False}}
         )
 
         self.article.refresh_from_db()
@@ -102,9 +96,7 @@ class TestArticleLikeView(TestCase):
         self.client.force_login(self.user)
 
         response = self.client.post(
-            self.url,
-            data=json.dumps({"liked": "yes"}),
-            content_type="application/json",
+            self.url, data=json.dumps({"liked": "yes"}), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 400)

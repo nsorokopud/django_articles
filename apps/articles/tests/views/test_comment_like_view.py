@@ -18,6 +18,7 @@ class TestCommentLikeView(TestCase):
             author=self.user,
             preview_text="text1",
             content="content1",
+            content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,

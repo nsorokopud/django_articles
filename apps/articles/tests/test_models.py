@@ -139,6 +139,7 @@ class TestArticleModelConstraints(TestCase):
                     author=self.user,
                     preview_text="Preview",
                     content="Content",
+                    content_text="Content",
                     status=ArticleStatus.PUBLISHED,
                     published_at=None,
                     publish_sequence=None,
@@ -153,6 +154,7 @@ class TestArticleModelConstraints(TestCase):
                     author=self.user,
                     preview_text="Preview",
                     content="Content",
+                    content_text="Content",
                     status=ArticleStatus.DRAFT,
                     published_at=timezone.now(),
                     publish_sequence=1,
@@ -167,6 +169,7 @@ class TestArticleModelConstraints(TestCase):
                     author=self.user,
                     preview_text="Preview",
                     content="Content",
+                    content_text="Content",
                     status=ArticleStatus.DRAFT,
                     published_at=timezone.now(),
                     publish_sequence=None,
@@ -180,6 +183,7 @@ class TestArticleModelConstraints(TestCase):
                     author=self.user,
                     preview_text="Preview",
                     content="Content",
+                    content_text="Content",
                     status=ArticleStatus.DRAFT,
                     published_at=None,
                     publish_sequence=1,
@@ -192,6 +196,7 @@ class TestArticleModelConstraints(TestCase):
             author=self.user,
             preview_text="Preview",
             content="Content",
+            content_text="Content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=100,
@@ -205,16 +210,32 @@ class TestArticleModelConstraints(TestCase):
                     author=self.user,
                     preview_text="Preview",
                     content="Content",
+                    content_text="Content",
                     status=ArticleStatus.PUBLISHED,
                     published_at=timezone.now(),
                     publish_sequence=100,
                 )
 
-    def test_non_draft_requires_non_whitespace_title_preview_and_content(self):
+    def test_non_draft_requires_non_whitespace_title_preview_and_content_text(self):
         cases = [
-            {"title": "   ", "preview_text": "Preview", "content": "Content"},
-            {"title": "Title", "preview_text": "   ", "content": "Content"},
-            {"title": "Title", "preview_text": "Preview", "content": "   "},
+            {
+                "title": "   ",
+                "preview_text": "Preview",
+                "content": "Content",
+                "content_text": "Content",
+            },
+            {
+                "title": "Title",
+                "preview_text": "   ",
+                "content": "Content",
+                "content_text": "Content",
+            },
+            {
+                "title": "Title",
+                "preview_text": "Preview",
+                "content": "Content",
+                "content_text": "   ",
+            },
         ]
 
         for index, data in enumerate(cases):
@@ -237,8 +258,22 @@ class TestArticleModelConstraints(TestCase):
                     author=self.user,
                     preview_text="Preview",
                     content="Content",
+                    content_text="Content",
                     status=ArticleStatus.PENDING_REVIEW,
                 )
+
+    def test_non_draft_allows_raw_html_when_content_text_has_text(self):
+        article = Article.objects.create(
+            title="Title",
+            slug="html-content",
+            author=self.user,
+            preview_text="Preview",
+            content="<p><strong>Content</strong></p>",
+            content_text="Content",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
 
     def test_draft_allows_blank_core_fields(self):
         article = Article.objects.create(
@@ -247,6 +282,7 @@ class TestArticleModelConstraints(TestCase):
             author=self.user,
             preview_text="",
             content="",
+            content_text="",
             status=ArticleStatus.DRAFT,
         )
 

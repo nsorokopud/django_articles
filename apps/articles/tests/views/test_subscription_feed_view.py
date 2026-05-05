@@ -34,12 +34,10 @@ class TestSubscriptionFeedView(TestCase):
         self.category = ArticleCategory.objects.create(title="cat", slug="cat")
 
         AuthorSubscription.objects.create(
-            subscriber=self.subscriber,
-            author=self.author1,
+            subscriber=self.subscriber, author=self.author1
         )
         AuthorSubscription.objects.create(
-            subscriber=self.subscriber,
-            author=self.author2,
+            subscriber=self.subscriber, author=self.author2
         )
 
         self.feed_article1 = Article.objects.create(
@@ -49,6 +47,7 @@ class TestSubscriptionFeedView(TestCase):
             author=self.author1,
             preview_text="Preview 1",
             content="Content 1",
+            content_text="Content 1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=100,
@@ -60,6 +59,7 @@ class TestSubscriptionFeedView(TestCase):
             author=self.author2,
             preview_text="Preview 2",
             content="Content 2",
+            content_text="Content 2",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=90,
@@ -71,6 +71,7 @@ class TestSubscriptionFeedView(TestCase):
             author=self.unsubscribed_author,
             preview_text="Preview 3",
             content="Content 3",
+            content_text="Content 3",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=80,
@@ -87,8 +88,7 @@ class TestSubscriptionFeedView(TestCase):
     def test_requires_login(self):
         response = self.client.get(reverse("subscription-feed"))
         self.assertRedirects(
-            response,
-            f"{reverse('login')}?next={reverse('subscription-feed')}",
+            response, f"{reverse('login')}?next={reverse('subscription-feed')}"
         )
 
     def test_renders_for_authenticated_user(self):
@@ -145,8 +145,7 @@ class TestSubscriptionFeedView(TestCase):
         self.client.force_login(self.subscriber)
 
         response = self.client.get(
-            reverse("subscription-feed"),
-            {"author": self.author1.username},
+            reverse("subscription-feed"), {"author": self.author1.username}
         )
 
         self.assertEqual(response.status_code, 200)
@@ -175,6 +174,7 @@ class TestSubscriptionFeedView(TestCase):
                 author=self.author1,
                 preview_text=f"Preview extra {i}",
                 content=f"Content extra {i}",
+                content_text=f"Content extra {i}",
                 status=ArticleStatus.PUBLISHED,
                 published_at=timezone.now(),
                 publish_sequence=1000 + i,
@@ -182,10 +182,7 @@ class TestSubscriptionFeedView(TestCase):
 
         self.client.force_login(self.subscriber)
 
-        response = self.client.get(
-            reverse("subscription-feed"),
-            {"page": 2},
-        )
+        response = self.client.get(reverse("subscription-feed"), {"page": 2})
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["is_subscriptions_feed_page_one"])
@@ -201,6 +198,5 @@ class TestSubscriptionFeedView(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(
-            response,
-            "No matching articles from your subscriptions yet",
+            response, "No matching articles from your subscriptions yet"
         )

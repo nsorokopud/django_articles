@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
                         ),
                         django.db.models.lookups.GreaterThan(
                             django.db.models.functions.text.Length(
-                                django.db.models.functions.text.Trim("content")
+                                django.db.models.functions.text.Trim("content_text")
                             ),
                             models.Value(0),
                         ),

@@ -26,6 +26,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
 
         saved = save_article(article=article, author=self.author)
@@ -50,6 +51,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
         article.title = "updated"
         article.preview_text = "updated preview"
@@ -73,6 +75,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
         save_related = Mock()
 
@@ -90,6 +93,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.REJECTED,
             review_note="Needs work",
         )
@@ -109,6 +113,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.REJECTED,
             review_note="Needs work",
         )
@@ -127,6 +132,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
 
         saved = save_article(article=article, author=self.author)
@@ -176,6 +182,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.REJECTED,
             review_note="note",
             reviewed_at=timezone.now(),
@@ -198,6 +205,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
 
         saved = save_article(
@@ -250,6 +258,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
 
         saved = save_article(
@@ -275,6 +284,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.DRAFT,
         )
         article.title = "new title"
@@ -300,6 +310,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.DRAFT,
         )
         article.preview_text = "updated preview"
@@ -324,6 +335,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
@@ -351,6 +363,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.REJECTED,
             review_note="Needs work",
         )
@@ -381,6 +394,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.PENDING_REVIEW,
         )
         article.title = "new pending title"
@@ -401,6 +415,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
         mock_build_slug.side_effect = ["a1", "a1-suffix"]
 
@@ -445,6 +460,7 @@ class TestSaveArticle(TransactionTestCase):
             category=self.category,
             preview_text="preview",
             content="content",
+            content_text="content",
         )
         mock_build_slug.side_effect = [
             "a1",
@@ -477,6 +493,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.DRAFT,
         )
         article.title = "new title"
@@ -493,6 +510,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
@@ -513,6 +531,7 @@ class TestSaveArticle(TransactionTestCase):
             author=self.author,
             preview_text="preview",
             content="content",
+            content_text="content",
             status=ArticleStatus.DRAFT,
         )
         article.preview_text = "updated preview"

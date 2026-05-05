@@ -49,6 +49,7 @@ class TestMyArticlesListView(TestCase):
             author=self.user,
             preview_text="p",
             content="c",
+            content_text="c",
             status=ArticleStatus.REJECTED,
         )
         other_article = Article.objects.create(
