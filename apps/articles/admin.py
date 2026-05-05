@@ -7,7 +7,13 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 
 from .forms import ArticleAdminForm, ArticleRejectAdminForm
-from .models import Article, ArticleCategory, ArticleComment, ArticleStatus
+from .models import (
+    Article,
+    ArticleCategory,
+    ArticleComment,
+    ArticleMedia,
+    ArticleStatus,
+)
 from .services.articles import delete_article, save_article
 from .services.publishing import publish_article, reject_article, unpublish_article
 
@@ -492,6 +498,23 @@ class ArticleCategoryAdmin(admin.ModelAdmin):
     list_display_links = ("id", "title", "slug")
     search_fields = ("title",)
     prepopulated_fields = {"slug": ("title",)}
+
+
+@admin.register(ArticleMedia)
+class ArticleMediaAdmin(admin.ModelAdmin):
+    list_display = ("id", "article", "file", "created_at", "unreferenced_at")
+    list_filter = ("created_at", "unreferenced_at")
+    search_fields = ("file", "article__title", "article__slug")
+    readonly_fields = ("article", "file", "created_at", "unreferenced_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ArticleComment)

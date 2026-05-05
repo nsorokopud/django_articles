@@ -4,7 +4,7 @@ from django.db import IntegrityError
 from django.test import TransactionTestCase
 from django.utils import timezone
 
-from articles.models import Article, ArticleCategory, ArticleStatus
+from articles.models import Article, ArticleCategory, ArticleMedia, ArticleStatus
 from articles.services.articles import MAX_SLUG_RETRY_ATTEMPTS, save_article
 from users.models import User
 
@@ -198,6 +198,69 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(article.review_note, "")
         self.assertIsNone(article.reviewed_at)
         self.assertIsNone(article.reviewed_by)
+
+    @patch("articles.services.articles.sync_article_inline_media_references")
+    def test_syncs_inline_media_references(self, mock_sync):
+        article = Article(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            preview_text="preview",
+            content="content",
+        )
+
+        saved = save_article(article=article, author=self.author)
+
+        mock_sync.assert_called_once_with(article=saved)
+
+    def test_marks_media_as_referenced(self):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.author,
+            preview_text="preview",
+            content="",
+            content_text="",
+        )
+
+        media = ArticleMedia.objects.create(
+            article=article,
+            file=f"articles/uploads/{self.author.id}/{article.id}/image.png",
+            unreferenced_at=timezone.now(),
+        )
+
+        article.content = (
+            f'<img src="/media/articles/uploads/'
+            f'{self.author.id}/{article.id}/image.png">'
+        )
+
+        save_article(article=article)
+
+        media.refresh_from_db()
+        self.assertIsNone(media.unreferenced_at)
+
+    def test_marks_media_unreferenced_when_removed(self):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            author=self.author,
+            preview_text="preview",
+            content="",
+            content_text="",
+        )
+
+        media = ArticleMedia.objects.create(
+            article=article,
+            file=f"articles/uploads/{self.author.id}/{article.id}/image.png",
+            unreferenced_at=None,
+        )
+
+        article.content = "<p>No image</p>"
+
+        save_article(article=article)
+
+        media.refresh_from_db()
+        self.assertIsNotNone(media.unreferenced_at)
 
     def test_generates_slug_for_new_article_when_slug_blank(self):
         article = Article(

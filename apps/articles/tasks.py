@@ -22,6 +22,11 @@ ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS = 10 * 60  # 10 min
 SYNC_LIKES_LOCK_TIMEOUT_SECONDS = 30 * 60  # 30 minutes
 ARTICLE_SYNC_COMMENT_COUNTS_LOCK_TIMEOUT_SECONDS = 30 * 60  # 30 min
 
+ARTICLE_MEDIA_CLEANUP_LOCK_KEY = "articles_media_cleanup_lock"
+ARTICLE_MEDIA_CLEANUP_LOCK_TIMEOUT_SECONDS = 60 * 60  # 1 hour
+ARTICLE_MEDIA_CLEANUP_BATCH_SIZE = 500
+ARTICLE_MEDIA_CLEANUP_MAX_BATCHES = 10
+
 
 @app.task(
     bind=True,
@@ -155,6 +160,49 @@ def delete_article_media_task(
         author_id=author_id,
         preview_image_name=preview_image_name,
     )
+
+
+@app.task(
+    bind=True,
+    soft_time_limit=300,  # 5 min
+    time_limit=330,  # 5.5 min
+    acks_late=True,
+    reject_on_worker_lost=True,
+    autoretry_for=(OSError, BotoCoreError, ClientError, SoftTimeLimitExceeded),
+    max_retries=3,
+    retry_backoff=60,
+    retry_jitter=True,
+)
+def cleanup_unused_article_inline_media_task(
+    self,
+    batch_size=ARTICLE_MEDIA_CLEANUP_BATCH_SIZE,
+    max_batches=ARTICLE_MEDIA_CLEANUP_MAX_BATCHES,
+) -> None:
+    from .services.media import cleanup_unused_article_inline_media
+
+    lock_value = self.request.id
+
+    if not cache.add(
+        ARTICLE_MEDIA_CLEANUP_LOCK_KEY,
+        lock_value,
+        timeout=ARTICLE_MEDIA_CLEANUP_LOCK_TIMEOUT_SECONDS,
+    ):
+        logger.info("Article media cleanup skipped: already running.")
+        return
+
+    try:
+        total_deleted = 0
+
+        for _ in range(max_batches):
+            deleted_count = cleanup_unused_article_inline_media(batch_size=batch_size)
+            total_deleted += deleted_count
+
+            if deleted_count == 0:
+                break
+
+        logger.info("Cleaned up %s unused article media files.", total_deleted)
+    finally:
+        _release_lock(lock_key=ARTICLE_MEDIA_CLEANUP_LOCK_KEY, lock_value=lock_value)
 
 
 def _release_lock(*, lock_key: str, lock_value: str) -> None:

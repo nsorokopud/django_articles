@@ -3,6 +3,7 @@
 
 # Core
 Django==5.1.1
+beautifulsoup4==4.14.3
 django-taggit==6.1.0
 django-tinymce==4.1.0
 django-ipware==7.0.1

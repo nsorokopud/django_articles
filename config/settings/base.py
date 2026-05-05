@@ -422,6 +422,10 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = bool(
 
 
 CELERY_BEAT_SCHEDULE = {
+    "articles.cleanup-unused-media": {
+        "task": "articles.tasks.cleanup_unused_article_inline_media_task",
+        "schedule": timedelta(hours=1),
+    },
     "articles.sync-view-counts": {
         "task": "articles.tasks.sync_article_views_task",
         "schedule": timedelta(minutes=5),

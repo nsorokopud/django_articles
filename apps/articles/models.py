@@ -1,3 +1,7 @@
+import os
+import posixpath
+from uuid import uuid4
+
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.db import models
@@ -5,6 +9,7 @@ from django.db.models import Q, Value
 from django.db.models.functions import Length, Trim
 from django.db.models.lookups import GreaterThan
 from django.urls import reverse
+from django.utils.text import get_valid_filename
 from taggit.managers import TaggableManager
 from tinymce.models import HTMLField
 
@@ -181,6 +186,45 @@ class ArticleCategory(models.Model):
 
     def __str__(self):
         return self.title
+
+
+def article_inline_media_upload_path(instance, filename) -> str:
+    raw_base_name = os.path.basename(filename)
+    base_name, extension = os.path.splitext(raw_base_name)
+
+    safe_base_name = get_valid_filename(base_name).strip("._-") or "file"
+    safe_extension = get_valid_filename(extension.lower()).strip("._")
+
+    filename = f"{safe_base_name}_{uuid4().hex}"
+    if safe_extension:
+        filename = f"{filename}.{safe_extension}"
+
+    return posixpath.join(
+        "articles",
+        "uploads",
+        str(instance.article.author_id),
+        str(instance.article_id),
+        filename,
+    )
+
+
+class ArticleMedia(models.Model):
+    article = models.ForeignKey(
+        Article, on_delete=models.CASCADE, related_name="media_files"
+    )
+    file = models.FileField(upload_to=article_inline_media_upload_path, max_length=512)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    unreferenced_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["unreferenced_at", "id"], name="art_media_cleanup_idx"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Media for {self.article} - {self.file.name}"
 
 
 class ArticleComment(models.Model):

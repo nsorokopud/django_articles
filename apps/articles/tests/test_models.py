@@ -6,7 +6,13 @@ from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from articles.models import Article, ArticleCategory, ArticleStatus
+from articles.models import (
+    Article,
+    ArticleCategory,
+    ArticleMedia,
+    ArticleStatus,
+    article_inline_media_upload_path,
+)
 from config.settings import CACHES
 
 
@@ -287,3 +293,80 @@ class TestArticleModelConstraints(TestCase):
         )
 
         self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+
+class TestArticleMediaModel(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.article = Article.objects.create(author=self.author, title="a", slug="a")
+
+    @patch("articles.models.uuid4")
+    def test_article_inline_media_upload_path_uses_article_author_and_article_id(
+        self, mock_uuid4
+    ):
+        mock_uuid4.return_value.hex = "abc123"
+
+        media = ArticleMedia(article=self.article)
+
+        path = article_inline_media_upload_path(media, "My Image.PNG")
+
+        self.assertEqual(
+            path,
+            f"articles/uploads/{self.author.id}/{self.article.id}/My_Image_abc123.png",
+        )
+
+    @patch("articles.models.uuid4")
+    def test_article_inline_media_upload_path_sanitizes_filename(self, mock_uuid4):
+        mock_uuid4.return_value.hex = "abc123"
+
+        media = ArticleMedia(article=self.article)
+
+        path = article_inline_media_upload_path(media, "../../bad file name!!.JPG")
+
+        self.assertEqual(
+            path,
+            f"articles/uploads/{self.author.id}/{self.article.id}/"
+            "bad_file_name_abc123.jpg",
+        )
+
+    @patch("articles.models.uuid4")
+    def test_article_inline_media_upload_path_uses_posix_separators(self, mock_uuid4):
+        mock_uuid4.return_value.hex = "abc123"
+
+        media = ArticleMedia(article=self.article)
+        path = article_inline_media_upload_path(media, "image.webp")
+
+        expected = (
+            f"articles/uploads/{self.author.id}/{self.article.id}/image_abc123.webp"
+        )
+
+        self.assertEqual(path, expected)
+        self.assertNotIn("\\", path)  # ensure no Windows separators
+
+    def test_article_media_defaults_to_referenced_state_unknown(self):
+        media = ArticleMedia.objects.create(
+            article=self.article, file="articles/uploads/1/1/example.png"
+        )
+
+        self.assertIsNotNone(media.created_at)
+        self.assertIsNone(media.unreferenced_at)
+
+    def test_article_media_str(self):
+        media = ArticleMedia.objects.create(
+            article=self.article, file="articles/uploads/1/1/example.png"
+        )
+
+        self.assertEqual(
+            str(media), f"Media for {self.article} - articles/uploads/1/1/example.png"
+        )
+
+    def test_article_media_is_deleted_when_article_is_deleted(self):
+        media = ArticleMedia.objects.create(
+            article=self.article, file="articles/uploads/1/1/example.png"
+        )
+
+        self.article.delete()
+
+        self.assertFalse(ArticleMedia.objects.filter(id=media.id).exists())

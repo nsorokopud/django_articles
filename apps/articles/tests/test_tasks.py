@@ -1,9 +1,10 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from celery.exceptions import Retry
 from django.test import SimpleTestCase, override_settings
 
 from articles.tasks import (
+    cleanup_unused_article_inline_media_task,
     delete_article_media_task,
     sync_article_comments_count_task,
     sync_article_likes_count_task,
@@ -228,3 +229,81 @@ class TestDeleteArticleMediaTask(SimpleTestCase):
             delete_article_media_task.delay(self.article_id, self.author_id, "")
 
         self.assertEqual(context.exception, mock_delete.side_effect)
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
+class TestCleanupUnusedArticleInlineMediaTask(SimpleTestCase):
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.media.cleanup_unused_article_inline_media")
+    def test_runs_until_empty_batch(self, mock_cleanup, mock_logger, mock_cache):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+        mock_cleanup.side_effect = [500, 25, 0]
+
+        result = cleanup_unused_article_inline_media_task.apply(
+            kwargs={"batch_size": 100, "max_batches": 10}
+        ).get()
+
+        self.assertIsNone(result)
+        self.assertEqual(mock_cleanup.call_count, 3)
+        mock_cleanup.assert_has_calls(
+            [
+                call(batch_size=100),
+                call(batch_size=100),
+                call(batch_size=100),
+            ]
+        )
+        mock_logger.info.assert_any_call(
+            "Cleaned up %s unused article media files.", 525
+        )
+        mock_cache.get.assert_called_once()
+        mock_cache.delete.assert_called_once()
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.media.cleanup_unused_article_inline_media")
+    def test_stops_at_max_batches(self, mock_cleanup, mock_logger, mock_cache):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+        mock_cleanup.side_effect = [10, 10, 10]
+
+        result = cleanup_unused_article_inline_media_task.apply(
+            kwargs={"batch_size": 50, "max_batches": 3}
+        ).get()
+
+        self.assertIsNone(result)
+        self.assertEqual(mock_cleanup.call_count, 3)
+        mock_cleanup.assert_has_calls(
+            [call(batch_size=50), call(batch_size=50), call(batch_size=50)]
+        )
+        mock_logger.info.assert_any_call(
+            "Cleaned up %s unused article media files.", 30
+        )
+
+    @patch("articles.tasks.cache")
+    @patch("articles.tasks.logger")
+    @patch("articles.services.media.cleanup_unused_article_inline_media")
+    def test_skips_when_lock_exists(self, mock_cleanup, mock_logger, mock_cache):
+        mock_cache.add.return_value = False
+
+        result = cleanup_unused_article_inline_media_task.apply(args=()).get()
+
+        self.assertIsNone(result)
+        mock_cleanup.assert_not_called()
+        mock_logger.info.assert_called_once_with(
+            "Article media cleanup skipped: already running."
+        )
+        mock_cache.delete.assert_not_called()
+
+    @patch("articles.tasks.cache")
+    @patch("articles.services.media.cleanup_unused_article_inline_media")
+    def test_releases_lock_on_error(self, mock_cleanup, mock_cache):
+        mock_cache.add.return_value = True
+        mock_cache.get.side_effect = lambda key: mock_cache.add.call_args.args[1]
+        mock_cleanup.side_effect = ZeroDivisionError("boom")
+
+        with self.assertRaises(ZeroDivisionError):
+            cleanup_unused_article_inline_media_task.apply(args=()).get()
+
+        mock_cache.delete.assert_called_once()

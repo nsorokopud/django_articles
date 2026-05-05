@@ -22,6 +22,8 @@ autobahn==24.4.2
     # via daphne
 automat==24.8.1
     # via twisted
+beautifulsoup4==4.14.3
+    # via -r requirements.in
 billiard==4.2.1
     # via celery
 boto3==1.35.29
@@ -209,6 +211,8 @@ service-identity==24.2.0
     # via twisted
 six==1.17.0
     # via python-dateutil
+soupsieve==2.8.3
+    # via beautifulsoup4
 sqlparse==0.5.3
     # via
     #   django
@@ -221,6 +225,7 @@ txaio==23.1.1
     # via autobahn
 typing-extensions==4.12.2
     # via
+    #   beautifulsoup4
     #   pyopenssl
     #   twisted
 tzdata==2025.1

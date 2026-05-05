@@ -12,6 +12,7 @@ from users.models import User
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..models import Article, ArticleStatus
 from ..search_utils import extract_searchable_text
+from .media import sync_article_inline_media_references
 from .sanitization import sanitize_article_html
 
 
@@ -85,6 +86,8 @@ def save_article(
         _save_with_unique_slug(article)
     else:
         article.save()
+
+    sync_article_inline_media_references(article=article)
 
     if old_slug and old_slug != article.slug:
         transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=old_slug))

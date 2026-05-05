@@ -11,8 +11,14 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from articles.admin import ArticleAdmin, CommentInline
-from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
+from articles.admin import ArticleAdmin, ArticleMediaAdmin, CommentInline
+from articles.models import (
+    Article,
+    ArticleCategory,
+    ArticleComment,
+    ArticleMedia,
+    ArticleStatus,
+)
 
 
 User = get_user_model()
@@ -736,6 +742,21 @@ class TestArticleAdmin(TestCase):
 
         readonly_fields = self.article_admin.get_readonly_fields(request, article)
         self.assertNotIn("slug", readonly_fields)
+
+
+class TestArticleMediaAdmin(TestCase):
+    def setUp(self):
+        self.admin = ArticleMediaAdmin(ArticleMedia, AdminSite())
+        self.request = RequestFactory().get("/admin/articles/articlemedia/")
+
+    def test_article_media_admin_disables_add_permission(self):
+        self.assertFalse(self.admin.has_add_permission(self.request))
+
+    def test_article_media_admin_disables_change_permission(self):
+        self.assertFalse(self.admin.has_change_permission(self.request))
+
+    def test_article_media_admin_disables_delete_permission(self):
+        self.assertFalse(self.admin.has_delete_permission(self.request))
 
 
 class TestCommentInlineAdmin(TestCase):
