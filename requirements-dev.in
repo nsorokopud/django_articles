@@ -4,7 +4,7 @@
 -r requirements.in
 
 # Requirements management
-pip-tools==7.4.1
+pip-tools==7.5.3
 
 # Debugging
 django-debug-toolbar==4.4.6
