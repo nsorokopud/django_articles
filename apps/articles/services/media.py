@@ -93,38 +93,46 @@ def cleanup_unused_article_inline_media(*, batch_size: int = 500) -> int:
     media_items = list(
         ArticleMedia.objects.filter(unreferenced_at__lt=cutoff)
         .order_by("id")
-        .only("id", "file")[:batch_size]
+        .only("id", "file", "unreferenced_at")[:batch_size]
     )
 
-    deleted_count = 0
+    deleted_files_count = 0
+    deleted_rows_count = 0
 
     for media in media_items:
-        try:
-            media.refresh_from_db(fields=["unreferenced_at", "file"])
-        except ArticleMedia.DoesNotExist:
-            continue
-
+        file_name = media.file.name
         unreferenced_at = media.unreferenced_at
 
-        if unreferenced_at is None or unreferenced_at >= cutoff:
+        deleted_rows, _ = ArticleMedia.objects.filter(
+            id=media.id,
+            unreferenced_at=unreferenced_at,
+            unreferenced_at__lt=cutoff,
+        ).delete()
+
+        if not deleted_rows:
             continue
 
-        file_name = media.file.name
+        deleted_rows_count += deleted_rows
 
         try:
             default_storage.delete(file_name)
         except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
-            logger.exception("Failed to delete unused article media file %s", file_name)
+            logger.exception(
+                "Deleted ArticleMedia row, but failed to delete storage file %s",
+                file_name,
+            )
             continue
 
-        deleted, _ = ArticleMedia.objects.filter(
-            id=media.id, unreferenced_at=unreferenced_at, unreferenced_at__lt=cutoff
-        ).delete()
+        deleted_files_count += 1
 
-        if deleted:
-            deleted_count += 1
+    if deleted_rows_count != deleted_files_count:
+        logger.warning(
+            "Cleaned up %s ArticleMedia rows but only deleted %s storage files.",
+            deleted_rows_count,
+            deleted_files_count,
+        )
 
-    return deleted_count
+    return deleted_files_count
 
 
 def delete_article_inline_media_files(article_id: int, author_id: int) -> None:

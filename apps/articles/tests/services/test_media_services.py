@@ -239,7 +239,7 @@ class TestCleanupUnusedArticleInlineMedia(TestCase):
         )
 
     @patch("articles.services.media.default_storage.delete")
-    def test_skips_media_if_it_becomes_referenced_before_delete(self, mock_delete):
+    def test_skips_media_if_no_longer_unreferenced(self, mock_delete):
         old_time = (
             timezone.now() - ARTICLE_MEDIA_UNUSED_GRACE_PERIOD - timedelta(seconds=1)
         )
@@ -249,18 +249,13 @@ class TestCleanupUnusedArticleInlineMedia(TestCase):
             unreferenced_at=old_time,
         )
 
-        def delete_side_effect(_):
-            ArticleMedia.objects.filter(id=media.id).update(unreferenced_at=None)
-
-        mock_delete.side_effect = delete_side_effect
+        ArticleMedia.objects.filter(id=media.id).update(unreferenced_at=None)
 
         deleted_count = cleanup_unused_article_inline_media(batch_size=500)
 
         self.assertEqual(deleted_count, 0)
-        mock_delete.assert_called_once_with(media.file.name)
-
-        media.refresh_from_db()
-        self.assertIsNone(media.unreferenced_at)
+        mock_delete.assert_not_called()
+        self.assertTrue(ArticleMedia.objects.filter(id=media.id).exists())
 
     @patch("articles.services.media.default_storage.delete")
     def test_deletes_old_unreferenced_media(self, mock_delete):
@@ -308,7 +303,9 @@ class TestCleanupUnusedArticleInlineMedia(TestCase):
 
     @patch("articles.services.media.logger")
     @patch("articles.services.media.default_storage.delete")
-    def test_storage_delete_failure_keeps_db_row(self, mock_delete, mock_logger):
+    def test_storage_delete_failure_deletes_db_row_and_logs_orphan(
+        self, mock_delete, mock_logger
+    ):
         mock_delete.side_effect = OSError("delete failed")
         media = ArticleMedia.objects.create(
             article=self.article,
@@ -321,9 +318,46 @@ class TestCleanupUnusedArticleInlineMedia(TestCase):
         deleted_count = cleanup_unused_article_inline_media(batch_size=500)
 
         self.assertEqual(deleted_count, 0)
-        self.assertTrue(ArticleMedia.objects.filter(id=media.id).exists())
+        self.assertFalse(ArticleMedia.objects.filter(id=media.id).exists())
+
         mock_logger.exception.assert_called_once_with(
-            "Failed to delete unused article media file %s", media.file.name
+            "Deleted ArticleMedia row, but failed to delete storage file %s",
+            media.file.name,
+        )
+        mock_logger.warning.assert_called_once_with(
+            "Cleaned up %s ArticleMedia rows but only deleted %s storage files.", 1, 0
+        )
+
+    @patch("articles.services.media.logger")
+    @patch("articles.services.media.default_storage.delete")
+    def test_mixed_storage_delete_success_and_failure(self, mock_delete, mock_logger):
+        old_time = (
+            timezone.now() - ARTICLE_MEDIA_UNUSED_GRACE_PERIOD - timedelta(seconds=1)
+        )
+        media_1 = ArticleMedia.objects.create(
+            article=self.article,
+            file=f"articles/uploads/{self.user.id}/{self.article.id}/1.jpeg",
+            unreferenced_at=old_time,
+        )
+        media_2 = ArticleMedia.objects.create(
+            article=self.article,
+            file=f"articles/uploads/{self.user.id}/{self.article.id}/2.jpeg",
+            unreferenced_at=old_time,
+        )
+
+        def delete_side_effect(file_name):
+            if file_name == media_1.file.name:
+                raise OSError("delete failed")
+
+        mock_delete.side_effect = delete_side_effect
+
+        deleted_count = cleanup_unused_article_inline_media(batch_size=500)
+
+        self.assertEqual(deleted_count, 1)
+        self.assertFalse(ArticleMedia.objects.filter(id=media_1.id).exists())
+        self.assertFalse(ArticleMedia.objects.filter(id=media_2.id).exists())
+        mock_logger.warning.assert_called_once_with(
+            "Cleaned up %s ArticleMedia rows but only deleted %s storage files.", 2, 1
         )
 
     @patch("articles.services.media.default_storage.delete")
