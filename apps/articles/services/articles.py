@@ -68,7 +68,9 @@ def save_article(
 
     old_slug = original_article.slug if original_article is not None else None
 
-    article.content = sanitize_article_html(article.content)
+    article.content = sanitize_article_html(
+        article.content, article_id=article.id, author_id=article.author_id
+    )
     article.content_text = extract_searchable_text(article.content)
 
     # Editing a rejected article reopens it as a draft.

@@ -1,11 +1,15 @@
 # pylint: disable=E1101
 from copy import deepcopy
+from functools import partial
+from pathlib import PurePosixPath
 from posixpath import normpath
 from urllib.parse import unquote, urlparse
 
 import nh3
 from django.conf import settings
 
+
+ARTICLE_MEDIA_STORAGE_ROOT = "articles/uploads"
 
 ALLOWED_TAGS = {
     "p",
@@ -65,20 +69,36 @@ for tag_name in ALIGNABLE_TAGS:
     ALLOWED_ATTRIBUTES.setdefault(tag_name, set()).add("style")
 
 
-def sanitize_article_html(html: str) -> str:
+def sanitize_article_html(
+    html: str,
+    *,
+    article_id: int | None,
+    author_id: int | None,
+) -> str:
     return nh3.clean(
         html or "",
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
         url_schemes=getattr(settings, "ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}),
         link_rel="noopener noreferrer nofollow",
-        attribute_filter=_attribute_filter,
+        attribute_filter=partial(
+            _article_attribute_filter, article_id=article_id, author_id=author_id
+        ),
     )
 
 
-def _attribute_filter(tag: str, attr: str, value: str) -> str | None:
+def _article_attribute_filter(
+    tag: str,
+    attr: str,
+    value: str,
+    *,
+    article_id: int | None,
+    author_id: int | None,
+) -> str | None:
     if tag == "img" and attr == "src":
-        return value if _is_allowed_image_src(value) else None
+        return _filter_article_image_src(
+            value, article_id=article_id, author_id=author_id
+        )
 
     if attr == "style" and tag in ALIGNABLE_TAGS:
         return _clean_alignment_style(value)
@@ -86,67 +106,116 @@ def _attribute_filter(tag: str, attr: str, value: str) -> str | None:
     return value
 
 
-def _is_allowed_image_src(src: str) -> bool:
-    src = (src or "").strip()
+def _filter_article_image_src(
+    src: str,
+    *,
+    article_id: int | None,
+    author_id: int | None,
+) -> str | None:
+    allowed_storage_prefix = _article_media_storage_prefix(
+        article_id=article_id, author_id=author_id
+    )
+    file_name = _extract_article_media_storage_name(src)
+
+    if (
+        file_name
+        and allowed_storage_prefix
+        and file_name.startswith(allowed_storage_prefix)
+    ):
+        return src
+
+    return None
+
+
+def _article_media_storage_prefix(
+    *,
+    article_id: int | None,
+    author_id: int | None,
+) -> str | None:
+    if article_id is None or author_id is None:
+        return None
+
+    return f"{ARTICLE_MEDIA_STORAGE_ROOT}/{author_id}/{article_id}/"
+
+
+def _extract_article_media_storage_name(src: str | None) -> str | None:
     if not src:
-        return False
+        return None
 
-    parsed = urlparse(src)
+    parsed = urlparse(src.strip())
+    is_absolute = bool(parsed.scheme or parsed.netloc)
 
-    if parsed.scheme or parsed.netloc:
-        return _is_allowed_absolute_media_src(parsed)
-
-    return _is_allowed_local_media_src(src)
-
-
-def _is_allowed_absolute_media_src(parsed) -> bool:
-    if parsed.scheme != "https":
-        return False
-
-    allowed_bases = getattr(settings, "MEDIA_ALLOWED_BASE_URLS", [])
+    if is_absolute:
+        media_url_path = _get_allowed_media_root_path(parsed)
+        if media_url_path is None:
+            return None
+    else:
+        media_url_path = urlparse(settings.MEDIA_URL).path or "/"
 
     path = unquote(parsed.path or "")
-    if "\x00" in path or ".." in path.split("/"):
-        return False
 
-    normalized_path = normpath(path)
+    if _has_unsafe_path_segments(path):
+        return None
 
-    for base_url in allowed_bases:
+    normalized_path = _normalize_url_path(path)
+    media_url_path = _normalize_url_path(media_url_path).rstrip("/") or "/"
+
+    storage_name = _strip_media_url_prefix(
+        normalized_path=normalized_path, media_url_path=media_url_path
+    )
+
+    if storage_name is None:
+        return None
+
+    if not storage_name.startswith(f"{ARTICLE_MEDIA_STORAGE_ROOT}/"):
+        return None
+
+    return storage_name
+
+
+def _get_allowed_media_root_path(parsed) -> str | None:
+    if parsed.scheme != "https":
+        return None
+
+    path = unquote(parsed.path or "")
+
+    if _has_unsafe_path_segments(path):
+        return None
+
+    normalized_path = _normalize_url_path(path)
+
+    for base_url in getattr(settings, "MEDIA_ALLOWED_ROOT_URLS", []):
         base = urlparse(base_url)
 
         if parsed.scheme != base.scheme or parsed.netloc != base.netloc:
             continue
 
-        base_path = normpath(base.path or "/").rstrip("/")
-        prefix = _join_url_path_prefix(base_path, "articles/uploads")
+        base_path = _normalize_url_path(base.path or "/").rstrip("/") or "/"
 
-        if normalized_path.startswith(prefix):
-            return True
+        if (
+            base_path == "/"
+            or normalized_path == base_path
+            or normalized_path.startswith(f"{base_path}/")
+        ):
+            return base_path
 
-    return False
+    return None
 
 
-def _is_allowed_local_media_src(src: str) -> bool:
-    parsed = urlparse(src)
+def _strip_media_url_prefix(*, normalized_path: str, media_url_path: str) -> str | None:
+    prefix = f"{media_url_path.rstrip('/')}/"
 
-    if parsed.scheme or parsed.netloc:
-        return False
+    if not normalized_path.startswith(prefix):
+        return None
 
-    path = unquote(parsed.path or "")
+    return normalized_path.removeprefix(prefix).lstrip("/")
 
-    # Reject null bytes and path traversal attempts (e.g. ../)
-    if "\x00" in path or ".." in path.split("/"):
-        return False
 
-    normalized = normpath(path)
-
+def _normalize_url_path(path: str) -> str:
+    normalized = normpath(path or "/")
     if not normalized.startswith("/"):
         normalized = f"/{normalized}"
-
-    media_path = urlparse(settings.MEDIA_URL).path.rstrip("/")
-    allowed_prefix = _join_url_path_prefix(media_path, "articles/uploads")
-
-    return normalized.startswith(allowed_prefix)
+    return normalized
 
 
 def _clean_alignment_style(style: str) -> str | None:
@@ -165,11 +234,5 @@ def _clean_alignment_style(style: str) -> str | None:
     return None
 
 
-def _join_url_path_prefix(base_path: str, suffix: str) -> str:
-    base = (base_path or "").rstrip("/")
-    suffix = suffix.strip("/")
-
-    if not base:
-        return f"/{suffix}/"
-
-    return f"{base}/{suffix}/"
+def _has_unsafe_path_segments(path: str) -> bool:
+    return "\x00" in path or ".." in PurePosixPath(path).parts

@@ -154,7 +154,11 @@ class TestSaveArticle(TransactionTestCase):
 
         saved = save_article(article=article, author=self.author)
 
-        mock_sanitize.assert_called_once_with("<p>x</p><script>alert(1)</script>")
+        mock_sanitize.assert_called_once_with(
+            "<p>x</p><script>alert(1)</script>",
+            article_id=None,
+            author_id=saved.author_id,
+        )
         self.assertEqual(saved.content, "<p>clean</p>")
 
     def test_sanitizes_content_when_creating_article(self):
