@@ -275,11 +275,10 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
 
         if self.request.POST.get("action") == "submit_for_review":
             try:
-                submit_article_for_review(article_id=article.id)
+                article = submit_article_for_review(article_id=article.id)
             except ValueError as e:
                 return JsonResponse(
-                    {"status": "fail", "data": {"__all__": [str(e)]}},
-                    status=400,
+                    {"status": "fail", "data": {"__all__": [str(e)]}}, status=400
                 )
 
             messages.success(self.request, "Article was submitted for review.")
