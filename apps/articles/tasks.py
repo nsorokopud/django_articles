@@ -4,6 +4,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from celery.exceptions import SoftTimeLimitExceeded
 from django.core.cache import cache
 from django.db import DatabaseError
+from django_redis import get_redis_connection
 from django_redis.exceptions import ConnectionInterrupted
 from redis import RedisError
 
@@ -26,6 +27,14 @@ ARTICLE_MEDIA_CLEANUP_LOCK_KEY = "articles_media_cleanup_lock"
 ARTICLE_MEDIA_CLEANUP_LOCK_TIMEOUT_SECONDS = 60 * 60  # 1 hour
 ARTICLE_MEDIA_CLEANUP_BATCH_SIZE = 500
 ARTICLE_MEDIA_CLEANUP_MAX_BATCHES = 10
+
+RELEASE_LOCK_LUA = """
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+    return redis.call("DEL", KEYS[1])
+else
+    return 0
+end
+"""
 
 
 @app.task(
@@ -206,5 +215,8 @@ def cleanup_unused_article_inline_media_task(
 
 
 def _release_lock(*, lock_key: str, lock_value: str) -> None:
-    if cache.get(lock_key) == lock_value:
-        cache.delete(lock_key)
+    try:
+        redis_conn = get_redis_connection("default")
+        redis_conn.eval(RELEASE_LOCK_LUA, 1, lock_key, lock_value)
+    except RedisError:
+        logger.exception("Failed to release lock %s.", lock_key)
