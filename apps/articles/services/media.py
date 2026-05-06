@@ -5,7 +5,6 @@ import shutil
 from datetime import timedelta
 from pathlib import PurePath, PurePosixPath
 from typing import BinaryIO
-from urllib.parse import unquote, urlparse
 
 from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import BotoCoreError, ClientError
@@ -18,6 +17,10 @@ from storages.backends.s3boto3 import S3Boto3Storage
 
 from core.exceptions import MediaSaveError
 
+from ..media_paths import (
+    extract_article_media_storage_name,
+    is_article_media_storage_name_for_article,
+)
 from ..models import Article, ArticleMedia
 
 
@@ -138,47 +141,24 @@ def delete_article_inline_media_files(article_id: int, author_id: int) -> None:
 
 
 def extract_article_inline_media_file_names(
-    html: str,
-    *,
-    article_id: int,
-    author_id: int,
+    html: str, *, article_id: int, author_id: int
 ) -> set[str]:
-    allowed_prefix = f"articles/uploads/{author_id}/{article_id}/"
-
     soup = BeautifulSoup(html or "", "html.parser")
-    file_names: set[str] = set()
+    file_names = set()
 
     for img in soup.find_all("img"):
         src = img.get("src")
-        file_name = _get_article_media_file_name_from_src(
+
+        file_name = extract_article_media_storage_name(
             src if isinstance(src, str) else None
         )
 
-        if file_name and file_name.startswith(allowed_prefix):
+        if file_name and is_article_media_storage_name_for_article(
+            file_name, article_id=article_id, author_id=author_id
+        ):
             file_names.add(file_name)
 
     return file_names
-
-
-def _get_article_media_file_name_from_src(src: str | None) -> str | None:
-    if not src:
-        return None
-
-    parsed = urlparse(src.strip())
-
-    if parsed.scheme in {"data", "blob", "javascript"}:
-        return None
-
-    path = unquote(parsed.path or "")
-
-    if "\x00" in path or ".." in path.split("/"):
-        return None
-
-    marker = "/articles/uploads/"
-    if marker not in path:
-        return None
-
-    return path[path.index("articles/uploads/") :]
 
 
 def _delete_local_filesystem_media(

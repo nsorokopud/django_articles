@@ -1,15 +1,15 @@
 # pylint: disable=E1101
 from copy import deepcopy
-from functools import partial
-from pathlib import PurePosixPath
-from posixpath import normpath
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
 import nh3
 from django.conf import settings
 
+from ..media_paths import (
+    extract_article_media_storage_name,
+    is_article_media_storage_name_for_article,
+)
 
-ARTICLE_MEDIA_STORAGE_ROOT = "articles/uploads"
 
 ALLOWED_TAGS = {
     "p",
@@ -75,15 +75,18 @@ def sanitize_article_html(
     article_id: int | None,
     author_id: int | None,
 ) -> str:
+    def attribute_filter(tag: str, attr: str, value: str) -> str | None:
+        return _article_attribute_filter(
+            tag, attr, value, article_id=article_id, author_id=author_id
+        )
+
     return nh3.clean(
         html or "",
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
         url_schemes=getattr(settings, "ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}),
         link_rel="noopener noreferrer nofollow",
-        attribute_filter=partial(
-            _article_attribute_filter, article_id=article_id, author_id=author_id
-        ),
+        attribute_filter=attribute_filter,
     )
 
 
@@ -95,15 +98,38 @@ def _article_attribute_filter(
     article_id: int | None,
     author_id: int | None,
 ) -> str | None:
-    if tag == "img" and attr == "src":
+    tag = tag.lower()
+    attr = attr.lower()
+
+    if attr == "src":
+        if tag != "img":
+            return None
+
         return _filter_article_image_src(
-            value, article_id=article_id, author_id=author_id
+            value,
+            article_id=article_id,
+            author_id=author_id,
         )
+
+    if attr == "href":
+        if tag != "a":
+            return None
+
+        return value if _is_allowed_anchor_href(value) else None
 
     if attr == "style" and tag in ALIGNABLE_TAGS:
         return _clean_alignment_style(value)
 
     return value
+
+
+def _is_allowed_anchor_href(href: str) -> bool:
+    parsed = urlparse((href or "").strip())
+
+    if parsed.scheme in {"http", "https"}:
+        return True
+
+    return not parsed.scheme and not parsed.netloc
 
 
 def _filter_article_image_src(
@@ -112,110 +138,14 @@ def _filter_article_image_src(
     article_id: int | None,
     author_id: int | None,
 ) -> str | None:
-    allowed_storage_prefix = _article_media_storage_prefix(
-        article_id=article_id, author_id=author_id
-    )
-    file_name = _extract_article_media_storage_name(src)
+    file_name = extract_article_media_storage_name(src)
 
-    if (
-        file_name
-        and allowed_storage_prefix
-        and file_name.startswith(allowed_storage_prefix)
+    if file_name and is_article_media_storage_name_for_article(
+        file_name, article_id=article_id, author_id=author_id
     ):
         return src
 
     return None
-
-
-def _article_media_storage_prefix(
-    *,
-    article_id: int | None,
-    author_id: int | None,
-) -> str | None:
-    if article_id is None or author_id is None:
-        return None
-
-    return f"{ARTICLE_MEDIA_STORAGE_ROOT}/{author_id}/{article_id}/"
-
-
-def _extract_article_media_storage_name(src: str | None) -> str | None:
-    if not src:
-        return None
-
-    parsed = urlparse(src.strip())
-    is_absolute = bool(parsed.scheme or parsed.netloc)
-
-    if is_absolute:
-        media_url_path = _get_allowed_media_root_path(parsed)
-        if media_url_path is None:
-            return None
-    else:
-        media_url_path = urlparse(settings.MEDIA_URL).path or "/"
-
-    path = unquote(parsed.path or "")
-
-    if _has_unsafe_path_segments(path):
-        return None
-
-    normalized_path = _normalize_url_path(path)
-    media_url_path = _normalize_url_path(media_url_path).rstrip("/") or "/"
-
-    storage_name = _strip_media_url_prefix(
-        normalized_path=normalized_path, media_url_path=media_url_path
-    )
-
-    if storage_name is None:
-        return None
-
-    if not storage_name.startswith(f"{ARTICLE_MEDIA_STORAGE_ROOT}/"):
-        return None
-
-    return storage_name
-
-
-def _get_allowed_media_root_path(parsed) -> str | None:
-    if parsed.scheme != "https":
-        return None
-
-    path = unquote(parsed.path or "")
-
-    if _has_unsafe_path_segments(path):
-        return None
-
-    normalized_path = _normalize_url_path(path)
-
-    for base_url in getattr(settings, "MEDIA_ALLOWED_ROOT_URLS", []):
-        base = urlparse(base_url)
-
-        if parsed.scheme != base.scheme or parsed.netloc != base.netloc:
-            continue
-
-        base_path = _normalize_url_path(base.path or "/").rstrip("/") or "/"
-
-        if (
-            base_path == "/"
-            or normalized_path == base_path
-            or normalized_path.startswith(f"{base_path}/")
-        ):
-            return base_path
-
-    return None
-
-
-def _strip_media_url_prefix(*, normalized_path: str, media_url_path: str) -> str | None:
-    prefix = f"{media_url_path.rstrip('/')}/"
-
-    if not normalized_path.startswith(prefix):
-        return None
-
-    return normalized_path.removeprefix(prefix).lstrip("/")
-
-
-def _normalize_url_path(path: str) -> str:
-    normalized = normpath(path or "/")
-    if not normalized.startswith("/"):
-        normalized = f"/{normalized}"
-    return normalized
 
 
 def _clean_alignment_style(style: str) -> str | None:
@@ -232,7 +162,3 @@ def _clean_alignment_style(style: str) -> str | None:
             return f"text-align: {align};"
 
     return None
-
-
-def _has_unsafe_path_segments(path: str) -> bool:
-    return "\x00" in path or ".." in PurePosixPath(path).parts

@@ -169,41 +169,10 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn("src=", cleaned)
         self.assertIn('alt="x"', cleaned)
 
-    @override_settings(MEDIA_URL="/media/")
-    def test_removes_non_upload_local_image_src(self):
-        cleaned = clean('<img src="/media/test.jpg" alt="preview">')
-
-        self.assertNotIn('src="/media/test.jpg"', cleaned)
-        self.assertIn('alt="preview"', cleaned)
-
-    @override_settings(MEDIA_URL="/media/")
-    def test_removes_path_traversal_image_src(self):
-        cleaned = clean(
-            '<img src="/media/articles/uploads/1/2/../../evil.jpg" alt="x">'
-        )
-
-        self.assertNotIn("src=", cleaned)
-        self.assertIn('alt="x"', cleaned)
-
-    @override_settings(MEDIA_URL="/media/")
-    def test_removes_encoded_path_traversal_image_src(self):
-        cleaned = clean(
-            '<img src="/media/articles/uploads/1/2/%2e%2e/evil.jpg" alt="x">'
-        )
-
-        self.assertNotIn("src=", cleaned)
-        self.assertIn('alt="x"', cleaned)
-
-    @override_settings(MEDIA_URL="/media/")
-    def test_removes_null_byte_image_src(self):
-        cleaned = clean('<img src="/media/articles/uploads/1/2/test%00.jpg" alt="x">')
-
-        self.assertNotIn("src=", cleaned)
-        self.assertIn('alt="x"', cleaned)
-
     @override_settings(MEDIA_ALLOWED_ROOT_URLS=["https://bucket.s3.amazonaws.com/"])
     def test_keeps_allowed_absolute_article_image_src(self):
         url = "https://bucket.s3.amazonaws.com/articles/uploads/1/2/test.jpg"
+
         cleaned = clean(f'<img src="{url}" alt="x">')
 
         self.assertIn(f'src="{url}"', cleaned)
@@ -214,6 +183,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
     )
     def test_keeps_allowed_absolute_article_image_src_with_base_path(self):
         url = "https://bucket.s3.amazonaws.com/media/articles/uploads/1/2/test.jpg"
+
         cleaned = clean(f'<img src="{url}" alt="x">')
 
         self.assertIn(f'src="{url}"', cleaned)
@@ -222,6 +192,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
     @override_settings(MEDIA_ALLOWED_ROOT_URLS=["https://bucket.s3.amazonaws.com/"])
     def test_removes_absolute_image_for_different_article(self):
         url = "https://bucket.s3.amazonaws.com/articles/uploads/1/3/test.jpg"
+
         cleaned = clean(f'<img src="{url}" alt="x">')
 
         self.assertNotIn("src=", cleaned)
@@ -230,6 +201,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
     @override_settings(MEDIA_ALLOWED_ROOT_URLS=["https://bucket.s3.amazonaws.com/"])
     def test_removes_absolute_image_for_different_author(self):
         url = "https://bucket.s3.amazonaws.com/articles/uploads/9/2/test.jpg"
+
         cleaned = clean(f'<img src="{url}" alt="x">')
 
         self.assertNotIn("src=", cleaned)
@@ -268,18 +240,6 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn(url, cleaned)
         self.assertIn('alt="x"', cleaned)
 
-    @override_settings(MEDIA_ALLOWED_ROOT_URLS=["https://bucket.s3.amazonaws.com/"])
-    def test_removes_absolute_media_image_src_with_path_traversal(self):
-        html = (
-            '<img src="https://bucket.s3.amazonaws.com/articles/uploads/1/../evil.jpg" '
-            'alt="x">'
-        )
-
-        cleaned = clean(html)
-
-        self.assertNotIn("src=", cleaned)
-        self.assertIn('alt="x"', cleaned)
-
     def test_keeps_text_alignment_style(self):
         cleaned = clean('<p style="text-align: center; color: red;">Hello</p>')
 
@@ -299,8 +259,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
 
         self.assertIn('<h2 style="text-align: right;">Heading</h2>', cleaned)
         self.assertIn(
-            '<blockquote style="text-align: justify;">Quote</blockquote>',
-            cleaned,
+            '<blockquote style="text-align: justify;">Quote</blockquote>', cleaned
         )
         self.assertIn('<li style="text-align: center;">Item</li>', cleaned)
         self.assertIn('<td style="text-align: left;">Cell</td>', cleaned)

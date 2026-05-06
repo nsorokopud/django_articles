@@ -21,7 +21,6 @@ from articles.services.media import (
     _delete_author_media_dir,
     _delete_local_filesystem_media,
     _delete_s3_media,
-    _get_article_media_file_name_from_src,
     cleanup_unused_article_inline_media,
     delete_article_inline_media_files,
     delete_article_media_files,
@@ -354,6 +353,10 @@ class TestCleanupUnusedArticleInlineMedia(TestCase):
 
 
 class TestExtractArticleInlineMediaFileNames(SimpleTestCase):
+    @override_settings(
+        MEDIA_URL="/media/",
+        MEDIA_ALLOWED_ROOT_URLS=["https://cdn.test/media/"],
+    )
     def test_extracts_matching_article_media_paths(self):
         html = (
             "<p>Hello</p>"
@@ -366,13 +369,10 @@ class TestExtractArticleInlineMediaFileNames(SimpleTestCase):
         )
 
         self.assertEqual(
-            result,
-            {
-                "articles/uploads/1/2/a.jpeg",
-                "articles/uploads/1/2/b.png",
-            },
+            result, {"articles/uploads/1/2/a.jpeg", "articles/uploads/1/2/b.png"}
         )
 
+    @override_settings(MEDIA_URL="/media/")
     def test_ignores_other_articles_and_authors(self):
         html = (
             '<img src="/media/articles/uploads/1/999/a.jpeg">'
@@ -385,6 +385,7 @@ class TestExtractArticleInlineMediaFileNames(SimpleTestCase):
 
         self.assertEqual(result, set())
 
+    @override_settings(MEDIA_URL="/media/")
     def test_ignores_invalid_and_unsafe_sources(self):
         html = (
             '<img src="data:image/png;base64,abc">'
@@ -400,41 +401,18 @@ class TestExtractArticleInlineMediaFileNames(SimpleTestCase):
 
         self.assertEqual(result, set())
 
+    @override_settings(
+        MEDIA_URL="/media/",
+        MEDIA_ALLOWED_ROOT_URLS=["https://cdn.test/media/"],
+    )
+    def test_ignores_absolute_url_from_unallowed_host(self):
+        html = '<img src="https://evil.test/media/articles/uploads/1/2/a.jpeg">'
 
-class TestGetArticleMediaFileNameFromSrc(SimpleTestCase):
-    def test_extracts_file_name_from_local_media_url(self):
-        result = _get_article_media_file_name_from_src(
-            "/media/articles/uploads/1/2/img.jpeg"
+        result = extract_article_inline_media_file_names(
+            html, article_id=2, author_id=1
         )
 
-        self.assertEqual(result, "articles/uploads/1/2/img.jpeg")
-
-    def test_extracts_file_name_from_absolute_media_url(self):
-        result = _get_article_media_file_name_from_src(
-            "https://cdn.test/media/articles/uploads/1/2/img.jpeg"
-        )
-
-        self.assertEqual(result, "articles/uploads/1/2/img.jpeg")
-
-    def test_rejects_data_blob_and_javascript_urls(self):
-        self.assertIsNone(_get_article_media_file_name_from_src("data:image/png,abc"))
-        self.assertIsNone(_get_article_media_file_name_from_src("blob:http://x"))
-        self.assertIsNone(_get_article_media_file_name_from_src("javascript:alert(1)"))
-
-    def test_rejects_path_traversal_and_null_bytes(self):
-        self.assertIsNone(
-            _get_article_media_file_name_from_src(
-                "/media/articles/uploads/1/2/../evil.jpeg"
-            )
-        )
-        self.assertIsNone(
-            _get_article_media_file_name_from_src(
-                "/media/articles/uploads/1/2/a%00.jpeg"
-            )
-        )
-
-    def test_rejects_non_article_upload_path(self):
-        self.assertIsNone(_get_article_media_file_name_from_src("/media/other/a.jpeg"))
+        self.assertEqual(result, set())
 
 
 class TestDeleteArticleInlineMediaFiles(SimpleTestCase):
