@@ -96,6 +96,16 @@ def cleanup_unused_article_inline_media(*, batch_size: int = 500) -> int:
     deleted_count = 0
 
     for media in media_items:
+        try:
+            media.refresh_from_db(fields=["unreferenced_at", "file"])
+        except ArticleMedia.DoesNotExist:
+            continue
+
+        unreferenced_at = media.unreferenced_at
+
+        if unreferenced_at is None or unreferenced_at >= cutoff:
+            continue
+
         file_name = media.file.name
 
         try:
@@ -105,8 +115,7 @@ def cleanup_unused_article_inline_media(*, batch_size: int = 500) -> int:
             continue
 
         deleted, _ = ArticleMedia.objects.filter(
-            id=media.id,
-            unreferenced_at__lt=cutoff,
+            id=media.id, unreferenced_at=unreferenced_at, unreferenced_at__lt=cutoff
         ).delete()
 
         if deleted:

@@ -240,6 +240,30 @@ class TestCleanupUnusedArticleInlineMedia(TestCase):
         )
 
     @patch("articles.services.media.default_storage.delete")
+    def test_skips_media_if_it_becomes_referenced_before_delete(self, mock_delete):
+        old_time = (
+            timezone.now() - ARTICLE_MEDIA_UNUSED_GRACE_PERIOD - timedelta(seconds=1)
+        )
+        media = ArticleMedia.objects.create(
+            article=self.article,
+            file=f"articles/uploads/{self.user.id}/{self.article.id}/old.jpeg",
+            unreferenced_at=old_time,
+        )
+
+        def delete_side_effect(_):
+            ArticleMedia.objects.filter(id=media.id).update(unreferenced_at=None)
+
+        mock_delete.side_effect = delete_side_effect
+
+        deleted_count = cleanup_unused_article_inline_media(batch_size=500)
+
+        self.assertEqual(deleted_count, 0)
+        mock_delete.assert_called_once_with(media.file.name)
+
+        media.refresh_from_db()
+        self.assertIsNone(media.unreferenced_at)
+
+    @patch("articles.services.media.default_storage.delete")
     def test_deletes_old_unreferenced_media(self, mock_delete):
         media = ArticleMedia.objects.create(
             article=self.article,
