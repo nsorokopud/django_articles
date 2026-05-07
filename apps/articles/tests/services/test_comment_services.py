@@ -1,5 +1,3 @@
-# pylint: disable=R0801
-
 from unittest.mock import patch
 
 from django.db import IntegrityError
@@ -11,7 +9,6 @@ from articles.services.comments import (
     create_article_comment,
     decrement_article_comments_count,
     get_article_comments_page,
-    increment_article_comments_count,
     sync_article_comments_count,
 )
 from users.models import User
@@ -35,6 +32,7 @@ class TestCreateArticleComment(TestCase):
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
+            comments_count=0,
         )
 
     @patch("articles.services.comments.dispatch_notification_after_commit")
@@ -48,11 +46,23 @@ class TestCreateArticleComment(TestCase):
         self.article.save(update_fields=["status", "published_at", "publish_sequence"])
 
         with self.assertRaises(ValueError):
-            create_article_comment(article=self.article, user=self.commenter, text="c")
+            create_article_comment(
+                article_id=self.article.id,
+                user=self.commenter,
+                text="comment text",
+            )
+
+        self.assertFalse(ArticleComment.objects.exists())
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 0)
+
+        mock_create_notification.assert_not_called()
+        mock_dispatch.assert_not_called()
 
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
-    def test_creates_comment_and_dispatches_notification_when_created(
+    def test_creates_comment_increments_count_and_dispatches_notification_when_created(
         self,
         mock_create_notification,
         mock_dispatch,
@@ -63,7 +73,7 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.return_value = (notification, True)
 
         comment = create_article_comment(
-            article=self.article, user=self.commenter, text="hello world"
+            article_id=self.article.id, user=self.commenter, text="hello world"
         )
 
         self.assertIsInstance(comment, ArticleComment)
@@ -75,6 +85,9 @@ class TestCreateArticleComment(TestCase):
         self.assertEqual(db_comment.article, self.article)
         self.assertEqual(db_comment.author, self.commenter)
         self.assertEqual(db_comment.text, "hello world")
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
 
         mock_create_notification.assert_called_once_with(
             comment_id=comment.id,
@@ -92,9 +105,7 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_creates_comment_and_dispatches_notification_when_unread_state_returned(
-        self,
-        mock_create_notification,
-        mock_dispatch,
+        self, mock_create_notification, mock_dispatch
     ):
         notification = type(
             "NotificationStub", (), {"id": 456, "notification_type": "new_comment"}
@@ -102,7 +113,7 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.return_value = (notification, False)
 
         comment = create_article_comment(
-            article=self.article, user=self.commenter, text="another comment"
+            article_id=self.article.id, user=self.commenter, text="another comment"
         )
 
         self.assertTrue(
@@ -114,6 +125,9 @@ class TestCreateArticleComment(TestCase):
             ).exists()
         )
 
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
+
         mock_dispatch.assert_called_once_with(
             notification_id=456, notification_type="new_comment", is_new_unread=False
         )
@@ -121,14 +135,12 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_creates_comment_and_does_not_dispatch_when_notification_not_created(
-        self,
-        mock_create_notification,
-        mock_dispatch,
+        self, mock_create_notification, mock_dispatch
     ):
         mock_create_notification.return_value = None
 
         comment = create_article_comment(
-            article=self.article, user=self.commenter, text="no notification"
+            article_id=self.article.id, user=self.commenter, text="no notification"
         )
 
         self.assertTrue(
@@ -139,6 +151,9 @@ class TestCreateArticleComment(TestCase):
                 text="no notification",
             ).exists()
         )
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
 
         mock_create_notification.assert_called_once_with(
             comment_id=comment.id,
@@ -154,16 +169,13 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.logger.exception")
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
-    def test_keeps_comment_when_notification_creation_raises_runtime_error(
-        self,
-        mock_create_notification,
-        mock_dispatch,
-        mock_log_exception,
+    def test_keeps_comment_and_count_when_notification_creation_raises_runtime_error(
+        self, mock_create_notification, mock_dispatch, mock_log_exception
     ):
         mock_create_notification.side_effect = RuntimeError("notification failure")
 
         comment = create_article_comment(
-            article=self.article, user=self.commenter, text="should persist"
+            article_id=self.article.id, user=self.commenter, text="should persist"
         )
 
         self.assertTrue(
@@ -174,22 +186,23 @@ class TestCreateArticleComment(TestCase):
                 text="should persist",
             ).exists()
         )
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
+
         mock_dispatch.assert_not_called()
         mock_log_exception.assert_called_once()
 
     @patch("articles.services.comments.logger.exception")
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
-    def test_keeps_comment_when_notification_creation_raises_integrity_error(
-        self,
-        mock_create_notification,
-        mock_dispatch,
-        mock_log_exception,
+    def test_keeps_comment_and_count_when_notification_creation_raises_integrity_error(
+        self, mock_create_notification, mock_dispatch, mock_log_exception
     ):
         mock_create_notification.side_effect = IntegrityError("db failure")
 
         comment = create_article_comment(
-            article=self.article, user=self.commenter, text="should also persist"
+            article_id=self.article.id, user=self.commenter, text="should also persist"
         )
 
         self.assertTrue(
@@ -200,38 +213,12 @@ class TestCreateArticleComment(TestCase):
                 text="should also persist",
             ).exists()
         )
-        mock_dispatch.assert_not_called()
-        mock_log_exception.assert_called_once()
-
-
-class TestIncrementArticleCommentsCount(TestCase):
-    def setUp(self):
-        self.author = User.objects.create_user(
-            username="author", email="author@test.com"
-        )
-        self.article = Article.objects.create(
-            title="Article", slug="article", author=self.author, comments_count=0
-        )
-
-    def test_increments_comments_count_by_one(self):
-        increment_article_comments_count(article_id=self.article.id)
 
         self.article.refresh_from_db()
         self.assertEqual(self.article.comments_count, 1)
 
-    def test_multiple_increments_are_accumulative(self):
-        increment_article_comments_count(article_id=self.article.id)
-        increment_article_comments_count(article_id=self.article.id)
-        increment_article_comments_count(article_id=self.article.id)
-
-        self.article.refresh_from_db()
-        self.assertEqual(self.article.comments_count, 3)
-
-    def test_does_nothing_for_nonexistent_article(self):
-        increment_article_comments_count(article_id=999999)
-
-        self.article.refresh_from_db()
-        self.assertEqual(self.article.comments_count, 0)
+        mock_dispatch.assert_not_called()
+        mock_log_exception.assert_called_once()
 
 
 class TestDecrementArticleCommentsCount(TestCase):

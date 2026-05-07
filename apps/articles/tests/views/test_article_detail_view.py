@@ -49,6 +49,7 @@ class TestArticleDetailView(TestCase):
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
+            comments_count=1,
         )
         self.comment = ArticleComment.objects.create(
             author=self.user, article=self.article, text="comment"
@@ -241,20 +242,17 @@ class TestArticleDetailView(TestCase):
         ArticleComment.objects.all().delete()
 
         comment1 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 1",
+            article=self.article, author=self.user, text="comment 1"
         )
         comment2 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 2",
+            article=self.article, author=self.user, text="comment 2"
         )
         comment3 = ArticleComment.objects.create(
-            article=self.article,
-            author=self.user,
-            text="comment 3",
+            article=self.article, author=self.user, text="comment 3"
         )
+
+        self.article.comments_count = 3
+        self.article.save(update_fields=["comments_count"])
 
         response = self.client.get(self.url)
 

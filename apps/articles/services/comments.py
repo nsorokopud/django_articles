@@ -16,26 +16,33 @@ from ..settings import ARTICLE_COMMENTS_PER_PAGE
 logger = logging.getLogger(__name__)
 
 
-def create_article_comment(
-    *, article: Article, user: User, text: str
-) -> ArticleComment:
+def create_article_comment(*, article_id: int, user: User, text: str) -> ArticleComment:
     """Creates an article comment and schedules related notification dispatch."""
-    if article.status != ArticleStatus.PUBLISHED:
-        raise ValueError("comments can only be added to published articles")
+    with transaction.atomic():
+        article = Article.objects.select_for_update().get(pk=article_id)
 
-    comment = ArticleComment.objects.create(article=article, author=user, text=text)
+        if article.status != ArticleStatus.PUBLISHED:
+            raise ValueError("comments can only be added to published articles")
+
+        comment = ArticleComment.objects.create(article=article, author=user, text=text)
+
+        Article.objects.filter(pk=article.pk).update(
+            comments_count=F("comments_count") + 1
+        )
+
+        notification_data = {
+            "comment_id": comment.id,
+            "comment_author_id": user.id,
+            "comment_author_username": user.username,
+            "article_id": article.id,
+            "article_author_id": article.author_id,
+            "article_slug": article.slug,
+            "article_title": article.title,
+        }
 
     try:
         with transaction.atomic():
-            notification_result = create_new_comment_notification(
-                comment_id=comment.id,
-                comment_author_id=user.id,
-                comment_author_username=user.username,
-                article_id=article.id,
-                article_author_id=article.author_id,
-                article_slug=article.slug,
-                article_title=article.title,
-            )
+            notification_result = create_new_comment_notification(**notification_data)
 
             if notification_result is not None:
                 notification, created = notification_result
@@ -49,15 +56,11 @@ def create_article_comment(
             "Failed to create notification for article comment %s "
             "(article_id=%s, user_id=%s)",
             comment.id,
-            article.id,
+            notification_data["article_id"],
             user.id,
         )
 
     return comment
-
-
-def increment_article_comments_count(*, article_id: int) -> None:
-    Article.objects.filter(pk=article_id).update(comments_count=F("comments_count") + 1)
 
 
 def decrement_article_comments_count(*, article_id: int) -> None:

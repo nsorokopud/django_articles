@@ -206,7 +206,5 @@ class ArticleCommentForm(forms.ModelForm):
             raise ValueError("ArticleCommentForm.save(commit=False) is not supported.")
 
         return create_article_comment(
-            article=self.article,
-            user=self.user,
-            text=self.cleaned_data["text"],
+            article_id=self.article.id, user=self.user, text=self.cleaned_data["text"]
         )

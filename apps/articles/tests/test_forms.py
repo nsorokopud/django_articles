@@ -485,11 +485,7 @@ class TestArticleCommentForm(TestCase):
 
     @patch("articles.forms.create_article_comment")
     def test_valid_form(self, mock_create_article_comment):
-        comment = ArticleComment(
-            text="abc",
-            author=self.user,
-            article=self.article,
-        )
+        comment = ArticleComment(text="abc", author=self.user, article=self.article)
         mock_create_article_comment.return_value = comment
 
         form = ArticleCommentForm(
@@ -503,22 +499,16 @@ class TestArticleCommentForm(TestCase):
         result = form.save()
 
         mock_create_article_comment.assert_called_once_with(
-            article=self.article,
-            user=self.user,
-            text="abc",
+            article_id=self.article.id, user=self.user, text="abc"
         )
         self.assertEqual(result, comment)
 
     def test_no_user(self):
-        form = ArticleCommentForm(
-            data={"text": "abc"},
-            article=self.article,
-        )
+        form = ArticleCommentForm(data={"text": "abc"}, article=self.article)
 
         self.assertFalse(form.is_valid())
         self.assertEqual(
-            form.errors,
-            {"__all__": ["User is required to save the comment."]},
+            form.errors, {"__all__": ["User is required to save the comment."]}
         )
 
     def test_anonymous_user(self):
@@ -577,11 +567,7 @@ class TestArticleCommentForm(TestCase):
 
     @patch("articles.forms.create_article_comment")
     def test_text_is_trimmed_before_save(self, mock_create_article_comment):
-        comment = ArticleComment(
-            text="abc",
-            author=self.user,
-            article=self.article,
-        )
+        comment = ArticleComment(text="abc", author=self.user, article=self.article)
         mock_create_article_comment.return_value = comment
 
         form = ArticleCommentForm(
@@ -591,7 +577,7 @@ class TestArticleCommentForm(TestCase):
         form.save()
 
         mock_create_article_comment.assert_called_once_with(
-            article=self.article, user=self.user, text="abc"
+            article_id=self.article.id, user=self.user, text="abc"
         )
 
     def test_commit_false_is_not_supported(self):
