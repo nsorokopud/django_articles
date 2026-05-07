@@ -4,8 +4,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from core.exceptions import InvalidUpload
-from core.validators import validate_uploaded_file
+from core.validators import validate_uploaded_image
 
 from .models import Article, ArticleComment, ArticleStatus
 from .services.articles import save_article
@@ -150,15 +149,10 @@ class ArticleModelForm(forms.ModelForm):
 
 
 class AttachedFileUploadForm(forms.Form):
-    file = forms.FileField(error_messages={"required": "File is required."})
-
-    def clean_file(self) -> Any:
-        uploaded_file = self.cleaned_data["file"]
-        try:
-            validate_uploaded_file(uploaded_file)
-        except InvalidUpload as e:
-            raise ValidationError(str(e)) from e
-        return uploaded_file
+    file = forms.FileField(
+        validators=[validate_uploaded_image],
+        error_messages={"required": "File is required."},
+    )
 
 
 class ArticleCommentForm(forms.ModelForm):

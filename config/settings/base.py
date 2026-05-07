@@ -268,19 +268,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # Allowed root URLs for media files (for validating external image URLs in TinyMCE)
 MEDIA_ALLOWED_ROOT_URLS = os.environ["MEDIA_ALLOWED_ROOT_URLS"].split(" ")
 
-ALLOWED_UPLOAD_FILE_TYPES = {
+ALLOWED_IMAGE_UPLOAD_FILE_TYPES = {
     "jpg": "image/jpeg",
     "jpeg": "image/jpeg",
     "png": "image/png",
     "gif": "image/gif",
     "webp": "image/webp",
-    "bmp": "image/bmp",
-    "tiff": "image/tiff",
 }
 
-MAX_UPLOAD_FILE_SIZE = int(
-    int(os.getenv("MAX_UPLOAD_FILE_SIZE", str(5 * 1024 * 1024)))
-)  # 5MB default
+MAX_IMAGE_UPLOAD_FILE_SIZE = int(
+    os.getenv("MAX_IMAGE_UPLOAD_FILE_SIZE", str(5 * 1024 * 1024))  # 5MB default
+)
 
 
 X_FRAME_OPTIONS = "SAMEORIGIN"

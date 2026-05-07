@@ -4,7 +4,7 @@ from unittest.mock import ANY, patch
 from django import forms
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
@@ -19,7 +19,6 @@ from articles.forms import (
     AttachedFileUploadForm,
 )
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from core.exceptions import InvalidUpload
 from users.models import User
 
 
@@ -441,25 +440,36 @@ class TestArticleModelForm(TestCase):
         self.assertEqual(passed_article.content, "updated content")
 
 
+@override_settings(
+    ALLOWED_IMAGE_UPLOAD_FILE_TYPES={"jpg": "image/jpeg"},
+    MAX_IMAGE_UPLOAD_FILE_SIZE=1024,
+)
 class TestAttachedFileUploadForm(SimpleTestCase):
-    @patch("articles.forms.validate_uploaded_file")
-    def test_valid_form(self, mock_validate):
-        file = SimpleUploadedFile("img.jpg", b"jpg content")
-        form = AttachedFileUploadForm(
-            files={"file": file},
-        )
+    @patch("core.validators.magic.from_buffer", return_value="image/jpeg")
+    def test_valid_form(self, mock_magic):
+        file = SimpleUploadedFile("img.jpg", b"content", content_type="image/jpeg")
+
+        form = AttachedFileUploadForm(files={"file": file})
+
         self.assertTrue(form.is_valid())
         self.assertEqual(form.errors, {})
 
-    @patch("articles.forms.validate_uploaded_file")
-    def test_invalid_form(self, mock_validate):
-        mock_validate.side_effect = InvalidUpload("Invalid upload")
-        file = SimpleUploadedFile("img.jpg", b"jpg content")
-        form = AttachedFileUploadForm(
-            files={"file": file},
-        )
+    @patch("core.validators.magic.from_buffer", return_value="text/plain")
+    def test_invalid_form(self, mock_magic):
+        file = SimpleUploadedFile("img.jpg", b"content", content_type="image/jpeg")
+
+        form = AttachedFileUploadForm(files={"file": file})
+
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors, {"file": ["Invalid upload"]})
+        self.assertEqual(
+            form.errors,
+            {
+                "file": [
+                    "File content does not match its extension: "
+                    "expected image/jpeg, got text/plain."
+                ]
+            },
+        )
 
 
 class TestArticleCommentForm(TestCase):
