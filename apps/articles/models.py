@@ -193,7 +193,9 @@ def article_inline_media_upload_path(instance, filename) -> str:
     base_name, extension = os.path.splitext(raw_base_name)
 
     safe_base_name = get_valid_filename(base_name).strip("._-") or "file"
-    safe_extension = get_valid_filename(extension.lower()).strip("._")
+    safe_extension = (
+        get_valid_filename(extension.lower()).strip("._") if extension else ""
+    )
 
     filename = f"{safe_base_name}_{uuid4().hex}"
     if safe_extension:

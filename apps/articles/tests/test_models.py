@@ -345,6 +345,21 @@ class TestArticleMediaModel(TestCase):
         self.assertEqual(path, expected)
         self.assertNotIn("\\", path)  # ensure no Windows separators
 
+    @patch("articles.models.uuid4")
+    def test_article_inline_media_upload_path_handles_missing_extension(
+        self, mock_uuid4
+    ):
+        mock_uuid4.return_value.hex = "abc123"
+
+        media = ArticleMedia(article=self.article)
+
+        path = article_inline_media_upload_path(media, "image")
+
+        self.assertEqual(
+            path,
+            f"articles/uploads/{self.author.id}/{self.article.id}/image_abc123",
+        )
+
     def test_article_media_defaults_to_referenced_state_unknown(self):
         media = ArticleMedia.objects.create(
             article=self.article, file="articles/uploads/1/1/example.png"
