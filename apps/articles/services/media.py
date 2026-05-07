@@ -31,6 +31,16 @@ ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE = "articles/uploads/{author_id}/{article_id}"
 ARTICLE_MEDIA_UNUSED_GRACE_PERIOD = timedelta(days=7)
 
 
+def delete_article_preview_image_file(file_name: str) -> None:
+    if not file_name:
+        return
+
+    try:
+        default_storage.delete(file_name)
+    except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+        logger.exception("Failed to delete old article preview image: %s", file_name)
+
+
 def delete_article_media_files(
     *, article_id: int, author_id: int, preview_image_name: str = ""
 ) -> None:

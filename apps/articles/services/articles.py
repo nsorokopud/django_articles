@@ -12,7 +12,10 @@ from users.models import User
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..models import Article, ArticleStatus
 from ..search_utils import extract_searchable_text
-from .media import sync_article_inline_media_references
+from .media import (
+    delete_article_preview_image_file,
+    sync_article_inline_media_references,
+)
 from .sanitization import sanitize_article_html
 
 
@@ -62,11 +65,16 @@ def save_article(
     else:
         original_article = (
             Article.objects.select_for_update()
-            .only("title", "slug", "status")
+            .only("title", "slug", "status", "preview_image")
             .get(pk=article.pk)
         )
 
     old_slug = original_article.slug if original_article is not None else None
+    old_preview_image_name = (
+        original_article.preview_image.name
+        if original_article is not None and original_article.preview_image
+        else ""
+    )
 
     article.content = sanitize_article_html(
         article.content, article_id=article.id, author_id=article.author_id
@@ -89,10 +97,16 @@ def save_article(
     else:
         article.save()
 
+    new_preview_image_name = article.preview_image.name if article.preview_image else ""
     sync_article_inline_media_references(article=article)
 
     if old_slug and old_slug != article.slug:
         transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=old_slug))
+
+    if old_preview_image_name and old_preview_image_name != new_preview_image_name:
+        transaction.on_commit(
+            lambda: delete_article_preview_image_file(old_preview_image_name)
+        )
 
     if article.status == ArticleStatus.PUBLISHED:
         transaction.on_commit(

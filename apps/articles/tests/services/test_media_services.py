@@ -5,8 +5,8 @@ from datetime import timedelta
 from pathlib import PurePosixPath
 from unittest.mock import Mock, call, patch
 
-from botocore.exceptions import ClientError
-from django.core.exceptions import ImproperlyConfigured
+from botocore.exceptions import BotoCoreError, ClientError
+from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -24,12 +24,58 @@ from articles.services.media import (
     cleanup_unused_article_inline_media,
     delete_article_inline_media_files,
     delete_article_media_files,
+    delete_article_preview_image_file,
     extract_article_inline_media_file_names,
     save_article_inline_media_file,
     sync_article_inline_media_references,
 )
 from core.exceptions import MediaSaveError
 from users.models import User
+
+
+class TestDeleteArticlePreviewImageFile(SimpleTestCase):
+    def test_returns_without_deleting_when_file_name_is_empty(self):
+        with patch("articles.services.media.default_storage.delete") as mock_delete:
+            delete_article_preview_image_file("")
+
+        mock_delete.assert_not_called()
+
+    def test_deletes_preview_image_file(self):
+        with patch("articles.services.media.default_storage.delete") as mock_delete:
+            delete_article_preview_image_file("articles/preview_images/1/test.jpg")
+
+        mock_delete.assert_called_once_with("articles/preview_images/1/test.jpg")
+
+    def test_logs_and_swallows_expected_storage_exceptions(self):
+        file_name = "articles/preview_images/1/test.jpg"
+
+        exceptions = [
+            OSError("storage failed"),
+            BotoCoreError(),
+            ClientError(
+                error_response={
+                    "Error": {"Code": "AccessDenied", "Message": "Access denied"}
+                },
+                operation_name="DeleteObject",
+            ),
+            SuspiciousFileOperation("bad path"),
+        ]
+
+        for exception in exceptions:
+            with self.subTest(exception=type(exception).__name__):
+                with (
+                    patch(
+                        "articles.services.media.default_storage.delete",
+                        side_effect=exception,
+                    ) as mock_delete,
+                    patch("articles.services.media.logger") as mock_logger,
+                ):
+                    delete_article_preview_image_file(file_name)
+
+                mock_delete.assert_called_once_with(file_name)
+                mock_logger.exception.assert_called_once_with(
+                    "Failed to delete old article preview image: %s", file_name
+                )
 
 
 class TestDeleteArticleMediaFiles(SimpleTestCase):

@@ -12,6 +12,7 @@ from articles.models import (
     ArticleMedia,
     ArticleStatus,
     article_inline_media_upload_path,
+    article_preview_image_upload_path,
 )
 from config.settings import CACHES
 
@@ -29,6 +30,13 @@ class TestArticleModel(TestCase):
             preview_text="draft preview",
             content="draft content",
         )
+
+    def test_preview_image_has_uploaded_image_validator(self):
+        field = Article._meta.get_field("preview_image")
+
+        validator_names = {validator.__name__ for validator in field.validators}
+
+        self.assertIn("validate_uploaded_image", validator_names)
 
     @override_settings(CACHES=CACHES)
     def test_views_property(self):
@@ -293,6 +301,94 @@ class TestArticleModelConstraints(TestCase):
         )
 
         self.assertEqual(article.status, ArticleStatus.DRAFT)
+
+
+class TestArticlePreviewImageUploadPath(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.article = Article.objects.create(
+            author=self.author,
+            title="a",
+            slug="a",
+            preview_text="preview",
+            content="content",
+            content_text="content",
+        )
+
+    @patch("articles.models.uuid4")
+    def test_uses_author_id(self, mock_uuid4):
+        mock_uuid4.return_value.hex = "abc123"
+
+        path = article_preview_image_upload_path(self.article, "Preview Image.PNG")
+
+        self.assertEqual(
+            path, f"articles/preview_images/{self.author.id}/Preview_Image_abc123.png"
+        )
+
+    @patch("articles.models.uuid4")
+    def test_sanitizes_filename(self, mock_uuid4):
+        mock_uuid4.return_value.hex = "abc123"
+
+        path = article_preview_image_upload_path(
+            self.article, "../../bad preview image!!.JPG"
+        )
+
+        self.assertEqual(
+            path,
+            f"articles/preview_images/{self.author.id}/bad_preview_image_abc123.jpg",
+        )
+
+    @patch("articles.models.uuid4")
+    def test_falls_back_to_preview_name(
+        self,
+        mock_uuid4,
+    ):
+        mock_uuid4.return_value.hex = "abc123"
+
+        path = article_preview_image_upload_path(self.article, "...---.webp")
+
+        self.assertEqual(
+            path, f"articles/preview_images/{self.author.id}/preview_abc123.webp"
+        )
+
+    @patch("articles.models.uuid4")
+    def test_handles_missing_extension(
+        self,
+        mock_uuid4,
+    ):
+        mock_uuid4.return_value.hex = "abc123"
+
+        path = article_preview_image_upload_path(self.article, "preview")
+
+        self.assertEqual(
+            path, f"articles/preview_images/{self.author.id}/preview_abc123"
+        )
+
+    @patch("articles.models.uuid4")
+    def test_uses_unknown_when_author_id_missing(
+        self,
+        mock_uuid4,
+    ):
+        mock_uuid4.return_value.hex = "abc123"
+
+        unsaved_article = Article(title="draft")
+
+        path = article_preview_image_upload_path(unsaved_article, "preview.jpg")
+
+        self.assertEqual(path, "articles/preview_images/unknown/preview_abc123.jpg")
+
+    @patch("articles.models.uuid4")
+    def test_uses_posix_separators(self, mock_uuid4):
+        mock_uuid4.return_value.hex = "abc123"
+
+        path = article_preview_image_upload_path(self.article, "preview.webp")
+
+        expected = f"articles/preview_images/{self.author.id}/preview_abc123.webp"
+
+        self.assertEqual(path, expected)
+        self.assertNotIn("\\", path)
 
 
 class TestArticleMediaModel(TestCase):

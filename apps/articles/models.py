@@ -13,6 +13,7 @@ from django.utils.text import get_valid_filename
 from taggit.managers import TaggableManager
 from tinymce.models import HTMLField
 
+from core.validators import validate_uploaded_image
 from users.models import User
 
 from .settings import DISPLAYED_COMMENT_LENGTH
@@ -28,6 +29,24 @@ class ArticleStatus(models.TextChoices):
     REJECTED = "rejected", "Rejected"
 
 
+def article_preview_image_upload_path(instance, filename) -> str:
+    raw_base_name = os.path.basename(filename)
+    base_name, extension = os.path.splitext(raw_base_name)
+
+    safe_base_name = get_valid_filename(base_name).strip("._-") or "preview"
+    safe_extension = (
+        get_valid_filename(extension.lower()).strip("._") if extension else ""
+    )
+
+    filename = f"{safe_base_name}_{uuid4().hex}"
+    if safe_extension:
+        filename = f"{filename}.{safe_extension}"
+
+    return posixpath.join(
+        "articles", "preview_images", str(instance.author_id or "unknown"), filename
+    )
+
+
 class Article(models.Model):
     title = models.CharField(max_length=200, blank=True)
     slug = models.SlugField(max_length=200, unique=True)
@@ -37,7 +56,11 @@ class Article(models.Model):
     tags = TaggableManager(blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE)
     preview_text = models.TextField(max_length=512, blank=True)
-    preview_image = models.ImageField(upload_to="articles/preview_images/", blank=True)
+    preview_image = models.ImageField(
+        upload_to=article_preview_image_upload_path,
+        blank=True,
+        validators=[validate_uploaded_image],
+    )
     content = HTMLField(blank=True)
     content_text = models.TextField(blank=True, editable=False)
     search_vector = models.GeneratedField(

@@ -1,5 +1,6 @@
 from unittest.mock import Mock, call, patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.test import TransactionTestCase
 from django.utils import timezone
@@ -508,10 +509,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(saved.slug, "a1-suffix")
         self.assertEqual(
             mock_build_slug.call_args_list,
-            [
-                call("a1", use_suffix=False),
-                call("a1", use_suffix=True),
-            ],
+            [call("a1", use_suffix=False), call("a1", use_suffix=True)],
         )
 
         db_article = Article.objects.get(id=saved.id)
@@ -529,13 +527,7 @@ class TestSaveArticle(TransactionTestCase):
             content="content",
             content_text="content",
         )
-        mock_build_slug.side_effect = [
-            "a1",
-            "a1-s1",
-            "a1-s2",
-            "a1-s3",
-            "a1-s4",
-        ]
+        mock_build_slug.side_effect = ["a1", "a1-s1", "a1-s2", "a1-s3", "a1-s4"]
 
         with patch.object(
             Article,
@@ -550,6 +542,114 @@ class TestSaveArticle(TransactionTestCase):
 
         self.assertEqual(mock_build_slug.call_count, MAX_SLUG_RETRY_ATTEMPTS)
         self.assertEqual(Article.objects.count(), 0)
+
+    @patch("articles.services.articles.delete_article_preview_image_file")
+    def test_deletes_old_preview_image_when_preview_image_is_replaced(
+        self,
+        mock_delete_preview_image,
+    ):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            preview_image="articles/preview_images/author/old.jpg",
+        )
+
+        article.preview_image = SimpleUploadedFile(
+            name="new.jpg", content=b"fake-image-content", content_type="image/jpeg"
+        )
+
+        saved = save_article(article=article)
+
+        self.assertEqual(saved.pk, article.pk)
+        self.assertTrue(saved.preview_image.name)
+        self.assertNotEqual(
+            saved.preview_image.name, "articles/preview_images/author/old.jpg"
+        )
+        mock_delete_preview_image.assert_called_once_with(
+            "articles/preview_images/author/old.jpg"
+        )
+
+    @patch("articles.services.articles.delete_article_preview_image_file")
+    def test_deletes_old_preview_image_when_preview_image_is_cleared(
+        self,
+        mock_delete_preview_image,
+    ):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            preview_image="articles/preview_images/author/old.jpg",
+        )
+
+        article.preview_image = ""
+
+        saved = save_article(article=article)
+
+        self.assertEqual(saved.pk, article.pk)
+        self.assertEqual(saved.preview_image.name, "")
+        mock_delete_preview_image.assert_called_once_with(
+            "articles/preview_images/author/old.jpg"
+        )
+
+    @patch("articles.services.articles.delete_article_preview_image_file")
+    def test_does_not_delete_preview_image_when_preview_image_is_unchanged(
+        self,
+        mock_delete_preview_image,
+    ):
+        article = Article.objects.create(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            preview_image="articles/preview_images/author/same.jpg",
+        )
+
+        article.preview_text = "updated preview"
+
+        saved = save_article(article=article)
+
+        self.assertEqual(saved.pk, article.pk)
+        self.assertEqual(
+            saved.preview_image.name, "articles/preview_images/author/same.jpg"
+        )
+        mock_delete_preview_image.assert_not_called()
+
+    @patch("articles.services.articles.delete_article_preview_image_file")
+    def test_does_not_delete_preview_image_when_creating_article_with_preview_image(
+        self,
+        mock_delete_preview_image,
+    ):
+        article = Article(
+            title="a1",
+            slug="a1",
+            category=self.category,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            preview_image=SimpleUploadedFile(
+                name="preview.jpg",
+                content=b"fake-image-content",
+                content_type="image/jpeg",
+            ),
+        )
+
+        saved = save_article(article=article, author=self.author)
+
+        self.assertIsNotNone(saved.pk)
+        self.assertTrue(saved.preview_image.name)
+        mock_delete_preview_image.assert_not_called()
 
     @patch("articles.services.articles.invalidate_article_slug_id")
     def test_invalidates_old_slug_when_slug_changes(self, mock_invalidate):
