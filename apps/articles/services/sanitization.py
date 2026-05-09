@@ -70,10 +70,7 @@ for tag_name in ALIGNABLE_TAGS:
 
 
 def sanitize_article_html(
-    html: str,
-    *,
-    article_id: int | None,
-    author_id: int | None,
+    html: str, *, article_id: int | None, author_id: int | None
 ) -> str:
     def attribute_filter(tag: str, attr: str, value: str) -> str | None:
         return _article_attribute_filter(
@@ -91,12 +88,7 @@ def sanitize_article_html(
 
 
 def _article_attribute_filter(
-    tag: str,
-    attr: str,
-    value: str,
-    *,
-    article_id: int | None,
-    author_id: int | None,
+    tag: str, attr: str, value: str, *, article_id: int | None, author_id: int | None
 ) -> str | None:
     tag = tag.lower()
     attr = attr.lower()
@@ -106,9 +98,7 @@ def _article_attribute_filter(
             return None
 
         return _filter_article_image_src(
-            value,
-            article_id=article_id,
-            author_id=author_id,
+            value, article_id=article_id, author_id=author_id
         )
 
     if attr == "href":
@@ -138,10 +128,7 @@ def _is_allowed_anchor_href(href: str) -> bool:
 
 
 def _filter_article_image_src(
-    src: str,
-    *,
-    article_id: int | None,
-    author_id: int | None,
+    src: str, *, article_id: int | None, author_id: int | None
 ) -> str | None:
     file_name = extract_article_media_storage_name(src)
 
