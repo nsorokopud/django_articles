@@ -122,6 +122,16 @@ class Article(models.Model):
                 name="article_publish_seq_desc_idx",
                 condition=Q(status=ArticleStatus.PUBLISHED),
             ),
+            models.Index(
+                fields=["-views_count", "-publish_sequence", "-id"],
+                name="art_pub_views_seq_id_idx",
+                condition=Q(status=ArticleStatus.PUBLISHED),
+            ),
+            models.Index(
+                fields=["-likes_count", "-publish_sequence", "-id"],
+                name="art_pub_likes_seq_id_idx",
+                condition=Q(status=ArticleStatus.PUBLISHED),
+            ),
             GinIndex(
                 fields=["title"],
                 name="article_title_trigram_idx",
