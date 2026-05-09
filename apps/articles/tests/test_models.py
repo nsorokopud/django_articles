@@ -345,6 +345,14 @@ class TestArticlePreviewImageUploadPath(TestCase):
             content_text="content",
         )
 
+    def test_requires_author_id(self):
+        article = Article(title="Test")
+
+        with self.assertRaises(ValueError) as context:
+            article.preview_image.field.generate_filename(article, "preview.jpg")
+
+        self.assertIn("author_id is required", str(context.exception))
+
     @patch("articles.models.uuid4")
     def test_uses_author_id(self, mock_uuid4):
         mock_uuid4.return_value.hex = "abc123"
@@ -393,19 +401,6 @@ class TestArticlePreviewImageUploadPath(TestCase):
         self.assertEqual(
             path, f"articles/preview_images/{self.author.id}/preview_abc123"
         )
-
-    @patch("articles.models.uuid4")
-    def test_uses_unknown_when_author_id_missing(
-        self,
-        mock_uuid4,
-    ):
-        mock_uuid4.return_value.hex = "abc123"
-
-        unsaved_article = Article(title="draft")
-
-        path = article_preview_image_upload_path(unsaved_article, "preview.jpg")
-
-        self.assertEqual(path, "articles/preview_images/unknown/preview_abc123.jpg")
 
     @patch("articles.models.uuid4")
     def test_uses_posix_separators(self, mock_uuid4):

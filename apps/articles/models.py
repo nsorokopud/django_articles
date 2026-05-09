@@ -31,6 +31,9 @@ class ArticleStatus(models.TextChoices):
 
 
 def article_preview_image_upload_path(instance, filename) -> str:
+    if not instance.author_id:
+        raise ValueError("author_id is required to upload preview images")
+
     raw_base_name = os.path.basename(filename)
     base_name, extension = os.path.splitext(raw_base_name)
 
@@ -44,7 +47,7 @@ def article_preview_image_upload_path(instance, filename) -> str:
         filename = f"{filename}.{safe_extension}"
 
     return posixpath.join(
-        "articles", "preview_images", str(instance.author_id or "unknown"), filename
+        "articles", "preview_images", str(instance.author_id), filename
     )
 
 
