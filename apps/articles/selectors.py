@@ -1,17 +1,15 @@
-import logging
 from typing import Optional, Sequence
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.db.models.query import QuerySet
-from sql_util.utils import SubqueryAggregate
 from taggit.models import Tag
 
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
 from users.models import User
 
 
-logger = logging.getLogger(__name__)
+ARTICLE_FILTER_AUTOCOMPLETE_RESULT_LIMIT = 20
 
 
 def find_published_articles() -> QuerySet[Article]:
@@ -134,16 +132,48 @@ def get_article_for_author_by_slug(*, article_slug: str, author_id: int) -> Arti
     )
 
 
-def get_all_categories() -> QuerySet[ArticleCategory]:
-    return ArticleCategory.objects.annotate(
-        articles_count=SubqueryAggregate(
-            "article__id", filter=Q(status=ArticleStatus.PUBLISHED), aggregate=Count
-        )
+def find_article_filter_categories() -> QuerySet[ArticleCategory]:
+    return (
+        ArticleCategory.objects.filter(article__status=ArticleStatus.PUBLISHED)
+        .distinct()
+        .order_by("title")
     )
 
 
-def get_all_tags() -> QuerySet[Tag]:
-    return Tag.objects.all()
+def find_article_filter_tags() -> QuerySet[Tag]:
+    return (
+        Tag.objects.filter(article__status=ArticleStatus.PUBLISHED)
+        .distinct()
+        .order_by("name")
+    )
+
+
+def find_article_filter_authors() -> QuerySet[User]:
+    return (
+        User.objects.filter(article__status=ArticleStatus.PUBLISHED)
+        .distinct()
+        .order_by("username")
+    )
+
+
+def find_article_filter_tag_suggestions(q: str) -> QuerySet[Tag]:
+    queryset = find_article_filter_tags()
+
+    q = (q or "").strip()
+    if q:
+        queryset = queryset.filter(name__icontains=q)
+
+    return queryset[:ARTICLE_FILTER_AUTOCOMPLETE_RESULT_LIMIT]
+
+
+def find_article_filter_author_suggestions(q: str) -> QuerySet[User]:
+    queryset = find_article_filter_authors()
+
+    q = (q or "").strip()
+    if q:
+        queryset = queryset.filter(username__icontains=q)
+
+    return queryset[:ARTICLE_FILTER_AUTOCOMPLETE_RESULT_LIMIT]
 
 
 def get_comment_by_id(comment_id: int) -> ArticleComment:

@@ -17,12 +17,19 @@ class TestArticleFilter(TestCase):
 
         self.user1 = User.objects.create(username="user1", email="user1@test.com")
         self.user2 = User.objects.create(username="user2", email="user2@test.com")
+        self.draft_only_user = User.objects.create(
+            username="draft_only_user", email="draft_only_user@test.com"
+        )
 
         self.category1 = ArticleCategory.objects.create(title="Cat1", slug="cat1")
         self.category2 = ArticleCategory.objects.create(title="Cat2", slug="cat2")
+        self.draft_only_category = ArticleCategory.objects.create(
+            title="Draft Only Cat", slug="draft-only-cat"
+        )
 
         self.tag1 = Tag.objects.create(name="tag1")
         self.tag2 = Tag.objects.create(name="tag2")
+        self.draft_only_tag = Tag.objects.create(name="draft-only-tag")
 
         self.article1 = Article.objects.create(
             title="Article1",
@@ -60,8 +67,80 @@ class TestArticleFilter(TestCase):
         self.article2.tags.add(self.tag1)
         self.article2.users_that_liked.add(self.user1)
 
+        self.draft_article = Article.objects.create(
+            title="Draft Article",
+            slug="draft-article",
+            author=self.draft_only_user,
+            category=self.draft_only_category,
+            preview_text="Draft preview",
+            content="Draft content",
+            content_text="Draft content",
+            status=ArticleStatus.DRAFT,
+        )
+        self.draft_article.tags.add(self.draft_only_tag)
+
     def get_base_queryset(self):
         return find_published_articles()
+
+    def test_unbound_filter_does_not_load_author_or_tag_choices(self):
+        f = ArticleFilter(data=None, queryset=self.get_base_queryset())
+
+        self.assertFalse(f.is_bound)
+        self.assertCountEqual(f.filters["author"].queryset, [])
+        self.assertCountEqual(f.filters["tags"].queryset, [])
+
+    def test_bound_filter_without_author_or_tags_does_not_load_author_or_tag_choices(
+        self,
+    ):
+        f = ArticleFilter(data={}, queryset=self.get_base_queryset())
+
+        self.assertTrue(f.is_bound)
+        self.assertCountEqual(f.filters["author"].queryset, [])
+        self.assertCountEqual(f.filters["tags"].queryset, [])
+
+    def test_bound_filter_loads_only_selected_author_choice(self):
+        f = ArticleFilter(
+            data={"author": self.user1.username}, queryset=self.get_base_queryset()
+        )
+
+        self.assertCountEqual(f.filters["author"].queryset, [self.user1])
+        self.assertCountEqual(f.filters["tags"].queryset, [])
+
+    def test_bound_filter_loads_only_selected_tag_choices(self):
+        f = ArticleFilter(
+            data={"tags": [self.tag1.name, self.tag2.name]},
+            queryset=self.get_base_queryset(),
+        )
+
+        self.assertCountEqual(f.filters["author"].queryset, [])
+        self.assertCountEqual(f.filters["tags"].queryset, [self.tag1, self.tag2])
+
+    def test_author_queryset_does_not_include_draft_only_author(self):
+        f = ArticleFilter(
+            data={"author": self.draft_only_user.username},
+            queryset=self.get_base_queryset(),
+        )
+
+        self.assertCountEqual(f.filters["author"].queryset, [])
+        self.assertFalse(f.is_valid())
+        self.assertIn("author", f.errors)
+
+    def test_tags_queryset_does_not_include_draft_only_tag(self):
+        f = ArticleFilter(
+            data={"tags": [self.draft_only_tag.name]}, queryset=self.get_base_queryset()
+        )
+
+        self.assertCountEqual(f.filters["tags"].queryset, [])
+        self.assertFalse(f.is_valid())
+        self.assertIn("tags", f.errors)
+
+    def test_category_queryset_contains_only_categories_with_published_articles(self):
+        f = ArticleFilter(data={}, queryset=self.get_base_queryset())
+
+        self.assertCountEqual(
+            f.filters["category"].queryset, [self.category1, self.category2]
+        )
+        self.assertNotIn(self.draft_only_category, list(f.filters["category"].queryset))
 
     def test_filter_by_author(self):
         base_qs = self.get_base_queryset()
@@ -78,6 +157,24 @@ class TestArticleFilter(TestCase):
         base_qs = self.get_base_queryset()
 
         f = ArticleFilter(data={"author": "non-existent"}, queryset=base_qs)
+        self.assertFalse(f.is_valid())
+        self.assertEqual(
+            f.errors,
+            {
+                "author": [
+                    "Select a valid choice. That choice is not one "
+                    "of the available choices."
+                ]
+            },
+        )
+
+    def test_filter_by_author_rejects_draft_only_author(self):
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(
+            data={"author": self.draft_only_user.username}, queryset=base_qs
+        )
+
         self.assertFalse(f.is_valid())
         self.assertEqual(
             f.errors,
@@ -115,18 +212,32 @@ class TestArticleFilter(TestCase):
             },
         )
 
+    def test_filter_by_category_rejects_draft_only_category(self):
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(
+            data={"category": self.draft_only_category.slug}, queryset=base_qs
+        )
+
+        self.assertFalse(f.is_valid())
+        self.assertEqual(
+            f.errors,
+            {
+                "category": [
+                    "Select a valid choice. That choice is not one "
+                    "of the available choices."
+                ]
+            },
+        )
+
     def test_filter_by_date(self):
         base_qs = self.get_base_queryset()
 
-        data = {
-            "date_after": (self.today - timedelta(days=2)).isoformat(),
-        }
+        data = {"date_after": (self.today - timedelta(days=2)).isoformat()}
         filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article2])
 
-        data = {
-            "date_before": (self.today - timedelta(days=2)).isoformat(),
-        }
+        data = {"date_before": (self.today - timedelta(days=2)).isoformat()}
         filtered = ArticleFilter(data=data, queryset=base_qs).qs
         self.assertCountEqual(filtered, [self.article1])
 
@@ -140,10 +251,7 @@ class TestArticleFilter(TestCase):
     def test_filter_by_date_invalid(self):
         base_qs = self.get_base_queryset()
 
-        data = {
-            "date_before": "abc",
-            "date_after": "xyz",
-        }
+        data = {"date_before": "abc", "date_after": "xyz"}
         f = ArticleFilter(data=data, queryset=base_qs)
         self.assertFalse(f.is_valid())
         self.assertEqual(f.errors, {"date": ["Enter a valid date."]})
@@ -152,13 +260,35 @@ class TestArticleFilter(TestCase):
         base_qs = self.get_base_queryset()
 
         data = {"tags": [self.tag1.name, self.tag2.name]}
-        filtered = ArticleFilter(data=data, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1])
+        f = ArticleFilter(data=data, queryset=base_qs)
+
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [self.article1])
+
+    def test_filter_by_single_tag(self):
+        base_qs = self.get_base_queryset()
+
+        data = {"tags": [self.tag1.name]}
+        f = ArticleFilter(data=data, queryset=base_qs)
+
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [self.article1, self.article2])
 
     def test_filter_by_tags_invalid(self):
         base_qs = self.get_base_queryset()
 
         f = ArticleFilter(data={"tags": ["non-existent-tag"]}, queryset=base_qs)
+        self.assertFalse(f.is_valid())
+        self.assertCountEqual(f.errors.keys(), ["tags"])
+        self.assertEqual(len(f.errors["tags"]), 1)
+        self.assertIn("Select a valid choice. ", f.errors["tags"][0])
+        self.assertIn("is not one of the available choices.", f.errors["tags"][0])
+
+    def test_filter_by_tags_rejects_draft_only_tag(self):
+        base_qs = self.get_base_queryset()
+
+        f = ArticleFilter(data={"tags": [self.draft_only_tag.name]}, queryset=base_qs)
+
         self.assertFalse(f.is_valid())
         self.assertCountEqual(f.errors.keys(), ["tags"])
         self.assertEqual(len(f.errors["tags"]), 1)
@@ -231,38 +361,40 @@ class TestArticleFilter(TestCase):
             "date_after": (self.today - timedelta(days=200)).isoformat(),
             "tags": [self.tag1.name],
         }
-        filtered = ArticleFilter(data=data, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1])
+        f = ArticleFilter(data=data, queryset=base_qs)
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [self.article1])
 
         data = {
             "author": self.user1.username,
             "date_before": (self.today - timedelta(days=10)).isoformat(),
             "tags": [self.tag2.name],
         }
-        filtered = ArticleFilter(data=data, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1])
+        f = ArticleFilter(data=data, queryset=base_qs)
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [self.article1])
 
         data = {
             "author": self.user1.username,
             "date_before": (self.today - timedelta(days=999)).isoformat(),
             "tags": [self.tag2.name],
         }
-        filtered = ArticleFilter(data=data, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [])
+        f = ArticleFilter(data=data, queryset=base_qs)
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [])
 
         data = {
             "date_after": (self.today - timedelta(days=999)).isoformat(),
             "tags": [self.tag1.name],
         }
-        filtered = ArticleFilter(data=data, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article1, self.article2])
+        f = ArticleFilter(data=data, queryset=base_qs)
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [self.article1, self.article2])
 
-        data = {
-            "category": self.category2.slug,
-            "tags": [self.tag1.name],
-        }
-        filtered = ArticleFilter(data=data, queryset=base_qs).qs
-        self.assertCountEqual(filtered, [self.article2])
+        data = {"category": self.category2.slug, "tags": [self.tag1.name]}
+        f = ArticleFilter(data=data, queryset=base_qs)
+        self.assertTrue(f.is_valid())
+        self.assertCountEqual(f.qs, [self.article2])
 
 
 class TestSubscriptionFeedFilter(TestCase):
@@ -277,15 +409,12 @@ class TestSubscriptionFeedFilter(TestCase):
             username="other_author", email="other_author@test.com"
         )
         AuthorSubscription.objects.create(
-            subscriber=self.subscriber,
-            author=self.subscribed_author,
+            subscriber=self.subscriber, author=self.subscribed_author
         )
 
     def test_limits_authors_to_subscribed_to(self):
         filterset = SubscriptionFeedFilter(
-            data={},
-            queryset=Article.objects.none(),
-            user=self.subscriber,
+            data={}, queryset=Article.objects.none(), user=self.subscriber
         )
 
         authors = filterset.filters["author"].queryset

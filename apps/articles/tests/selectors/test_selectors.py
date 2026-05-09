@@ -10,8 +10,6 @@ from articles.selectors import (
     find_comments_to_article,
     find_published_articles,
     find_subscription_feed_articles,
-    get_all_categories,
-    get_all_tags,
     get_comment_by_id,
 )
 from users.models import AuthorSubscription, User
@@ -253,40 +251,6 @@ class TestSelectors(TestCase):
             article=a1, author=self.test_user, text="text"
         )
         self.assertCountEqual(find_comments_to_article(a1), [comment1, comment3])
-
-    def test_get_all_categories(self):
-        cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
-        cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
-        self.assertCountEqual(get_all_categories(), [cat1, cat2, self.test_category])
-
-    def test_get_all_tags(self):
-        a1 = self.create_article(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-        a2 = self.create_article(
-            title="a2",
-            slug="a2",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text2",
-            content="content2",
-        )
-
-        res = get_all_tags()
-        self.assertCountEqual(res, [])
-
-        a1.tags.add("tag1", "tag2")
-        res = [tag.name for tag in get_all_tags()]
-        self.assertCountEqual(res, ["tag1", "tag2"])
-
-        a2.tags.add("tag2", "tag3")
-        res = [tag.name for tag in get_all_tags()]
-        self.assertCountEqual(res, ["tag1", "tag2", "tag3"])
 
     def test_find_article_comments_liked_by_user(self):
         a1 = self.create_published_article(

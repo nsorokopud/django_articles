@@ -1,8 +1,59 @@
-$('#id_author, #id_category, #id_ordering').select2({
+const ajaxUrls = document.getElementById('articleFilterAjaxUrls');
+
+const tagsAutocompleteUrl = ajaxUrls?.dataset.tagsUrl;
+const authorsAutocompleteUrl = ajaxUrls?.dataset.authorsUrl;
+
+$('#id_category, #id_ordering').select2({
   width: '100%',
   minimumResultsForSearch: 10,
 });
-$('#filterTagsInput').select2({ width: '100%' });
+
+if (authorsAutocompleteUrl) {
+  $('#filterAuthorInput').select2({
+    width: '100%',
+    allowClear: true,
+    placeholder: 'Any author',
+    ajax: {
+      url: authorsAutocompleteUrl,
+      dataType: 'json',
+      delay: 300,
+      data: function (params) {
+        return {
+          q: params.term || '',
+        };
+      },
+      processResults: function (data) {
+        return data;
+      },
+    },
+    minimumInputLength: 2,
+  });
+} else {
+  $('#filterAuthorInput').select2({
+    width: '100%',
+    allowClear: true,
+    placeholder: 'Any author',
+    minimumResultsForSearch: 0,
+  });
+}
+
+$('#filterTagsInput').select2({
+  width: '100%',
+  ajax: {
+    url: tagsAutocompleteUrl,
+    dataType: 'json',
+    delay: 300,
+    data: function (params) {
+      return {
+        q: params.term || '',
+      };
+    },
+    processResults: function (data) {
+      return data;
+    },
+  },
+  minimumInputLength: 1,
+});
 
 $('#filterSubmit').click((e) => {
   e.preventDefault();
@@ -11,7 +62,7 @@ $('#filterSubmit').click((e) => {
   const params = new URLSearchParams();
 
   appendGetParameterFromInput(params, 'q', 'id_q');
-  appendGetParameterFromInput(params, 'author', 'id_author');
+  appendGetParameterFromInput(params, 'author', 'filterAuthorInput');
   appendGetParameterFromInput(params, 'date_after', 'id_date_0');
   appendGetParameterFromInput(params, 'date_before', 'id_date_1');
   appendGetParameterFromInput(params, 'category', 'id_category');

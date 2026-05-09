@@ -124,6 +124,7 @@ class TestSubscriptionFeedView(TestCase):
             "No matching articles from your subscriptions yet",
         )
         self.assertTrue(response.context["show_filters"])
+        self.assertFalse(response.context["author_filter_ajax_enabled"])
         self.assertEqual(response.context["page_key"], "subscriptions")
         self.assertTrue(response.context["is_subscriptions_feed_page_one"])
         self.assertEqual(response.context["latest_article_publish_sequence"], 100)

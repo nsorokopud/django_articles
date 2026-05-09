@@ -10,6 +10,16 @@ urlpatterns = [
         views.AttachedFileUploadView.as_view(),
         name="attached-file-upload",
     ),
+    path(
+        "articles/filter-tags-autocomplete/",
+        views.ArticleTagAutocompleteView.as_view(),
+        name="article-filter-tags-autocomplete",
+    ),
+    path(
+        "articles/filter-authors-autocomplete/",
+        views.ArticleAuthorAutocompleteView.as_view(),
+        name="article-filter-authors-autocomplete",
+    ),
     path("articles/", views.ArticleListFilterView.as_view(), name="articles"),
     path(
         "subscriptions/", views.SubscriptionFeedView.as_view(), name="subscription-feed"

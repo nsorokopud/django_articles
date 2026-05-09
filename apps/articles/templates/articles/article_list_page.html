@@ -12,6 +12,12 @@
 {% block content-main %}
   <div class="container main-container d-flex mx-auto">
     {% if show_filters %}
+      <div id="articleFilterAjaxUrls"
+           data-tags-url="{% url 'article-filter-tags-autocomplete' %}"
+           {% if author_filter_ajax_enabled %}
+             data-authors-url="{% url 'article-filter-authors-autocomplete' %}"
+           {% endif %}></div>
+
       {% include "inclusion/sidebar.html" %}
     {% endif %}
 

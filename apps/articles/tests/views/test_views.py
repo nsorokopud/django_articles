@@ -30,3 +30,4 @@ class TestViews(TestCase):
             response.context["empty_message"], "No articles matching your query"
         )
         self.assertTrue(response.context["show_filters"])
+        self.assertTrue(response.context["author_filter_ajax_enabled"])

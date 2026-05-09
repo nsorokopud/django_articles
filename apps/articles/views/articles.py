@@ -56,6 +56,7 @@ class BaseArticleListFilterView(FilterView):
     show_likes = True
     show_comments = True
     draft_edit_url_name = None
+    author_filter_ajax_enabled = True
 
     page_key = ""
     is_subscriptions_feed_page_one = False
@@ -79,6 +80,7 @@ class BaseArticleListFilterView(FilterView):
                 "page_key": self.page_key,
                 "is_subscriptions_feed_page_one": self.is_subscriptions_feed_page_one,
                 "latest_article_publish_sequence": self.latest_article_publish_sequence,
+                "author_filter_ajax_enabled": self.author_filter_ajax_enabled,
             }
         )
         return context
@@ -98,6 +100,7 @@ class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
     page_title = "Subscription feed"
     empty_message = "No matching articles from your subscriptions yet"
     page_key = "subscriptions"
+    author_filter_ajax_enabled = False
 
     def get_queryset(self) -> QuerySet[Article]:
         return find_subscription_feed_articles(self.request.user)
