@@ -1,4 +1,4 @@
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
@@ -6,7 +6,7 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleMedia, ArticleStatus
-from articles.services.articles import MAX_SLUG_RETRY_ATTEMPTS, save_article
+from articles.services.articles import save_article
 from users.models import User
 
 
@@ -476,8 +476,16 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(article.slug, "old-title")
         self.assertEqual(article.title, "new pending title")
 
-    @patch("articles.services.articles._build_article_slug_candidate")
-    def test_retries_slug_generation_on_integrity_error(self, mock_build_slug):
+    def test_retries_slug_generation_on_slug_unique_constraint_violation(self):
+        Article.objects.create(
+            title="Existing",
+            slug="a1",
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+        )
+
         article = Article(
             title="a1",
             category=self.category,
@@ -485,41 +493,18 @@ class TestSaveArticle(TransactionTestCase):
             content="content",
             content_text="content",
         )
-        mock_build_slug.side_effect = ["a1", "a1-suffix"]
 
-        original_save = Article.save
-        save_call_count = 0
-
-        def save_side_effect(instance, *args, **kwargs):
-            nonlocal save_call_count
-            save_call_count += 1
-            if save_call_count == 1:
-                raise IntegrityError("duplicate key value violates unique constraint")
-            return original_save(instance, *args, **kwargs)
-
-        with patch.object(
-            Article,
-            "save",
-            autospec=True,
-            side_effect=save_side_effect,
-        ):
-            saved = save_article(article=article, author=self.author)
+        saved = save_article(article=article, author=self.author)
 
         self.assertIsNotNone(saved.pk)
-        self.assertEqual(saved.slug, "a1-suffix")
-        self.assertEqual(
-            mock_build_slug.call_args_list,
-            [call("a1", use_suffix=False), call("a1", use_suffix=True)],
-        )
+        self.assertNotEqual(saved.slug, "a1")
+        self.assertTrue(saved.slug.startswith("a1-"))
 
         db_article = Article.objects.get(id=saved.id)
-        self.assertEqual(db_article.slug, "a1-suffix")
+        self.assertEqual(db_article.slug, saved.slug)
 
     @patch("articles.services.articles._build_article_slug_candidate")
-    def test_raises_integrity_error_after_max_slug_attempts_exhausted(
-        self,
-        mock_build_slug,
-    ):
+    def test_does_not_retry_non_slug_integrity_error(self, mock_build_slug):
         article = Article(
             title="a1",
             category=self.category,
@@ -527,20 +512,18 @@ class TestSaveArticle(TransactionTestCase):
             content="content",
             content_text="content",
         )
-        mock_build_slug.side_effect = ["a1", "a1-s1", "a1-s2", "a1-s3", "a1-s4"]
+        mock_build_slug.return_value = "a1"
 
         with patch.object(
             Article,
             "save",
             autospec=True,
-            side_effect=IntegrityError(
-                "duplicate key value violates unique constraint"
-            ),
+            side_effect=IntegrityError("some unrelated integrity error"),
         ):
             with self.assertRaises(IntegrityError):
                 save_article(article=article, author=self.author)
 
-        self.assertEqual(mock_build_slug.call_count, MAX_SLUG_RETRY_ATTEMPTS)
+        mock_build_slug.assert_called_once_with("a1", use_suffix=False)
         self.assertEqual(Article.objects.count(), 0)
 
     @patch("articles.services.articles.delete_article_preview_image_file")

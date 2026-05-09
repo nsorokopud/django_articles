@@ -81,21 +81,23 @@ class TestGetOrCreateEmptyDraft(TestCase):
         self.assertEqual(mocked_builder.call_count, 2)
         self.assertEqual(Article.objects.count(), 2)
 
-    def test_raises_after_max_slug_retry_attempts(self):
-        with (
-            patch(
-                "articles.services.articles._build_article_slug_candidate",
-                side_effect=["same-slug"] * MAX_SLUG_RETRY_ATTEMPTS,
-            ),
-            patch(
-                "articles.models.Article.save",
-                side_effect=IntegrityError(
-                    "duplicate key value violates unique constraint"
-                ),
-            ) as mocked_save,
-        ):
-            with self.assertRaises(IntegrityError):
-                get_or_create_empty_draft(author=self.author)
+    @patch(
+        "articles.services.articles._build_article_slug_candidate",
+        side_effect=["same-slug"] * MAX_SLUG_RETRY_ATTEMPTS,
+    )
+    def test_raises_after_max_slug_retry_attempts(self, mocked_build_slug):
+        Article.objects.create(
+            title="Existing",
+            slug="same-slug",
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            status=ArticleStatus.DRAFT,
+        )
 
-        self.assertEqual(mocked_save.call_count, MAX_SLUG_RETRY_ATTEMPTS)
-        self.assertEqual(Article.objects.count(), 0)
+        with self.assertRaises(IntegrityError):
+            get_or_create_empty_draft(author=self.author)
+
+        self.assertEqual(mocked_build_slug.call_count, MAX_SLUG_RETRY_ATTEMPTS)
+        self.assertEqual(Article.objects.filter(slug="same-slug").count(), 1)

@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from articles.models import (
+    ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
     Article,
     ArticleCategory,
     ArticleMedia,
@@ -143,6 +144,33 @@ class TestArticleSearchVectorColumn(TestCase):
 class TestArticleModelConstraints(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="user@test.com")
+
+    def test_slug_must_be_unique(self):
+        Article.objects.create(
+            title="Article 1",
+            slug="same-slug",
+            author=self.user,
+            preview_text="Preview",
+            content="Content",
+            content_text="Content",
+        )
+
+        with self.assertRaises(IntegrityError) as ctx:
+            with transaction.atomic():
+                Article.objects.create(
+                    title="Article 2",
+                    slug="same-slug",
+                    author=self.user,
+                    preview_text="Preview",
+                    content="Content",
+                    content_text="Content",
+                )
+
+        diagnostics = getattr(ctx.exception.__cause__, "diag", None)
+        self.assertEqual(
+            getattr(diagnostics, "constraint_name", None),
+            ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
+        )
 
     def test_published_requires_published_at_and_publish_sequence(self):
         with self.assertRaises(IntegrityError):

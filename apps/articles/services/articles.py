@@ -10,7 +10,7 @@ from nanoid import generate
 from users.models import User
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
-from ..models import Article, ArticleStatus
+from ..models import ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME, Article, ArticleStatus
 from ..search_utils import extract_searchable_text
 from .media import (
     delete_article_preview_image_file,
@@ -163,14 +163,17 @@ def _create_empty_draft(*, author: User) -> Article:
 def _save_with_unique_slug(article: Article) -> None:
     for attempt in range(MAX_SLUG_RETRY_ATTEMPTS):
         article.slug = _build_article_slug_candidate(
-            article.title,
-            use_suffix=(attempt > 0),
+            article.title, use_suffix=(attempt > 0)
         )
+
         try:
             with transaction.atomic():
                 article.save()
             return
-        except IntegrityError:
+        except IntegrityError as exc:
+            if not _is_slug_unique_violation(exc):
+                raise
+
             if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
                 raise
 
@@ -228,3 +231,10 @@ def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
     except DatabaseError:
         logger.exception("Failed to bulk update view counts.")
         raise
+
+
+def _is_slug_unique_violation(exc: IntegrityError) -> bool:
+    diagnostics = getattr(exc.__cause__, "diag", None)
+    constraint_name = getattr(diagnostics, "constraint_name", None)
+
+    return constraint_name == ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME
