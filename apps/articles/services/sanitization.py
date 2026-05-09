@@ -126,10 +126,15 @@ def _article_attribute_filter(
 def _is_allowed_anchor_href(href: str) -> bool:
     parsed = urlparse((href or "").strip())
 
-    if parsed.scheme in {"http", "https"}:
+    # Allow site-relative/internal links like /articles/abc/
+    if not parsed.scheme and not parsed.netloc:
         return True
 
-    return not parsed.scheme and not parsed.netloc
+    allowed_schemes = getattr(
+        settings, "ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}
+    )
+
+    return parsed.scheme in allowed_schemes
 
 
 def _filter_article_image_src(

@@ -65,7 +65,7 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn("onclick", cleaned)
         self.assertNotIn("onerror", cleaned)
 
-    def test_keeps_safe_anchor_attributes(self):
+    def test_keeps_https_anchor_attributes(self):
         html = (
             '<a href="https://test.com" title="Example" target="_blank">'
             "Example"
@@ -82,6 +82,43 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn("noreferrer", cleaned)
         self.assertIn("nofollow", cleaned)
 
+    def test_removes_http_anchor_href_by_default(self):
+        cleaned = clean('<a href="http://test.com">HTTP link</a>')
+
+        self.assertIn(">HTTP link</a>", cleaned)
+        self.assertNotIn('href="http://test.com"', cleaned)
+
+    @override_settings(ALLOWED_ARTICLE_CONTENT_URL_SCHEMES={"http", "https"})
+    def test_keeps_http_anchor_href_when_allowed_by_setting(self):
+        cleaned = clean('<a href="http://test.com">HTTP link</a>')
+
+        self.assertIn('href="http://test.com"', cleaned)
+        self.assertIn(">HTTP link</a>", cleaned)
+
+    def test_keeps_relative_anchor_href(self):
+        cleaned = clean('<a href="/articles/example/">Internal link</a>')
+
+        self.assertIn('href="/articles/example/"', cleaned)
+        self.assertIn(">Internal link</a>", cleaned)
+
+    def test_keeps_fragment_anchor_href(self):
+        cleaned = clean('<a href="#section-1">Section</a>')
+
+        self.assertIn('href="#section-1"', cleaned)
+        self.assertIn(">Section</a>", cleaned)
+
+    def test_keeps_query_only_anchor_href(self):
+        cleaned = clean('<a href="?page=2">Page 2</a>')
+
+        self.assertIn('href="?page=2"', cleaned)
+        self.assertIn(">Page 2</a>", cleaned)
+
+    def test_removes_protocol_relative_anchor_href(self):
+        cleaned = clean('<a href="//evil.example.com/path">Protocol-relative</a>')
+
+        self.assertIn(">Protocol-relative</a>", cleaned)
+        self.assertNotIn('href="//evil.example.com/path"', cleaned)
+
     def test_removes_javascript_href(self):
         cleaned = clean('<a href="javascript:alert(1)">Bad link</a>')
 
@@ -89,10 +126,18 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertNotIn("javascript:", cleaned)
         self.assertNotIn('href="', cleaned)
 
-    def test_removes_mailto_href(self):
+    def test_removes_mailto_href_by_default(self):
         cleaned = clean('<a href="mailto:test@test.com">Email</a>')
 
+        self.assertIn(">Email</a>", cleaned)
         self.assertNotIn('href="mailto:test@test.com"', cleaned)
+
+    @override_settings(ALLOWED_ARTICLE_CONTENT_URL_SCHEMES={"https", "mailto"})
+    def test_keeps_mailto_anchor_href_when_allowed_by_setting(self):
+        cleaned = clean('<a href="mailto:test@test.com">Email</a>')
+
+        self.assertIn('href="mailto:test@test.com"', cleaned)
+        self.assertIn(">Email</a>", cleaned)
 
     def test_removes_unallowlisted_remote_image_src(self):
         html = (
