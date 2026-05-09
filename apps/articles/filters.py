@@ -14,7 +14,7 @@ from taggit.models import Tag
 from users.models import User
 from users.selectors import find_authors_subscribed_by_user
 
-from .models import Article
+from .models import Article, ArticleStatus
 from .selectors import (
     find_article_filter_authors,
     find_article_filter_categories,
@@ -112,6 +112,10 @@ class SubscriptionFeedFilter(ArticleFilter):
         super().__init__(*args, **kwargs)
 
         if user and user.is_authenticated:
-            self.filters["author"].queryset = find_authors_subscribed_by_user(user)
+            self.filters["author"].queryset = (
+                find_authors_subscribed_by_user(user)
+                .filter(article__status=ArticleStatus.PUBLISHED)
+                .distinct()
+            )
         else:
             self.filters["author"].queryset = User.objects.none()

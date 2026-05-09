@@ -405,20 +405,55 @@ class TestSubscriptionFeedFilter(TestCase):
         self.subscribed_author = User.objects.create(
             username="subscribed_author", email="subscribed_author@test.com"
         )
+        self.subscribed_author_without_published_articles = User.objects.create(
+            username="no_published", email="no_published@test.com"
+        )
         self.other_author = User.objects.create(
             username="other_author", email="other_author@test.com"
+        )
+        Article.objects.create(
+            author=self.subscribed_author,
+            title="Published",
+            slug="published",
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+        Article.objects.create(
+            author=self.subscribed_author_without_published_articles,
+            title="Draft",
+            slug="draft",
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.DRAFT,
         )
         AuthorSubscription.objects.create(
             subscriber=self.subscriber, author=self.subscribed_author
         )
+        AuthorSubscription.objects.create(
+            subscriber=self.subscriber,
+            author=self.subscribed_author_without_published_articles,
+        )
 
-    def test_limits_authors_to_subscribed_to(self):
+    def test_limits_authors_to_subscribed_to_with_published_articles(self):
         filterset = SubscriptionFeedFilter(
             data={}, queryset=Article.objects.none(), user=self.subscriber
         )
 
         authors = filterset.filters["author"].queryset
         self.assertCountEqual(authors, [self.subscribed_author])
+
+    def test_excludes_subscribed_authors_without_published_articles(self):
+        filterset = SubscriptionFeedFilter(
+            data={}, queryset=Article.objects.none(), user=self.subscriber
+        )
+
+        authors = filterset.filters["author"].queryset
+        self.assertNotIn(self.subscribed_author_without_published_articles, authors)
 
     def test_returns_no_authors_when_no_user_passed(self):
         filterset = SubscriptionFeedFilter(data={}, queryset=Article.objects.none())
