@@ -1,5 +1,4 @@
 # pylint: disable=E1101
-from copy import deepcopy
 from urllib.parse import urlparse
 
 import nh3
@@ -59,11 +58,10 @@ ALIGNABLE_TAGS = {
 
 ALLOWED_TEXT_ALIGN_VALUES = {"left", "center", "right", "justify"}
 
-ALLOWED_ATTRIBUTES = deepcopy(nh3.ALLOWED_ATTRIBUTES)
-
-ALLOWED_ATTRIBUTES.setdefault("a", set()).update({"href", "title", "target"})
-
-ALLOWED_ATTRIBUTES["img"] = {"src", "alt", "title"}
+ALLOWED_ATTRIBUTES = {
+    "a": {"href", "title", "target"},
+    "img": {"src", "alt", "title"},
+}
 
 for tag_name in ALIGNABLE_TAGS:
     ALLOWED_ATTRIBUTES.setdefault(tag_name, set()).add("style")
