@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Optional
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
@@ -21,6 +22,7 @@ from users.services.subscriptions import (
 
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
+from ..media_paths import normalize_url_prefix
 from ..models import Article, ArticleStatus
 from ..selectors import (
     find_articles_by_author,
@@ -246,6 +248,16 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["update"] = True
+
+        media_allowed_root_urls = []
+
+        for url in getattr(settings, "MEDIA_ALLOWED_ROOT_URLS", []):
+            normalized_url = normalize_url_prefix(url)
+            if normalized_url:
+                media_allowed_root_urls.append(normalized_url)
+
+        context["media_allowed_root_urls"] = media_allowed_root_urls
+
         return context
 
     def get_object(self, queryset=None) -> Article:

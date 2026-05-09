@@ -1,3 +1,17 @@
+function getMediaAllowedRootUrls() {
+  const script = document.getElementById('mediaAllowedRootUrls');
+
+  if (!script) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(script.textContent || '[]');
+  } catch {
+    return [];
+  }
+}
+
 function tinymceCustomSetup(editor) {
   // Image upload button
   editor.ui.registry.addButton('uploadimage', {
@@ -45,18 +59,48 @@ function tinymceCustomSetup(editor) {
     },
   });
 
+  const mediaAllowedRootUrls = getMediaAllowedRootUrls();
+
+  function isAllowedEditorImageSrc(src) {
+    if (!src) {
+      return false;
+    }
+
+    // Allow temporary images
+    if (src.startsWith('blob:')) {
+      return true;
+    }
+
+    // Allow local/dev/proxied media URLs
+    if (src.startsWith('/media/articles/uploads/')) {
+      return true;
+    }
+
+    // Disallow pasted inline base64 images
+    if (src.startsWith('data:')) {
+      return false;
+    }
+
+    // Disallow protocol-relative URLs
+    if (src.startsWith('//')) {
+      return false;
+    }
+
+    // Allow absolute URLs only from configured media/CDN roots
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      return mediaAllowedRootUrls.some((root) => src.startsWith(root));
+    }
+
+    return false;
+  }
+
   function removeRemoteImages() {
     let removed = false;
 
     editor.dom.select('img').forEach(function (img) {
       const src = img.getAttribute('src') || '';
 
-      if (
-        src.startsWith('http://') ||
-        src.startsWith('https://') ||
-        src.startsWith('//') ||
-        src.startsWith('data:')
-      ) {
+      if (!isAllowedEditorImageSrc(src)) {
         img.remove();
         removed = true;
       }

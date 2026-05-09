@@ -8,6 +8,15 @@ from django.conf import settings
 ARTICLE_MEDIA_STORAGE_ROOT = "articles/uploads"
 
 
+def normalize_url_prefix(url: str | None) -> str | None:
+    url = (url or "").strip()
+
+    if not url:
+        return None
+
+    return url if url.endswith("/") else f"{url}/"
+
+
 def extract_article_media_storage_name(src: str | None) -> str | None:
     if not src:
         return None

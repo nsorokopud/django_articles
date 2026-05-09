@@ -110,6 +110,43 @@ class TestArticleUpdateView(TestCase):
         self.assertEqual(response.context["object"], self.draft_article)
         self.assertTrue(response.context["update"])
 
+    @override_settings(
+        MEDIA_URL="/media/",
+        MEDIA_ALLOWED_ROOT_URLS=[
+            "https://cdn.test.com/media",
+            "https://media.test.com/uploads/",
+            "",
+            "   ",
+        ],
+    )
+    def test_get_draft_includes_media_allowed_root_urls(self):
+        self.client.force_login(self.author)
+
+        response = self.client.get(self.draft_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["media_allowed_root_urls"],
+            [
+                "https://cdn.test.com/media/",
+                "https://media.test.com/uploads/",
+            ],
+        )
+
+    @override_settings(
+        MEDIA_URL="/media/",
+        MEDIA_ALLOWED_ROOT_URLS=["https://cdn.test.com/media/"],
+    )
+    def test_get_pending_review_does_not_render_media_allowed_root_urls_script(self):
+        self.draft_article.status = ArticleStatus.PENDING_REVIEW
+        self.draft_article.save(update_fields=["status"])
+
+        self.client.force_login(self.author)
+        response = self.client.get(self.draft_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="mediaAllowedRootUrls"')
+
     def test_post_anonymous_user_redirects_to_login(self):
         redirect_url = f"{reverse('login')}?next={self.published_url}"
         response = self.client.post(
