@@ -28,7 +28,7 @@ from ..selectors import (
     find_articles_by_author,
     find_published_articles,
     find_subscription_feed_articles,
-    get_article_for_author_by_slug,
+    get_article_for_author_by_id,
     get_published_article_by_slug,
 )
 from ..services import set_article_like
@@ -235,7 +235,7 @@ class ArticleDetailView(DetailView):
 class ArticleCreateDraftView(LoginRequiredMixin, View):
     def post(self, request) -> HttpResponseRedirect:
         article = get_or_create_empty_draft(author=request.user)
-        return redirect("article-update", article_slug=article.slug)
+        return redirect("article-update", pk=article.pk)
 
 
 class ArticleUpdateView(LoginRequiredMixin, UpdateView):
@@ -265,9 +265,8 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
             return self.object
 
         try:
-            self.object = get_article_for_author_by_slug(
-                article_slug=self.kwargs["article_slug"],
-                author_id=self.request.user.id,
+            self.object = get_article_for_author_by_id(
+                article_id=self.kwargs["pk"], author_id=self.request.user.id
             )
         except Article.DoesNotExist as e:
             raise Http404("Article not found") from e
@@ -299,9 +298,7 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
             messages.success(self.request, "Article was submitted for review.")
 
         data = {
-            "articleUrl": reverse(
-                "article-update", kwargs={"article_slug": article.slug}
-            ),
+            "articleUrl": reverse("article-update", kwargs={"pk": article.pk}),
         }
         return JsonResponse({"status": "success", "data": data})
 
@@ -310,11 +307,10 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class ArticleWithdrawFromReviewView(LoginRequiredMixin, View):
-    def post(self, request, article_slug) -> HttpResponseRedirect:
+    def post(self, request, pk) -> HttpResponseRedirect:
         try:
-            article = get_article_for_author_by_slug(
-                article_slug=article_slug,
-                author_id=request.user.id,
+            article = get_article_for_author_by_id(
+                article_id=pk, author_id=request.user.id
             )
         except Article.DoesNotExist as e:
             raise Http404("Article not found") from e
@@ -326,13 +322,12 @@ class ArticleWithdrawFromReviewView(LoginRequiredMixin, View):
         else:
             messages.success(request, "Article was withdrawn from review.")
 
-        return redirect("article-update", article_slug=article.slug)
+        return redirect("article-update", pk=article.pk)
 
 
 class ArticleDeleteView(LoginRequiredMixin, DeleteView):
     model = Article
     context_object_name = "article"
-    slug_url_kwarg = "article_slug"
     success_url = reverse_lazy("my-articles")
 
     def get_queryset(self):

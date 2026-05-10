@@ -68,10 +68,7 @@ def notify_article_rejected(
             "articleSlug": article_slug,
             "articleTitle": article_title,
             "reviewNote": review_note,
-            "url": reverse(
-                "article-update",
-                kwargs={"article_slug": article_slug},
-            ),
+            "url": reverse("article-update", kwargs={"pk": article_id}),
             "reviewedAt": reviewed_at_ts,
         },
         dedupe_key=(
@@ -108,10 +105,7 @@ def notify_article_unpublished(
             "articleId": article_id,
             "articleSlug": article_slug,
             "articleTitle": article_title,
-            "url": reverse(
-                "article-update",
-                kwargs={"article_slug": article_slug},
-            ),
+            "url": reverse("article-update", kwargs={"pk": article_id}),
             "unpublishedAt": unpublished_at_ts,
         },
         dedupe_key=(

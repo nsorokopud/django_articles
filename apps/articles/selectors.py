@@ -124,11 +124,11 @@ def get_published_article_by_slug(article_slug: str) -> Article:
     )
 
 
-def get_article_for_author_by_slug(*, article_slug: str, author_id: int) -> Article:
+def get_article_for_author_by_id(*, article_id: int, author_id: int) -> Article:
     return (
         Article.objects.select_related("author", "author__profile", "category")
         .prefetch_related("tags")
-        .get(slug=article_slug, author_id=author_id)
+        .get(id=article_id, author_id=author_id)
     )
 
 

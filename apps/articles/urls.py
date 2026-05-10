@@ -31,24 +31,19 @@ urlpatterns = [
         name="article-create-draft",
     ),
     path(
-        "articles/<slug:article_slug>/edit/",
+        "articles/<int:pk>/edit/",
         views.ArticleUpdateView.as_view(),
         name="article-update",
     ),
     path(
-        "articles/<slug:article_slug>/withdraw-from-review/",
+        "articles/<int:pk>/withdraw-from-review/",
         views.ArticleWithdrawFromReviewView.as_view(),
         name="article-withdraw-from-review",
     ),
     path(
-        "articles/<slug:article_slug>/delete/",
+        "articles/<int:pk>/delete/",
         views.ArticleDeleteView.as_view(),
         name="article-delete",
-    ),
-    path(
-        "articles/<slug:article_slug>/",
-        views.ArticleDetailView.as_view(),
-        name="article-details",
     ),
     path(
         "articles/<slug:article_slug>/like/",
@@ -59,6 +54,11 @@ urlpatterns = [
         "articles/<slug:article_slug>/comments/",
         views.ArticleCommentsListView.as_view(),
         name="article-comments-list",
+    ),
+    path(
+        "articles/<slug:article_slug>/",
+        views.ArticleDetailView.as_view(),
+        name="article-details",
     ),
     path(
         "comments/<int:comment_id>/like/",

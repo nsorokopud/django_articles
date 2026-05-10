@@ -53,7 +53,7 @@ class TestArticleDeleteView(TestCase):
         return Article.objects.create(**data)
 
     def test_anonymous_redirects_to_login(self):
-        url = reverse("article-delete", args=[self.test_article.slug])
+        url = reverse("article-delete", args=[self.test_article.id])
         redirect_url = f"{reverse('login')}?next={url}"
 
         response = self.client.get(url)
@@ -66,7 +66,7 @@ class TestArticleDeleteView(TestCase):
         article = self._article(slug="draft-slug")
 
         self.client.force_login(self.test_user)
-        response = self.client.post(reverse("article-delete", args=[article.slug]))
+        response = self.client.post(reverse("article-delete", args=[article.id]))
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("my-articles"))
@@ -79,7 +79,7 @@ class TestArticleDeleteView(TestCase):
         article = self._article(slug="draft-delete")
 
         self.client.force_login(self.test_user)
-        response = self.client.post(reverse("article-delete", args=[article.slug]))
+        response = self.client.post(reverse("article-delete", args=[article.id]))
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("my-articles"))
@@ -89,7 +89,7 @@ class TestArticleDeleteView(TestCase):
         self.client.force_login(self.test_user)
 
         response = self.client.post(
-            reverse("article-delete", args=[self.test_article.slug])
+            reverse("article-delete", args=[self.test_article.id])
         )
 
         self.assertEqual(response.status_code, 404)
@@ -97,12 +97,11 @@ class TestArticleDeleteView(TestCase):
 
     def test_forbids_pending_review_article(self):
         article = self._article(
-            slug="pending-slug",
-            status=ArticleStatus.PENDING_REVIEW,
+            slug="pending-slug", status=ArticleStatus.PENDING_REVIEW
         )
 
         self.client.force_login(self.test_user)
-        response = self.client.post(reverse("article-delete", args=[article.slug]))
+        response = self.client.post(reverse("article-delete", args=[article.id]))
 
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Article.objects.filter(pk=article.pk).exists())
@@ -111,7 +110,7 @@ class TestArticleDeleteView(TestCase):
         article = self._article(slug="someone-elses-article")
 
         self.client.force_login(self.other_user)
-        response = self.client.post(reverse("article-delete", args=[article.slug]))
+        response = self.client.post(reverse("article-delete", args=[article.id]))
 
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Article.objects.filter(pk=article.pk).exists())

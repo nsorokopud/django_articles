@@ -47,9 +47,7 @@
           <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
         {% else %}
           {% if draft_edit_url_name %}
-            <a href="{% url draft_edit_url_name article_slug=article.slug %}">
-              {{ article.title }}
-            </a>
+            <a href="{% url draft_edit_url_name pk=article.pk %}">{{ article.title }}</a>
           {% else %}
             {{ article.title }}
           {% endif %}
@@ -100,7 +98,7 @@
               <a href="{{ article.get_absolute_url }}" class="btn btn-success">Read full</a>
             {% else %}
               {% if draft_edit_url_name %}
-                <a href="{% url draft_edit_url_name article_slug=article.slug %}"
+                <a href="{% url draft_edit_url_name pk=article.pk %}"
                    class="btn btn-success">Continue editing</a>
               {% endif %}
             {% endif %}

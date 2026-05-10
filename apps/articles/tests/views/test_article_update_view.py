@@ -47,11 +47,9 @@ class TestArticleUpdateView(TestCase):
         self.draft_article.tags.add("draft-tag")
 
         self.published_url = reverse(
-            "article-update", kwargs={"article_slug": self.published_article.slug}
+            "article-update", kwargs={"pk": self.published_article.id}
         )
-        self.draft_url = reverse(
-            "article-update", kwargs={"article_slug": self.draft_article.slug}
-        )
+        self.draft_url = reverse("article-update", kwargs={"pk": self.draft_article.id})
 
     def test_get_anonymous_user_redirects_to_login(self):
         redirect_url = f"{reverse('login')}?next={self.draft_url}"
@@ -67,7 +65,7 @@ class TestArticleUpdateView(TestCase):
 
     def test_get_non_existent_article_returns_404(self):
         self.client.force_login(self.author)
-        url = reverse("article-update", kwargs={"article_slug": "non-existent-article"})
+        url = reverse("article-update", kwargs={"pk": 99999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
@@ -169,7 +167,7 @@ class TestArticleUpdateView(TestCase):
 
     def test_post_non_existent_article_returns_404(self):
         self.client.force_login(self.author)
-        url = reverse("article-update", kwargs={"article_slug": "non-existent-article"})
+        url = reverse("article-update", kwargs={"pk": 99999})
         response = self.client.post(
             url, {"title": "new title"}, headers={"X-Requested-With": "XMLHttpRequest"}
         )
@@ -218,7 +216,7 @@ class TestArticleUpdateView(TestCase):
                 "data": {
                     "articleUrl": reverse(
                         "article-update",
-                        kwargs={"article_slug": self.draft_article.slug},
+                        kwargs={"pk": self.draft_article.id},
                     ),
                 },
             },

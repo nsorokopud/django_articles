@@ -58,7 +58,7 @@
           <form id="articleForm"
                 class="user-form"
                 method="post"
-                action="{% url 'article-update' article.slug %}"
+                action="{% url 'article-update' pk=article.pk %}"
                 enctype="multipart/form-data">
 
             {% csrf_token %}
@@ -78,8 +78,7 @@
               {{ form.content|as_crispy_field }}
             {% endif %}
 
-            <input type="hidden" id="articleId" value="{{ form.instance.id }}" />
-            <input type="hidden" id="articleSlug" value="{{ form.instance.slug }}" />
+            <input type="hidden" id="articleId" value="{{ article.pk }}" />
 
           </form>
 
@@ -106,7 +105,7 @@
               </button>
             {% elif article.status == "pending_review" %}
               <form method="post"
-                    action="{% url 'article-withdraw-from-review' article.slug %}"
+                    action="{% url 'article-withdraw-from-review' pk=article.pk %}"
                     class="d-inline">
                 {% csrf_token %}
                 <button class="btn btn-primary" type="submit">Withdraw from review</button>
@@ -114,7 +113,8 @@
             {% endif %}
 
             {% if article.status == "draft" or article.status == "rejected" %}
-              <a class="btn btn-danger" href="{% url 'article-delete' article.slug %}">Delete draft</a>
+              <a class="btn btn-danger"
+                 href="{% url 'article-delete' pk=article.pk %}">Delete draft</a>
             {% endif %}
           </div>
 

@@ -34,7 +34,7 @@ class TestArticleCreateDraftView(TestCase):
 
         self.assertRedirects(
             response,
-            reverse("article-update", kwargs={"article_slug": article.slug}),
+            reverse("article-update", kwargs={"pk": article.id}),
         )
 
     def test_repeated_post_reuses_existing_empty_draft(self):
@@ -48,12 +48,10 @@ class TestArticleCreateDraftView(TestCase):
         article = Article.objects.get()
 
         self.assertRedirects(
-            response1,
-            reverse("article-update", kwargs={"article_slug": article.slug}),
+            response1, reverse("article-update", kwargs={"pk": article.id})
         )
         self.assertRedirects(
-            response2,
-            reverse("article-update", kwargs={"article_slug": article.slug}),
+            response2, reverse("article-update", kwargs={"pk": article.id})
         )
 
     def test_post_creates_new_draft_if_existing_draft_is_not_empty(self):
@@ -77,7 +75,7 @@ class TestArticleCreateDraftView(TestCase):
         self.assertEqual(new_article.title, "Untitled article")
         self.assertRedirects(
             response,
-            reverse("article-update", kwargs={"article_slug": new_article.slug}),
+            reverse("article-update", kwargs={"pk": new_article.id}),
         )
 
     def test_get_is_not_allowed(self):

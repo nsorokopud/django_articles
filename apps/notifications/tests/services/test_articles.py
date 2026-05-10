@@ -24,9 +24,11 @@ class TestNotifyArticlePublished(SimpleTestCase):
         notification.notification_type = "system"
         mock_create_system_notification.return_value = (notification, True)
 
+        article_id = 22
+
         notify_article_published(
             recipient_id=11,
-            article_id=22,
+            article_id=article_id,
             article_slug="my-article",
             article_title="My Article",
             actor_id=33,
@@ -41,7 +43,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
             body='Your article "My Article" has been published.',
             payload={
                 "kind": "article_published",
-                "articleId": 22,
+                "articleId": article_id,
                 "articleSlug": "my-article",
                 "articleTitle": "My Article",
                 "url": reverse(
@@ -50,12 +52,10 @@ class TestNotifyArticlePublished(SimpleTestCase):
                 ),
                 "publishSequence": 44,
             },
-            dedupe_key="article-published:22:44",
+            dedupe_key=f"article-published:{article_id}:44",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=101,
-            notification_type="system",
-            is_new_unread=True,
+            notification_id=101, notification_type="system", is_new_unread=True
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
@@ -70,9 +70,11 @@ class TestNotifyArticlePublished(SimpleTestCase):
         notification.notification_type = "system"
         mock_create_system_notification.return_value = (notification, False)
 
+        article_id = 22
+
         notify_article_published(
             recipient_id=11,
-            article_id=22,
+            article_id=article_id,
             article_slug="my-article",
             article_title="My Article",
             actor_id=None,
@@ -87,7 +89,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
             body='Your article "My Article" has been published.',
             payload={
                 "kind": "article_published",
-                "articleId": 22,
+                "articleId": article_id,
                 "articleSlug": "my-article",
                 "articleTitle": "My Article",
                 "url": reverse(
@@ -96,12 +98,10 @@ class TestNotifyArticlePublished(SimpleTestCase):
                 ),
                 "publishSequence": None,
             },
-            dedupe_key="article-published:22:my-article",
+            dedupe_key=f"article-published:{article_id}:my-article",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=102,
-            notification_type="system",
-            is_new_unread=False,
+            notification_id=102, notification_type="system", is_new_unread=False
         )
 
 
@@ -128,6 +128,8 @@ class TestNotifyArticleRejected(SimpleTestCase):
             reviewed_at_ts="2026-03-31T12:34:56+00:00",
         )
 
+        article_id = 20
+
         mock_create_system_notification.assert_called_once_with(
             recipient_id=10,
             sender_id=30,
@@ -139,22 +141,17 @@ class TestNotifyArticleRejected(SimpleTestCase):
             ),
             payload={
                 "kind": "article_rejected",
-                "articleId": 20,
+                "articleId": article_id,
                 "articleSlug": "draft-article",
                 "articleTitle": "Draft Article",
                 "reviewNote": "Please improve structure.",
-                "url": reverse(
-                    "article-update",
-                    kwargs={"article_slug": "draft-article"},
-                ),
+                "url": reverse("article-update", kwargs={"pk": article_id}),
                 "reviewedAt": "2026-03-31T12:34:56+00:00",
             },
-            dedupe_key="article-rejected:20:2026-03-31T12:34:56+00:00",
+            dedupe_key=f"article-rejected:{article_id}:2026-03-31T12:34:56+00:00",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=201,
-            notification_type="system",
-            is_new_unread=True,
+            notification_id=201, notification_type="system", is_new_unread=True
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
@@ -169,9 +166,11 @@ class TestNotifyArticleRejected(SimpleTestCase):
         notification.notification_type = "system"
         mock_create_system_notification.return_value = (notification, False)
 
+        article_id = 20
+
         notify_article_rejected(
             recipient_id=10,
-            article_id=20,
+            article_id=article_id,
             article_slug="draft-article",
             article_title="Draft Article",
             review_note="",
@@ -187,22 +186,17 @@ class TestNotifyArticleRejected(SimpleTestCase):
             body='Your article "Draft Article" was rejected.',
             payload={
                 "kind": "article_rejected",
-                "articleId": 20,
+                "articleId": article_id,
                 "articleSlug": "draft-article",
                 "articleTitle": "Draft Article",
                 "reviewNote": "",
-                "url": reverse(
-                    "article-update",
-                    kwargs={"article_slug": "draft-article"},
-                ),
+                "url": reverse("article-update", kwargs={"pk": article_id}),
                 "reviewedAt": None,
             },
-            dedupe_key="article-rejected:20:draft-article",
+            dedupe_key=f"article-rejected:{article_id}:draft-article",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=202,
-            notification_type="system",
-            is_new_unread=False,
+            notification_id=202, notification_type="system", is_new_unread=False
         )
 
 
@@ -219,9 +213,11 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
         notification.notification_type = "system"
         mock_create_system_notification.return_value = (notification, True)
 
+        article_id = 24
+
         notify_article_unpublished(
             recipient_id=12,
-            article_id=24,
+            article_id=article_id,
             article_slug="published-article",
             article_title="Published Article",
             actor_id=36,
@@ -236,21 +232,16 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
             body='Your article "Published Article" was unpublished.',
             payload={
                 "kind": "article_unpublished",
-                "articleId": 24,
+                "articleId": article_id,
                 "articleSlug": "published-article",
                 "articleTitle": "Published Article",
-                "url": reverse(
-                    "article-update",
-                    kwargs={"article_slug": "published-article"},
-                ),
+                "url": reverse("article-update", kwargs={"pk": article_id}),
                 "unpublishedAt": "2026-03-31T15:00:00+00:00",
             },
-            dedupe_key="article-unpublished:24:2026-03-31T15:00:00+00:00",
+            dedupe_key=f"article-unpublished:{article_id}:2026-03-31T15:00:00+00:00",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=301,
-            notification_type="system",
-            is_new_unread=True,
+            notification_id=301, notification_type="system", is_new_unread=True
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
@@ -265,9 +256,11 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
         notification.notification_type = "system"
         mock_create_system_notification.return_value = (notification, False)
 
+        article_id = 24
+
         notify_article_unpublished(
             recipient_id=12,
-            article_id=24,
+            article_id=article_id,
             article_slug="published-article",
             article_title="Published Article",
             actor_id=None,
@@ -282,19 +275,14 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
             body='Your article "Published Article" was unpublished.',
             payload={
                 "kind": "article_unpublished",
-                "articleId": 24,
+                "articleId": article_id,
                 "articleSlug": "published-article",
                 "articleTitle": "Published Article",
-                "url": reverse(
-                    "article-update",
-                    kwargs={"article_slug": "published-article"},
-                ),
+                "url": reverse("article-update", kwargs={"pk": article_id}),
                 "unpublishedAt": None,
             },
-            dedupe_key="article-unpublished:24:published-article",
+            dedupe_key=f"article-unpublished:{article_id}:published-article",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=302,
-            notification_type="system",
-            is_new_unread=False,
+            notification_id=302, notification_type="system", is_new_unread=False
         )

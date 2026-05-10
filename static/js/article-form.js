@@ -24,10 +24,16 @@ function onArticleFormSaveButtonClick(submitter) {
   removeFormValidationErrors();
 
   const form = document.getElementById('articleForm');
-  const articleSlug = document.getElementById('articleSlug').value;
+  const articleId = document.getElementById('articleId').value;
   const editor = tinymce.activeEditor;
 
   setSubmitButtonLoading(button, submitter);
+
+  if (!articleId) {
+    restoreSubmitButton(button);
+    alert('Article ID is missing. Please reload the page and try again.');
+    return;
+  }
 
   if (!editor) {
     restoreSubmitButton(button);
@@ -38,7 +44,7 @@ function onArticleFormSaveButtonClick(submitter) {
   editor
     .uploadImages()
     .then(() => {
-      updateArticle(articleSlug, form, editor, button, submitter);
+      updateArticle(articleId, form, editor, button, submitter);
     })
     .catch((error) => {
       console.error('TinyMCE image upload failed:', error);
@@ -52,10 +58,10 @@ function onArticleFormSaveButtonClick(submitter) {
     });
 }
 
-function updateArticle(articleSlug, form, editor, button, submitter) {
+function updateArticle(articleId, form, editor, button, submitter) {
   const xhr = new XMLHttpRequest();
 
-  xhr.open('POST', `/articles/${articleSlug}/edit/`);
+  xhr.open('POST', form.action);
   xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
   xhr.timeout = 30000;
