@@ -5,7 +5,13 @@ from django.db import IntegrityError
 from django.test import TransactionTestCase
 from django.utils import timezone
 
-from articles.models import Article, ArticleCategory, ArticleMedia, ArticleStatus
+from articles.models import (
+    ARTICLE_SLUG_MAX_LENGTH,
+    Article,
+    ArticleCategory,
+    ArticleMedia,
+    ArticleStatus,
+)
 from articles.services.articles import save_article
 from users.models import User
 
@@ -288,28 +294,46 @@ class TestSaveArticle(TransactionTestCase):
         db_article = Article.objects.get(id=saved.id)
         self.assertEqual(db_article.slug, "hello-world")
 
+    def test_generates_suffixed_slug_within_max_length_for_long_duplicate_title(
+        self,
+    ):
+        long_title = "a" * ARTICLE_SLUG_MAX_LENGTH
+
+        first = save_article(
+            article=Article(
+                title=long_title, category=self.category, preview_text="p", content="c"
+            ),
+            author=self.author,
+        )
+
+        second = save_article(
+            article=Article(
+                title=long_title, category=self.category, preview_text="p", content="c"
+            ),
+            author=self.author,
+        )
+
+        self.assertEqual(len(first.slug), ARTICLE_SLUG_MAX_LENGTH)
+        self.assertEqual(len(second.slug), ARTICLE_SLUG_MAX_LENGTH)
+        self.assertNotEqual(first.slug, second.slug)
+        self.assertTrue(second.slug.startswith("a"))
+
     def test_generates_distinct_slugs_for_two_new_articles_with_same_title(self):
         first = Article(
             title="Same Title",
             category=self.category,
-            preview_text="preview 1",
+            preview_text="p",
             content="content 1",
         )
         second = Article(
-            title="Same Title",
-            category=self.category,
-            preview_text="preview 2",
-            content="content 2",
+            title="Same Title", category=self.category, preview_text="p", content="c"
         )
 
         saved_first = save_article(
             article=first,
             author=self.author,
         )
-        saved_second = save_article(
-            article=second,
-            author=self.author,
-        )
+        saved_second = save_article(article=second, author=self.author)
 
         self.assertEqual(saved_first.slug, "same-title")
         self.assertTrue(saved_second.slug.startswith("same-title-"))

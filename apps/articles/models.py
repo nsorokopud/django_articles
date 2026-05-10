@@ -19,8 +19,10 @@ from users.models import User
 from .settings import DISPLAYED_COMMENT_LENGTH
 
 
-ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
+ARTICLE_TITLE_MAX_LENGTH = 200
+ARTICLE_SLUG_MAX_LENGTH = 200
 ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME = "unique_article_slug"
+ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
 
 
 class ArticleStatus(models.TextChoices):
@@ -52,8 +54,8 @@ def article_preview_image_upload_path(instance, filename) -> str:
 
 
 class Article(models.Model):
-    title = models.CharField(max_length=200, blank=True)
-    slug = models.SlugField(max_length=200)
+    title = models.CharField(max_length=ARTICLE_TITLE_MAX_LENGTH, blank=True)
+    slug = models.SlugField(max_length=ARTICLE_SLUG_MAX_LENGTH)
     category = models.ForeignKey(
         "ArticleCategory", null=True, blank=True, on_delete=models.SET_NULL
     )

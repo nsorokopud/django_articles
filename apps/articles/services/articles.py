@@ -10,7 +10,12 @@ from nanoid import generate
 from users.models import User
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
-from ..models import ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME, Article, ArticleStatus
+from ..models import (
+    ARTICLE_SLUG_MAX_LENGTH,
+    ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
+    Article,
+    ArticleStatus,
+)
 from ..search_utils import extract_searchable_text
 from .media import (
     delete_article_preview_image_file,
@@ -19,6 +24,7 @@ from .media import (
 from .sanitization import sanitize_article_html
 
 
+ARTICLE_SLUG_SUFFIX_LENGTH = 8
 MAX_SLUG_RETRY_ATTEMPTS = 5
 
 logger = logging.getLogger(__name__)
@@ -180,9 +186,15 @@ def _save_with_unique_slug(article: Article) -> None:
 
 def _build_article_slug_candidate(title: str, *, use_suffix: bool) -> str:
     base = slugify(title).strip("-") or "article"
+
     if not use_suffix:
-        return base
-    return f"{base}-{generate(size=8)}"
+        return base[:ARTICLE_SLUG_MAX_LENGTH].rstrip("-") or "article"
+
+    suffix = generate(size=ARTICLE_SLUG_SUFFIX_LENGTH)
+    max_base_length = ARTICLE_SLUG_MAX_LENGTH - len(suffix) - 1
+    base = base[:max_base_length].rstrip("-") or "article"
+
+    return f"{base}-{suffix}"
 
 
 def _should_regenerate_slug(
