@@ -7,6 +7,7 @@ from users.views import (
     AccountActivationView,
     AuthorPageView,
     AuthorSubscribeView,
+    AuthorUnsubscribeView,
     EmailChangeCancelView,
     EmailChangeConfirmationView,
     EmailChangeResendView,
@@ -35,6 +36,10 @@ class TestURLs(SimpleTestCase):
     def test_author_subscribe_url_is_resolved(self):
         url = reverse("author-subscribe", kwargs={"author_id": 1})
         self.assertEqual(resolve(url).func.view_class, AuthorSubscribeView)
+
+    def test_author_unsubscribe_url_is_resolved(self):
+        url = reverse("author-unsubscribe", kwargs={"author_id": 1})
+        self.assertEqual(resolve(url).func.view_class, AuthorUnsubscribeView)
 
     def test_email_change_cancel_url_is_resolved(self):
         url = reverse("email-change-cancel")

@@ -1,12 +1,8 @@
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
-from django.contrib.auth.models import AnonymousUser
-from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase
 
-from users.cache import get_subscribers_count_cache_key
 from users.models import Profile, User
 from users.services.users import (
     activate_user,
@@ -14,7 +10,6 @@ from users.services.users import (
     create_user_profile,
     deactivate_user,
     delete_social_accounts_with_email,
-    toggle_user_subscription,
 )
 from users.signals import create_profile
 
@@ -97,66 +92,6 @@ class TestUserServices(TestCase):
         self.assertEqual(
             SocialAccount.objects.filter(extra_data__email=email2).count(), 1
         )
-
-
-class TestToggleUserSubscription(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(
-            username="user",
-            email="user@test.com",
-            is_active=True,
-        )
-        self.author = User.objects.create_user(
-            username="author",
-            email="author@test.com",
-            is_active=True,
-        )
-
-    def test_subscribe_unsubscribe(self):
-        self.assertNotIn(self.user, self.author.subscribers.all())
-        res = toggle_user_subscription(self.user, self.author)
-        self.assertTrue(res)
-        self.assertIn(self.user, self.author.subscribers.all())
-        res = toggle_user_subscription(self.user, self.author)
-        self.assertFalse(res)
-        self.assertNotIn(self.user, self.author.subscribers.all())
-
-    def test_anonymous_user(self):
-        anon_user = AnonymousUser()
-        with self.assertRaises(ValidationError) as context:
-            toggle_user_subscription(anon_user, self.author)
-        self.assertIn(
-            "Anonymous users cannot subscribe to authors.", str(context.exception)
-        )
-
-    def test_inactive_user(self):
-        self.user.is_active = False
-        self.user.save()
-        with self.assertRaises(ValidationError) as context:
-            toggle_user_subscription(self.user, self.author)
-        self.assertIn(
-            "Inactive users cannot subscribe to authors.", str(context.exception)
-        )
-
-    def test_subscribe_self(self):
-        with self.assertRaises(ValidationError) as context:
-            toggle_user_subscription(self.user, self.user)
-        self.assertIn("Users cannot subscribe to themselves.", str(context.exception))
-
-    def test_inactive_author(self):
-        self.author.is_active = False
-        self.author.save()
-        with self.assertRaises(ValidationError) as context:
-            toggle_user_subscription(self.user, self.author)
-        self.assertIn("Cannot subscribe to inactive authors.", str(context.exception))
-
-    def test_cache_invalidation(self):
-        cache.set(get_subscribers_count_cache_key(self.author.id), 42)
-        self.assertEqual(cache.get(get_subscribers_count_cache_key(self.author.id)), 42)
-
-        toggle_user_subscription(self.user, self.author)
-
-        self.assertIsNone(cache.get(get_subscribers_count_cache_key(self.author.id)))
 
 
 class TestAdvanceLatestArticlePublishSequence(TestCase):

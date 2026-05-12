@@ -18,7 +18,7 @@ from ..selectors import (
     find_authors_subscribed_by_user,
     get_author_with_viewer_subscription_status,
 )
-from ..services import toggle_user_subscription
+from ..services import set_author_subscription
 
 
 logger = logging.getLogger(__name__)
@@ -76,31 +76,41 @@ class AuthorPageView(TemplateView):
         return context
 
 
-class AuthorSubscribeView(LoginRequiredMixin, View):
+class AuthorSubscriptionBaseView(LoginRequiredMixin, View):
+    should_subscribe: bool
+    success_changed_message: str
+    success_unchanged_message: str
+
     def post(self, request, author_id: int) -> HttpResponseRedirect:
         author = get_object_or_404(User, pk=author_id)
 
-        if request.user == author:
-            messages.error(
-                request, "You cannot subscribe to or unsubscribe from yourself."
+        try:
+            _, changed = set_author_subscription(
+                subscriber=request.user,
+                author=author,
+                should_subscribe=self.should_subscribe,
             )
+        except ValidationError as e:
+            messages.error(request, e.messages[0] if e.messages else str(e))
             return redirect("author-page", author_id=author.id)
 
-        try:
-            subscribed = toggle_user_subscription(request.user, author)
-            message = (
-                f"You are now subscribed to {author.username}."
-                if subscribed
-                else f"You unsubscribed from {author.username}."
+        if changed:
+            messages.success(
+                request, self.success_changed_message.format(author=author)
             )
-            messages.success(request, message)
-        except ValidationError:
-            logger.exception(
-                "Error while toggling subscription of user %s to author %s",
-                request.user.username,
-                author.username,
-            )
-            messages.error(
-                request, "Something went wrong while managing your subscription."
-            )
-        return redirect("author-page", author_id=author_id)
+        else:
+            messages.info(request, self.success_unchanged_message.format(author=author))
+
+        return redirect("author-page", author_id=author.id)
+
+
+class AuthorSubscribeView(AuthorSubscriptionBaseView):
+    should_subscribe = True
+    success_changed_message = "You are now subscribed to {author.username}."
+    success_unchanged_message = "You are already subscribed to {author.username}."
+
+
+class AuthorUnsubscribeView(AuthorSubscriptionBaseView):
+    should_subscribe = False
+    success_changed_message = "You unsubscribed from {author.username}."
+    success_unchanged_message = "You were not subscribed to {author.username}."

@@ -58,6 +58,11 @@ urlpatterns = [
         name="author-subscribe",
     ),
     path(
+        "author/<int:author_id>/unsubscribe/",
+        views.AuthorUnsubscribeView.as_view(),
+        name="author-unsubscribe",
+    ),
+    path(
         "notifications/new_articles_digest_summary/",
         views.new_articles_digest_summary,
         name="new-articles-digest-summary",
