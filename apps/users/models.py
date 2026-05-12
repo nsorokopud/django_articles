@@ -64,9 +64,9 @@ class AuthorSubscription(models.Model):
 
 
 class TokenType(models.TextChoices):
-    ACCOUNT_ACTIVATION = "account activation"
-    EMAIL_CHANGE = "email change"
-    PASSWORD_CHANGE = "password change"  # nosec
+    ACCOUNT_ACTIVATION = "account_activation", "Account activation"
+    EMAIL_CHANGE = "email_change", "Email change"
+    PASSWORD_CHANGE = "password_change", "Password change"
 
 
 class TokenCounter(models.Model):

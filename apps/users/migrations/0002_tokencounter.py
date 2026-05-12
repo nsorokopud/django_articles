@@ -28,9 +28,9 @@ class Migration(migrations.Migration):
                     "token_type",
                     models.CharField(
                         choices=[
-                            ("account activation", "Account Activation"),
-                            ("email change", "Email Change"),
-                            ("password change", "Password Change"),
+                            ("account_activation", "Account activation"),
+                            ("email_change", "Email change"),
+                            ("password_change", "Password change"),
                         ],
                         max_length=32,
                     ),
@@ -57,9 +57,9 @@ class Migration(migrations.Migration):
                             (
                                 "token_type__in",
                                 [
-                                    "account activation",
-                                    "email change",
-                                    "password change",
+                                    "account_activation",
+                                    "email_change",
+                                    "password_change",
                                 ],
                             )
                         ),
