@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
                         max_length=32,
                     ),
                 ),
-                ("token_count", models.IntegerField(default=0)),
+                ("token_count", models.PositiveIntegerField(default=0)),
                 (
                     "user",
                     models.ForeignKey(

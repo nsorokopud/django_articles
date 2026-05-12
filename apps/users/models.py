@@ -72,7 +72,7 @@ class TokenType(models.TextChoices):
 class TokenCounter(models.Model):
     user = models.ForeignKey("User", on_delete=models.CASCADE)
     token_type = models.CharField(max_length=32, choices=TokenType.choices)
-    token_count = models.IntegerField(default=0)
+    token_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         unique_together = ["user", "token_type"]
