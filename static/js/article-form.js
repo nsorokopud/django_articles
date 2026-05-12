@@ -1,17 +1,21 @@
-document.getElementById('articleForm').addEventListener('submit', (e) => {
-  const form = e.target;
+const articleForm = document.getElementById('articleForm');
 
-  if (!form.checkValidity()) {
-    document.documentElement.style.scrollBehavior = 'auto';
-    form.reportValidity();
-    document.documentElement.style.scrollBehavior = '';
+if (articleForm) {
+  articleForm.addEventListener('submit', (e) => {
+    const form = e.target;
+
+    if (!form.checkValidity()) {
+      document.documentElement.style.scrollBehavior = 'auto';
+      form.reportValidity();
+      document.documentElement.style.scrollBehavior = '';
+      e.preventDefault();
+      return;
+    }
+
     e.preventDefault();
-    return;
-  }
-
-  e.preventDefault();
-  onArticleFormSaveButtonClick(e.submitter);
-});
+    onArticleFormSaveButtonClick(e.submitter);
+  });
+}
 
 function onArticleFormSaveButtonClick(submitter) {
   const button =
@@ -23,8 +27,7 @@ function onArticleFormSaveButtonClick(submitter) {
 
   removeFormValidationErrors();
 
-  const form = document.getElementById('articleForm');
-  const articleId = document.getElementById('articleId').value;
+  const articleId = document.getElementById('articleId')?.value;
   const editor = tinymce.activeEditor;
 
   setSubmitButtonLoading(button, submitter);
@@ -44,7 +47,7 @@ function onArticleFormSaveButtonClick(submitter) {
   editor
     .uploadImages()
     .then(() => {
-      updateArticle(articleId, form, editor, button, submitter);
+      updateArticle(articleId, articleForm, editor, button, submitter);
     })
     .catch((error) => {
       console.error('TinyMCE image upload failed:', error);
@@ -115,11 +118,11 @@ function updateArticle(articleId, form, editor, button, submitter) {
 }
 
 function setSubmitButtonLoading(button, submitter) {
+  setArticleFormBusy(true);
+
   if (!button) {
     return;
   }
-
-  button.disabled = true;
 
   if (!button.dataset.originalText) {
     button.dataset.originalText = button.textContent;
@@ -129,13 +132,22 @@ function setSubmitButtonLoading(button, submitter) {
     submitter?.value === 'submit_for_review' ? 'Submitting...' : 'Saving...';
 }
 
-function restoreSubmitButton(button) {
-  if (!button) {
-    return;
-  }
+function setArticleFormBusy(isBusy) {
+  document
+    .querySelectorAll('#articleFormUpdateButton, #articleSubmitForReviewButton')
+    .forEach((button) => {
+      button.disabled = isBusy;
+    });
+}
 
-  button.disabled = false;
-  button.textContent = button.dataset.originalText || 'Save draft';
+function restoreSubmitButton(button) {
+  setArticleFormBusy(false);
+
+  if (!button) return;
+
+  if (button.dataset.originalText) {
+    button.textContent = button.dataset.originalText;
+  }
 }
 
 function showEditorNotification(editor, message, type = 'info') {
