@@ -142,7 +142,7 @@ class TestDeleteArticleMediaFiles(SimpleTestCase):
 
 class TestSaveArticleInlineMediaFile(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester")
+        self.user = User.objects.create_user(username="tester", email="tester@test.com")
         self.article = Article.objects.create(
             title="a1", slug="a1", content="content", author=self.user
         )
@@ -219,7 +219,7 @@ class TestSaveArticleInlineMediaFile(TestCase):
 
 class TestSyncArticleInlineMediaReferences(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester")
+        self.user = User.objects.create_user(username="tester", email="tester@test.com")
         self.article = Article.objects.create(
             title="a1", slug="a1", content="content", author=self.user
         )
@@ -279,7 +279,7 @@ class TestSyncArticleInlineMediaReferences(TestCase):
 
 class TestCleanupUnusedArticleInlineMedia(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester")
+        self.user = User.objects.create_user(username="tester", email="tester@test.com")
         self.article = Article.objects.create(
             title="a1", slug="a1", content="content", author=self.user
         )

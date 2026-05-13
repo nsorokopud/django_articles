@@ -45,6 +45,7 @@ def send_account_activation_email(user: User, base_url: str) -> None:
 
 
 def send_email_change_link(user: User, new_email: str, base_url: str) -> None:
+    new_email = new_email.strip().lower()
     validate_email(new_email)
     token = email_change_token_generator.make_token(user)
     url = urljoin(base_url, reverse("email-change-confirm", args=[token]))

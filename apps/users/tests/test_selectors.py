@@ -66,7 +66,7 @@ class TestSelectors(TestCase):
     def test_get_all_users(self):
         self.assertCountEqual(get_all_users(), [self.test_user])
 
-        new_user = User.objects.create(username="new_user")
+        new_user = User.objects.create(username="new_user", email="new_user@test.com")
         self.assertCountEqual(get_all_users(), [self.test_user, new_user])
 
         new_user.delete()

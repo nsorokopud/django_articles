@@ -22,6 +22,14 @@ class UserCreationForm(DefaultUserCreationForm):
         model = User
         fields = ["username", "email", "password1", "password2"]
 
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("A user with that email already exists.")
+
+        return email
+
 
 class UserUpdateForm(forms.ModelForm):
     class Meta:
@@ -50,6 +58,10 @@ class EmailAddressModelForm(forms.ModelForm):
         model = EmailAddress
         fields = "__all__"
 
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        return email.strip().lower() if email else email
+
     def clean(self):
         cleaned_data = super().clean()
 
@@ -72,11 +84,18 @@ class EmailChangeForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def clean_new_email(self):
-        new_email = self.cleaned_data["new_email"]
-        if self.user.email == new_email:
+        new_email = self.cleaned_data["new_email"].strip().lower()
+
+        if (self.user.email or "").strip().lower() == new_email:
             raise forms.ValidationError("Enter a different email address.")
-        if User.objects.exclude(pk=self.user.pk).filter(email=new_email).exists():
+
+        if (
+            User.objects.exclude(pk=self.user.pk)
+            .filter(email__iexact=new_email)
+            .exists()
+        ):
             raise forms.ValidationError("A user with that email already exists.")
+
         return new_email
 
     def clean(self):

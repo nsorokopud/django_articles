@@ -1,9 +1,10 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class User(AbstractUser):
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     subscribed_to_authors = models.ManyToManyField(
         "self",
         through="AuthorSubscription",
@@ -12,10 +13,27 @@ class User(AbstractUser):
     )
     latest_article_publish_sequence = models.BigIntegerField(default=0, db_index=True)
     subscriptions_last_seen_publish_sequence = models.BigIntegerField(
-        default=0,
-        db_index=True,
+        default=0, db_index=True
     )
     unread_notifications_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(email=""), name="users_user_email_not_blank"
+            ),
+            models.UniqueConstraint(Lower("email"), name="users_user_email_ci_unique"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.email:
+            self.email = self.email.strip().lower()
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
 
 
 class Profile(models.Model):

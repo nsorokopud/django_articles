@@ -14,6 +14,68 @@ from users.services.users import (
 from users.signals import create_profile
 
 
+class TestActivateUser(TestCase):
+    def test_creates_lowercase_verified_primary_email_address(self):
+        user = User.objects.create_user(
+            username="user", email="USER@TEST.COM", is_active=False
+        )
+
+        self.assertFalse(user.is_active)
+        self.assertEqual(user.email, "user@test.com")
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
+
+        activate_user(user)
+
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.email, "user@test.com")
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+
+        allauth_email = EmailAddress.objects.get(user=user)
+        self.assertEqual(allauth_email.email, "user@test.com")
+        self.assertTrue(allauth_email.verified)
+        self.assertTrue(allauth_email.primary)
+
+    def test_updates_existing_email_address(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
+        email_address = EmailAddress.objects.create(
+            user=user, email="user@test.com", verified=False, primary=False
+        )
+
+        activate_user(user)
+
+        user.refresh_from_db()
+        email_address.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+
+        self.assertEqual(email_address.email, "user@test.com")
+        self.assertTrue(email_address.verified)
+        self.assertTrue(email_address.primary)
+
+    def test_is_idempotent(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
+
+        activate_user(user)
+        activate_user(user)
+
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+
+        allauth_email = EmailAddress.objects.get(user=user)
+        self.assertEqual(allauth_email.email, "user@test.com")
+        self.assertTrue(allauth_email.verified)
+        self.assertTrue(allauth_email.primary)
+
+
 class TestUserServices(TestCase):
     def setUp(self):
         self.test_user = User.objects.create_user(
@@ -22,26 +84,6 @@ class TestUserServices(TestCase):
 
     def tearDown(self):
         signals.post_save.connect(create_profile, sender=User)
-
-    def test_activate_user(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", is_active=False
-        )
-
-        self.assertFalse(user.is_active)
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
-        with self.assertRaises(EmailAddress.DoesNotExist):
-            EmailAddress.objects.get(user=user, email=user.email)
-
-        activate_user(user)
-        user.refresh_from_db()
-        self.assertTrue(user.is_active)
-
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
-        allauth_email = EmailAddress.objects.get(user=user)
-        self.assertEqual(allauth_email.email, user.email)
-        self.assertTrue(allauth_email.verified)
-        self.assertTrue(allauth_email.primary)
 
     def test_deactivate_user(self):
         user = User.objects.create_user(username="user", email="user@test.com")

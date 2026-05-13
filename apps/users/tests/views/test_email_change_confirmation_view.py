@@ -9,7 +9,7 @@ from users.models import User
 
 class EmailChangeConfirmationViewTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="testuser")
+        self.user = User.objects.create_user(username="testuser", email="u@test.com")
         self.token = "test-token"
         self.url = reverse("email-change-confirm", kwargs={"token": self.token})
 

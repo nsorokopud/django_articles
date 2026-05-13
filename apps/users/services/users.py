@@ -17,13 +17,17 @@ logger = logging.getLogger(__name__)
 @transaction.atomic
 def activate_user(user: User) -> None:
     user_updated = User.objects.filter(pk=user.pk).update(is_active=True)
+
     if user_updated:
         logger.info("User %s was activated", user.id)
     else:
         logger.warning("No user found with id %s to activate", user.id)
+
+    email = user.email.strip().lower()
     _, email_created = EmailAddress.objects.update_or_create(
-        user=user, email=user.email, defaults={"verified": True, "primary": True}
+        user=user, email=email, defaults={"verified": True, "primary": True}
     )
+
     if email_created:
         logger.info("EmailAddress(user_id=%s) was created", user.id)
     else:

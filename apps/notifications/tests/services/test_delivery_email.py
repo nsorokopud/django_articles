@@ -51,14 +51,6 @@ class TestBuildNotificationEmailConfig(TestCase):
         cfg = build_notification_email_config(notification_id=n.id)
         self.assertIsNone(cfg)
 
-    def test_returns_none_when_email_blank_or_whitespace(self) -> None:
-        self.user.email = "   "
-        self.user.save(update_fields=["email"])
-
-        n = self._create_notification(notification_type=NotificationType.SYSTEM)
-        cfg = build_notification_email_config(notification_id=n.id)
-        self.assertIsNone(cfg)
-
     def test_builds_config_for_system_notification(self) -> None:
         n = self._create_notification(
             notification_type=NotificationType.SYSTEM,

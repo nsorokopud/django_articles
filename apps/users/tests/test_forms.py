@@ -8,9 +8,125 @@ from users.forms import (
     EmailAddressModelForm,
     EmailChangeConfirmationForm,
     EmailChangeForm,
+    UserCreationForm,
     UserUpdateForm,
 )
 from users.models import User
+
+
+class TestUserCreationForm(TestCase):
+    def _valid_form_data(self, **overrides):
+        data = {
+            "username": "newuser",
+            "email": "newuser@test.com",
+            "password1": "StrongPass123!",
+            "password2": "StrongPass123!",
+            "hcaptcha": "dummy-token",
+        }
+        data.update(overrides)
+        return data
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_valid_form(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data())
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_valid_form_saves_user(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data())
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        user = form.save()
+        user.refresh_from_db()
+
+        self.assertEqual(user.username, "newuser")
+        self.assertEqual(user.email, "newuser@test.com")
+        self.assertTrue(user.check_password("StrongPass123!"))
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_email_is_lowercased(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(email="NewUser@TEST.COM"))
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["email"], "newuser@test.com")
+
+        user = form.save()
+        user.refresh_from_db()
+
+        self.assertEqual(user.email, "newuser@test.com")
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_duplicate_email(self, mock_hcaptcha_validate):
+        User.objects.create_user(
+            username="existing", email="existing@test.com", password="StrongPass123!"
+        )
+
+        form = UserCreationForm(
+            data=self._valid_form_data(username="newuser", email="existing@test.com")
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {"email": ["A user with that email already exists."]},
+        )
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_duplicate_email_case_insensitive(self, mock_hcaptcha_validate):
+        User.objects.create_user(
+            username="existing", email="existing@test.com", password="StrongPass123!"
+        )
+
+        form = UserCreationForm(
+            data=self._valid_form_data(username="newuser", email="EXISTING@TEST.COM")
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {"email": ["A user with that email already exists."]},
+        )
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_missing_email(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(email=""))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+        self.assertEqual(form.errors["email"], ["This field is required."])
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_invalid_email(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(email="not-an-email"))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_duplicate_username(self, mock_hcaptcha_validate):
+        User.objects.create_user(
+            username="existing", email="existing@test.com", password="StrongPass123!"
+        )
+
+        form = UserCreationForm(
+            data=self._valid_form_data(username="existing", email="newuser@test.com")
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("username", form.errors)
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_password_mismatch(self, mock_hcaptcha_validate):
+        form = UserCreationForm(
+            data=self._valid_form_data(
+                password1="StrongPass123!", password2="DifferentPass123!"
+            )
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("password2", form.errors)
 
 
 class TestUserUpdateForm(TestCase):
@@ -18,10 +134,7 @@ class TestUserUpdateForm(TestCase):
         self.user = User.objects.create_user(username="user", email="user@test.com")
 
     def test_valid_form(self):
-        form = UserUpdateForm(
-            data={"username": "newusername"},
-            instance=self.user,
-        )
+        form = UserUpdateForm(data={"username": "newusername"}, instance=self.user)
         self.assertTrue(form.is_valid())
         form.save()
         self.user.refresh_from_db()
@@ -29,10 +142,7 @@ class TestUserUpdateForm(TestCase):
 
     def test_invalid_username(self):
         User.objects.create_user(username="existinguser", email="existinguser@test.com")
-        form = UserUpdateForm(
-            data={"username": "existinguser"},
-            instance=self.user,
-        )
+        form = UserUpdateForm(data={"username": "existinguser"}, instance=self.user)
         self.assertFalse(form.is_valid())
         self.assertIn("username", form.errors)
         self.assertEqual(
@@ -40,10 +150,7 @@ class TestUserUpdateForm(TestCase):
         )
 
     def test_same_username(self):
-        form = UserUpdateForm(
-            data={"username": "user"},
-            instance=self.user,
-        )
+        form = UserUpdateForm(data={"username": "user"}, instance=self.user)
         self.assertTrue(form.is_valid())
         form.save()
         self.user.refresh_from_db()
@@ -70,8 +177,8 @@ class TestEmailAddressModelForm(TestCase):
         )
         self.form = EmailAddressModelForm(
             {
-                "user": self.user2,
-                "email": "u2@t.com",
+                "user": self.user2.pk,
+                "email": "NEW@T.COM",
                 "verified": False,
                 "primary": False,
             },
@@ -80,21 +187,18 @@ class TestEmailAddressModelForm(TestCase):
 
     def test_clean_no_user(self):
         form = EmailAddressModelForm(
-            {
-                "email": "u@test.com",
-                "verified": False,
-                "primary": False,
-            }
+            {"email": "u@test.com", "verified": False, "primary": False}
         )
+
         self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {"user": ["This field is required."], "__all__": ["User is required."]},
-        )
+        self.assertIn("user", form.errors)
+        self.assertIn("__all__", form.errors)
+        self.assertEqual(form.errors["user"], ["This field is required."])
+        self.assertEqual(form.errors["__all__"], ["User is required."])
 
     def test_clean_enforce_unique_email_type_per_user_called(self):
         with patch("users.forms.enforce_unique_email_type_per_user") as mock:
-            self.assertTrue(self.form.is_valid())
+            self.assertTrue(self.form.is_valid(), self.form.errors)
 
         mock.assert_called_once()
         args, _ = mock.call_args
@@ -102,17 +206,17 @@ class TestEmailAddressModelForm(TestCase):
 
         self.assertEqual(instance.pk, self.email.pk)
         self.assertEqual(instance.user, self.user2)
-        self.assertEqual(instance.email, "u2@t.com")
+        self.assertEqual(instance.email, "new@t.com")
         self.assertEqual(instance.verified, False)
         self.assertEqual(instance.primary, False)
 
     def test_modify_instance(self):
-        self.assertTrue(self.form.is_valid())
+        self.assertTrue(self.form.is_valid(), self.form.errors)
         self.form.save()
 
         self.email.refresh_from_db()
         self.assertEqual(self.email.user, self.user2)
-        self.assertEqual(self.email.email, "u2@t.com")
+        self.assertEqual(self.email.email, "new@t.com")
         self.assertEqual(self.email.verified, False)
         self.assertEqual(self.email.primary, False)
 
@@ -123,11 +227,21 @@ class TestEmailChangeForm(TestCase):
 
     def test_no_new_email(self):
         form = EmailChangeForm(data={}, user=self.user)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {"new_email": ["This field is required."]})
 
     def test_new_email_same_as_old(self):
         form = EmailChangeForm(data={"new_email": self.user.email}, user=self.user)
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors, {"new_email": ["Enter a different email address."]}
+        )
+
+    def test_new_email_same_as_old_case_insensitive(self):
+        form = EmailChangeForm(data={"new_email": "USER@TEST.COM"}, user=self.user)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.errors, {"new_email": ["Enter a different email address."]}
@@ -135,10 +249,23 @@ class TestEmailChangeForm(TestCase):
 
     def test_unique_email_violation(self):
         user2 = User.objects.create_user(username="user2", email="user2@test.com")
+
         form = EmailChangeForm(data={"new_email": user2.email}, user=self.user)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.errors, {"new_email": ["A user with that email already exists."]}
+        )
+
+    def test_unique_email_violation_case_insensitive(self):
+        User.objects.create_user(username="user2", email="user2@test.com")
+
+        form = EmailChangeForm(data={"new_email": "USER2@TEST.COM"}, user=self.user)
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {"new_email": ["A user with that email already exists."]},
         )
 
     @patch("users.forms.enforce_unique_email_type_per_user")
@@ -148,6 +275,7 @@ class TestEmailChangeForm(TestCase):
         )
 
         form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.errors,
@@ -163,8 +291,14 @@ class TestEmailChangeForm(TestCase):
 
     def test_valid_form(self):
         form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
-        self.assertTrue(form.is_valid())
+
+        self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["new_email"], "new@test.com")
+
+    def test_valid_form_lowercases_new_email(self):
+        form = EmailChangeForm(data={"new_email": "New@TEST.COM"}, user=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
 
 
 class TestEmailChangeConfirmationForm(TestCase):

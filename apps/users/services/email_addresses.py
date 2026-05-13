@@ -18,15 +18,38 @@ def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
     non-primary). Raises `ValidationError` if the user already has an email address with
     the same `primary` value.
     """
+    if instance.email:
+        instance.email = instance.email.strip().lower()
+
     queryset = EmailAddress.objects.filter(user=instance.user, primary=instance.primary)
     if instance.pk:
         queryset = queryset.exclude(pk=instance.pk)
+
     if queryset.exists():
         address_type = "primary" if instance.primary else "non-primary"
         raise ValidationError(f"This user already has a {address_type} email address.")
 
+    if instance.email:
+        existing_user_email = (
+            User.objects.exclude(pk=instance.user_id)
+            .filter(email__iexact=instance.email)
+            .exists()
+        )
+        if existing_user_email:
+            raise ValidationError("A user with that email already exists.")
+
+        existing_email_address = (
+            EmailAddress.objects.exclude(user_id=instance.user_id)
+            .filter(email__iexact=instance.email)
+            .exists()
+        )
+        if existing_email_address:
+            raise ValidationError("A user with that email already exists.")
+
 
 def create_pending_email_address(user: User, email: str) -> EmailAddress:
+    email = email.strip().lower()
+
     email_address = EmailAddress.objects.create(
         user=user, email=email, primary=False, verified=False
     )
@@ -66,7 +89,7 @@ def change_email_address(user_id: int) -> None:
         user=user, primary=False, verified=False
     )
     old_email = EmailAddress.objects.select_for_update().get(user=user, primary=True)
-    user.email = new_email.email
+    user.email = new_email.email.strip().lower()
     user.save(update_fields=["email"])
 
     # Bypass pre-save signal that enforces email validation
@@ -75,7 +98,7 @@ def change_email_address(user_id: int) -> None:
 
     old_email.delete()
     logger.info("EmailAddress(id=%s) was deleted.", old_email.id)
-    delete_social_accounts_with_email(old_email.email)
+    delete_social_accounts_with_email(old_email.email.strip().lower())
     logger.info(
         "User(id=%s) changed email from (id=%s) to (id=%s)",
         user_id,
