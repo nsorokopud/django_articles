@@ -16,22 +16,68 @@ logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def activate_user(user: User) -> None:
-    user_updated = User.objects.filter(pk=user.pk).update(is_active=True)
+    user = User.objects.select_for_update().get(pk=user.pk)
+    email = (user.email or "").strip().lower()
 
-    if user_updated:
-        logger.info("User %s was activated", user.id)
+    if not email:
+        raise ValidationError("User email is required for activation.")
+
+    update_fields = []
+
+    if user.email != email:
+        user.email = email
+        update_fields.append("email")
+
+    if not user.is_active:
+        user.is_active = True
+        update_fields.append("is_active")
+
+    if update_fields:
+        user.save(update_fields=update_fields)
+        logger.info("User %s activation state was updated.", user.id)
     else:
-        logger.warning("No user found with id %s to activate", user.id)
+        logger.info("User %s was already active with normalized email.", user.id)
 
-    email = user.email.strip().lower()
-    _, email_created = EmailAddress.objects.update_or_create(
-        user=user, email=email, defaults={"verified": True, "primary": True}
+    email_addresses = list(
+        EmailAddress.objects.select_for_update().filter(user_id=user.id)
     )
 
-    if email_created:
-        logger.info("EmailAddress(user_id=%s) was created", user.id)
-    else:
-        logger.info("EmailAddress(user_id=%s) was updated", user.id)
+    matching_email_address = next(
+        (
+            email_address
+            for email_address in email_addresses
+            if (email_address.email or "").strip().lower() == email
+        ),
+        None,
+    )
+
+    primary_addresses = EmailAddress.objects.filter(user_id=user.id, primary=True)
+
+    if matching_email_address is not None:
+        primary_addresses = primary_addresses.exclude(pk=matching_email_address.pk)
+
+    # Bypass EmailAddress pre-save validation while repairing primary state
+    primary_addresses.update(primary=False)
+
+    if matching_email_address is None:
+        email_address = EmailAddress.objects.create(
+            user_id=user.id, email=email, verified=True, primary=True
+        )
+
+        logger.info(
+            "EmailAddress(id=%s, user_id=%s) was created.", email_address.id, user.id
+        )
+        return
+
+    EmailAddress.objects.filter(pk=matching_email_address.pk).update(
+        email=email, verified=True, primary=True
+    )
+
+    logger.info(
+        "EmailAddress(id=%s, user_id=%s) was updated.",
+        matching_email_address.id,
+        user.id,
+    )
 
 
 def deactivate_user(user: User) -> None:

@@ -25,7 +25,6 @@ class TestActivateUser(TestCase):
         self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
 
         activate_user(user)
-
         user.refresh_from_db()
 
         self.assertTrue(user.is_active)
@@ -37,7 +36,7 @@ class TestActivateUser(TestCase):
         self.assertTrue(allauth_email.verified)
         self.assertTrue(allauth_email.primary)
 
-    def test_updates_existing_email_address(self):
+    def test_updates_existing_matching_email_address(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", is_active=False
         )
@@ -46,7 +45,6 @@ class TestActivateUser(TestCase):
         )
 
         activate_user(user)
-
         user.refresh_from_db()
         email_address.refresh_from_db()
 
@@ -56,6 +54,76 @@ class TestActivateUser(TestCase):
         self.assertEqual(email_address.email, "user@test.com")
         self.assertTrue(email_address.verified)
         self.assertTrue(email_address.primary)
+
+    def test_demotes_existing_primary_email_address_when_different_email_matches_user(
+        self,
+    ):
+        user = User.objects.create_user(
+            username="user", email="new@test.com", is_active=False
+        )
+        old_primary = EmailAddress.objects.create(
+            user=user, email="old@test.com", verified=True, primary=True
+        )
+        matching_email = EmailAddress.objects.create(
+            user=user, email="new@test.com", verified=False, primary=False
+        )
+
+        activate_user(user)
+        user.refresh_from_db()
+        old_primary.refresh_from_db()
+        matching_email.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+
+        self.assertFalse(old_primary.primary)
+        self.assertTrue(old_primary.verified)
+
+        self.assertTrue(matching_email.primary)
+        self.assertTrue(matching_email.verified)
+        self.assertEqual(matching_email.email, "new@test.com")
+
+        self.assertEqual(
+            EmailAddress.objects.filter(user=user, primary=True).count(), 1
+        )
+
+    def test_demotes_existing_primary_email_address_and_creates_matching_email(self):
+        user = User.objects.create_user(
+            username="user", email="new@test.com", is_active=False
+        )
+        old_primary = EmailAddress.objects.create(
+            user=user, email="old@test.com", verified=True, primary=True
+        )
+
+        activate_user(user)
+        user.refresh_from_db()
+        old_primary.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertFalse(old_primary.primary)
+
+        matching_email = EmailAddress.objects.get(user=user, email="new@test.com")
+        self.assertTrue(matching_email.primary)
+        self.assertTrue(matching_email.verified)
+
+        self.assertEqual(
+            EmailAddress.objects.filter(user=user, primary=True).count(), 1
+        )
+
+    def test_normalizes_user_email_before_activation(self):
+        user = User.objects.create_user(
+            username="user", email="  User.Abc@Test.COM  ", is_active=False
+        )
+
+        activate_user(user)
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.email, "user.abc@test.com")
+
+        allauth_email = EmailAddress.objects.get(user=user)
+        self.assertEqual(allauth_email.email, "user.abc@test.com")
+        self.assertTrue(allauth_email.primary)
+        self.assertTrue(allauth_email.verified)
 
     def test_is_idempotent(self):
         user = User.objects.create_user(
