@@ -8,7 +8,7 @@ from users.services import (
     change_email_address,
     create_pending_email_address,
     delete_pending_email_address,
-    enforce_unique_email_type_per_user,
+    enforce_single_current_and_pending_email_per_user,
 )
 
 
@@ -214,7 +214,7 @@ class TestCreatePendingEmailAddress(TestCase):
         )
 
         with self.assertRaisesMessage(
-            ValidationError, "This user already has a non-primary email address."
+            ValidationError, "This user already has a pending email address."
         ):
             create_pending_email_address(user_id=self.user.id, email="new@test.com")
 
@@ -223,20 +223,20 @@ class TestCreatePendingEmailAddress(TestCase):
         )
 
 
-class TestEnforceUniqueEmailTypePerUser(TestCase):
+class TestEnforceSingleCurrentAndPendingEmailPerUser(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="test@test.com")
 
-    def test_allows_one_primary_and_one_non_primary_email(self):
+    def test_allows_one_current_and_one_pending_email(self):
         EmailAddress.objects.create(
-            user=self.user, email="primary@test.com", primary=True, verified=True
+            user=self.user, email="test@test.com", primary=True, verified=True
         )
 
         pending_email = EmailAddress(
             user=self.user, email="Pending@TEST.COM", primary=False, verified=False
         )
 
-        enforce_unique_email_type_per_user(pending_email)
+        enforce_single_current_and_pending_email_per_user(pending_email)
 
         self.assertEqual(pending_email.email, "pending@test.com")
 
@@ -250,14 +250,14 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
         )
 
         with self.assertRaises(ValidationError) as context:
-            enforce_unique_email_type_per_user(second_primary)
+            enforce_single_current_and_pending_email_per_user(second_primary)
 
         self.assertEqual(
             context.exception.messages,
             ["This user already has a primary email address."],
         )
 
-    def test_rejects_second_non_primary_email_for_same_user(self):
+    def test_rejects_second_pending_email_for_same_user(self):
         EmailAddress.objects.create(
             user=self.user, email="pending1@test.com", primary=False, verified=False
         )
@@ -267,11 +267,11 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
         )
 
         with self.assertRaises(ValidationError) as context:
-            enforce_unique_email_type_per_user(second_pending)
+            enforce_single_current_and_pending_email_per_user(second_pending)
 
         self.assertEqual(
             context.exception.messages,
-            ["This user already has a non-primary email address."],
+            ["This user already has a pending email address."],
         )
 
     def test_allows_many_unsaved_instances_because_only_saved_rows_count(self):
@@ -279,9 +279,9 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
         email2 = EmailAddress(user=self.user, email="E2@TEST.COM", primary=True)
         email3 = EmailAddress(user=self.user, email="E3@TEST.COM", primary=True)
 
-        enforce_unique_email_type_per_user(email1)
-        enforce_unique_email_type_per_user(email2)
-        enforce_unique_email_type_per_user(email3)
+        enforce_single_current_and_pending_email_per_user(email1)
+        enforce_single_current_and_pending_email_per_user(email2)
+        enforce_single_current_and_pending_email_per_user(email3)
 
         self.assertEqual(email1.email, "e1@test.com")
         self.assertEqual(email2.email, "e2@test.com")
@@ -291,9 +291,9 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
         email5 = EmailAddress(user=self.user, email="E5@TEST.COM", primary=False)
         email6 = EmailAddress(user=self.user, email="E6@TEST.COM", primary=False)
 
-        enforce_unique_email_type_per_user(email4)
-        enforce_unique_email_type_per_user(email5)
-        enforce_unique_email_type_per_user(email6)
+        enforce_single_current_and_pending_email_per_user(email4)
+        enforce_single_current_and_pending_email_per_user(email5)
+        enforce_single_current_and_pending_email_per_user(email6)
 
         self.assertEqual(email4.email, "e4@test.com")
         self.assertEqual(email5.email, "e5@test.com")
@@ -307,7 +307,7 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
         )
 
         with self.assertRaises(ValidationError) as context:
-            enforce_unique_email_type_per_user(email)
+            enforce_single_current_and_pending_email_per_user(email)
 
         self.assertEqual(
             context.exception.messages, ["A user with that email already exists."]
@@ -324,7 +324,7 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
         )
 
         with self.assertRaises(ValidationError) as context:
-            enforce_unique_email_type_per_user(email)
+            enforce_single_current_and_pending_email_per_user(email)
 
         self.assertEqual(
             context.exception.messages, ["A user with that email already exists."]
@@ -337,6 +337,6 @@ class TestEnforceUniqueEmailTypePerUser(TestCase):
 
         email.email = "PRIMARY@TEST.COM"
 
-        enforce_unique_email_type_per_user(email)
+        enforce_single_current_and_pending_email_per_user(email)
 
         self.assertEqual(email.email, "primary@test.com")

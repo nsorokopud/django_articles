@@ -23,8 +23,8 @@ class TestCreateProfile(TestCase):
 
 
 class TestEnforceEmailAddressValidationRules(TestCase):
-    @patch("users.signals.enforce_unique_email_type_per_user")
-    def test_enforce_unique_email_type_per_user_called(
+    @patch("users.signals.enforce_single_current_and_pending_email_per_user")
+    def test_enforce_single_current_and_pending_email_per_user_called(
         self, mock_validate_email_address
     ):
         user = User.objects.create_user(username="user1", email="user@test.com")
@@ -40,7 +40,7 @@ class TestEnforceEmailAddressValidationRules(TestCase):
             email2.save()
         self.assertEqual(
             str(context.exception),
-            "['This user already has a non-primary email address.']",
+            "['This user already has a pending email address.']",
         )
 
         pre_save.disconnect(enforce_email_address_validation_rules, sender=EmailAddress)

@@ -14,10 +14,11 @@ from .users import delete_social_accounts_with_email
 logger = logging.getLogger(__name__)
 
 
-def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
-    """Ensures that a user has at most one email address of each type (primary or
-    non-primary). Raises `ValidationError` if the user already has an email address with
-    the same `primary` value.
+def enforce_single_current_and_pending_email_per_user(instance: EmailAddress) -> None:
+    """Enforces the following model:
+    - at most one primary EmailAddress per user, representing the current email
+    - at most one non-primary EmailAddress per user, representing a pending email change
+    - no email address may be used by another user or another user's EmailAddress
     """
     if instance.email:
         instance.email = instance.email.strip().lower()
@@ -27,7 +28,7 @@ def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
         queryset = queryset.exclude(pk=instance.pk)
 
     if queryset.exists():
-        address_type = "primary" if instance.primary else "non-primary"
+        address_type = "primary" if instance.primary else "pending"
         raise ValidationError(f"This user already has a {address_type} email address.")
 
     if instance.email:
@@ -66,7 +67,7 @@ def create_pending_email_address(*, user_id: int, email: str) -> EmailAddress:
 
     email_address = EmailAddress(user=user, email=email, primary=False, verified=False)
 
-    enforce_unique_email_type_per_user(email_address)
+    enforce_single_current_and_pending_email_per_user(email_address)
     email_address.save()
 
     logger.info(

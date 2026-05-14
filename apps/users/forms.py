@@ -7,7 +7,10 @@ from hcaptcha_field import hCaptchaField
 from core.validators import validate_uploaded_image
 from users.models import Profile, User
 
-from .services import enforce_unique_email_type_per_user, get_pending_email_address
+from .services import (
+    enforce_single_current_and_pending_email_per_user,
+    get_pending_email_address,
+)
 from .services.tokens import email_change_token_generator
 
 
@@ -74,7 +77,7 @@ class EmailAddressModelForm(forms.ModelForm):
         for field_name, value in cleaned_data.items():
             setattr(self.instance, field_name, value)
 
-        enforce_unique_email_type_per_user(self.instance)
+        enforce_single_current_and_pending_email_per_user(self.instance)
         return cleaned_data
 
 
@@ -111,7 +114,7 @@ class EmailChangeForm(forms.Form):
             user=self.user, email=new_email, verified=False, primary=False
         )
         try:
-            enforce_unique_email_type_per_user(email_instance)
+            enforce_single_current_and_pending_email_per_user(email_instance)
         except forms.ValidationError as e:
             raise forms.ValidationError(
                 (

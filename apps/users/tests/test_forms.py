@@ -293,8 +293,10 @@ class TestEmailAddressModelForm(TestCase):
         self.assertEqual(form.errors["user"], ["This field is required."])
         self.assertEqual(form.errors["__all__"], ["User is required."])
 
-    def test_clean_enforce_unique_email_type_per_user_called(self):
-        with patch("users.forms.enforce_unique_email_type_per_user") as mock:
+    def test_clean_enforce_single_current_and_pending_email_per_user_called(self):
+        with patch(
+            "users.forms.enforce_single_current_and_pending_email_per_user"
+        ) as mock:
             self.assertTrue(self.form.is_valid(), self.form.errors)
 
         mock.assert_called_once()
@@ -365,7 +367,7 @@ class TestEmailChangeForm(TestCase):
             {"new_email": ["A user with that email already exists."]},
         )
 
-    @patch("users.forms.enforce_unique_email_type_per_user")
+    @patch("users.forms.enforce_single_current_and_pending_email_per_user")
     def test_other_unfinished_email_change(self, mock_enforce):
         mock_enforce.side_effect = forms.ValidationError(
             "Other unfinished email change"
