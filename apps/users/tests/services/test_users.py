@@ -1,5 +1,4 @@
 from allauth.account.models import EmailAddress
-from allauth.socialaccount.models import SocialAccount
 from django.db.models import signals
 from django.test import TestCase
 
@@ -9,7 +8,6 @@ from users.services.users import (
     advance_latest_article_publish_sequence,
     create_user_profile,
     deactivate_user,
-    delete_social_accounts_with_email,
 )
 from users.signals import create_profile
 
@@ -170,38 +168,6 @@ class TestUserServices(TestCase):
         profile = create_user_profile(u)
         self.assertEqual(profile.user, u)
         self.assertEqual(Profile.objects.filter(user=u).first(), profile)
-
-    def test_delete_social_accounts_with_email(self):
-        email = "email@test.com"
-        email2 = "email2@test.com"
-        account1 = SocialAccount(
-            user=self.test_user, provider="p1", uid="123", extra_data={"email": email}
-        )
-        account2 = SocialAccount(
-            user=self.test_user, provider="p2", uid="456", extra_data={"email": email}
-        )
-        account3 = SocialAccount(
-            user=self.test_user, provider="p3", uid="789", extra_data={"email": email2}
-        )
-        SocialAccount.objects.bulk_create([account1, account2, account3])
-
-        delete_social_accounts_with_email("nonexistent@test.com")
-
-        self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=email).count(), 2
-        )
-        self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=email2).count(), 1
-        )
-
-        delete_social_accounts_with_email(email)
-
-        self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=email).count(), 0
-        )
-        self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=email2).count(), 1
-        )
 
 
 class TestAdvanceLatestArticlePublishSequence(TestCase):

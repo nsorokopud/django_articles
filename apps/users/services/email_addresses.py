@@ -1,14 +1,14 @@
 import logging
 
 from allauth.account.models import EmailAddress
+from allauth.socialaccount.models import SocialAccount
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import transaction
+from django.db import connection, transaction
 
 from users.models import User
 
 from ..selectors import get_pending_email_address
-from .users import delete_social_accounts_with_email
 
 
 logger = logging.getLogger(__name__)
@@ -122,3 +122,30 @@ def change_email_address(user_id: int) -> None:
         old_email.id,
         new_email.id,
     )
+
+
+def delete_social_accounts_with_email(email: str) -> None:
+    """Deletes all social accounts with the specified email address.
+    Raises TransactionManagementError if called outside of an atomic
+    transaction.
+    """
+    if not connection.in_atomic_block:
+        raise transaction.TransactionManagementError(
+            "This function must be called inside an atomic transaction."
+        )
+
+    accounts = SocialAccount.objects.select_for_update().filter(extra_data__email=email)
+
+    if not accounts.exists():
+        logger.info("No social accounts found with email %s", email)
+        return
+
+    # One-by-one deletion instead of queryset.delete() to ensure thread
+    # safety and to preserve logging for each account
+    count = 0
+    for account in accounts:
+        account.delete()
+        logger.info("SocialAccount(id=%s) was removed.", account.id)
+        count += 1
+
+    logger.info("Deleted %d social accounts with email %s", count, email)

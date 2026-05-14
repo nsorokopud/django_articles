@@ -1,7 +1,8 @@
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.db import transaction
+from django.test import TestCase, TransactionTestCase
 
 from users.models import User
 from users.services import (
@@ -10,6 +11,8 @@ from users.services import (
     delete_pending_email_address,
     enforce_single_current_and_pending_email_per_user,
 )
+
+from ...services.email_addresses import delete_social_accounts_with_email
 
 
 class TestEmailAddressServices(TestCase):
@@ -340,3 +343,64 @@ class TestEnforceSingleCurrentAndPendingEmailPerUser(TestCase):
         enforce_single_current_and_pending_email_per_user(email)
 
         self.assertEqual(email.email, "primary@test.com")
+
+
+class TestDeleteSocialAccountsWithEmail(TransactionTestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+    def test_raises_when_called_outside_transaction(self):
+        with self.assertRaisesMessage(
+            transaction.TransactionManagementError,
+            "This function must be called inside an atomic transaction.",
+        ):
+            delete_social_accounts_with_email("email@test.com")
+
+    def test_deletes_matching_social_accounts_inside_transaction(self):
+        email = "email@test.com"
+        other_email = "email2@test.com"
+
+        SocialAccount.objects.bulk_create(
+            [
+                SocialAccount(
+                    user=self.user,
+                    provider="p1",
+                    uid="123",
+                    extra_data={"email": email},
+                ),
+                SocialAccount(
+                    user=self.user,
+                    provider="p2",
+                    uid="456",
+                    extra_data={"email": email},
+                ),
+                SocialAccount(
+                    user=self.user,
+                    provider="p3",
+                    uid="789",
+                    extra_data={"email": other_email},
+                ),
+            ]
+        )
+
+        with transaction.atomic():
+            delete_social_accounts_with_email("nonexistent@test.com")
+
+        self.assertEqual(
+            SocialAccount.objects.filter(extra_data__email=email).count(), 2
+        )
+        self.assertEqual(
+            SocialAccount.objects.filter(extra_data__email=other_email).count(), 1
+        )
+
+        with transaction.atomic():
+            delete_social_accounts_with_email(email)
+
+        self.assertEqual(
+            SocialAccount.objects.filter(extra_data__email=email).count(), 0
+        )
+        self.assertEqual(
+            SocialAccount.objects.filter(extra_data__email=other_email).count(), 1
+        )
