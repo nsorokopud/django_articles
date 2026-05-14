@@ -1,6 +1,14 @@
+import os
+import posixpath
+from uuid import uuid4
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils.text import get_valid_filename
+
+
+DEFAULT_PROFILE_IMAGE = "users/profile_images/default_avatar.jpg"
 
 
 class User(AbstractUser):
@@ -36,11 +44,31 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
 
+def profile_image_upload_path(instance, filename) -> str:
+    if not instance.user_id:
+        raise ValueError("user_id is required to upload profile images")
+
+    raw_base_name = os.path.basename(filename)
+    base_name, extension = os.path.splitext(raw_base_name)
+
+    safe_base_name = get_valid_filename(base_name).strip("._-") or "avatar"
+    safe_extension = (
+        get_valid_filename(extension.lower()).strip("._") if extension else ""
+    )
+
+    final_filename = f"{safe_base_name}_{uuid4().hex}"
+    if safe_extension:
+        final_filename = f"{final_filename}.{safe_extension}"
+
+    return posixpath.join(
+        "users", "profile_images", str(instance.user_id), final_filename
+    )
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(
-        default="users/profile_images/default_avatar.jpg",
-        upload_to="users/profile_images/",
+        default=DEFAULT_PROFILE_IMAGE, upload_to=profile_image_upload_path
     )
     notification_emails_allowed = models.BooleanField(default=True, db_index=True)
 

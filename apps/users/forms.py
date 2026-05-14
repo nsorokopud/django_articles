@@ -4,6 +4,7 @@ from django.contrib.auth.forms import AuthenticationForm as DefaultAuthenticatio
 from django.contrib.auth.forms import UserCreationForm as DefaultUserCreationForm
 from hcaptcha_field import hCaptchaField
 
+from core.validators import validate_uploaded_image
 from users.models import Profile, User
 
 from .services import enforce_unique_email_type_per_user, get_pending_email_address
@@ -44,13 +45,14 @@ class UserUpdateForm(forms.ModelForm):
 
 
 class ProfileUpdateForm(forms.ModelForm):
+    image = forms.ImageField(
+        required=False, validators=[validate_uploaded_image], widget=forms.FileInput()
+    )
+
     class Meta:
         model = Profile
         fields = ["image", "notification_emails_allowed"]
         labels = {"notification_emails_allowed": "Allow notifications via email"}
-        widgets = {
-            "image": forms.FileInput(),
-        }
 
 
 class EmailAddressModelForm(forms.ModelForm):

@@ -1,17 +1,21 @@
+from io import BytesIO
 from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
 from django import forms
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
 
 from users.forms import (
     EmailAddressModelForm,
     EmailChangeConfirmationForm,
     EmailChangeForm,
+    ProfileUpdateForm,
     UserCreationForm,
     UserUpdateForm,
 )
-from users.models import User
+from users.models import Profile, User
 
 
 class TestUserCreationForm(TestCase):
@@ -166,6 +170,99 @@ class TestUserUpdateForm(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, "newusername")
         self.assertEqual(self.user.email, "user@test.com")
+
+
+class TestProfileUpdateForm(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        self.profile = Profile.objects.get(user=self.user)
+
+    def test_valid_without_image_upload(self):
+        form = ProfileUpdateForm(
+            data={
+                "notification_emails_allowed": True,
+            },
+            instance=self.profile,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_with_notification_emails_disabled(self):
+        form = ProfileUpdateForm(
+            data={
+                "notification_emails_allowed": False,
+            },
+            instance=self.profile,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        profile = form.save()
+
+        self.assertFalse(profile.notification_emails_allowed)
+        self.assertEqual(profile.image.name, "users/profile_images/default_avatar.jpg")
+
+    def test_valid_with_uploaded_image(self):
+        image = Image.new("RGB", (1, 1), color="white")
+        image_file = BytesIO()
+        image.save(image_file, format="JPEG")
+        image_file.seek(0)
+
+        uploaded_image = SimpleUploadedFile(
+            "test_image.jpg", image_file.read(), content_type="image/jpeg"
+        )
+
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True},
+            files={"image": uploaded_image},
+            instance=self.profile,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        profile = form.save()
+
+        self.assertTrue(
+            profile.image.name.startswith(
+                f"users/profile_images/{self.user.id}/test_image_"
+            )
+        )
+        self.assertTrue(profile.image.name.endswith(".jpg"))
+
+    def test_invalid_with_non_image_file(self):
+        uploaded_file = SimpleUploadedFile(
+            "not_image.txt", b"not an image", content_type="text/plain"
+        )
+
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True},
+            files={"image": uploaded_file},
+            instance=self.profile,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("image", form.errors)
+
+    def test_invalid_with_corrupt_image_file(self):
+        uploaded_file = SimpleUploadedFile(
+            "bad_image.jpg", b"not actually a jpeg", content_type="image/jpeg"
+        )
+
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True},
+            files={"image": uploaded_file},
+            instance=self.profile,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("image", form.errors)
+
+    def test_image_field_is_not_required(self):
+        form = ProfileUpdateForm(instance=self.profile)
+
+        self.assertFalse(form.fields["image"].required)
 
 
 class TestEmailAddressModelForm(TestCase):
