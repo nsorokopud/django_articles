@@ -38,6 +38,14 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ("username", "email")
     ordering = ("username",)
 
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+
+        if obj is not None and "email" not in readonly_fields:
+            readonly_fields.append("email")
+
+        return tuple(readonly_fields)
+
 
 @admin.register(TokenCounter)
 class TokenCounterAdmin(admin.ModelAdmin):
