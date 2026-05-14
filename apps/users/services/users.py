@@ -1,6 +1,5 @@
 import logging
 
-from allauth.account.models import EmailAddress
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -8,6 +7,7 @@ from django.db import transaction
 from users.models import AuthorSubscription, Profile, User
 
 from ..cache import get_subscribers_count_cache_key
+from .email_addresses import sync_primary_email_address_for_user
 
 
 logger = logging.getLogger(__name__)
@@ -16,67 +16,15 @@ logger = logging.getLogger(__name__)
 @transaction.atomic
 def activate_user(user: User) -> None:
     user = User.objects.select_for_update().get(pk=user.pk)
-    email = (user.email or "").strip().lower()
-
-    if not email:
-        raise ValidationError("User email is required for activation.")
-
-    update_fields = []
-
-    if user.email != email:
-        user.email = email
-        update_fields.append("email")
 
     if not user.is_active:
         user.is_active = True
-        update_fields.append("is_active")
-
-    if update_fields:
-        user.save(update_fields=update_fields)
-        logger.info("User %s activation state was updated.", user.id)
+        user.save(update_fields=["is_active"])
+        logger.info("User %s was activated.", user.id)
     else:
-        logger.info("User %s was already active with normalized email.", user.id)
+        logger.info("User %s was already active.", user.id)
 
-    email_addresses = list(
-        EmailAddress.objects.select_for_update().filter(user_id=user.id)
-    )
-
-    matching_email_address = next(
-        (
-            email_address
-            for email_address in email_addresses
-            if (email_address.email or "").strip().lower() == email
-        ),
-        None,
-    )
-
-    primary_addresses = EmailAddress.objects.filter(user_id=user.id, primary=True)
-
-    if matching_email_address is not None:
-        primary_addresses = primary_addresses.exclude(pk=matching_email_address.pk)
-
-    # Bypass EmailAddress pre-save validation while repairing primary state
-    primary_addresses.update(primary=False)
-
-    if matching_email_address is None:
-        email_address = EmailAddress.objects.create(
-            user_id=user.id, email=email, verified=True, primary=True
-        )
-
-        logger.info(
-            "EmailAddress(id=%s, user_id=%s) was created.", email_address.id, user.id
-        )
-        return
-
-    EmailAddress.objects.filter(pk=matching_email_address.pk).update(
-        email=email, verified=True, primary=True
-    )
-
-    logger.info(
-        "EmailAddress(id=%s, user_id=%s) was updated.",
-        matching_email_address.id,
-        user.id,
-    )
+    sync_primary_email_address_for_user(user_id=user.id)
 
 
 def deactivate_user(user: User) -> None:

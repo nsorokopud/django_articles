@@ -124,6 +124,55 @@ def change_email_address(user_id: int) -> None:
     )
 
 
+@transaction.atomic
+def sync_primary_email_address_for_user(*, user_id: int) -> EmailAddress:
+    """Ensures User.email has one matching verified primary EmailAddress"""
+    user = User.objects.select_for_update().get(pk=user_id)
+    email = (user.email or "").strip().lower()
+
+    if not email:
+        raise ValidationError("User email is required.")
+
+    validate_email(email)
+
+    if user.email != email:
+        user.email = email
+        user.save(update_fields=["email"])
+
+    email_addresses = list(
+        EmailAddress.objects.select_for_update().filter(user_id=user.id)
+    )
+
+    matching_email_address = next(
+        (
+            email_address
+            for email_address in email_addresses
+            if (email_address.email or "").strip().lower() == email
+        ),
+        None,
+    )
+
+    primary_addresses = EmailAddress.objects.filter(user_id=user.id, primary=True)
+
+    if matching_email_address is not None:
+        primary_addresses = primary_addresses.exclude(pk=matching_email_address.pk)
+
+    # Bypass EmailAddress pre-save validation while repairing primary state.
+    primary_addresses.update(primary=False)
+
+    if matching_email_address is None:
+        return EmailAddress.objects.create(
+            user_id=user.id, email=email, verified=True, primary=True
+        )
+
+    EmailAddress.objects.filter(pk=matching_email_address.pk).update(
+        email=email, verified=True, primary=True
+    )
+
+    matching_email_address.refresh_from_db()
+    return matching_email_address
+
+
 def delete_social_accounts_with_email(email: str) -> None:
     """Deletes all social accounts with the specified email address.
     Raises TransactionManagementError if called outside of an atomic

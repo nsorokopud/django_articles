@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from allauth.account.models import EmailAddress
 from django.db.models import signals
 from django.test import TestCase
@@ -13,115 +15,32 @@ from users.signals import create_profile
 
 
 class TestActivateUser(TestCase):
-    def test_creates_lowercase_verified_primary_email_address(self):
+    def test_activates_user(self):
         user = User.objects.create_user(
-            username="user", email="USER@TEST.COM", is_active=False
+            username="user", email="user@test.com", is_active=False
         )
 
         self.assertFalse(user.is_active)
-        self.assertEqual(user.email, "user@test.com")
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
 
         activate_user(user)
         user.refresh_from_db()
 
         self.assertTrue(user.is_active)
-        self.assertEqual(user.email, "user@test.com")
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+
+    def test_syncs_primary_email_address(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
+
+        activate_user(user)
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
 
         allauth_email = EmailAddress.objects.get(user=user)
         self.assertEqual(allauth_email.email, "user@test.com")
         self.assertTrue(allauth_email.verified)
         self.assertTrue(allauth_email.primary)
-
-    def test_updates_existing_matching_email_address(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", is_active=False
-        )
-        email_address = EmailAddress.objects.create(
-            user=user, email="user@test.com", verified=False, primary=False
-        )
-
-        activate_user(user)
-        user.refresh_from_db()
-        email_address.refresh_from_db()
-
-        self.assertTrue(user.is_active)
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
-
-        self.assertEqual(email_address.email, "user@test.com")
-        self.assertTrue(email_address.verified)
-        self.assertTrue(email_address.primary)
-
-    def test_demotes_existing_primary_email_address_when_different_email_matches_user(
-        self,
-    ):
-        user = User.objects.create_user(
-            username="user", email="new@test.com", is_active=False
-        )
-        old_primary = EmailAddress.objects.create(
-            user=user, email="old@test.com", verified=True, primary=True
-        )
-        matching_email = EmailAddress.objects.create(
-            user=user, email="new@test.com", verified=False, primary=False
-        )
-
-        activate_user(user)
-        user.refresh_from_db()
-        old_primary.refresh_from_db()
-        matching_email.refresh_from_db()
-
-        self.assertTrue(user.is_active)
-
-        self.assertFalse(old_primary.primary)
-        self.assertTrue(old_primary.verified)
-
-        self.assertTrue(matching_email.primary)
-        self.assertTrue(matching_email.verified)
-        self.assertEqual(matching_email.email, "new@test.com")
-
-        self.assertEqual(
-            EmailAddress.objects.filter(user=user, primary=True).count(), 1
-        )
-
-    def test_demotes_existing_primary_email_address_and_creates_matching_email(self):
-        user = User.objects.create_user(
-            username="user", email="new@test.com", is_active=False
-        )
-        old_primary = EmailAddress.objects.create(
-            user=user, email="old@test.com", verified=True, primary=True
-        )
-
-        activate_user(user)
-        user.refresh_from_db()
-        old_primary.refresh_from_db()
-
-        self.assertTrue(user.is_active)
-        self.assertFalse(old_primary.primary)
-
-        matching_email = EmailAddress.objects.get(user=user, email="new@test.com")
-        self.assertTrue(matching_email.primary)
-        self.assertTrue(matching_email.verified)
-
-        self.assertEqual(
-            EmailAddress.objects.filter(user=user, primary=True).count(), 1
-        )
-
-    def test_normalizes_user_email_before_activation(self):
-        user = User.objects.create_user(
-            username="user", email="  User.Abc@Test.COM  ", is_active=False
-        )
-
-        activate_user(user)
-        user.refresh_from_db()
-
-        self.assertTrue(user.is_active)
-        self.assertEqual(user.email, "user.abc@test.com")
-
-        allauth_email = EmailAddress.objects.get(user=user)
-        self.assertEqual(allauth_email.email, "user.abc@test.com")
-        self.assertTrue(allauth_email.primary)
-        self.assertTrue(allauth_email.verified)
 
     def test_is_idempotent(self):
         user = User.objects.create_user(
@@ -140,6 +59,31 @@ class TestActivateUser(TestCase):
         self.assertEqual(allauth_email.email, "user@test.com")
         self.assertTrue(allauth_email.verified)
         self.assertTrue(allauth_email.primary)
+
+    @patch("users.services.users.sync_primary_email_address_for_user")
+    def test_calls_primary_email_sync_service(self, mock_sync_primary_email):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
+
+        activate_user(user)
+
+        mock_sync_primary_email.assert_called_once_with(user_id=user.id)
+
+    @patch("users.services.users.sync_primary_email_address_for_user")
+    def test_calls_primary_email_sync_service_when_user_already_active(
+        self, mock_sync_primary_email
+    ):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=True
+        )
+
+        activate_user(user)
+
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        mock_sync_primary_email.assert_called_once_with(user_id=user.id)
 
 
 class TestUserServices(TestCase):
@@ -173,15 +117,12 @@ class TestUserServices(TestCase):
 class TestAdvanceLatestArticlePublishSequence(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="user",
-            email="user@test.com",
-            latest_article_publish_sequence=10,
+            username="user", email="user@test.com", latest_article_publish_sequence=10
         )
 
     def test_updates_sequence_when_new_value_is_greater(self):
         advance_latest_article_publish_sequence(
-            user_id=self.user.id,
-            publish_sequence=15,
+            user_id=self.user.id, publish_sequence=15
         )
 
         self.user.refresh_from_db()
@@ -189,8 +130,7 @@ class TestAdvanceLatestArticlePublishSequence(TestCase):
 
     def test_does_not_update_sequence_when_new_value_is_equal(self):
         advance_latest_article_publish_sequence(
-            user_id=self.user.id,
-            publish_sequence=10,
+            user_id=self.user.id, publish_sequence=10
         )
 
         self.user.refresh_from_db()
@@ -198,18 +138,14 @@ class TestAdvanceLatestArticlePublishSequence(TestCase):
 
     def test_does_not_update_sequence_when_new_value_is_smaller(self):
         advance_latest_article_publish_sequence(
-            user_id=self.user.id,
-            publish_sequence=5,
+            user_id=self.user.id, publish_sequence=5
         )
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.latest_article_publish_sequence, 10)
 
     def test_does_nothing_when_user_does_not_exist(self):
-        advance_latest_article_publish_sequence(
-            user_id=999999,
-            publish_sequence=20,
-        )
+        advance_latest_article_publish_sequence(user_id=999999, publish_sequence=20)
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.latest_article_publish_sequence, 10)
