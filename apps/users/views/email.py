@@ -3,6 +3,7 @@ from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
@@ -38,11 +39,17 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         return kwargs
 
     def form_valid(self, form) -> HttpResponse:
-        new_email = create_pending_email_address(
-            self.request.user, form.cleaned_data["new_email"]
-        )
+        try:
+            new_email = create_pending_email_address(
+                user_id=self.request.user.id, email=form.cleaned_data["new_email"]
+            )
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+
         base_url = self.request.build_absolute_uri("/")
         send_email_change_link(self.request.user, new_email.email, base_url)
+
         messages.success(
             self.request,
             "Email change confirmation sent. Please check your new email address.",

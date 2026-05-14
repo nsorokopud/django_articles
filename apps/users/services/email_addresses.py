@@ -2,6 +2,7 @@ import logging
 
 from allauth.account.models import EmailAddress
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 
 from users.models import User
@@ -47,12 +48,27 @@ def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
             raise ValidationError("A user with that email already exists.")
 
 
-def create_pending_email_address(user: User, email: str) -> EmailAddress:
+@transaction.atomic
+def create_pending_email_address(*, user_id: int, email: str) -> EmailAddress:
+    user = User.objects.select_for_update().get(pk=user_id)
     email = email.strip().lower()
 
-    email_address = EmailAddress.objects.create(
-        user=user, email=email, primary=False, verified=False
-    )
+    if not email:
+        raise ValidationError("Email is required.")
+
+    validate_email(email)
+
+    if EmailAddress.objects.filter(user=user, primary=False, verified=False).exists():
+        raise ValidationError("There is already a pending email change.")
+
+    if (user.email or "").strip().lower() == email:
+        raise ValidationError("Enter a different email address.")
+
+    email_address = EmailAddress(user=user, email=email, primary=False, verified=False)
+
+    enforce_unique_email_type_per_user(email_address)
+    email_address.save()
+
     logger.info(
         "Pending EmailAddress(id=%s, user_id=%s) was created.",
         email_address.id,

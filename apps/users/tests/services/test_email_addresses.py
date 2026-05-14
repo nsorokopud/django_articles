@@ -18,23 +18,6 @@ class TestEmailAddressServices(TestCase):
             username="test_user", email="test@test.com"
         )
 
-    def test_create_pending_email_address_lowercases_email(self):
-        self.assertEqual(
-            EmailAddress.objects.filter(
-                user=self.test_user, primary=False, verified=False
-            ).count(),
-            0,
-        )
-
-        email = create_pending_email_address(self.test_user, email="New@TEST.COM")
-
-        self.assertEqual(email.email, "new@test.com")
-
-        pending_email = EmailAddress.objects.get(
-            user=self.test_user, primary=False, verified=False
-        )
-        self.assertEqual(pending_email.email, "new@test.com")
-
     def test_delete_pending_email_address(self):
         self.assertEqual(EmailAddress.objects.count(), 0)
 
@@ -113,6 +96,131 @@ class TestEmailAddressServices(TestCase):
             EmailAddress.objects.get(pk=old_email.pk)
 
         self.assertEqual(SocialAccount.objects.count(), 0)
+
+
+class TestCreatePendingEmailAddress(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        EmailAddress.objects.create(
+            user=self.user, email="user@test.com", verified=True, primary=True
+        )
+
+    def test_creates_pending_email_address(self):
+        email_address = create_pending_email_address(
+            user_id=self.user.id, email="new@test.com"
+        )
+
+        self.assertEqual(email_address.user_id, self.user.id)
+        self.assertEqual(email_address.email, "new@test.com")
+        self.assertFalse(email_address.primary)
+        self.assertFalse(email_address.verified)
+
+        self.assertTrue(
+            EmailAddress.objects.filter(
+                user=self.user, email="new@test.com", primary=False, verified=False
+            ).exists()
+        )
+
+    def test_normalizes_email_before_creating_pending_email_address(self):
+        email_address = create_pending_email_address(
+            user_id=self.user.id, email="  New.Email@Test.COM  "
+        )
+
+        self.assertEqual(email_address.email, "new.email@test.com")
+
+    def test_rejects_blank_email(self):
+        with self.assertRaisesMessage(ValidationError, "Email is required."):
+            create_pending_email_address(user_id=self.user.id, email="   ")
+
+        self.assertEqual(
+            EmailAddress.objects.filter(user=self.user, primary=False).count(), 0
+        )
+
+    def test_rejects_invalid_email(self):
+        with self.assertRaises(ValidationError):
+            create_pending_email_address(user_id=self.user.id, email="not-an-email")
+
+        self.assertEqual(
+            EmailAddress.objects.filter(user=self.user, primary=False).count(), 0
+        )
+
+    def test_rejects_same_email_as_user_email(self):
+        with self.assertRaisesMessage(
+            ValidationError, "Enter a different email address."
+        ):
+            create_pending_email_address(user_id=self.user.id, email="USER@Test.COM")
+
+        self.assertEqual(
+            EmailAddress.objects.filter(user=self.user, primary=False).count(), 0
+        )
+
+    def test_rejects_when_pending_email_change_already_exists(self):
+        EmailAddress.objects.create(
+            user=self.user, email="pending@test.com", verified=False, primary=False
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "There is already a pending email change."
+        ):
+            create_pending_email_address(user_id=self.user.id, email="another@test.com")
+
+        self.assertFalse(
+            EmailAddress.objects.filter(
+                user=self.user, email="another@test.com"
+            ).exists()
+        )
+
+    def test_rejects_email_used_by_another_user_email(self):
+        User.objects.create_user(
+            username="other", email="other@test.com", password="testpass123"
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "A user with that email already exists."
+        ):
+            create_pending_email_address(user_id=self.user.id, email="OTHER@Test.COM")
+
+        self.assertFalse(
+            EmailAddress.objects.filter(
+                user=self.user, email="other@test.com", primary=False
+            ).exists()
+        )
+
+    def test_rejects_email_used_by_another_email_address(self):
+        other_user = User.objects.create_user(
+            username="other", email="other-user@test.com", password="testpass123"
+        )
+        EmailAddress.objects.create(
+            user=other_user, email="taken@test.com", verified=True, primary=True
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "A user with that email already exists."
+        ):
+            create_pending_email_address(user_id=self.user.id, email="TAKEN@Test.COM")
+
+        self.assertFalse(
+            EmailAddress.objects.filter(
+                user=self.user, email="taken@test.com", primary=False
+            ).exists()
+        )
+
+    def test_rejects_when_same_user_already_has_non_primary_email_address(self):
+        EmailAddress.objects.create(
+            user=self.user, email="old-secondary@test.com", verified=True, primary=False
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "This user already has a non-primary email address."
+        ):
+            create_pending_email_address(user_id=self.user.id, email="new@test.com")
+
+        self.assertFalse(
+            EmailAddress.objects.filter(user=self.user, email="new@test.com").exists()
+        )
 
 
 class TestEnforceUniqueEmailTypePerUser(TestCase):
