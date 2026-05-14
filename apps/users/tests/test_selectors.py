@@ -7,7 +7,6 @@ from django.test import TestCase
 from users.models import User
 from users.selectors import (
     find_authors_subscribed_by_user,
-    get_all_users,
     get_author_with_viewer_subscription_status,
     get_pending_email_address,
     get_user_by_id,
@@ -62,17 +61,6 @@ class TestSelectors(TestCase):
         a1.subscribers.remove(self.test_user)
         res = find_authors_subscribed_by_user(self.test_user)
         self.assertCountEqual(res, [])
-
-    def test_get_all_users(self):
-        self.assertCountEqual(get_all_users(), [self.test_user])
-
-        new_user = User.objects.create(username="new_user", email="new_user@test.com")
-        self.assertCountEqual(get_all_users(), [self.test_user, new_user])
-
-        new_user.delete()
-        self.assertCountEqual(get_all_users(), [self.test_user])
-
-        self.assertEqual(EmailAddress.objects.count(), 0)
 
     def test_get_pending_email_address(self):
         res = get_pending_email_address(self.test_user)

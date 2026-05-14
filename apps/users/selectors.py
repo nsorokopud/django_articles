@@ -9,10 +9,6 @@ from django.shortcuts import get_object_or_404
 from users.models import AuthorSubscription, User
 
 
-def get_all_users() -> QuerySet[User]:
-    return User.objects.all()
-
-
 def get_author_with_viewer_subscription_status(
     author_id: int, viewer: User | AnonymousUser
 ) -> User:
