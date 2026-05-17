@@ -67,16 +67,8 @@ class TestSelectors(TestCase):
         self.assertEqual(res, None)
 
         email = EmailAddress.objects.create(
-            user=self.test_user,
-            email=self.test_user.email,
-            primary=True,
-            verified=True,
+            user=self.test_user, email=self.test_user.email, primary=True, verified=True
         )
-        res = get_pending_email_address(self.test_user)
-        self.assertEqual(res, None)
-
-        email.primary = False
-        email.save()
         res = get_pending_email_address(self.test_user)
         self.assertEqual(res, None)
 
@@ -85,6 +77,12 @@ class TestSelectors(TestCase):
         email.save()
         res = get_pending_email_address(self.test_user)
         self.assertEqual(res, None)
+
+        email.primary = False
+        email.verified = True
+        email.save()
+        res = get_pending_email_address(self.test_user)
+        self.assertEqual(res.pk, email.pk)
 
         email.primary = False
         email.verified = False

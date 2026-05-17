@@ -2,11 +2,9 @@ from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
 from django.core.exceptions import ValidationError
-from django.db.models.signals import pre_save
 from django.test import TestCase
 
 from users.models import Profile, User
-from users.signals import enforce_email_address_validation_rules
 
 
 class TestCreateProfile(TestCase):
@@ -38,11 +36,8 @@ class TestEnforceEmailAddressValidationRules(TestCase):
 
         with self.assertRaises(ValidationError) as context:
             email2.save()
+
         self.assertEqual(
             str(context.exception),
             "['This user already has a pending email address.']",
         )
-
-        pre_save.disconnect(enforce_email_address_validation_rules, sender=EmailAddress)
-        email2.save()
-        pre_save.connect(enforce_email_address_validation_rules, sender=EmailAddress)

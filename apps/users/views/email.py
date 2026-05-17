@@ -126,6 +126,11 @@ class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
         return kwargs
 
     def form_valid(self, form) -> HttpResponse:
-        change_email_address(self.request.user.id)
+        try:
+            change_email_address(self.request.user.id)
+        except ValidationError as e:
+            form.add_error(None, e)
+            return self.form_invalid(form)
+
         messages.success(self.request, "Your email address was changed successfully.")
         return super().form_valid(form)

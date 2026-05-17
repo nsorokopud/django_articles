@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models.functions import Lower
+from django.db.models.functions import Lower, Trim
 from django.utils.text import get_valid_filename
 
 
@@ -30,7 +30,9 @@ class User(AbstractUser):
             models.CheckConstraint(
                 condition=~models.Q(email=""), name="users_user_email_not_blank"
             ),
-            models.UniqueConstraint(Lower("email"), name="users_user_email_ci_unique"),
+            models.UniqueConstraint(
+                Lower(Trim("email")), name="users_user_email_ci_unique"
+            ),
         ]
 
     def clean(self):

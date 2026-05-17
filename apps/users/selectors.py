@@ -42,6 +42,6 @@ def find_authors_subscribed_by_user(user: User) -> QuerySet[User]:
 
 def get_pending_email_address(user: User) -> Optional[EmailAddress]:
     try:
-        return EmailAddress.objects.get(user=user, primary=False, verified=False)
+        return EmailAddress.objects.get(user=user, primary=False)
     except EmailAddress.DoesNotExist:
         return None

@@ -134,7 +134,9 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="user",
             constraint=models.UniqueConstraint(
-                django.db.models.functions.text.Lower("email"),
+                django.db.models.functions.text.Lower(
+                    django.db.models.functions.text.Trim("email")
+                ),
                 name="users_user_email_ci_unique",
             ),
         ),

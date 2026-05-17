@@ -20,53 +20,65 @@ from users.services.email_addresses import (
 class TestEmailAddressServices(TestCase):
     def setUp(self):
         self.test_user = User.objects.create_user(
-            username="test_user", email="test@test.com"
+            username="test_user", email="test@test.com", password="testpass123"
         )
 
-    def test_delete_pending_email_address(self):
+    def test_delete_pending_email_address_deletes_non_primary_email_only(self):
         self.assertEqual(EmailAddress.objects.count(), 0)
 
         delete_pending_email_address(self.test_user)
         self.assertEqual(EmailAddress.objects.count(), 0)
 
-        email = EmailAddress.objects.create(
+        primary_email = EmailAddress.objects.create(
             user=self.test_user, email=self.test_user.email, primary=True, verified=True
         )
-        self.assertEqual(EmailAddress.objects.count(), 1)
 
         delete_pending_email_address(self.test_user)
-        self.assertEqual(EmailAddress.objects.count(), 1)
 
-        email.primary = False
-        email.verified = True
-        email.save(update_fields=["primary", "verified"])
+        self.assertEqual(EmailAddress.objects.count(), 1)
+        self.assertTrue(EmailAddress.objects.filter(pk=primary_email.pk).exists())
+
+        pending_email = EmailAddress.objects.create(
+            user=self.test_user, email="pending@test.com", primary=False, verified=False
+        )
 
         delete_pending_email_address(self.test_user)
+
         self.assertEqual(EmailAddress.objects.count(), 1)
+        self.assertTrue(EmailAddress.objects.filter(pk=primary_email.pk).exists())
+        self.assertFalse(EmailAddress.objects.filter(pk=pending_email.pk).exists())
 
-        email.primary = True
-        email.verified = False
-        email.save(update_fields=["primary", "verified"])
-
-        delete_pending_email_address(self.test_user)
-        self.assertEqual(EmailAddress.objects.count(), 1)
-
-        email.primary = False
-        email.verified = False
-        email.save(update_fields=["primary", "verified"])
-
-        delete_pending_email_address(self.test_user)
-        self.assertEqual(EmailAddress.objects.count(), 0)
-
-    def test_change_email_address_requires_unverified_pending_email(self):
+    def test_delete_pending_email_address_deletes_verified_non_primary_email_too(self):
         EmailAddress.objects.create(
             user=self.test_user, email=self.test_user.email, primary=True, verified=True
         )
-        EmailAddress.objects.create(
-            user=self.test_user, email="e2@test.com", primary=False, verified=True
+        pending_email = EmailAddress.objects.create(
+            user=self.test_user, email="pending@test.com", primary=False, verified=True
         )
 
-        with self.assertRaises(EmailAddress.DoesNotExist):
+        delete_pending_email_address(self.test_user)
+
+        self.assertFalse(EmailAddress.objects.filter(pk=pending_email.pk).exists())
+        self.assertEqual(EmailAddress.objects.filter(user=self.test_user).count(), 1)
+
+    def test_change_email_address_requires_exactly_one_primary_email(self):
+        EmailAddress.objects.create(
+            user=self.test_user, email="pending@test.com", primary=False, verified=False
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "Expected exactly one primary email address."
+        ):
+            change_email_address(self.test_user.id)
+
+    def test_change_email_address_requires_exactly_one_pending_email_change(self):
+        EmailAddress.objects.create(
+            user=self.test_user, email=self.test_user.email, primary=True, verified=True
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "Expected exactly one pending email change."
+        ):
             change_email_address(self.test_user.id)
 
     def test_change_email_address_lowercases_user_email_and_promotes_pending_email(
@@ -101,6 +113,34 @@ class TestEmailAddressServices(TestCase):
             EmailAddress.objects.get(pk=old_email.pk)
 
         self.assertEqual(SocialAccount.objects.count(), 0)
+
+    def test_change_email_address_deletes_only_social_accounts_matching_old_email(self):
+        EmailAddress.objects.create(
+            user=self.test_user, email=self.test_user.email, primary=True, verified=True
+        )
+        EmailAddress.objects.create(
+            user=self.test_user, email="new@test.com", primary=False, verified=False
+        )
+
+        matching_account = SocialAccount.objects.create(
+            user=self.test_user,
+            provider="matching",
+            uid="123",
+            extra_data={"email": "TEST@TEST.COM"},
+        )
+        non_matching_account = SocialAccount.objects.create(
+            user=self.test_user,
+            provider="non_matching",
+            uid="456",
+            extra_data={"email": "other@test.com"},
+        )
+
+        change_email_address(self.test_user.id)
+
+        self.assertFalse(SocialAccount.objects.filter(pk=matching_account.pk).exists())
+        self.assertTrue(
+            SocialAccount.objects.filter(pk=non_matching_account.pk).exists()
+        )
 
 
 class TestCreatePendingEmailAddress(TestCase):
@@ -219,7 +259,7 @@ class TestCreatePendingEmailAddress(TestCase):
         )
 
         with self.assertRaisesMessage(
-            ValidationError, "This user already has a pending email address."
+            ValidationError, "There is already a pending email change."
         ):
             create_pending_email_address(user_id=self.user.id, email="new@test.com")
 
@@ -230,7 +270,9 @@ class TestCreatePendingEmailAddress(TestCase):
 
 class TestEnforceSingleCurrentAndPendingEmailPerUser(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="user", email="test@test.com")
+        self.user = User.objects.create_user(
+            username="user", email="test@test.com", password="testpass123"
+        )
 
     def test_allows_one_current_and_one_pending_email(self):
         EmailAddress.objects.create(
@@ -305,7 +347,9 @@ class TestEnforceSingleCurrentAndPendingEmailPerUser(TestCase):
         self.assertEqual(email6.email, "e6@test.com")
 
     def test_rejects_email_used_by_another_user_email_case_insensitively(self):
-        User.objects.create_user(username="other", email="taken@test.com")
+        User.objects.create_user(
+            username="other", email="taken@test.com", password="testpass123"
+        )
 
         email = EmailAddress(
             user=self.user, email="TAKEN@TEST.COM", primary=False, verified=False
@@ -319,7 +363,9 @@ class TestEnforceSingleCurrentAndPendingEmailPerUser(TestCase):
         )
 
     def test_rejects_email_used_by_another_users_email_address_case_insensitively(self):
-        other_user = User.objects.create_user(username="other", email="other@test.com")
+        other_user = User.objects.create_user(
+            username="other", email="other@test.com", password="testpass123"
+        )
         EmailAddress.objects.create(
             user=other_user, email="taken@test.com", primary=True, verified=True
         )
@@ -349,7 +395,9 @@ class TestEnforceSingleCurrentAndPendingEmailPerUser(TestCase):
 
 class TestSyncPrimaryEmailAddressForUser(TestCase):
     def test_creates_verified_primary_email_address_when_missing(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
 
         self.assertEqual(EmailAddress.objects.filter(user=user).count(), 0)
 
@@ -366,7 +414,9 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertTrue(email_address.primary)
 
     def test_normalizes_user_email_and_creates_matching_email_address(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
 
         # Simulate dirty existing data bypassing User.save().
         User.objects.filter(pk=user.pk).update(email="  User.Abc@Test.COM  ")
@@ -382,7 +432,9 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertTrue(email_address.primary)
 
     def test_updates_existing_matching_email_address(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
         email_address = EmailAddress.objects.create(
             user=user, email="user@test.com", verified=False, primary=False
         )
@@ -400,7 +452,9 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertTrue(email_address.primary)
 
     def test_matches_existing_email_address_case_insensitively(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
         email_address = EmailAddress.objects.create(
             user=user, email="USER@TEST.COM", verified=False, primary=False
         )
@@ -416,10 +470,12 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertTrue(email_address.verified)
         self.assertTrue(email_address.primary)
 
-    def test_demotes_existing_primary_email_address_when_different_email_matches_user(
+    def test_removes_existing_primary_email_address_when_different_email_matches_user(
         self,
     ):
-        user = User.objects.create_user(username="user", email="new@test.com")
+        user = User.objects.create_user(
+            username="user", email="new@test.com", password="testpass123"
+        )
         old_primary = EmailAddress.objects.create(
             user=user, email="old@test.com", verified=True, primary=True
         )
@@ -429,14 +485,12 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
 
         result = sync_primary_email_address_for_user(user_id=user.id)
 
-        old_primary.refresh_from_db()
         matching_email.refresh_from_db()
         result.refresh_from_db()
 
         self.assertEqual(result.id, matching_email.id)
 
-        self.assertFalse(old_primary.primary)
-        self.assertTrue(old_primary.verified)
+        self.assertFalse(EmailAddress.objects.filter(pk=old_primary.pk).exists())
 
         self.assertTrue(matching_email.primary)
         self.assertTrue(matching_email.verified)
@@ -445,19 +499,21 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertEqual(
             EmailAddress.objects.filter(user=user, primary=True).count(), 1
         )
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
 
-    def test_demotes_existing_primary_email_address_and_creates_matching_email(self):
-        user = User.objects.create_user(username="user", email="new@test.com")
+    def test_removes_existing_primary_email_address_and_creates_matching_email(self):
+        user = User.objects.create_user(
+            username="user", email="new@test.com", password="testpass123"
+        )
         old_primary = EmailAddress.objects.create(
             user=user, email="old@test.com", verified=True, primary=True
         )
 
         result = sync_primary_email_address_for_user(user_id=user.id)
 
-        old_primary.refresh_from_db()
         result.refresh_from_db()
 
-        self.assertFalse(old_primary.primary)
+        self.assertFalse(EmailAddress.objects.filter(pk=old_primary.pk).exists())
 
         self.assertEqual(result.user_id, user.id)
         self.assertEqual(result.email, "new@test.com")
@@ -467,10 +523,35 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertEqual(
             EmailAddress.objects.filter(user=user, primary=True).count(), 1
         )
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 2)
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+
+    def test_removes_stale_non_matching_email_addresses(self):
+        user = User.objects.create_user(
+            username="user", email="current@test.com", password="testpass123"
+        )
+        stale_primary = EmailAddress.objects.create(
+            user=user, email="old@test.com", verified=True, primary=True
+        )
+        stale_pending = EmailAddress.objects.create(
+            user=user, email="pending@test.com", verified=False, primary=False
+        )
+
+        result = sync_primary_email_address_for_user(user_id=user.id)
+
+        result.refresh_from_db()
+
+        self.assertFalse(EmailAddress.objects.filter(pk=stale_primary.pk).exists())
+        self.assertFalse(EmailAddress.objects.filter(pk=stale_pending.pk).exists())
+
+        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
+        self.assertEqual(result.email, "current@test.com")
+        self.assertTrue(result.primary)
+        self.assertTrue(result.verified)
 
     def test_is_idempotent(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
 
         first_result = sync_primary_email_address_for_user(user_id=user.id)
         second_result = sync_primary_email_address_for_user(user_id=user.id)
@@ -487,9 +568,11 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertTrue(allauth_email.primary)
 
     def test_raises_validation_error_when_user_email_is_invalid(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
 
-        # Simulate dirty existing data bypassing User.save()/form validation
+        # Simulate dirty existing data bypassing User.save()/form validation.
         User.objects.filter(pk=user.pk).update(email="not-an-email")
 
         with self.assertRaises(ValidationError):
@@ -498,7 +581,9 @@ class TestSyncPrimaryEmailAddressForUser(TestCase):
         self.assertFalse(EmailAddress.objects.filter(user=user).exists())
 
     def test_blank_email_is_rejected_by_database_before_service_can_run(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
 
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
@@ -510,13 +595,18 @@ class TestDeleteSocialAccountsWithEmail(TransactionTestCase):
         self.user = User.objects.create_user(
             username="user", email="user@test.com", password="testpass123"
         )
+        self.other_user = User.objects.create_user(
+            username="other", email="other@test.com", password="testpass123"
+        )
 
     def test_raises_when_called_outside_transaction(self):
         with self.assertRaisesMessage(
             transaction.TransactionManagementError,
             "This function must be called inside an atomic transaction.",
         ):
-            delete_social_accounts_with_email("email@test.com")
+            delete_social_accounts_with_email(
+                user_id=self.user.id, email="email@test.com"
+            )
 
     def test_deletes_matching_social_accounts_inside_transaction(self):
         email = "email@test.com"
@@ -534,7 +624,7 @@ class TestDeleteSocialAccountsWithEmail(TransactionTestCase):
                     user=self.user,
                     provider="p2",
                     uid="456",
-                    extra_data={"email": email},
+                    extra_data={"email": "EMAIL@TEST.COM"},
                 ),
                 SocialAccount(
                     user=self.user,
@@ -542,25 +632,83 @@ class TestDeleteSocialAccountsWithEmail(TransactionTestCase):
                     uid="789",
                     extra_data={"email": other_email},
                 ),
+                SocialAccount(
+                    user=self.other_user,
+                    provider="p4",
+                    uid="111",
+                    extra_data={"email": email},
+                ),
             ]
         )
 
         with transaction.atomic():
-            delete_social_accounts_with_email("nonexistent@test.com")
+            delete_social_accounts_with_email(
+                user_id=self.user.id, email="nonexistent@test.com"
+            )
 
         self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=email).count(), 2
+            SocialAccount.objects.filter(
+                user=self.user, extra_data__email=email
+            ).count(),
+            1,
         )
         self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=other_email).count(), 1
+            SocialAccount.objects.filter(
+                user=self.user, extra_data__email="EMAIL@TEST.COM"
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            SocialAccount.objects.filter(
+                user=self.user, extra_data__email=other_email
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            SocialAccount.objects.filter(
+                user=self.other_user, extra_data__email=email
+            ).count(),
+            1,
         )
 
         with transaction.atomic():
-            delete_social_accounts_with_email(email)
+            delete_social_accounts_with_email(user_id=self.user.id, email=email)
 
         self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=email).count(), 0
+            SocialAccount.objects.filter(
+                user=self.user, extra_data__email=email
+            ).count(),
+            0,
         )
         self.assertEqual(
-            SocialAccount.objects.filter(extra_data__email=other_email).count(), 1
+            SocialAccount.objects.filter(
+                user=self.user, extra_data__email="EMAIL@TEST.COM"
+            ).count(),
+            0,
+        )
+        self.assertEqual(
+            SocialAccount.objects.filter(
+                user=self.user, extra_data__email=other_email
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            SocialAccount.objects.filter(
+                user=self.other_user, extra_data__email=email
+            ).count(),
+            1,
+        )
+
+    def test_ignores_social_accounts_without_email_extra_data(self):
+        account_without_email = SocialAccount.objects.create(
+            user=self.user, provider="p1", uid="123", extra_data={}
+        )
+
+        with transaction.atomic():
+            delete_social_accounts_with_email(
+                user_id=self.user.id, email="email@test.com"
+            )
+
+        self.assertTrue(
+            SocialAccount.objects.filter(pk=account_without_email.pk).exists()
         )
