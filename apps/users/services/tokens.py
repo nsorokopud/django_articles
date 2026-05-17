@@ -87,7 +87,7 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
 
 
 class AccountActivationTokenGenerator(BaseTokenGenerator):
-    token_type: ClassVar[str] = TokenType.ACCOUNT_ACTIVATION
+    token_type: ClassVar[str] = TokenType.ACCOUNT_ACTIVATION  # type: ignore[assignment]
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
         base_hash = super()._make_hash_value(user, timestamp)
@@ -101,13 +101,22 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
     expiration, user state changes).
     """
 
-    token_type: ClassVar[str] = TokenType.EMAIL_CHANGE
+    token_type: ClassVar[str] = TokenType.EMAIL_CHANGE  # type: ignore[assignment]
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
         email = get_pending_email_address(user)
-        email_value = getattr(email, "email", "__no_email__")
         base_hash = super()._make_hash_value(user, timestamp)
-        return f"{base_hash}{email_value}"
+
+        if email is None:
+            return f"{base_hash}__no_pending_email__"
+
+        return (
+            f"{base_hash}"
+            f"{email.pk}"
+            f"{email.email.strip().lower()}"
+            f"{email.verified}"
+            f"{email.primary}"
+        )
 
 
 class CustomPasswordResetTokenGenerator(BaseTokenGenerator):
@@ -116,7 +125,7 @@ class CustomPasswordResetTokenGenerator(BaseTokenGenerator):
     expiration, user state changes).
     """
 
-    token_type: ClassVar[str] = TokenType.PASSWORD_CHANGE
+    token_type: ClassVar[str] = TokenType.PASSWORD_CHANGE  # type: ignore[assignment]
 
 
 activation_token_generator = AccountActivationTokenGenerator()
