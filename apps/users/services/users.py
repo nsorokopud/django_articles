@@ -17,6 +17,7 @@ from users.models import (
 )
 
 from ..cache import get_subscribers_count_cache_key
+from .email_addresses import delete_expired_pending_email_changes
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,8 @@ def register_user(*, username: str, email: str, password: str) -> User:
 
     try:
         with transaction.atomic():
+            delete_expired_pending_email_changes()
+
             if PendingEmailChange.objects.filter(email__iexact=email).exists():
                 raise ValidationError(
                     {"email": "That email address is currently pending confirmation."}

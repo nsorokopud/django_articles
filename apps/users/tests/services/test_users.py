@@ -1,9 +1,11 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.staticfiles.storage import ContentFile
 from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from users.models import DEFAULT_PROFILE_IMAGE, PendingEmailChange, Profile, User
 from users.services.users import (
@@ -14,6 +16,8 @@ from users.services.users import (
     update_user_profile,
 )
 from users.signals import create_profile
+
+from ...settings import PENDING_EMAIL_CHANGE_TTL
 
 
 class TestRegisterUser(TestCase):
@@ -101,6 +105,26 @@ class TestRegisterUser(TestCase):
         self.assertEqual(
             context.exception.message_dict,
             {"username": ["A user with that username already exists."]},
+        )
+
+    def test_deletes_expired_pending_email_change(self):
+        existing_user = User.objects.create_user(
+            username="existing", email="existing@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=existing_user, email="pending@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+        user = register_user(
+            username="newuser", email="PENDING@TEST.COM", password="testpass123"
+        )
+
+        self.assertEqual(user.email, "pending@test.com")
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
         )
 
 

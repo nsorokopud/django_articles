@@ -5,8 +5,10 @@ from allauth.socialaccount.models import SocialAccount
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
+from django.utils import timezone
 
 from users.models import USER_EMAIL_UNIQUE_CONSTRAINT_NAME, PendingEmailChange, User
+from users.settings import PENDING_EMAIL_CHANGE_TTL
 
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChange:
+    delete_expired_pending_email_changes()
+
     user = User.objects.select_for_update().get(pk=user_id)
     email = (email or "").strip().lower()
 
@@ -73,6 +77,10 @@ def change_email_address(*, user_id: int, pending_email_change_id: int) -> None:
         )
     except PendingEmailChange.DoesNotExist as e:
         raise ValidationError("This email change request no longer exists.") from e
+
+    if is_pending_email_change_expired(pending_email_change):
+        pending_email_change.delete()
+        raise ValidationError("This email change link has expired.")
 
     new_email = pending_email_change.email.strip().lower()
     old_email = (user.email or "").strip().lower()
@@ -144,6 +152,23 @@ def delete_social_accounts_with_email(*, user_id: int, email: str) -> None:
         user_id,
         normalized_email,
     )
+
+
+def delete_expired_pending_email_changes() -> int:
+    cutoff = timezone.now() - PENDING_EMAIL_CHANGE_TTL
+
+    deleted_count, _ = PendingEmailChange.objects.filter(
+        created_at__lte=cutoff
+    ).delete()
+
+    if deleted_count:
+        logger.info("Deleted %d expired pending email changes.", deleted_count)
+
+    return deleted_count
+
+
+def is_pending_email_change_expired(pending_email_change: PendingEmailChange) -> bool:
+    return pending_email_change.created_at <= timezone.now() - PENDING_EMAIL_CHANGE_TTL
 
 
 def _delete_allauth_email_addresses_for_user(user_id: int) -> None:

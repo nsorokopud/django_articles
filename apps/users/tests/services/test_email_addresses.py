@@ -1,17 +1,23 @@
+from datetime import timedelta
+
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone
 
 from users.models import PendingEmailChange, User
 from users.services import change_email_address
 from users.services.email_addresses import (
     _delete_allauth_email_addresses_for_user,
     create_pending_email_change,
+    delete_expired_pending_email_changes,
     delete_pending_email_change,
     delete_social_accounts_with_email,
+    is_pending_email_change_expired,
 )
+from users.settings import PENDING_EMAIL_CHANGE_TTL
 
 
 class TestEmailAddressServices(TestCase):
@@ -54,6 +60,55 @@ class TestEmailAddressServices(TestCase):
             PendingEmailChange.objects.filter(pk=other_pending_email_change.pk).exists()
         )
 
+    def test_delete_expired_pending_email_changes_deletes_only_expired_changes(self):
+        expired_user = User.objects.create_user(
+            username="expired", email="expired@test.com", password="testpass123"
+        )
+        active_user = User.objects.create_user(
+            username="active", email="active@test.com", password="testpass123"
+        )
+        expired_pending_email_change = PendingEmailChange.objects.create(
+            user=expired_user, email="expired-pending@test.com"
+        )
+        active_pending_email_change = PendingEmailChange.objects.create(
+            user=active_user, email="active-pending@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=expired_pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+        deleted_count = delete_expired_pending_email_changes()
+
+        self.assertEqual(deleted_count, 1)
+        self.assertFalse(
+            PendingEmailChange.objects.filter(
+                pk=expired_pending_email_change.pk
+            ).exists()
+        )
+        self.assertTrue(
+            PendingEmailChange.objects.filter(
+                pk=active_pending_email_change.pk
+            ).exists()
+        )
+
+    def test_is_pending_email_change_expired_returns_false_for_active_change(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.test_user, email="pending@test.com"
+        )
+
+        self.assertFalse(is_pending_email_change_expired(pending_email_change))
+
+    def test_is_pending_email_change_expired_returns_true_for_expired_change(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.test_user, email="pending@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+        pending_email_change.refresh_from_db()
+
+        self.assertTrue(is_pending_email_change_expired(pending_email_change))
+
     def test_change_email_address_requires_existing_pending_email_change(self):
         with self.assertRaisesMessage(
             ValidationError, "This email change request no longer exists."
@@ -77,6 +132,28 @@ class TestEmailAddressServices(TestCase):
                 user_id=self.test_user.id,
                 pending_email_change_id=pending_email_change.id,
             )
+
+    def test_change_email_address_rejects_expired_pending_email_change(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.test_user, email="new@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError, "This email change link has expired."
+        ):
+            change_email_address(
+                user_id=self.test_user.id,
+                pending_email_change_id=pending_email_change.id,
+            )
+
+        self.test_user.refresh_from_db()
+        self.assertEqual(self.test_user.email, "test@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
 
     def test_change_email_address_does_not_require_allauth_email_address(self):
         pending_email_change = PendingEmailChange.objects.create(
@@ -291,6 +368,29 @@ class TestCreatePendingEmailChange(TestCase):
         )
 
         self.assertEqual(pending_email_change.email, "new.email@test.com")
+
+    def test_deletes_expired_pending_email_changes_before_creating_new_one(self):
+        other_user = User.objects.create_user(
+            username="other", email="other@test.com", password="testpass123"
+        )
+        expired_pending_email_change = PendingEmailChange.objects.create(
+            user=other_user, email="new@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=expired_pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+        pending_email_change = create_pending_email_change(
+            user_id=self.user.id, email="NEW@TEST.COM"
+        )
+
+        self.assertEqual(pending_email_change.user_id, self.user.id)
+        self.assertEqual(pending_email_change.email, "new@test.com")
+        self.assertFalse(
+            PendingEmailChange.objects.filter(
+                pk=expired_pending_email_change.pk
+            ).exists()
+        )
 
     def test_rejects_blank_email(self):
         with self.assertRaisesMessage(ValidationError, "Email is required."):
