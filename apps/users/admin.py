@@ -49,6 +49,16 @@ class TokenCounterAdmin(admin.ModelAdmin):
     list_display = ("user", "token_type", "token_count")
     search_fields = ("user__username", "user__email", "token_type")
     list_filter = ("token_type",)
+    readonly_fields = ("user", "token_type", "token_count")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Profile)

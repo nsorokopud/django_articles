@@ -1,8 +1,16 @@
 from django.contrib import admin
+from django.contrib.admin import AdminSite
 from django.test import RequestFactory, TestCase
 
-from users.admin import PendingEmailChangeAdmin, UserProfileAdmin
-from users.models import DEFAULT_PROFILE_IMAGE, PendingEmailChange, Profile, User
+from users.admin import PendingEmailChangeAdmin, TokenCounterAdmin, UserProfileAdmin
+from users.models import (
+    DEFAULT_PROFILE_IMAGE,
+    PendingEmailChange,
+    Profile,
+    TokenCounter,
+    TokenType,
+    User,
+)
 
 
 class TestCustomUserAdmin(TestCase):
@@ -90,4 +98,26 @@ class TestPendingEmailChangeAdmin(TestCase):
         self.assertEqual(
             pending_email_change_admin.readonly_fields,
             ("user", "email", "created_at"),
+        )
+
+
+class TestTokenCounterAdmin(TestCase):
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = TokenCounterAdmin(TokenCounter, self.site)
+        self.request = RequestFactory().get("/admin/users/tokencounter/")
+
+    def test_token_counter_admin_is_read_only(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        token_counter = TokenCounter.objects.create(
+            user=user, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=1
+        )
+
+        self.assertFalse(self.admin.has_add_permission(self.request))
+        self.assertFalse(self.admin.has_change_permission(self.request, token_counter))
+        self.assertFalse(self.admin.has_delete_permission(self.request, token_counter))
+        self.assertEqual(
+            self.admin.readonly_fields, ("user", "token_type", "token_count")
         )
