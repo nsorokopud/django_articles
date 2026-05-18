@@ -8,8 +8,13 @@ from django.db.models.functions import Lower, Trim
 from django.utils.text import get_valid_filename
 
 
-DEFAULT_PROFILE_IMAGE = "users/profile_images/default_avatar.jpg"
 USER_EMAIL_UNIQUE_CONSTRAINT_NAME = "users_user_email_ci_unique"
+
+DEFAULT_PROFILE_IMAGE = "users/profile_images/default_avatar.jpg"
+PROFILE_IMAGE_UPLOAD_PREFIX = "users/profile_images"
+PROFILE_IMAGE_MAX_LENGTH = 512
+PROFILE_IMAGE_EXTENSION_MAX_LENGTH = 16
+PROFILE_IMAGE_UUID_LENGTH = 32
 
 
 class User(AbstractUser):
@@ -92,21 +97,35 @@ def profile_image_upload_path(instance, filename) -> str:
     safe_base_name = get_valid_filename(base_name).strip("._-") or "avatar"
     safe_extension = (
         get_valid_filename(extension.lower()).strip("._") if extension else ""
-    )
+    )[:PROFILE_IMAGE_EXTENSION_MAX_LENGTH]
 
-    final_filename = f"{safe_base_name}_{uuid4().hex}"
+    directory = posixpath.join(PROFILE_IMAGE_UPLOAD_PREFIX, str(instance.user_id))
+    suffix = uuid4().hex
+
+    # directory + "/" + base + "_" + uuid + optional "." + extension
+    reserved_length = len(directory) + 1 + 1 + len(suffix)
+    if safe_extension:
+        reserved_length += 1 + len(safe_extension)
+
+    max_base_length = PROFILE_IMAGE_MAX_LENGTH - reserved_length
+
+    safe_base_name = (
+        safe_base_name[:max_base_length].rstrip("._-") if max_base_length > 0 else ""
+    ) or "avatar"
+
+    final_filename = f"{safe_base_name}_{suffix}"
     if safe_extension:
         final_filename = f"{final_filename}.{safe_extension}"
 
-    return posixpath.join(
-        "users", "profile_images", str(instance.user_id), final_filename
-    )
+    return posixpath.join(directory, final_filename)
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(
-        default=DEFAULT_PROFILE_IMAGE, upload_to=profile_image_upload_path
+        default=DEFAULT_PROFILE_IMAGE,
+        upload_to=profile_image_upload_path,
+        max_length=PROFILE_IMAGE_MAX_LENGTH,
     )
     notification_emails_allowed = models.BooleanField(default=True, db_index=True)
 

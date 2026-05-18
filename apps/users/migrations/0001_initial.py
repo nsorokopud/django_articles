@@ -156,6 +156,7 @@ class Migration(migrations.Migration):
                     "image",
                     models.ImageField(
                         default="users/profile_images/default_avatar.jpg",
+                        max_length=512,
                         upload_to="users/profile_images/",
                     ),
                 ),

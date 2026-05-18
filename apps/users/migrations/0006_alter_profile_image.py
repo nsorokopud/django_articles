@@ -15,6 +15,7 @@ class Migration(migrations.Migration):
             name="image",
             field=models.ImageField(
                 default="users/profile_images/default_avatar.jpg",
+                max_length=512,
                 upload_to=users.models.profile_image_upload_path,
             ),
         ),

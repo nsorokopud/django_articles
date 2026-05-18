@@ -4,6 +4,10 @@ from django.test import TestCase
 
 from users.models import (
     DEFAULT_PROFILE_IMAGE,
+    PROFILE_IMAGE_EXTENSION_MAX_LENGTH,
+    PROFILE_IMAGE_MAX_LENGTH,
+    PROFILE_IMAGE_UPLOAD_PREFIX,
+    PROFILE_IMAGE_UUID_LENGTH,
     AuthorSubscription,
     PendingEmailChange,
     Profile,
@@ -296,8 +300,11 @@ class TestProfileModel(TestCase):
 
         path = profile_image_upload_path(profile, "My Avatar.JPG")
 
-        self.assertTrue(path.startswith(f"users/profile_images/{user.id}/My_Avatar_"))
+        self.assertTrue(
+            path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/My_Avatar_")
+        )
         self.assertTrue(path.endswith(".jpg"))
+        self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
 
     def test_profile_image_upload_path_sanitizes_filename(self):
         user = User.objects.create_user(
@@ -308,10 +315,11 @@ class TestProfileModel(TestCase):
         path = profile_image_upload_path(profile, "../../...///bad file name.PNG")
 
         self.assertTrue(
-            path.startswith(f"users/profile_images/{user.id}/bad_file_name_")
+            path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/bad_file_name_")
         )
         self.assertTrue(path.endswith(".png"))
         self.assertNotIn("..", path)
+        self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
 
     def test_profile_image_upload_path_uses_avatar_when_base_name_is_empty(self):
         user = User.objects.create_user(
@@ -321,7 +329,10 @@ class TestProfileModel(TestCase):
 
         path = profile_image_upload_path(profile, "...")
 
-        self.assertTrue(path.startswith(f"users/profile_images/{user.id}/avatar_"))
+        self.assertTrue(
+            path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/avatar_")
+        )
+        self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
 
     def test_profile_image_upload_path_requires_user_id(self):
         profile = Profile()
@@ -330,6 +341,52 @@ class TestProfileModel(TestCase):
             ValueError, "user_id is required to upload profile images"
         ):
             profile_image_upload_path(profile, "avatar.jpg")
+
+    def test_profile_image_upload_path_caps_total_length(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        profile = Profile.objects.get(user=user)
+
+        very_long_base_name = "a" * 1000
+        path = profile_image_upload_path(profile, f"{very_long_base_name}.jpg")
+
+        self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
+        self.assertTrue(path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/"))
+        self.assertTrue(path.endswith(".jpg"))
+
+    def test_profile_image_upload_path_caps_extension_length(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        profile = Profile.objects.get(user=user)
+
+        long_extension = "a" * (PROFILE_IMAGE_EXTENSION_MAX_LENGTH + 20)
+        path = profile_image_upload_path(profile, f"avatar.{long_extension}")
+
+        extension = path.rsplit(".", 1)[1]
+
+        self.assertEqual(len(extension), PROFILE_IMAGE_EXTENSION_MAX_LENGTH)
+        self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
+
+    def test_profile_image_upload_path_preserves_uuid_suffix_length(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        profile = Profile.objects.get(user=user)
+
+        path = profile_image_upload_path(profile, "avatar.jpg")
+        filename = path.rsplit("/", 1)[1]
+        stem = filename.rsplit(".", 1)[0]
+        suffix = stem.rsplit("_", 1)[1]
+
+        self.assertEqual(len(suffix), PROFILE_IMAGE_UUID_LENGTH)
+        self.assertRegex(suffix, r"^[0-9a-f]+$")
+
+    def test_profile_image_field_max_length_matches_upload_path_limit(self):
+        field = Profile._meta.get_field("image")
+
+        self.assertEqual(field.max_length, PROFILE_IMAGE_MAX_LENGTH)
 
 
 class TestAuthorSubscriptionModel(TestCase):
