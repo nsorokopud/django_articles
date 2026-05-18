@@ -41,7 +41,7 @@ urlpatterns = [
         name="email-change-cancel",
     ),
     path(
-        "confirm_email_change/<str:token>/",
+        "confirm_email_change/<int:pending_email_change_id>/<str:token>/",
         views.EmailChangeConfirmationView.as_view(),
         name="email-change-confirm",
     ),

@@ -1,11 +1,10 @@
 from unittest.mock import patch
 
-from allauth.account.models import EmailAddress
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from users.models import User
+from users.models import PendingEmailChange, User
 
 
 class TestEmailChangeView(TestCase):
@@ -35,8 +34,8 @@ class TestEmailChangeView(TestCase):
         self.assertIsNone(response.context["pending_email"])
 
     def test_get_logged_in_user_with_pending_email(self):
-        pending_email = EmailAddress.objects.create(
-            user=self.user, email="pending@test.com", primary=False, verified=False
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.user, email="pending@test.com"
         )
 
         self.client.force_login(self.user)
@@ -45,7 +44,7 @@ class TestEmailChangeView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change.html")
         self.assertEqual(response.context["form"].user, self.user)
-        self.assertEqual(response.context["pending_email"], pending_email)
+        self.assertEqual(response.context["pending_email"], pending_email_change)
 
     def test_post_anonymous_user(self):
         response = self.client.post(self.url, {"new_email": "new@test.com"})
@@ -58,6 +57,7 @@ class TestEmailChangeView(TestCase):
     @patch("users.views.email.send_email_change_link")
     def test_post_invalid_data(self, mock_send_email):
         self.client.force_login(self.user)
+
         response = self.client.post(self.url, {})
 
         self.assertEqual(response.status_code, 200)
@@ -65,11 +65,7 @@ class TestEmailChangeView(TestCase):
         self.assertFalse(response.context["form"].is_valid())
         mock_send_email.assert_not_called()
 
-        self.assertFalse(
-            EmailAddress.objects.filter(
-                user=self.user, primary=False, verified=False
-            ).exists()
-        )
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())
 
     @patch("users.views.email.send_email_change_link")
     def test_post_valid_data(self, mock_send_email):
@@ -82,20 +78,19 @@ class TestEmailChangeView(TestCase):
             response, self.url, status_code=302, target_status_code=200
         )
 
-        pending_email = EmailAddress.objects.get(
-            user=self.user, primary=False, verified=False
-        )
+        pending_email_change = PendingEmailChange.objects.get(user=self.user)
 
-        self.assertEqual(pending_email.email, "new@test.com")
+        self.assertEqual(pending_email_change.email, "new@test.com")
         mock_send_email.assert_called_once_with(
             self.user,
-            pending_email.email,
+            pending_email_change,
             response.wsgi_request.build_absolute_uri("/"),
         )
 
     @patch("users.views.email.send_email_change_link")
     def test_post_same_email_as_current_user_email(self, mock_send_email):
         self.client.force_login(self.user)
+
         response = self.client.post(self.url, {"new_email": "USER@Test.COM"})
 
         self.assertEqual(response.status_code, 200)
@@ -108,17 +103,11 @@ class TestEmailChangeView(TestCase):
         )
         mock_send_email.assert_not_called()
 
-        self.assertFalse(
-            EmailAddress.objects.filter(
-                user=self.user, primary=False, verified=False
-            ).exists()
-        )
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())
 
     @patch("users.views.email.send_email_change_link")
     def test_post_when_pending_email_already_exists(self, mock_send_email):
-        EmailAddress.objects.create(
-            user=self.user, email="pending@test.com", primary=False, verified=False
-        )
+        PendingEmailChange.objects.create(user=self.user, email="pending@test.com")
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, {"new_email": "another@test.com"})
@@ -136,19 +125,14 @@ class TestEmailChangeView(TestCase):
         )
         mock_send_email.assert_not_called()
 
-        self.assertEqual(
-            EmailAddress.objects.filter(
-                user=self.user, primary=False, verified=False
-            ).count(),
-            1,
-        )
+        self.assertEqual(PendingEmailChange.objects.filter(user=self.user).count(), 1)
 
-    @patch("users.views.email.create_pending_email_address")
+    @patch("users.views.email.create_pending_email_change")
     @patch("users.views.email.send_email_change_link")
     def test_post_service_validation_error_is_added_to_form(
-        self, mock_send_email, mock_create_pending_email_address
+        self, mock_send_email, mock_create_pending_email_change
     ):
-        mock_create_pending_email_address.side_effect = ValidationError(
+        mock_create_pending_email_change.side_effect = ValidationError(
             "There is already a pending email change."
         )
 
@@ -165,7 +149,7 @@ class TestEmailChangeView(TestCase):
             "There is already a pending email change.",
         )
 
-        mock_create_pending_email_address.assert_called_once_with(
+        mock_create_pending_email_change.assert_called_once_with(
             user_id=self.user.id, email="new@test.com"
         )
         mock_send_email.assert_not_called()

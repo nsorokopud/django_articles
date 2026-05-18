@@ -11,7 +11,7 @@
     {% if pending_email %}
       <div class="form-group">
         <label>Pending email:</label>
-        <input class="form-control" readonly value="{{ pending_email }}">
+        <input class="form-control" readonly value="{{ pending_email.email }}">
 
         <div class="my-2">Your email address is still pending verification.</div>
         <div class="d-flex">

@@ -6,205 +6,103 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
 
-from users.models import User
-
-from ..selectors import get_pending_email_address
+from users.models import PendingEmailChange, User
 
 
 logger = logging.getLogger(__name__)
 
 
-def enforce_single_current_and_pending_email_per_user(instance: EmailAddress) -> None:
-    """Enforces the following model:
-    - at most one primary EmailAddress per user, representing the current email
-    - at most one non-primary EmailAddress per user, representing a pending email change
-    - no email address may be used by another user or another user's EmailAddress
-    """
-    if instance.email:
-        instance.email = instance.email.strip().lower()
-
-    queryset = EmailAddress.objects.filter(user=instance.user, primary=instance.primary)
-    if instance.pk:
-        queryset = queryset.exclude(pk=instance.pk)
-
-    if queryset.exists():
-        address_type = "primary" if instance.primary else "pending"
-        raise ValidationError(f"This user already has a {address_type} email address.")
-
-    if instance.email:
-        existing_user_email = (
-            User.objects.exclude(pk=instance.user_id)
-            .filter(email__iexact=instance.email)
-            .exists()
-        )
-        if existing_user_email:
-            raise ValidationError("A user with that email already exists.")
-
-        existing_email_address = (
-            EmailAddress.objects.exclude(user_id=instance.user_id)
-            .filter(email__iexact=instance.email)
-            .exists()
-        )
-        if existing_email_address:
-            raise ValidationError("A user with that email already exists.")
-
-
 @transaction.atomic
-def create_pending_email_address(*, user_id: int, email: str) -> EmailAddress:
+def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChange:
     user = User.objects.select_for_update().get(pk=user_id)
-    email = email.strip().lower()
+    email = (email or "").strip().lower()
 
     if not email:
         raise ValidationError("Email is required.")
 
     validate_email(email)
 
-    if EmailAddress.objects.filter(user=user, primary=False).exists():
+    if PendingEmailChange.objects.filter(user=user).exists():
         raise ValidationError("There is already a pending email change.")
 
     if (user.email or "").strip().lower() == email:
         raise ValidationError("Enter a different email address.")
 
-    email_address = EmailAddress(user=user, email=email, primary=False, verified=False)
+    if User.objects.exclude(pk=user_id).filter(email__iexact=email).exists():
+        raise ValidationError("A user with that email already exists.")
 
-    enforce_single_current_and_pending_email_per_user(email_address)
     try:
-        email_address.save()
+        pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
     except IntegrityError as e:
         raise ValidationError(
             "This email is already in use or you already have a pending email change."
         ) from e
 
     logger.info(
-        "Pending EmailAddress(id=%s, user_id=%s) was created.",
-        email_address.id,
-        email_address.user_id,
+        "PendingEmailChange(id=%s, user_id=%s) was created.",
+        pending_email_change.id,
+        pending_email_change.user_id,
     )
-    return email_address
+    return pending_email_change
 
 
-def delete_pending_email_address(user: User) -> None:
-    email = get_pending_email_address(user)
-    if email:
-        email.delete()
-        logger.info(
-            "Pending EmailAddress(id=%s, user_id=%s) was removed.",
-            email.id,
-            user.id,
-        )
+def delete_pending_email_change(user: User) -> None:
+    deleted_count, _ = PendingEmailChange.objects.filter(user=user).delete()
+
+    if deleted_count:
+        logger.info("Pending email change for User(id=%s) was removed.", user.id)
     else:
         logger.warning(
-            "Attempt of removing non-existent EmailAddress for User(id=%s)", user.id
+            "Attempted to remove non-existent PendingEmailChange for User(id=%s).",
+            user.id,
         )
 
 
 @transaction.atomic
-def change_email_address(user_id: int) -> None:
-    logger.info("Attempting to change email address for User(id=%s)", user_id)
+def change_email_address(*, user_id: int, pending_email_change_id: int) -> None:
+    logger.info("Attempting to change email address for User(id=%s).", user_id)
 
     user = User.objects.select_for_update().get(id=user_id)
 
-    email_addresses = list(
-        EmailAddress.objects.select_for_update().filter(user=user).order_by("id")
-    )
+    try:
+        pending_email_change = PendingEmailChange.objects.select_for_update().get(
+            id=pending_email_change_id, user_id=user_id
+        )
+    except PendingEmailChange.DoesNotExist as e:
+        raise ValidationError("This email change request no longer exists.") from e
 
-    primary_emails = [email for email in email_addresses if email.primary]
-    pending_emails = [email for email in email_addresses if not email.primary]
+    new_email = pending_email_change.email.strip().lower()
+    old_email = (user.email or "").strip().lower()
 
-    if len(primary_emails) != 1:
-        raise ValidationError("Expected exactly one primary email address.")
+    validate_email(new_email)
 
-    if len(pending_emails) != 1:
-        raise ValidationError("Expected exactly one pending email change.")
+    if old_email == new_email:
+        pending_email_change.delete()
+        _delete_allauth_email_addresses_for_user(user_id)
 
-    old_email = primary_emails[0]
-    new_email = pending_emails[0]
+        logger.info(
+            "Deleted stale same-email PendingEmailChange(id=%s, user_id=%s).",
+            pending_email_change_id,
+            user_id,
+        )
+        return
 
-    normalized_new_email = new_email.email.strip().lower()
-    old_email_value = old_email.email.strip().lower()
-
-    validate_email(normalized_new_email)
-
-    old_email_id = old_email.id
-    new_email_id = new_email.id
+    if User.objects.exclude(pk=user_id).filter(email__iexact=new_email).exists():
+        raise ValidationError("This email address is no longer available.")
 
     try:
-        EmailAddress.objects.filter(pk=old_email_id).delete()
-
-        updated = EmailAddress.objects.filter(pk=new_email_id).update(
-            email=normalized_new_email,
-            verified=True,
-            primary=True,
-        )
-
-        if updated != 1:
-            raise ValidationError("Pending email address no longer exists.")
-
-        user.email = normalized_new_email
+        user.email = new_email
         user.save(update_fields=["email"])
-
+        pending_email_change.delete()
     except IntegrityError as e:
         raise ValidationError("This email address is no longer available.") from e
 
-    delete_social_accounts_with_email(user_id=user_id, email=old_email_value)
+    _delete_allauth_email_addresses_for_user(user_id)
+    delete_social_accounts_with_email(user_id=user_id, email=old_email)
 
     logger.info(
-        "User(id=%s) changed email from EmailAddress(id=%s) to EmailAddress(id=%s)",
-        user_id,
-        old_email_id,
-        new_email_id,
+        "User(id=%s) changed email from %s to %s.", user_id, old_email, new_email
     )
-
-
-@transaction.atomic
-def sync_primary_email_address_for_user(*, user_id: int) -> EmailAddress:
-    """Ensure User.email has exactly one matching verified primary EmailAddress.
-
-    User.email is the source of truth. Any other EmailAddress rows for the user
-    are stale and are removed.
-    """
-    user = User.objects.select_for_update().get(pk=user_id)
-    email = (user.email or "").strip().lower()
-
-    if not email:
-        raise ValidationError("User email is required.")
-
-    validate_email(email)
-
-    if user.email != email:
-        user.email = email
-        user.save(update_fields=["email"])
-
-    email_addresses = list(
-        EmailAddress.objects.select_for_update().filter(user_id=user.id).order_by("id")
-    )
-
-    matching_email_address = next(
-        (
-            email_address
-            for email_address in email_addresses
-            if (email_address.email or "").strip().lower() == email
-        ),
-        None,
-    )
-
-    if matching_email_address is None:
-        EmailAddress.objects.filter(user_id=user.id).delete()
-
-        return EmailAddress.objects.create(
-            user_id=user.id, email=email, verified=True, primary=True
-        )
-
-    EmailAddress.objects.filter(user_id=user.id).exclude(
-        pk=matching_email_address.pk
-    ).delete()
-
-    EmailAddress.objects.filter(pk=matching_email_address.pk).update(
-        email=email, verified=True, primary=True
-    )
-
-    matching_email_address.refresh_from_db()
-    return matching_email_address
 
 
 def delete_social_accounts_with_email(*, user_id: int, email: str) -> None:
@@ -229,8 +127,23 @@ def delete_social_accounts_with_email(*, user_id: int, email: str) -> None:
         count += 1
 
     logger.info(
-        "Deleted %d social accounts for User(id=%s) with email %s",
+        "Deleted %d social accounts for User(id=%s) with email %s.",
         count,
         user_id,
         normalized_email,
+    )
+
+
+def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
+    if not connection.in_atomic_block:
+        raise transaction.TransactionManagementError(
+            "This function must be called inside an atomic transaction."
+        )
+
+    deleted_count, _ = (
+        EmailAddress.objects.select_for_update().filter(user_id=user_id).delete()
+    )
+
+    logger.info(
+        "Deleted %d allauth EmailAddress rows for User(id=%s).", deleted_count, user_id
     )

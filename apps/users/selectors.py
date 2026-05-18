@@ -1,12 +1,11 @@
 from typing import Optional
 
-from allauth.account.models import EmailAddress
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import BooleanField, Exists, OuterRef, Value
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 
-from users.models import AuthorSubscription, User
+from users.models import AuthorSubscription, PendingEmailChange, User
 
 
 def get_author_with_viewer_subscription_status(
@@ -40,8 +39,8 @@ def find_authors_subscribed_by_user(user: User) -> QuerySet[User]:
     return user.subscribed_to_authors.only("id", "username")
 
 
-def get_pending_email_address(user: User) -> Optional[EmailAddress]:
+def get_pending_email_change(user: User) -> Optional[PendingEmailChange]:
     try:
-        return EmailAddress.objects.get(user=user, primary=False)
-    except EmailAddress.DoesNotExist:
+        return user.pending_email_change
+    except PendingEmailChange.DoesNotExist:
         return None

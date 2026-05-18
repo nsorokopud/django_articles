@@ -1,6 +1,3 @@
-from unittest.mock import patch
-
-from allauth.account.models import EmailAddress
 from django.db.models import signals
 from django.test import TestCase
 
@@ -27,21 +24,6 @@ class TestActivateUser(TestCase):
 
         self.assertTrue(user.is_active)
 
-    def test_syncs_primary_email_address(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", is_active=False
-        )
-
-        activate_user(user)
-        user.refresh_from_db()
-
-        self.assertTrue(user.is_active)
-
-        allauth_email = EmailAddress.objects.get(user=user)
-        self.assertEqual(allauth_email.email, "user@test.com")
-        self.assertTrue(allauth_email.verified)
-        self.assertTrue(allauth_email.primary)
-
     def test_is_idempotent(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", is_active=False
@@ -49,41 +31,30 @@ class TestActivateUser(TestCase):
 
         activate_user(user)
         activate_user(user)
-
         user.refresh_from_db()
 
         self.assertTrue(user.is_active)
-        self.assertEqual(EmailAddress.objects.filter(user=user).count(), 1)
 
-        allauth_email = EmailAddress.objects.get(user=user)
-        self.assertEqual(allauth_email.email, "user@test.com")
-        self.assertTrue(allauth_email.verified)
-        self.assertTrue(allauth_email.primary)
-
-    @patch("users.services.users.sync_primary_email_address_for_user")
-    def test_calls_primary_email_sync_service(self, mock_sync_primary_email):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", is_active=False
-        )
-
-        activate_user(user)
-
-        mock_sync_primary_email.assert_called_once_with(user_id=user.id)
-
-    @patch("users.services.users.sync_primary_email_address_for_user")
-    def test_calls_primary_email_sync_service_when_user_already_active(
-        self, mock_sync_primary_email
-    ):
+    def test_keeps_user_active_when_already_active(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", is_active=True
         )
 
         activate_user(user)
-
         user.refresh_from_db()
 
         self.assertTrue(user.is_active)
-        mock_sync_primary_email.assert_called_once_with(user_id=user.id)
+
+    def test_does_not_modify_email(self):
+        user = User.objects.create_user(
+            username="user", email="User@Test.COM", is_active=False
+        )
+
+        activate_user(user)
+        user.refresh_from_db()
+
+        self.assertEqual(user.email, "user@test.com")
+        self.assertTrue(user.is_active)
 
 
 class TestUserServices(TestCase):

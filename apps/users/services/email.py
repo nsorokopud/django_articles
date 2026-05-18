@@ -1,6 +1,7 @@
 import logging
 from urllib.parse import urljoin
 
+from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -9,7 +10,7 @@ from django.utils.http import urlsafe_base64_encode
 from core.services.email import EmailConfig, mask_email
 from core.tasks import send_email_task
 
-from ..models import User
+from ..models import PendingEmailChange, User
 from ..settings import (
     ACTIVATION_EMAIL_HTML_TEMPLATE,
     ACTIVATION_EMAIL_SUBJECT,
@@ -44,11 +45,21 @@ def send_account_activation_email(user: User, base_url: str) -> None:
     )
 
 
-def send_email_change_link(user: User, new_email: str, base_url: str) -> None:
-    new_email = new_email.strip().lower()
+def send_email_change_link(
+    user: User, pending_email_change: PendingEmailChange, base_url: str
+) -> None:
+    if pending_email_change.user_id != user.id:
+        raise ValidationError("Pending email change does not belong to this user.")
+
+    new_email = pending_email_change.email.strip().lower()
     validate_email(new_email)
+
     token = email_change_token_generator.make_token(user)
-    url = urljoin(base_url, reverse("email-change-confirm", args=[token]))
+
+    url = urljoin(
+        base_url,
+        reverse("email-change-confirm", args=[pending_email_change.id, token]),
+    )
 
     email_config = EmailConfig(
         recipients=[new_email],
@@ -58,6 +69,7 @@ def send_email_change_link(user: User, new_email: str, base_url: str) -> None:
         context={"username": user.get_username(), "url": url},
     )
     send_email_task.delay(email_config)
+
     logger.info(
         "User %s requested email change to %s. Confirmation email queued.",
         user.id,

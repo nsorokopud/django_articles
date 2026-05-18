@@ -46,6 +46,41 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
 
+class PendingEmailChange(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="pending_email_change",
+    )
+    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(email=""),
+                name="users_pending_email_change_email_not_blank",
+            ),
+            models.UniqueConstraint(
+                Lower(Trim("email")),
+                name="users_pending_email_change_email_ci_unique",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.email:
+            self.email = self.email.strip().lower()
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.email
+
+
 def profile_image_upload_path(instance, filename) -> str:
     if not instance.user_id:
         raise ValueError("user_id is required to upload profile images")

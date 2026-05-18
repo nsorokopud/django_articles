@@ -6,7 +6,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import IntegrityError, connection, transaction
 
 from ..models import TokenCounter, TokenType
-from ..selectors import get_pending_email_address
+from ..selectors import get_pending_email_change
 
 
 logger = logging.getLogger(__name__)
@@ -104,18 +104,16 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
     token_type: ClassVar[str] = TokenType.EMAIL_CHANGE  # type: ignore[assignment]
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
-        email = get_pending_email_address(user)
+        pending_email_change = get_pending_email_change(user)
         base_hash = super()._make_hash_value(user, timestamp)
 
-        if email is None:
-            return f"{base_hash}__no_pending_email__"
+        if pending_email_change is None:
+            return f"{base_hash}__no_pending_email_change__"
 
         return (
             f"{base_hash}"
-            f"{email.pk}"
-            f"{email.email.strip().lower()}"
-            f"{email.verified}"
-            f"{email.primary}"
+            f"{pending_email_change.pk}"
+            f"{pending_email_change.email.strip().lower()}"
         )
 
 

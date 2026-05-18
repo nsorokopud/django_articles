@@ -1,16 +1,11 @@
-from allauth.account.models import EmailAddress
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm as DefaultAuthenticationForm
 from django.contrib.auth.forms import UserCreationForm as DefaultUserCreationForm
 from hcaptcha_field import hCaptchaField
 
 from core.validators import validate_uploaded_image
-from users.models import Profile, User
+from users.models import PendingEmailChange, Profile, User
 
-from .services import (
-    enforce_single_current_and_pending_email_per_user,
-    get_pending_email_address,
-)
 from .services.tokens import email_change_token_generator
 
 
@@ -31,6 +26,11 @@ class UserCreationForm(DefaultUserCreationForm):
 
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("A user with that email already exists.")
+
+        if PendingEmailChange.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(
+                "That email address is currently pending confirmation."
+            )
 
         return email
 
@@ -58,38 +58,18 @@ class ProfileUpdateForm(forms.ModelForm):
         labels = {"notification_emails_allowed": "Allow notifications via email"}
 
 
-class EmailAddressModelForm(forms.ModelForm):
-    class Meta:
-        model = EmailAddress
-        fields = "__all__"
-
-    def clean_email(self):
-        email = self.cleaned_data.get("email")
-        return email.strip().lower() if email else email
-
-    def clean(self):
-        cleaned_data = super().clean()
-
-        user = cleaned_data.get("user")
-        if not user:
-            raise forms.ValidationError("User is required.")
-
-        for field_name, value in cleaned_data.items():
-            setattr(self.instance, field_name, value)
-
-        enforce_single_current_and_pending_email_per_user(self.instance)
-        return cleaned_data
-
-
 class EmailChangeForm(forms.Form):
     new_email = forms.EmailField(label="Change to:")
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop("user")
+        self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
     def clean_new_email(self):
         new_email = self.cleaned_data["new_email"].strip().lower()
+
+        if not self.user or not self.user.is_authenticated:
+            return new_email
 
         if (self.user.email or "").strip().lower() == new_email:
             raise forms.ValidationError("Enter a different email address.")
@@ -101,27 +81,29 @@ class EmailChangeForm(forms.Form):
         ):
             raise forms.ValidationError("A user with that email already exists.")
 
+        if (
+            PendingEmailChange.objects.filter(email__iexact=new_email)
+            .exclude(user=self.user)
+            .exists()
+        ):
+            raise forms.ValidationError(
+                "That email address is currently pending confirmation."
+            )
         return new_email
 
     def clean(self):
         cleaned_data = super().clean()
 
-        new_email = cleaned_data.get("new_email")
-        if not new_email:
-            return cleaned_data
+        if not self.user or not self.user.is_authenticated:
+            raise forms.ValidationError("You must be logged in to change email.")
 
-        email_instance = EmailAddress(
-            user=self.user, email=new_email, verified=False, primary=False
-        )
-        try:
-            enforce_single_current_and_pending_email_per_user(email_instance)
-        except forms.ValidationError as e:
+        if PendingEmailChange.objects.filter(user=self.user).exists():
             raise forms.ValidationError(
                 (
                     "There is an unfinished email address change process. "
                     "Cancel it to start a new one."
                 )
-            ) from e
+            )
         return cleaned_data
 
 
@@ -130,22 +112,30 @@ class EmailChangeConfirmationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
+        self.pending_email_change_id = kwargs.pop("pending_email_change_id", None)
+        self.pending_email_change = None
         super().__init__(*args, **kwargs)
 
     def clean(self):
         cleaned_data = super().clean()
 
-        if self.user is None:
+        if self.user is None or not self.user.is_authenticated:
             raise forms.ValidationError(
                 "You must be logged in to change the email address."
             )
 
-        email = get_pending_email_address(self.user)
-        if email is None:
-            raise forms.ValidationError("You don't have any pending email addresses.")
+        try:
+            pending_email_change = PendingEmailChange.objects.get(
+                id=self.pending_email_change_id, user=self.user
+            )
+        except PendingEmailChange.DoesNotExist as e:
+            raise forms.ValidationError(
+                "This email change request no longer exists."
+            ) from e
 
         token = cleaned_data.get("token")
         if not email_change_token_generator.check_token(self.user, token):
             raise forms.ValidationError("Invalid token.")
 
+        self.pending_email_change = pending_email_change
         return cleaned_data

@@ -1,10 +1,8 @@
-from allauth.account.models import EmailAddress
 from django.contrib import admin
 from django.test import RequestFactory, TestCase
 
-from users.admin import EmailAddressAdmin, UserProfileAdmin
-from users.forms import EmailAddressModelForm
-from users.models import DEFAULT_PROFILE_IMAGE, Profile, User
+from users.admin import PendingEmailChangeAdmin, UserProfileAdmin
+from users.models import DEFAULT_PROFILE_IMAGE, PendingEmailChange, Profile, User
 
 
 class TestCustomUserAdmin(TestCase):
@@ -72,9 +70,24 @@ class TestUserProfileAdmin(TestCase):
         self.assertIn(DEFAULT_PROFILE_IMAGE, html)
 
 
-class TestEmailAddressAdmin(TestCase):
-    def test_email_address_admin_uses_custom_form(self):
-        email_admin = admin.site._registry[EmailAddress]
+class TestPendingEmailChangeAdmin(TestCase):
+    def setUp(self):
+        self.request = RequestFactory().get("/admin/users/pendingemailchange/")
 
-        self.assertIsInstance(email_admin, EmailAddressAdmin)
-        self.assertIs(email_admin.form, EmailAddressModelForm)
+    def test_is_registered_with_custom_admin(self):
+        pending_email_change_admin = admin.site._registry[PendingEmailChange]
+
+        self.assertIsInstance(pending_email_change_admin, PendingEmailChangeAdmin)
+
+    def test_disallows_manual_creation(self):
+        pending_email_change_admin = admin.site._registry[PendingEmailChange]
+
+        self.assertFalse(pending_email_change_admin.has_add_permission(self.request))
+
+    def test_has_expected_readonly_fields(self):
+        pending_email_change_admin = admin.site._registry[PendingEmailChange]
+
+        self.assertEqual(
+            pending_email_change_admin.readonly_fields,
+            ("user", "email", "created_at"),
+        )

@@ -1,37 +1,17 @@
-from contextlib import contextmanager
-
 from allauth.account.models import EmailAddress
 from django.db import IntegrityError, transaction
-from django.db.models.signals import pre_save
 from django.test import TestCase
 
 from users.models import (
     DEFAULT_PROFILE_IMAGE,
     AuthorSubscription,
+    PendingEmailChange,
     Profile,
     TokenCounter,
     TokenType,
     User,
     profile_image_upload_path,
 )
-from users.signals import enforce_email_address_validation_rules
-
-
-@contextmanager
-def email_address_model_validation_disabled():
-    """Temporarily disable the EmailAddress pre_save validation signal so tests can
-    assert the actual database constraints raise IntegrityError.
-
-    Keep this scoped to individual tests/blocks so other tests still exercise
-    normal application behavior.
-    """
-    pre_save.disconnect(enforce_email_address_validation_rules, sender=EmailAddress)
-    try:
-        yield
-    finally:
-        # Avoid duplicate receiver registration if something reconnected it
-        pre_save.disconnect(enforce_email_address_validation_rules, sender=EmailAddress)
-        pre_save.connect(enforce_email_address_validation_rules, sender=EmailAddress)
 
 
 class TestUserModel(TestCase):
@@ -109,9 +89,95 @@ class TestUserModel(TestCase):
                     username="user", email="   ", password="testpass123"
                 )
 
+    def test_user_delete_deletes_allauth_email_addresses(self):
+        user = User.objects.create_user(username="user", email="test@test.com")
+        email_address = EmailAddress.objects.create(
+            user=user, email="test@test.com", verified=True, primary=True
+        )
 
-class TestEmailAddressConstraints(TestCase):
-    def test_email_address_email_is_case_insensitive_unique(self):
+        user.delete()
+
+        self.assertFalse(EmailAddress.objects.filter(pk=email_address.pk).exists())
+
+
+class TestPendingEmailChangeModel(TestCase):
+    def test_pending_email_change_can_be_created(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="new@test.com"
+        )
+
+        self.assertEqual(pending_email_change.user, user)
+        self.assertEqual(pending_email_change.email, "new@test.com")
+        self.assertIsNotNone(pending_email_change.created_at)
+
+    def test_pending_email_change_email_is_lowercased_on_create(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="New.Email@Test.COM"
+        )
+        pending_email_change.refresh_from_db()
+
+        self.assertEqual(pending_email_change.email, "new.email@test.com")
+
+    def test_pending_email_change_email_is_trimmed_on_create(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="  New.Email@Test.COM  "
+        )
+        pending_email_change.refresh_from_db()
+
+        self.assertEqual(pending_email_change.email, "new.email@test.com")
+
+    def test_pending_email_change_email_is_lowercased_on_save(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="old@test.com"
+        )
+
+        pending_email_change.email = "New.Email@Test.COM"
+        pending_email_change.save(update_fields=["email"])
+        pending_email_change.refresh_from_db()
+
+        self.assertEqual(pending_email_change.email, "new.email@test.com")
+
+    def test_pending_email_change_email_is_trimmed_on_save(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="old@test.com"
+        )
+
+        pending_email_change.email = "  New.Email@Test.COM  "
+        pending_email_change.save(update_fields=["email"])
+        pending_email_change.refresh_from_db()
+
+        self.assertEqual(pending_email_change.email, "new.email@test.com")
+
+    def test_user_can_have_only_one_pending_email_change(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        PendingEmailChange.objects.create(user=user, email="new1@test.com")
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PendingEmailChange.objects.create(user=user, email="new2@test.com")
+
+    def test_different_users_can_have_pending_email_changes(self):
         user1 = User.objects.create_user(
             username="user1", email="user1@test.com", password="testpass123"
         )
@@ -119,18 +185,15 @@ class TestEmailAddressConstraints(TestCase):
             username="user2", email="user2@test.com", password="testpass123"
         )
 
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user1, email="same@test.com", verified=True, primary=True
-            )
+        PendingEmailChange.objects.create(user=user1, email="new1@test.com")
+        pending_email_change2 = PendingEmailChange.objects.create(
+            user=user2, email="new2@test.com"
+        )
 
-            with self.assertRaises(IntegrityError):
-                with transaction.atomic():
-                    EmailAddress.objects.create(
-                        user=user2, email="SAME@test.com", verified=True, primary=False
-                    )
+        self.assertEqual(pending_email_change2.user, user2)
+        self.assertEqual(pending_email_change2.email, "new2@test.com")
 
-    def test_email_address_email_unique_constraint_trims_whitespace(self):
+    def test_pending_email_change_email_is_case_insensitive_unique(self):
         user1 = User.objects.create_user(
             username="user1", email="user1@test.com", password="testpass123"
         )
@@ -138,110 +201,13 @@ class TestEmailAddressConstraints(TestCase):
             username="user2", email="user2@test.com", password="testpass123"
         )
 
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user1, email="same@test.com", verified=True, primary=True
-            )
+        PendingEmailChange.objects.create(user=user1, email="same@test.com")
 
-            with self.assertRaises(IntegrityError):
-                with transaction.atomic():
-                    EmailAddress.objects.create(
-                        user=user2,
-                        email=" same@test.com ",
-                        verified=True,
-                        primary=False,
-                    )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PendingEmailChange.objects.create(user=user2, email="SAME@test.com")
 
-    def test_email_address_email_is_unique_even_for_same_user(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user, email="same@test.com", verified=True, primary=True
-            )
-
-            with self.assertRaises(IntegrityError):
-                with transaction.atomic():
-                    EmailAddress.objects.create(
-                        user=user, email="SAME@test.com", verified=False, primary=False
-                    )
-
-    def test_user_cannot_have_multiple_primary_email_addresses(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user, email="primary1@test.com", verified=True, primary=True
-            )
-
-            with self.assertRaises(IntegrityError):
-                with transaction.atomic():
-                    EmailAddress.objects.create(
-                        user=user,
-                        email="primary2@test.com",
-                        verified=True,
-                        primary=True,
-                    )
-
-    def test_user_cannot_have_multiple_nonprimary_email_addresses(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user, email="secondary1@test.com", verified=True, primary=False
-            )
-
-            with self.assertRaises(IntegrityError):
-                with transaction.atomic():
-                    EmailAddress.objects.create(
-                        user=user,
-                        email="secondary2@test.com",
-                        verified=False,
-                        primary=False,
-                    )
-
-    def test_user_cannot_have_multiple_unverified_nonprimary_email_addresses(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user, email="pending1@test.com", verified=False, primary=False
-            )
-
-            with self.assertRaises(IntegrityError):
-                with transaction.atomic():
-                    EmailAddress.objects.create(
-                        user=user,
-                        email="pending2@test.com",
-                        verified=False,
-                        primary=False,
-                    )
-
-    def test_user_can_have_primary_and_one_nonprimary_email_address(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        with email_address_model_validation_disabled():
-            primary_email = EmailAddress.objects.create(
-                user=user, email="current@test.com", verified=True, primary=True
-            )
-            nonprimary_email = EmailAddress.objects.create(
-                user=user, email="pending@test.com", verified=False, primary=False
-            )
-
-        self.assertEqual(primary_email.email, "current@test.com")
-        self.assertEqual(nonprimary_email.email, "pending@test.com")
-
-    def test_different_users_can_each_have_one_nonprimary_email_address(self):
+    def test_pending_email_change_email_unique_constraint_trims_whitespace(self):
         user1 = User.objects.create_user(
             username="user1", email="user1@test.com", password="testpass123"
         )
@@ -249,15 +215,53 @@ class TestEmailAddressConstraints(TestCase):
             username="user2", email="user2@test.com", password="testpass123"
         )
 
-        with email_address_model_validation_disabled():
-            EmailAddress.objects.create(
-                user=user1, email="pending1@test.com", verified=False, primary=False
-            )
-            email2 = EmailAddress.objects.create(
-                user=user2, email="pending2@test.com", verified=False, primary=False
-            )
+        PendingEmailChange.objects.create(user=user1, email="same@test.com")
 
-        self.assertEqual(email2.email, "pending2@test.com")
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PendingEmailChange.objects.create(user=user2, email=" same@test.com ")
+
+    def test_pending_email_change_email_cannot_be_blank(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PendingEmailChange.objects.create(user=user, email="")
+
+    def test_pending_email_change_email_cannot_be_whitespace_only(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PendingEmailChange.objects.create(user=user, email="   ")
+
+    def test_pending_email_change_is_deleted_when_user_is_deleted(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="new@test.com"
+        )
+
+        user.delete()
+
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+
+    def test_pending_email_change_str(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=user, email="new@test.com"
+        )
+
+        self.assertEqual(str(pending_email_change), "new@test.com")
 
 
 class TestProfileModel(TestCase):

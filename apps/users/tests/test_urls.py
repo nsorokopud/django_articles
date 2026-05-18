@@ -54,7 +54,7 @@ class TestURLs(SimpleTestCase):
         self.assertEqual(resolve(url).func.view_class, EmailChangeView)
 
     def test_email_change_confirmation_url_is_resolved(self):
-        url = reverse("email-change-confirm", args=["token"])
+        url = reverse("email-change-confirm", args=[123, "token"])
         self.assertEqual(resolve(url).func.view_class, EmailChangeConfirmationView)
 
     def test_password_change_url_is_resolved(self):

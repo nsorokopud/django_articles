@@ -1,14 +1,13 @@
-from allauth.account.models import EmailAddress
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import signals
 from django.http.response import Http404
 from django.test import TestCase
 
-from users.models import User
+from users.models import PendingEmailChange, User
 from users.selectors import (
     find_authors_subscribed_by_user,
     get_author_with_viewer_subscription_status,
-    get_pending_email_address,
+    get_pending_email_change,
     get_user_by_id,
 )
 from users.signals import create_profile
@@ -62,33 +61,31 @@ class TestSelectors(TestCase):
         res = find_authors_subscribed_by_user(self.test_user)
         self.assertCountEqual(res, [])
 
-    def test_get_pending_email_address(self):
-        res = get_pending_email_address(self.test_user)
-        self.assertEqual(res, None)
+    def test_get_pending_email_change(self):
+        res = get_pending_email_change(self.test_user)
+        self.assertIsNone(res)
 
-        email = EmailAddress.objects.create(
-            user=self.test_user, email=self.test_user.email, primary=True, verified=True
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.test_user, email="new-test@test.com"
         )
-        res = get_pending_email_address(self.test_user)
-        self.assertEqual(res, None)
 
-        email.primary = True
-        email.verified = False
-        email.save()
-        res = get_pending_email_address(self.test_user)
-        self.assertEqual(res, None)
+        res = get_pending_email_change(self.test_user)
+        self.assertEqual(res.pk, pending_email_change.pk)
+        self.assertEqual(res.email, pending_email_change.email)
 
-        email.primary = False
-        email.verified = True
-        email.save()
-        res = get_pending_email_address(self.test_user)
-        self.assertEqual(res.pk, email.pk)
+    def test_get_pending_email_change_after_delete(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.test_user, email="new-test@test.com"
+        )
 
-        email.primary = False
-        email.verified = False
-        email.save()
-        res = get_pending_email_address(self.test_user)
-        self.assertEqual(res.pk, email.pk)
+        res = get_pending_email_change(self.test_user)
+        self.assertEqual(res.pk, pending_email_change.pk)
+
+        pending_email_change.delete()
+        self.test_user.refresh_from_db()
+
+        res = get_pending_email_change(self.test_user)
+        self.assertIsNone(res)
 
 
 class TestGetAuthorWithViewerSubscriptionStatus(TestCase):

@@ -7,7 +7,6 @@ from django.db import transaction
 from users.models import AuthorSubscription, Profile, User
 
 from ..cache import get_subscribers_count_cache_key
-from .email_addresses import sync_primary_email_address_for_user
 
 
 logger = logging.getLogger(__name__)
@@ -23,8 +22,6 @@ def activate_user(user: User) -> None:
         logger.info("User %s was activated.", user.id)
     else:
         logger.info("User %s was already active.", user.id)
-
-    sync_primary_email_address_for_user(user_id=user.id)
 
 
 def deactivate_user(user: User) -> None:
