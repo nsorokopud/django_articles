@@ -1,11 +1,14 @@
 import logging
 
+from botocore.exceptions import BotoCoreError, ClientError
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
+from django.core.exceptions import SuspiciousFileOperation, ValidationError
+from django.core.files.storage import default_storage
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 
 from users.models import (
+    DEFAULT_PROFILE_IMAGE,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
     AuthorSubscription,
     PendingEmailChange,
@@ -79,6 +82,47 @@ def create_user_profile(user: User) -> Profile:
 
 
 @transaction.atomic
+def update_user_profile(
+    *,
+    user: User,
+    username: str,
+    image=None,
+    image_changed: bool = False,
+    notification_emails_allowed: bool,
+) -> tuple[User, Profile]:
+    user = User.objects.select_for_update().get(pk=user.pk)
+    profile = Profile.objects.select_for_update().get(user=user)
+
+    old_image_name = profile.image.name if profile.image else ""
+
+    if user.username != username:
+        user.username = username
+        user.save(update_fields=["username"])
+
+    update_fields = []
+
+    if profile.notification_emails_allowed != notification_emails_allowed:
+        profile.notification_emails_allowed = notification_emails_allowed
+        update_fields.append("notification_emails_allowed")
+
+    if image_changed:
+        profile.image = image or DEFAULT_PROFILE_IMAGE
+        update_fields.append("image")
+
+    if update_fields:
+        profile.save(update_fields=update_fields)
+
+    new_image_name = profile.image.name if profile.image else ""
+
+    if _should_delete_old_profile_image(
+        old_image_name=old_image_name, new_image_name=new_image_name
+    ):
+        transaction.on_commit(lambda: _delete_profile_image(old_image_name))
+
+    return user, profile
+
+
+@transaction.atomic
 def set_author_subscription(
     *, subscriber: User, author: User, should_subscribe: bool
 ) -> tuple[bool, bool]:
@@ -111,6 +155,23 @@ def advance_latest_article_publish_sequence(
         id=user_id,
         latest_article_publish_sequence__lt=publish_sequence,
     ).update(latest_article_publish_sequence=publish_sequence)
+
+
+def _should_delete_old_profile_image(
+    *, old_image_name: str, new_image_name: str
+) -> bool:
+    return bool(
+        old_image_name
+        and old_image_name != DEFAULT_PROFILE_IMAGE
+        and old_image_name != new_image_name
+    )
+
+
+def _delete_profile_image(file_name: str) -> None:
+    try:
+        default_storage.delete(file_name)
+    except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+        logger.exception("Failed to delete old profile image: %s", file_name)
 
 
 def _validate_subscription_action(*, subscriber: User, author: User) -> None:

@@ -18,7 +18,7 @@ from ..selectors import (
     find_authors_subscribed_by_user,
     get_author_with_viewer_subscription_status,
 )
-from ..services import set_author_subscription
+from ..services.users import set_author_subscription, update_user_profile
 
 
 logger = logging.getLogger(__name__)
@@ -37,9 +37,18 @@ class UserProfileView(LoginRequiredMixin, View):
         profile_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.profile
         )
+
         if user_form.is_valid() and profile_form.is_valid():
-            user_form.save()
-            profile_form.save()
+            update_user_profile(
+                user=request.user,
+                username=user_form.cleaned_data["username"],
+                image=profile_form.cleaned_data.get("image"),
+                image_changed="image" in profile_form.changed_data,
+                notification_emails_allowed=profile_form.cleaned_data[
+                    "notification_emails_allowed"
+                ],
+            )
+
             messages.success(request, "Profile updated successfully.")
             return redirect(request.path)
 
