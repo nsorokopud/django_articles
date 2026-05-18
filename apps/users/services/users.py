@@ -17,6 +17,7 @@ from users.models import (
 )
 
 from ..cache import get_subscribers_count_cache_key
+from ..validators import validate_username_is_not_email
 from .email_addresses import delete_expired_pending_email_changes
 
 
@@ -29,6 +30,11 @@ def register_user(*, username: str, email: str, password: str) -> User:
 
     if not username:
         raise ValidationError({"username": "Username is required."})
+
+    validate_username_is_not_email(username)
+
+    if User.objects.filter(username=username).exists():
+        raise ValidationError({"username": "A user with that username already exists."})
 
     if not email:
         raise ValidationError({"email": "Email is required."})

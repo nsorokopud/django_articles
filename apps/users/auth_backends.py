@@ -3,7 +3,6 @@ from typing import Optional
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Q
 from django.http.request import HttpRequest
 
 
@@ -15,6 +14,11 @@ class EmailOrUsernameAuthenticationBackend(ModelBackend):
         password: str | None = None,
         **kwargs,
     ) -> Optional[AbstractUser]:
+        UserModel = get_user_model()
+
+        if username is None:
+            username = kwargs.get(UserModel.USERNAME_FIELD)
+
         if username is None or password is None:
             return None
 
@@ -22,12 +26,11 @@ class EmailOrUsernameAuthenticationBackend(ModelBackend):
         if not identifier:
             return None
 
-        UserModel = get_user_model()
-
         try:
-            user = UserModel.objects.get(
-                Q(username=identifier) | Q(email__iexact=identifier)
-            )
+            if "@" in identifier:
+                user = UserModel.objects.get(email__iexact=identifier)
+            else:
+                user = UserModel.objects.get(username=identifier)
         except UserModel.DoesNotExist:
             return None
         except UserModel.MultipleObjectsReturned:

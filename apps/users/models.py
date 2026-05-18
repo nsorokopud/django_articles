@@ -7,6 +7,8 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils.text import get_valid_filename
 
+from .validators import validate_username_is_not_email
+
 
 USER_EMAIL_UNIQUE_CONSTRAINT_NAME = "users_user_email_ci_unique"
 
@@ -39,16 +41,30 @@ class User(AbstractUser):
             models.UniqueConstraint(
                 Lower(Trim("email")), name=USER_EMAIL_UNIQUE_CONSTRAINT_NAME
             ),
+            models.CheckConstraint(
+                condition=~models.Q(username__contains="@"),
+                name="users_username_not_email_like",
+            ),
         ]
 
     def clean(self):
         super().clean()
+
+        if self.username:
+            self.username = self.username.strip()
+            validate_username_is_not_email(self.username)
+
         if self.email:
             self.email = self.email.strip().lower()
 
     def save(self, *args, **kwargs):
+        if self.username:
+            self.username = self.username.strip()
+            validate_username_is_not_email(self.username)
+
         if self.email:
             self.email = self.email.strip().lower()
+
         super().save(*args, **kwargs)
 
 

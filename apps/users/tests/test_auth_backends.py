@@ -27,6 +27,27 @@ class TestAuthenticationBackends(TestCase):
             self.user2,
         )
 
+    def test_authenticates_by_username_case_sensitively(self):
+        upper_user = User.objects.create_user(
+            username="Max", email="max-upper@test.com", password="upper_Abc1234"
+        )
+        lower_user = User.objects.create_user(
+            username="max", email="max-lower@test.com", password="lower_Abc1234"
+        )
+
+        self.assertEqual(
+            self.authenticate(self.request, username="Max", password="upper_Abc1234"),
+            upper_user,
+        )
+        self.assertEqual(
+            self.authenticate(self.request, username="max", password="lower_Abc1234"),
+            lower_user,
+        )
+
+        self.assertIsNone(
+            self.authenticate(self.request, username="MAX", password="upper_Abc1234")
+        )
+
     def test_authenticates_by_email_case_insensitively(self):
         self.assertEqual(
             self.authenticate(
@@ -41,10 +62,40 @@ class TestAuthenticationBackends(TestCase):
             self.user2,
         )
 
+    def test_identifier_with_at_symbol_is_treated_as_email(self):
+        user = User.objects.create_user(
+            username="plainusername",
+            email="plainusername@test.com",
+            password="plain_Abc1234",
+        )
+
+        self.assertEqual(
+            self.authenticate(
+                self.request,
+                username="plainusername@test.com",
+                password="plain_Abc1234",
+            ),
+            user,
+        )
+
+        self.assertIsNone(
+            self.authenticate(
+                self.request,
+                username="plainusername@test.com",
+                password="wrong_password",
+            )
+        )
+
     def test_strips_identifier_whitespace(self):
         self.assertEqual(
             self.authenticate(
                 self.request, username="  user1@test.com  ", password="user1_Abc1234"
+            ),
+            self.user1,
+        )
+        self.assertEqual(
+            self.authenticate(
+                self.request, username="  user1  ", password="user1_Abc1234"
             ),
             self.user1,
         )
@@ -121,30 +172,3 @@ class TestAuthenticationBackends(TestCase):
 
         inactive_user.refresh_from_db()
         self.assertFalse(inactive_user.is_active)
-
-    def test_returns_none_when_identifier_matches_multiple_users(self):
-        User.objects.create_user(
-            username="collision@test.com",
-            email="collision-user@test.com",
-            password="collision_Abc1234",
-        )
-        User.objects.create_user(
-            username="collision",
-            email="collision@test.com",
-            password="collision_Xyz1234",
-        )
-
-        self.assertIsNone(
-            self.authenticate(
-                self.request,
-                username="collision@test.com",
-                password="collision_Abc1234",
-            )
-        )
-        self.assertIsNone(
-            self.authenticate(
-                self.request,
-                username="collision@test.com",
-                password="collision_Xyz1234",
-            )
-        )

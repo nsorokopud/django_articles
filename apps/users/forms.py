@@ -7,6 +7,7 @@ from core.validators import validate_uploaded_image
 from users.models import PendingEmailChange, Profile, User
 
 from .services.tokens import email_change_token_generator
+from .validators import validate_username_is_not_email
 
 
 class AuthenticationForm(DefaultAuthenticationForm):
@@ -20,6 +21,16 @@ class UserCreationForm(DefaultUserCreationForm):
     class Meta:
         model = User
         fields = ["username", "email", "password1", "password2"]
+
+    def clean_username(self):
+        username = (self.cleaned_data.get("username") or "").strip()
+
+        validate_username_is_not_email(username)
+
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError("A user with that username already exists.")
+
+        return username
 
     def clean_email(self):
         email = (self.cleaned_data.get("email") or "").strip().lower()
@@ -41,9 +52,13 @@ class UserUpdateForm(forms.ModelForm):
         fields = ["username"]
 
     def clean_username(self):
-        username = self.cleaned_data.get("username")
+        username = (self.cleaned_data.get("username") or "").strip()
+
+        validate_username_is_not_email(username)
+
         if User.objects.filter(username=username).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("A user with that username already exists.")
+
         return username
 
 

@@ -1,4 +1,5 @@
 from allauth.account.models import EmailAddress
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
@@ -91,6 +92,68 @@ class TestUserModel(TestCase):
             with transaction.atomic():
                 User.objects.create_user(
                     username="user", email="   ", password="testpass123"
+                )
+
+    def test_username_is_trimmed_on_create(self):
+        user = User.objects.create_user(
+            username="  user  ", email="user@test.com", password="testpass123"
+        )
+        user.refresh_from_db()
+
+        self.assertEqual(user.username, "user")
+
+    def test_username_is_trimmed_on_save(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        user.username = "  new_user  "
+        user.save(update_fields=["username"])
+        user.refresh_from_db()
+
+        self.assertEqual(user.username, "new_user")
+
+    def test_username_cannot_contain_at_symbol_on_save(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        user.username = "user@test.com"
+
+        with self.assertRaises(ValidationError):
+            user.save(update_fields=["username"])
+
+    def test_username_cannot_contain_at_symbol_at_database_level(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.bulk_create(
+                    [
+                        User(
+                            username="user@test.com",
+                            email="user@test.com",
+                        )
+                    ]
+                )
+
+    def test_username_with_different_case_is_allowed(self):
+        User.objects.create_user(
+            username="Max", email="max1@test.com", password="testpass123"
+        )
+
+        user = User.objects.create_user(
+            username="max", email="max2@test.com", password="testpass123"
+        )
+
+        self.assertEqual(user.username, "max")
+
+    def test_username_exact_unique_constraint(self):
+        User.objects.create_user(
+            username="Max", email="max1@test.com", password="testpass123"
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.create_user(
+                    username="Max", email="max2@test.com", password="testpass123"
                 )
 
     def test_user_delete_deletes_allauth_email_addresses(self):
