@@ -2,14 +2,58 @@ import logging
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 
-from users.models import AuthorSubscription, Profile, User
+from users.models import (
+    USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
+    AuthorSubscription,
+    PendingEmailChange,
+    Profile,
+    User,
+)
 
 from ..cache import get_subscribers_count_cache_key
 
 
 logger = logging.getLogger(__name__)
+
+
+def register_user(*, username: str, email: str, password: str) -> User:
+    username = (username or "").strip()
+    email = (email or "").strip().lower()
+
+    if not username:
+        raise ValidationError({"username": "Username is required."})
+
+    if not email:
+        raise ValidationError({"email": "Email is required."})
+
+    validate_email(email)
+
+    try:
+        with transaction.atomic():
+            if PendingEmailChange.objects.filter(email__iexact=email).exists():
+                raise ValidationError(
+                    {"email": "That email address is currently pending confirmation."}
+                )
+
+            return User.objects.create_user(
+                username=username, email=email, password=password, is_active=False
+            )
+
+    except IntegrityError as e:
+        if _get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
+            raise ValidationError(
+                {"email": "A user with that email already exists."}
+            ) from e
+
+        if User.objects.filter(username=username).exists():
+            raise ValidationError(
+                {"username": "A user with that username already exists."}
+            ) from e
+
+        raise
 
 
 @transaction.atomic
@@ -22,17 +66,6 @@ def activate_user(user: User) -> None:
         logger.info("User %s was activated.", user.id)
     else:
         logger.info("User %s was already active.", user.id)
-
-
-def deactivate_user(user: User) -> None:
-    updated = User.objects.filter(pk=user.pk).update(is_active=False)
-    if updated:
-        logger.info("User %s was deactivated", user.id)
-        user.refresh_from_db()
-    else:
-        logger.warning(
-            "Tried to deactivate user %s but no matching user found", user.id
-        )
 
 
 @transaction.atomic
@@ -130,3 +163,8 @@ def _invalidate_subscribers_count_cache_after_commit(*, author_id: int) -> None:
     transaction.on_commit(
         lambda: cache.delete(get_subscribers_count_cache_key(author_id))
     )
+
+
+def _get_constraint_name(exc: IntegrityError) -> str | None:
+    diagnostics = getattr(exc.__cause__, "diag", None)
+    return getattr(diagnostics, "constraint_name", None)

@@ -1,14 +1,103 @@
+from django.core.exceptions import ValidationError
 from django.db.models import signals
 from django.test import TestCase
 
-from users.models import Profile, User
+from users.models import PendingEmailChange, Profile, User
 from users.services.users import (
     activate_user,
     advance_latest_article_publish_sequence,
     create_user_profile,
-    deactivate_user,
+    register_user,
 )
 from users.signals import create_profile
+
+
+class TestRegisterUser(TestCase):
+    def test_creates_inactive_user(self):
+        user = register_user(
+            username="newuser", email="NEW@TEST.COM", password="testpass123"
+        )
+
+        self.assertEqual(user.username, "newuser")
+        self.assertEqual(user.email, "new@test.com")
+        self.assertFalse(user.is_active)
+        self.assertTrue(user.check_password("testpass123"))
+
+    def test_strips_username_and_email(self):
+        user = register_user(
+            username="  newuser  ", email="  NEW@TEST.COM  ", password="testpass123"
+        )
+
+        self.assertEqual(user.username, "newuser")
+        self.assertEqual(user.email, "new@test.com")
+
+    def test_rejects_blank_username(self):
+        with self.assertRaises(ValidationError) as context:
+            register_user(username="   ", email="new@test.com", password="testpass123")
+
+        self.assertEqual(
+            context.exception.message_dict, {"username": ["Username is required."]}
+        )
+
+    def test_rejects_blank_email(self):
+        with self.assertRaises(ValidationError) as context:
+            register_user(username="newuser", email="   ", password="testpass123")
+
+        self.assertEqual(
+            context.exception.message_dict, {"email": ["Email is required."]}
+        )
+
+    def test_rejects_invalid_email(self):
+        with self.assertRaises(ValidationError):
+            register_user(
+                username="newuser", email="not-an-email", password="testpass123"
+            )
+
+    def test_rejects_existing_email_case_insensitively(self):
+        User.objects.create_user(
+            username="existing", email="taken@test.com", password="testpass123"
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            register_user(
+                username="newuser", email="TAKEN@TEST.COM", password="testpass123"
+            )
+
+        self.assertEqual(
+            context.exception.message_dict,
+            {"email": ["A user with that email already exists."]},
+        )
+
+    def test_rejects_email_used_by_pending_email_change(self):
+        existing_user = User.objects.create_user(
+            username="existing", email="existing@test.com", password="testpass123"
+        )
+        PendingEmailChange.objects.create(user=existing_user, email="pending@test.com")
+
+        with self.assertRaises(ValidationError) as context:
+            register_user(
+                username="newuser", email="PENDING@TEST.COM", password="testpass123"
+            )
+
+        self.assertEqual(
+            context.exception.message_dict,
+            {"email": ["That email address is currently pending confirmation."]},
+        )
+
+    def test_rejects_existing_username(self):
+        User.objects.create_user(
+            username="taken", email="taken@test.com", password="testpass123"
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            register_user(
+                username="taken", email="new@test.com", password="testpass123"
+            )
+
+        self.assertEqual(
+            context.exception.message_dict,
+            {"username": ["A user with that username already exists."]},
+        )
 
 
 class TestActivateUser(TestCase):
@@ -65,12 +154,6 @@ class TestUserServices(TestCase):
 
     def tearDown(self):
         signals.post_save.connect(create_profile, sender=User)
-
-    def test_deactivate_user(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
-        self.assertTrue(user.is_active)
-        deactivate_user(user)
-        self.assertFalse(user.is_active)
 
     def test_create_user_profile(self):
         signals.post_save.disconnect(create_profile, sender=User)

@@ -350,7 +350,7 @@ class TestCreatePendingEmailChange(TestCase):
 
         with self.assertRaisesMessage(
             ValidationError,
-            "This email is already in use or you already have a pending email change.",
+            "That email address is currently pending confirmation.",
         ):
             create_pending_email_change(user_id=self.user.id, email="TAKEN@Test.COM")
 

@@ -9,6 +9,7 @@ from django.utils.text import get_valid_filename
 
 
 DEFAULT_PROFILE_IMAGE = "users/profile_images/default_avatar.jpg"
+USER_EMAIL_UNIQUE_CONSTRAINT_NAME = "users_user_email_ci_unique"
 
 
 class User(AbstractUser):
@@ -31,7 +32,7 @@ class User(AbstractUser):
                 condition=~models.Q(email=""), name="users_user_email_not_blank"
             ),
             models.UniqueConstraint(
-                Lower(Trim("email")), name="users_user_email_ci_unique"
+                Lower(Trim("email")), name=USER_EMAIL_UNIQUE_CONSTRAINT_NAME
             ),
         ]
 

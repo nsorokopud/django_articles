@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
 
-from users.models import PendingEmailChange, User
+from users.models import USER_EMAIL_UNIQUE_CONSTRAINT_NAME, PendingEmailChange, User
 
 
 logger = logging.getLogger(__name__)
@@ -31,11 +31,14 @@ def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChan
     if User.objects.exclude(pk=user_id).filter(email__iexact=email).exists():
         raise ValidationError("A user with that email already exists.")
 
+    if PendingEmailChange.objects.filter(email__iexact=email).exists():
+        raise ValidationError("That email address is currently pending confirmation.")
+
     try:
         pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
     except IntegrityError as e:
         raise ValidationError(
-            "This email is already in use or you already have a pending email change."
+            "This email is already in use or pending confirmation."
         ) from e
 
     logger.info(
@@ -90,12 +93,21 @@ def change_email_address(*, user_id: int, pending_email_change_id: int) -> None:
     if User.objects.exclude(pk=user_id).filter(email__iexact=new_email).exists():
         raise ValidationError("This email address is no longer available.")
 
+    if (
+        PendingEmailChange.objects.exclude(pk=pending_email_change.pk)
+        .filter(email__iexact=new_email)
+        .exists()
+    ):
+        raise ValidationError("This email address is currently pending confirmation.")
+
     try:
         user.email = new_email
         user.save(update_fields=["email"])
         pending_email_change.delete()
     except IntegrityError as e:
-        raise ValidationError("This email address is no longer available.") from e
+        if _is_user_email_unique_violation(e):
+            raise ValidationError("This email address is no longer available.") from e
+        raise
 
     _delete_allauth_email_addresses_for_user(user_id)
     delete_social_accounts_with_email(user_id=user_id, email=old_email)
@@ -147,3 +159,9 @@ def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
     logger.info(
         "Deleted %d allauth EmailAddress rows for User(id=%s).", deleted_count, user_id
     )
+
+
+def _is_user_email_unique_violation(exc: IntegrityError) -> bool:
+    diagnostics = getattr(exc.__cause__, "diag", None)
+    constraint_name = getattr(diagnostics, "constraint_name", None)
+    return constraint_name == USER_EMAIL_UNIQUE_CONSTRAINT_NAME

@@ -3,6 +3,7 @@ from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth import logout
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
@@ -15,8 +16,9 @@ from config.settings import LOGIN_URL
 from users.forms import UserCreationForm
 
 from ..models import User
-from ..services import activate_user, deactivate_user, send_account_activation_email
+from ..services import activate_user, send_account_activation_email
 from ..services.tokens import activation_token_generator
+from ..services.users import register_user
 
 
 logger = logging.getLogger(__name__)
@@ -29,11 +31,27 @@ class UserRegistrationView(CreateView):
     success_url = reverse_lazy("post-registration")
 
     def form_valid(self, form) -> HttpResponseRedirect:
-        user = form.save()
-        deactivate_user(user)
+        try:
+            user = register_user(
+                username=form.cleaned_data["username"],
+                email=form.cleaned_data["email"],
+                password=form.cleaned_data["password1"],
+            )
+        except ValidationError as e:
+            self._add_validation_error_to_form(form, e)
+            return self.form_invalid(form)
+
         base_url = self.request.build_absolute_uri("/")
         send_account_activation_email(user, base_url)
         return redirect(self.success_url)
+
+    def _add_validation_error_to_form(self, form, error: ValidationError) -> None:
+        if hasattr(error, "error_dict"):
+            for field, errors in error.error_dict.items():
+                for field_error in errors:
+                    form.add_error(field, field_error)
+        else:
+            form.add_error(None, error)
 
 
 class PostUserRegistrationView(View):
