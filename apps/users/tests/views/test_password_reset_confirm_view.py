@@ -82,10 +82,7 @@ class TestPasswordResetConfirmView(TestCase):
 
     def test_post_valid_data(self):
         new_password = "Abcd1234!"
-        data = {
-            "new_password1": new_password,
-            "new_password2": new_password,
-        }
+        data = {"new_password1": new_password, "new_password2": new_password}
         self.assertTrue(self.user.check_password(self.old_password))
 
         uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
@@ -97,12 +94,34 @@ class TestPasswordResetConfirmView(TestCase):
 
         post_response = self.client.post(final_url, data, follow=True)
         self.assertRedirects(
-            post_response,
-            reverse("login"),
-            status_code=302,
-            target_status_code=200,
+            post_response, reverse("login"), status_code=302, target_status_code=200
         )
 
         self.user.refresh_from_db()
         self.assertFalse(self.user.check_password(self.old_password))
         self.assertTrue(self.user.check_password(new_password))
+        self.assertFalse(password_reset_token_generator.check_token(self.user, token))
+
+    def test_second_password_reset_token_invalidates_first_token(self):
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        old_token = password_reset_token_generator.make_token(self.user)
+        new_token = password_reset_token_generator.make_token(self.user)
+
+        old_url = reverse("password_reset_confirm", args=[uidb64, old_token])
+        new_url = reverse("password_reset_confirm", args=[uidb64, new_token])
+
+        old_response = self.client.get(old_url)
+        self.assertEqual(old_response.status_code, 200)
+        self.assertTemplateUsed(old_response, "users/password_reset_confirm.html")
+        self.assertFalse(old_response.context["validlink"])
+
+        new_response = self.client.get(new_url, follow=True)
+        self.assertRedirects(
+            new_response,
+            reverse("password_reset_confirm", args=[uidb64, "set-password"]),
+            status_code=302,
+            target_status_code=200,
+        )
+        self.assertTemplateUsed(new_response, "users/password_reset_confirm.html")
+        self.assertTrue(new_response.context["validlink"])
