@@ -453,6 +453,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.tasks.sync_unread_notification_counts_task",
         "schedule": crontab(minute=0, hour="*/6"),  # every 6 hours
     },
+    "users.delete-expired-pending-email-changes": {
+        "task": "users.tasks.delete_expired_pending_email_changes_task",
+        "schedule": timedelta(hours=1),
+    },
 }
 
 # Select2
