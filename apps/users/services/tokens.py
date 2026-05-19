@@ -1,5 +1,5 @@
 import logging
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -23,16 +23,18 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
     user state changes).
     """
 
-    token_type: ClassVar[Optional[str]] = None
+    token_type: ClassVar[str | None] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
+
         if cls.token_type is None:
             raise ValueError(
                 "Subclasses of `BaseTokenGenerator` must define `token_type`."
             )
-        if not isinstance(cls.token_type, TokenType):
-            raise ValueError("Token type must be a `TokenType` instance.")
+
+        if cls.token_type not in TokenType.values:
+            raise ValueError("Invalid token type.")
 
     @transaction.atomic
     def make_token(self, user: AbstractBaseUser) -> str:
@@ -87,7 +89,7 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
 
 
 class AccountActivationTokenGenerator(BaseTokenGenerator):
-    token_type: ClassVar[str] = TokenType.ACCOUNT_ACTIVATION  # type: ignore[assignment]
+    token_type = TokenType.ACCOUNT_ACTIVATION  # type: ignore[assignment]
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
         base_hash = super()._make_hash_value(user, timestamp)
@@ -101,7 +103,7 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
     expiration, user state changes).
     """
 
-    token_type: ClassVar[str] = TokenType.EMAIL_CHANGE  # type: ignore[assignment]
+    token_type = TokenType.EMAIL_CHANGE  # type: ignore[assignment]
 
     def _make_hash_value(self, user: AbstractBaseUser, timestamp: int) -> str:
         pending_email_change = get_pending_email_change(user)
@@ -123,7 +125,7 @@ class CustomPasswordResetTokenGenerator(BaseTokenGenerator):
     expiration, user state changes).
     """
 
-    token_type: ClassVar[str] = TokenType.PASSWORD_CHANGE  # type: ignore[assignment]
+    token_type = TokenType.PASSWORD_CHANGE  # type: ignore[assignment]
 
 
 activation_token_generator = AccountActivationTokenGenerator()
