@@ -177,61 +177,6 @@ class TestUserCreationForm(TestCase):
         )
 
     @patch("hcaptcha_field.fields.hCaptchaField.validate")
-    def test_rejects_email_pending_confirmation(self, mock_hcaptcha_validate):
-        user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="StrongPass123!"
-        )
-        PendingEmailChange.objects.create(user=user, email="pending@test.com")
-
-        form = UserCreationForm(
-            data=self._valid_form_data(username="newuser", email="pending@test.com")
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {"email": ["That email address is currently pending confirmation."]},
-        )
-
-    @patch("hcaptcha_field.fields.hCaptchaField.validate")
-    def test_rejects_email_pending_confirmation_case_insensitive(
-        self, mock_hcaptcha_validate
-    ):
-        user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="StrongPass123!"
-        )
-        PendingEmailChange.objects.create(user=user, email="pending@test.com")
-
-        form = UserCreationForm(
-            data=self._valid_form_data(username="newuser", email="PENDING@TEST.COM")
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {"email": ["That email address is currently pending confirmation."]},
-        )
-
-    @patch("hcaptcha_field.fields.hCaptchaField.validate")
-    def test_rejects_email_pending_confirmation_with_whitespace(
-        self, mock_hcaptcha_validate
-    ):
-        user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="StrongPass123!"
-        )
-        PendingEmailChange.objects.create(user=user, email="pending@test.com")
-
-        form = UserCreationForm(
-            data=self._valid_form_data(username="newuser", email="  PENDING@TEST.COM  ")
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {"email": ["That email address is currently pending confirmation."]},
-        )
-
-    @patch("hcaptcha_field.fields.hCaptchaField.validate")
     def test_rejects_missing_email(self, mock_hcaptcha_validate):
         form = UserCreationForm(data=self._valid_form_data(email=""))
 

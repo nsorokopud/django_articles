@@ -38,11 +38,6 @@ class UserCreationForm(DefaultUserCreationForm):
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("A user with that email already exists.")
 
-        if PendingEmailChange.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError(
-                "That email address is currently pending confirmation."
-            )
-
         return email
 
 
