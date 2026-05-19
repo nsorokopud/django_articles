@@ -68,6 +68,11 @@ def register_user(*, username: str, email: str, password: str) -> User:
                 {"username": "A user with that username already exists."}
             ) from e
 
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(
+                {"email": "A user with that email already exists."}
+            ) from e
+
         if User.objects.filter(username__iexact=username).exists():
             raise ValidationError(
                 {"username": "A user with that username already exists."}
