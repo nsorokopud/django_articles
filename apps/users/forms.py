@@ -27,7 +27,7 @@ class UserCreationForm(DefaultUserCreationForm):
 
         validate_username_is_not_email(username)
 
-        if User.objects.filter(username=username).exists():
+        if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("A user with that username already exists.")
 
         return username
@@ -56,7 +56,11 @@ class UserUpdateForm(forms.ModelForm):
 
         validate_username_is_not_email(username)
 
-        if User.objects.filter(username=username).exclude(pk=self.instance.pk).exists():
+        if (
+            User.objects.filter(username__iexact=username)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        ):
             raise forms.ValidationError("A user with that username already exists.")
 
         return username

@@ -70,17 +70,20 @@ class TestRegisterUser(TestCase):
             context.exception.messages, ["Username cannot be an email address."]
         )
 
-    def test_allows_username_that_differs_only_by_case(self):
+    def test_rejects_existing_username_case_insensitively_after_trimming(self):
         User.objects.create_user(
             username="Max", email="max1@test.com", password="testpass123"
         )
 
-        user = register_user(
-            username="max", email="max2@test.com", password="testpass123"
-        )
+        with self.assertRaises(ValidationError) as context:
+            register_user(
+                username="  max  ", email="max2@test.com", password="testpass123"
+            )
 
-        self.assertEqual(user.username, "max")
-        self.assertEqual(user.email, "max2@test.com")
+        self.assertEqual(
+            context.exception.message_dict,
+            {"username": ["A user with that username already exists."]},
+        )
 
     def test_rejects_blank_email(self):
         with self.assertRaises(ValidationError) as context:

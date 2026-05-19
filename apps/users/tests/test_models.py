@@ -76,8 +76,8 @@ class TestUserModel(TestCase):
 
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                User.objects.create_user(
-                    username="user2", email=" user@test.com ", password="testpass123"
+                User.objects.bulk_create(
+                    [User(username="user2", email=" user@test.com ")]
                 )
 
     def test_email_cannot_be_blank(self):
@@ -126,24 +126,30 @@ class TestUserModel(TestCase):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 User.objects.bulk_create(
-                    [
-                        User(
-                            username="user@test.com",
-                            email="user@test.com",
-                        )
-                    ]
+                    [User(username="user@test.com", email="user@test.com")]
                 )
 
-    def test_username_with_different_case_is_allowed(self):
+    def test_username_case_insensitive_unique_constraint(self):
         User.objects.create_user(
             username="Max", email="max1@test.com", password="testpass123"
         )
 
-        user = User.objects.create_user(
-            username="max", email="max2@test.com", password="testpass123"
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.create_user(
+                    username="max", email="max2@test.com", password="testpass123"
+                )
+
+    def test_username_unique_constraint_trims_whitespace(self):
+        User.objects.create_user(
+            username="Max", email="max1@test.com", password="testpass123"
         )
 
-        self.assertEqual(user.username, "max")
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.bulk_create(
+                    [User(username=" max ", email="max2@test.com")]
+                )
 
     def test_username_exact_unique_constraint(self):
         User.objects.create_user(

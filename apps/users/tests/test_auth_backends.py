@@ -27,25 +27,14 @@ class TestAuthenticationBackends(TestCase):
             self.user2,
         )
 
-    def test_authenticates_by_username_case_sensitively(self):
-        upper_user = User.objects.create_user(
-            username="Max", email="max-upper@test.com", password="upper_Abc1234"
-        )
-        lower_user = User.objects.create_user(
-            username="max", email="max-lower@test.com", password="lower_Abc1234"
-        )
-
+    def test_authenticates_by_username_case_insensitively(self):
         self.assertEqual(
-            self.authenticate(self.request, username="Max", password="upper_Abc1234"),
-            upper_user,
+            self.authenticate(self.request, username="USER1", password="user1_Abc1234"),
+            self.user1,
         )
         self.assertEqual(
-            self.authenticate(self.request, username="max", password="lower_Abc1234"),
-            lower_user,
-        )
-
-        self.assertIsNone(
-            self.authenticate(self.request, username="MAX", password="upper_Abc1234")
+            self.authenticate(self.request, username="User2", password="user2_Xyz1234"),
+            self.user2,
         )
 
     def test_authenticates_by_email_case_insensitively(self):

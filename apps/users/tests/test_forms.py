@@ -68,7 +68,9 @@ class TestUserCreationForm(TestCase):
         )
 
     @patch("hcaptcha_field.fields.hCaptchaField.validate")
-    def test_allows_username_that_differs_only_by_case(self, mock_hcaptcha_validate):
+    def test_rejects_duplicate_username_case_insensitively(
+        self, mock_hcaptcha_validate
+    ):
         User.objects.create_user(
             username="Max", email="max1@test.com", password="StrongPass123!"
         )
@@ -77,7 +79,29 @@ class TestUserCreationForm(TestCase):
             data=self._valid_form_data(username="max", email="max2@test.com")
         )
 
-        self.assertTrue(form.is_valid(), form.errors)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {"username": ["A user with that username already exists."]},
+        )
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_duplicate_username_case_insensitively_after_trimming(
+        self, mock_hcaptcha_validate
+    ):
+        User.objects.create_user(
+            username="Max", email="max1@test.com", password="StrongPass123!"
+        )
+
+        form = UserCreationForm(
+            data=self._valid_form_data(username="  max  ", email="max2@test.com")
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors,
+            {"username": ["A user with that username already exists."]},
+        )
 
     @patch("hcaptcha_field.fields.hCaptchaField.validate")
     def test_email_is_lowercased(self, mock_hcaptcha_validate):
@@ -322,12 +346,27 @@ class TestUserUpdateForm(TestCase):
             form.errors["username"], ["A user with that username already exists."]
         )
 
-    def test_allows_username_that_differs_only_by_case(self):
+    def test_rejects_duplicate_username_case_insensitively(self):
         User.objects.create_user(username="Max", email="max@test.com")
 
         form = UserUpdateForm(data={"username": "max"}, instance=self.user)
 
-        self.assertTrue(form.is_valid(), form.errors)
+        self.assertFalse(form.is_valid())
+        self.assertIn("username", form.errors)
+        self.assertEqual(
+            form.errors["username"], ["A user with that username already exists."]
+        )
+
+    def test_rejects_duplicate_username_case_insensitively_after_trimming(self):
+        User.objects.create_user(username="Max", email="max@test.com")
+
+        form = UserUpdateForm(data={"username": "  max  "}, instance=self.user)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("username", form.errors)
+        self.assertEqual(
+            form.errors["username"], ["A user with that username already exists."]
+        )
 
     def test_same_username(self):
         form = UserUpdateForm(data={"username": "user"}, instance=self.user)
@@ -338,6 +377,15 @@ class TestUserUpdateForm(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, "user")
 
+    def test_same_username_different_case_is_allowed(self):
+        form = UserUpdateForm(data={"username": "USER"}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "USER")
+
     def test_same_username_with_whitespace(self):
         form = UserUpdateForm(data={"username": "  user  "}, instance=self.user)
 
@@ -346,6 +394,15 @@ class TestUserUpdateForm(TestCase):
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, "user")
+
+    def test_same_username_different_case_with_whitespace_is_allowed(self):
+        form = UserUpdateForm(data={"username": "  USER  "}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "USER")
 
     def test_email_is_not_changed(self):
         form = UserUpdateForm(

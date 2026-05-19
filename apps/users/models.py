@@ -11,6 +11,7 @@ from .validators import validate_username_is_not_email
 
 
 USER_EMAIL_UNIQUE_CONSTRAINT_NAME = "users_user_email_ci_unique"
+USER_USERNAME_UNIQUE_CONSTRAINT_NAME = "users_user_username_ci_unique"
 
 DEFAULT_PROFILE_IMAGE = "users/profile_images/default_avatar.jpg"
 PROFILE_IMAGE_UPLOAD_PREFIX = "users/profile_images"
@@ -40,6 +41,9 @@ class User(AbstractUser):
             ),
             models.UniqueConstraint(
                 Lower(Trim("email")), name=USER_EMAIL_UNIQUE_CONSTRAINT_NAME
+            ),
+            models.UniqueConstraint(
+                Lower(Trim("username")), name=USER_USERNAME_UNIQUE_CONSTRAINT_NAME
             ),
             models.CheckConstraint(
                 condition=~models.Q(username__contains="@"),

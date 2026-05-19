@@ -30,7 +30,7 @@ class EmailOrUsernameAuthenticationBackend(ModelBackend):
             if "@" in identifier:
                 user = UserModel.objects.get(email__iexact=identifier)
             else:
-                user = UserModel.objects.get(username=identifier)
+                user = UserModel.objects.get(username__iexact=identifier)
         except UserModel.DoesNotExist:
             return None
         except UserModel.MultipleObjectsReturned:

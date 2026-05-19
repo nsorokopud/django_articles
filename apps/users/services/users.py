@@ -10,6 +10,7 @@ from django.db import IntegrityError, transaction
 from users.models import (
     DEFAULT_PROFILE_IMAGE,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
+    USER_USERNAME_UNIQUE_CONSTRAINT_NAME,
     AuthorSubscription,
     PendingEmailChange,
     Profile,
@@ -33,7 +34,7 @@ def register_user(*, username: str, email: str, password: str) -> User:
 
     validate_username_is_not_email(username)
 
-    if User.objects.filter(username=username).exists():
+    if User.objects.filter(username__iexact=username).exists():
         raise ValidationError({"username": "A user with that username already exists."})
 
     if not email:
@@ -55,12 +56,19 @@ def register_user(*, username: str, email: str, password: str) -> User:
             )
 
     except IntegrityError as e:
-        if _get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
+        constraint_name = _get_constraint_name(e)
+
+        if constraint_name == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError(
                 {"email": "A user with that email already exists."}
             ) from e
 
-        if User.objects.filter(username=username).exists():
+        if constraint_name == USER_USERNAME_UNIQUE_CONSTRAINT_NAME:
+            raise ValidationError(
+                {"username": "A user with that username already exists."}
+            ) from e
+
+        if User.objects.filter(username__iexact=username).exists():
             raise ValidationError(
                 {"username": "A user with that username already exists."}
             ) from e
@@ -104,7 +112,7 @@ def update_user_profile(
 
     old_image_name = profile.image.name if profile.image else ""
 
-    if user.username != username:
+    if user.username.strip() != username:
         user.username = username
         user.save(update_fields=["username"])
 
