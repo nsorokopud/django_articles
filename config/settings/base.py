@@ -180,6 +180,7 @@ ACCOUNT_ADAPTER = "users.adapters.AccountAdapter"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_CHANGE_EMAIL = False
 
+SOCIALACCOUNT_ADAPTER = "users.adapters.SocialAccountAdapter"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_ONLY = False
@@ -198,6 +199,7 @@ SOCIALACCOUNT_PROVIDERS = {
             "prompt": "select_account",
         },
         "EMAIL_AUTHENTICATION": True,
+        "VERIFIED_EMAIL": True,
     }
 }
 
