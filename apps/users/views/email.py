@@ -126,7 +126,7 @@ class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         kwargs["pending_email_change_id"] = self.kwargs.get("pending_email_change_id")
-        kwargs["initial"]["token"] = self.kwargs.get("token")
+        kwargs["token"] = self.kwargs.get("token")
         return kwargs
 
     def form_valid(self, form) -> HttpResponse:

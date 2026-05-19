@@ -19,6 +19,10 @@ PROFILE_IMAGE_MAX_LENGTH = 512
 PROFILE_IMAGE_EXTENSION_MAX_LENGTH = 16
 PROFILE_IMAGE_UUID_LENGTH = 32
 
+PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME = (
+    "users_pending_email_change_email_ci_unique"
+)
+
 
 class User(AbstractUser):
     email = models.EmailField()
@@ -74,9 +78,7 @@ class User(AbstractUser):
 
 class PendingEmailChange(models.Model):
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name="pending_email_change",
+        User, on_delete=models.CASCADE, related_name="pending_email_change"
     )
     email = models.EmailField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -89,7 +91,7 @@ class PendingEmailChange(models.Model):
             ),
             models.UniqueConstraint(
                 Lower(Trim("email")),
-                name="users_pending_email_change_email_ci_unique",
+                name=PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
             ),
         ]
 

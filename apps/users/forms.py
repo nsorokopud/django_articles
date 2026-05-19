@@ -24,21 +24,11 @@ class UserCreationForm(DefaultUserCreationForm):
 
     def clean_username(self):
         username = (self.cleaned_data.get("username") or "").strip()
-
         validate_username_is_not_email(username)
-
-        if User.objects.filter(username__iexact=username).exists():
-            raise forms.ValidationError("A user with that username already exists.")
-
         return username
 
     def clean_email(self):
-        email = (self.cleaned_data.get("email") or "").strip().lower()
-
-        if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("A user with that email already exists.")
-
-        return email
+        return (self.cleaned_data.get("email") or "").strip().lower()
 
 
 class UserUpdateForm(forms.ModelForm):
@@ -48,16 +38,7 @@ class UserUpdateForm(forms.ModelForm):
 
     def clean_username(self):
         username = (self.cleaned_data.get("username") or "").strip()
-
         validate_username_is_not_email(username)
-
-        if (
-            User.objects.filter(username__iexact=username)
-            .exclude(pk=self.instance.pk)
-            .exists()
-        ):
-            raise forms.ValidationError("A user with that username already exists.")
-
         return username
 
 
@@ -80,53 +61,20 @@ class EmailChangeForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def clean_new_email(self):
-        new_email = self.cleaned_data["new_email"].strip().lower()
-
-        if not self.user or not self.user.is_authenticated:
-            return new_email
-
-        if (self.user.email or "").strip().lower() == new_email:
-            raise forms.ValidationError("Enter a different email address.")
-
-        if (
-            User.objects.exclude(pk=self.user.pk)
-            .filter(email__iexact=new_email)
-            .exists()
-        ):
-            raise forms.ValidationError("A user with that email already exists.")
-
-        if (
-            PendingEmailChange.objects.filter(email__iexact=new_email)
-            .exclude(user=self.user)
-            .exists()
-        ):
-            raise forms.ValidationError(
-                "That email address is currently pending confirmation."
-            )
-        return new_email
+        return self.cleaned_data["new_email"].strip().lower()
 
     def clean(self):
         cleaned_data = super().clean()
-
         if not self.user or not self.user.is_authenticated:
             raise forms.ValidationError("You must be logged in to change email.")
-
-        if PendingEmailChange.objects.filter(user=self.user).exists():
-            raise forms.ValidationError(
-                (
-                    "There is an unfinished email address change process. "
-                    "Cancel it to start a new one."
-                )
-            )
         return cleaned_data
 
 
 class EmailChangeConfirmationForm(forms.Form):
-    token = forms.CharField(label="Token", widget=forms.HiddenInput())
-
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         self.pending_email_change_id = kwargs.pop("pending_email_change_id", None)
+        self.token = kwargs.pop("token", None)
         self.pending_email_change = None
         super().__init__(*args, **kwargs)
 
@@ -147,8 +95,7 @@ class EmailChangeConfirmationForm(forms.Form):
                 "This email change request no longer exists."
             ) from e
 
-        token = cleaned_data.get("token")
-        if not email_change_token_generator.check_token(self.user, token):
+        if not email_change_token_generator.check_token(self.user, self.token):
             raise forms.ValidationError("Invalid token.")
 
         self.pending_email_change = pending_email_change

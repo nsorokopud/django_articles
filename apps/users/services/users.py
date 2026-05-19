@@ -9,6 +9,7 @@ from django.db import IntegrityError, transaction
 
 from users.models import (
     DEFAULT_PROFILE_IMAGE,
+    PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
     USER_USERNAME_UNIQUE_CONSTRAINT_NAME,
     AuthorSubscription,
@@ -34,9 +35,6 @@ def register_user(*, username: str, email: str, password: str) -> User:
 
     validate_username_is_not_email(username)
 
-    if User.objects.filter(username__iexact=username).exists():
-        raise ValidationError({"username": "A user with that username already exists."})
-
     if not email:
         raise ValidationError({"email": "Email is required."})
 
@@ -46,10 +44,7 @@ def register_user(*, username: str, email: str, password: str) -> User:
         with transaction.atomic():
             delete_expired_pending_email_changes()
 
-            if PendingEmailChange.objects.filter(email__iexact=email).exists():
-                raise ValidationError(
-                    {"email": "That email address is currently pending confirmation."}
-                )
+            _validate_registration_availability(username=username, email=email)
 
             return User.objects.create_user(
                 username=username, email=email, password=password, is_active=False
@@ -68,15 +63,15 @@ def register_user(*, username: str, email: str, password: str) -> User:
                 {"username": "A user with that username already exists."}
             ) from e
 
-        if User.objects.filter(email__iexact=email).exists():
+        if constraint_name == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError(
-                {"email": "A user with that email already exists."}
+                {"email": "That email address is currently pending confirmation."}
             ) from e
 
-        if User.objects.filter(username__iexact=username).exists():
-            raise ValidationError(
-                {"username": "A user with that username already exists."}
-            ) from e
+        try:
+            _validate_registration_availability(username=username, email=email)
+        except ValidationError as validation_error:
+            raise validation_error from e
 
         raise
 
@@ -117,9 +112,28 @@ def update_user_profile(
 
     old_image_name = profile.image.name if profile.image else ""
 
+    username = (username or "").strip()
+
+    if not username:
+        raise ValidationError({"username": "Username is required."})
+
+    validate_username_is_not_email(username)
+
     if user.username.strip() != username:
-        user.username = username
-        user.save(update_fields=["username"])
+        if User.objects.exclude(pk=user.pk).filter(username__iexact=username).exists():
+            raise ValidationError(
+                {"username": "A user with that username already exists."}
+            )
+
+        try:
+            user.username = username
+            user.save(update_fields=["username"])
+        except IntegrityError as e:
+            if _get_constraint_name(e) == USER_USERNAME_UNIQUE_CONSTRAINT_NAME:
+                raise ValidationError(
+                    {"username": "A user with that username already exists."}
+                ) from e
+            raise
 
     update_fields = []
 
@@ -177,6 +191,19 @@ def advance_latest_article_publish_sequence(
         id=user_id,
         latest_article_publish_sequence__lt=publish_sequence,
     ).update(latest_article_publish_sequence=publish_sequence)
+
+
+def _validate_registration_availability(*, username: str, email: str) -> None:
+    if User.objects.filter(username__iexact=username).exists():
+        raise ValidationError({"username": "A user with that username already exists."})
+
+    if User.objects.filter(email__iexact=email).exists():
+        raise ValidationError({"email": "A user with that email already exists."})
+
+    if PendingEmailChange.objects.filter(email__iexact=email).exists():
+        raise ValidationError(
+            {"email": "That email address is currently pending confirmation."}
+        )
 
 
 def _should_delete_old_profile_image(

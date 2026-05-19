@@ -41,10 +41,10 @@ class TestEmailChangeConfirmationView(TestCase):
             response.context["form"].pending_email_change_id,
             self.pending_email_change.id,
         )
-        self.assertEqual(response.context["form"].initial["token"], self.token)
+        self.assertEqual(response.context["form"].token, self.token)
 
     def test_post_anonymous_user_redirects_to_login(self):
-        response = self.client.post(self.url, {"token": self.token})
+        response = self.client.post(self.url)
 
         redirect_url = f'{reverse("login")}?next={self.url}'
         self.assertRedirects(
@@ -58,7 +58,7 @@ class TestEmailChangeConfirmationView(TestCase):
 
         self.client.force_login(self.user)
 
-        response = self.client.post(self.url, {"token": self.token})
+        response = self.client.post(self.url)
 
         self.assertRedirects(response, reverse("email-change"))
         mock_check_token.assert_called_once_with(self.user, self.token)
@@ -75,11 +75,11 @@ class TestEmailChangeConfirmationView(TestCase):
 
         self.client.force_login(self.user)
 
-        response = self.client.post(self.url, {"token": self.token})
+        response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
-        self.assertEqual(response.context["form"].initial["token"], self.token)
+        self.assertEqual(response.context["form"].token, self.token)
         self.assertFormError(response.context["form"], None, "Invalid token.")
         mock_check_token.assert_called_once_with(self.user, self.token)
         mock_change_email.assert_not_called()
@@ -93,11 +93,11 @@ class TestEmailChangeConfirmationView(TestCase):
 
         self.client.force_login(self.user)
 
-        response = self.client.post(self.url, {"token": self.token})
+        response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
-        self.assertEqual(response.context["form"].initial["token"], self.token)
+        self.assertEqual(response.context["form"].token, self.token)
         self.assertFormError(
             response.context["form"],
             None,
@@ -131,7 +131,7 @@ class TestEmailChangeConfirmationView(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
-        self.assertEqual(response.context["form"].initial["token"], self.token)
+        self.assertEqual(response.context["form"].token, self.token)
         self.assertFormError(
             response.context["form"],
             None,
@@ -154,7 +154,7 @@ class TestEmailChangeConfirmationView(TestCase):
 
         self.client.force_login(self.user)
 
-        response = self.client.post(self.url, {"token": self.token})
+        response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")

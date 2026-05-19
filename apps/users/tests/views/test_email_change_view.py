@@ -96,9 +96,9 @@ class TestEmailChangeView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change.html")
         self.assertFalse(response.context["form"].is_valid())
-        self.assertIn("new_email", response.context["form"].errors)
+        self.assertIn("__all__", response.context["form"].errors)
         self.assertEqual(
-            response.context["form"].errors["new_email"][0],
+            response.context["form"].errors["__all__"][0],
             "Enter a different email address.",
         )
         mock_send_email.assert_not_called()
@@ -118,10 +118,7 @@ class TestEmailChangeView(TestCase):
         self.assertIn("__all__", response.context["form"].errors)
         self.assertEqual(
             response.context["form"].errors["__all__"][0],
-            (
-                "There is an unfinished email address change process. "
-                "Cancel it to start a new one."
-            ),
+            "There is already a pending email change.",
         )
         mock_send_email.assert_not_called()
 

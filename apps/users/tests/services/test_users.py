@@ -343,6 +343,42 @@ class TestUpdateUserProfile(TestCase):
         )
         self.assertTrue(profile.image.name.endswith(".jpg"))
 
+    def test_rejects_existing_username_case_insensitively(self):
+        User.objects.create_user(username="Taken", email="taken@test.com")
+        user = User.objects.create_user(username="user", email="user@test.com")
+
+        with self.assertRaises(ValidationError) as context:
+            update_user_profile(
+                user=user,
+                username="taken",
+                image=None,
+                image_changed=False,
+                notification_emails_allowed=user.profile.notification_emails_allowed,
+            )
+
+        self.assertEqual(
+            context.exception.message_dict,
+            {"username": ["A user with that username already exists."]},
+        )
+
+    def test_rejects_blank_username(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            update_user_profile(
+                user=user,
+                username="   ",
+                image=None,
+                image_changed=False,
+                notification_emails_allowed=user.profile.notification_emails_allowed,
+            )
+
+        self.assertEqual(
+            context.exception.message_dict, {"username": ["Username is required."]}
+        )
+
     def test_does_not_update_profile_image_when_image_not_changed(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", password="testpass123"
