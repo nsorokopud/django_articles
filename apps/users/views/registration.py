@@ -10,7 +10,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.views import View
-from django.views.generic import CreateView
+from django.views.generic import FormView
 
 from config.settings import LOGIN_URL
 from users.forms import UserCreationForm
@@ -24,8 +24,7 @@ from ..services.users import register_user
 logger = logging.getLogger(__name__)
 
 
-class UserRegistrationView(CreateView):
-    model = User
+class UserRegistrationView(FormView):
     form_class = UserCreationForm
     template_name = "users/registration.html"
     success_url = reverse_lazy("post-registration")
