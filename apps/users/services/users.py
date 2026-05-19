@@ -190,6 +190,13 @@ def _should_delete_old_profile_image(
 
 
 def _delete_profile_image(file_name: str) -> None:
+    if not file_name or file_name == DEFAULT_PROFILE_IMAGE:
+        return
+
+    if Profile.objects.filter(image=file_name).exists():
+        logger.info("Skipped deleting profile image still in use: %s", file_name)
+        return
+
     try:
         default_storage.delete(file_name)
     except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):

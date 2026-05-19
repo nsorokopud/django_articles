@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from users.models import DEFAULT_PROFILE_IMAGE, PendingEmailChange, Profile, User
 from users.services.users import (
+    _delete_profile_image,
     activate_user,
     advance_latest_article_publish_sequence,
     create_user_profile,
@@ -281,7 +282,7 @@ class TestCreateUserProfile(TestCase):
 
 
 @override_settings(MEDIA_ROOT="/tmp/test-media")
-class TestUpdateUserProfileService(TestCase):
+class TestUpdateUserProfile(TestCase):
     def test_updates_username(self):
         user = User.objects.create_user(
             username="old_username", email="user@test.com", password="testpass123"
@@ -535,3 +536,52 @@ class TestAdvanceLatestArticlePublishSequence(TestCase):
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.latest_article_publish_sequence, 10)
+
+
+@override_settings(MEDIA_ROOT="/tmp/test-media")
+class TestDeleteProfileImage(TestCase):
+    def test_does_not_delete_empty_file_name(self):
+        with patch("users.services.users.default_storage.delete") as mock_delete:
+            _delete_profile_image("")
+
+        mock_delete.assert_not_called()
+
+    def test_does_not_delete_default_profile_image(self):
+        with patch("users.services.users.default_storage.delete") as mock_delete:
+            _delete_profile_image(DEFAULT_PROFILE_IMAGE)
+
+        mock_delete.assert_not_called()
+
+    def test_does_not_delete_profile_image_still_in_use(self):
+        user = User.objects.create_user(username="user", email="user@test.com")
+        profile = user.profile
+        profile.image.save("avatar.jpg", ContentFile(b"fake image content"), save=True)
+        image_name = profile.image.name
+
+        with patch("users.services.users.default_storage.delete") as mock_delete:
+            _delete_profile_image(image_name)
+
+        mock_delete.assert_not_called()
+
+    def test_deletes_profile_image_when_not_used_by_any_profile(self):
+        file_name = "users/profile_images/1/old_avatar.jpg"
+
+        with patch("users.services.users.default_storage.delete") as mock_delete:
+            _delete_profile_image(file_name)
+
+        mock_delete.assert_called_once_with(file_name)
+
+    def test_logs_exception_when_delete_fails(self):
+        file_name = "users/profile_images/1/old_avatar.jpg"
+
+        with (
+            patch(
+                "users.services.users.default_storage.delete",
+                side_effect=OSError("error"),
+            ) as mock_delete,
+            patch("users.services.users.logger.exception") as mock_log_exception,
+        ):
+            _delete_profile_image(file_name)
+
+        mock_delete.assert_called_once_with(file_name)
+        mock_log_exception.assert_called_once()
