@@ -133,7 +133,8 @@ class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
         try:
             change_email_address(
                 user_id=self.request.user.id,
-                pending_email_change_id=form.pending_email_change.id,
+                pending_email_change_id=form.pending_email_change_id,
+                token=form.token,
             )
         except ValidationError as e:
             form.add_error(None, e)

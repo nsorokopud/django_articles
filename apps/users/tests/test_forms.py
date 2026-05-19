@@ -1,6 +1,7 @@
 from io import BytesIO
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from PIL import Image
@@ -271,10 +272,7 @@ class TestEmailChangeConfirmationForm(TestCase):
         self.token = "test-token"
         self.data = {}
 
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_valid_form(self, mock_check_token):
-        mock_check_token.return_value = True
-
+    def test_valid_form(self):
         form = EmailChangeConfirmationForm(
             data=self.data,
             user=self.user,
@@ -283,8 +281,8 @@ class TestEmailChangeConfirmationForm(TestCase):
         )
 
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.pending_email_change, self.pending_email_change)
-        mock_check_token.assert_called_once_with(self.user, self.token)
+        self.assertEqual(form.pending_email_change_id, self.pending_email_change.id)
+        self.assertEqual(form.token, self.token)
 
     def test_missing_user(self):
         form = EmailChangeConfirmationForm(
@@ -299,48 +297,45 @@ class TestEmailChangeConfirmationForm(TestCase):
             form.non_field_errors(),
         )
 
-    def test_no_pending_email_change(self):
+    def test_anonymous_user(self):
         form = EmailChangeConfirmationForm(
             data=self.data,
-            user=self.user,
-            pending_email_change_id=self.pending_email_change.id + 1,
-            token=self.token,
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn(
-            "This email change request no longer exists.", form.non_field_errors()
-        )
-
-    def test_pending_email_change_belongs_to_another_user(self):
-        other_user = User.objects.create_user(username="other", email="other@test.com")
-        other_pending_email_change = PendingEmailChange.objects.create(
-            user=other_user, email="other-new@test.com"
-        )
-
-        form = EmailChangeConfirmationForm(
-            data=self.data,
-            user=self.user,
-            pending_email_change_id=other_pending_email_change.id,
-            token=self.token,
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn(
-            "This email change request no longer exists.", form.non_field_errors()
-        )
-
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_invalid_token(self, mock_check_token):
-        mock_check_token.return_value = False
-
-        form = EmailChangeConfirmationForm(
-            data=self.data,
-            user=self.user,
+            user=AnonymousUser(),
             pending_email_change_id=self.pending_email_change.id,
             token=self.token,
         )
 
         self.assertFalse(form.is_valid())
-        self.assertIn("Invalid token.", form.non_field_errors())
-        mock_check_token.assert_called_once_with(self.user, self.token)
+        self.assertIn(
+            "You must be logged in to change the email address.",
+            form.non_field_errors(),
+        )
+
+    def test_missing_pending_email_change_id(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data, user=self.user, token=self.token
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid email change link.", form.non_field_errors())
+
+    def test_missing_token(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data,
+            user=self.user,
+            pending_email_change_id=self.pending_email_change.id,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid email change link.", form.non_field_errors())
+
+    def test_blank_token(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data,
+            user=self.user,
+            pending_email_change_id=self.pending_email_change.id,
+            token="",
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid email change link.", form.non_field_errors())

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -52,44 +53,21 @@ class TestEmailChangeConfirmationView(TestCase):
         )
 
     @patch("users.views.email.change_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_post_valid_token_changes_email(self, mock_check_token, mock_change_email):
-        mock_check_token.return_value = True
-
+    def test_post_valid_link_calls_service_and_redirects(self, mock_change_email):
         self.client.force_login(self.user)
 
         response = self.client.post(self.url)
 
         self.assertRedirects(response, reverse("email-change"))
-        mock_check_token.assert_called_once_with(self.user, self.token)
         mock_change_email.assert_called_once_with(
-            user_id=self.user.id, pending_email_change_id=self.pending_email_change.id
+            user_id=self.user.id,
+            pending_email_change_id=self.pending_email_change.id,
+            token=self.token,
         )
 
     @patch("users.views.email.change_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_post_invalid_token_shows_form_error(
-        self, mock_check_token, mock_change_email
-    ):
-        mock_check_token.return_value = False
-
-        self.client.force_login(self.user)
-
-        response = self.client.post(self.url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "users/email_change_confirm.html")
-        self.assertEqual(response.context["form"].token, self.token)
-        self.assertFormError(response.context["form"], None, "Invalid token.")
-        mock_check_token.assert_called_once_with(self.user, self.token)
-        mock_change_email.assert_not_called()
-
-    @patch("users.views.email.change_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_post_without_pending_email_change_shows_form_error(
-        self, mock_check_token, mock_change_email
-    ):
-        self.pending_email_change.delete()
+    def test_post_service_invalid_token_error_shows_form_error(self, mock_change_email):
+        mock_change_email.side_effect = ValidationError("Invalid email change link.")
 
         self.client.force_login(self.user)
 
@@ -99,55 +77,41 @@ class TestEmailChangeConfirmationView(TestCase):
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
         self.assertEqual(response.context["form"].token, self.token)
         self.assertFormError(
-            response.context["form"],
-            None,
-            "This email change request no longer exists.",
+            response.context["form"], None, "Invalid email change link."
         )
-        mock_check_token.assert_not_called()
-        mock_change_email.assert_not_called()
+        mock_change_email.assert_called_once_with(
+            user_id=self.user.id,
+            pending_email_change_id=self.pending_email_change.id,
+            token=self.token,
+        )
 
     @patch("users.views.email.change_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_post_pending_email_change_for_another_user_shows_form_error(
-        self, mock_check_token, mock_change_email
+    def test_post_service_missing_pending_email_change_error_shows_form_error(
+        self, mock_change_email
     ):
-        other_user = User.objects.create_user(
-            username="otheruser", email="other@test.com"
-        )
-        other_pending_email_change = PendingEmailChange.objects.create(
-            user=other_user, email="other-pending@test.com"
-        )
-        url = reverse(
-            "email-change-confirm",
-            kwargs={
-                "pending_email_change_id": other_pending_email_change.id,
-                "token": self.token,
-            },
+        mock_change_email.side_effect = ValidationError(
+            "This email change request no longer exists."
         )
 
         self.client.force_login(self.user)
 
-        response = self.client.post(url, {"token": self.token})
+        response = self.client.post(self.url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
-        self.assertEqual(response.context["form"].token, self.token)
         self.assertFormError(
             response.context["form"],
             None,
             "This email change request no longer exists.",
         )
-        mock_check_token.assert_not_called()
-        mock_change_email.assert_not_called()
+        mock_change_email.assert_called_once_with(
+            user_id=self.user.id,
+            pending_email_change_id=self.pending_email_change.id,
+            token=self.token,
+        )
 
     @patch("users.views.email.change_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_post_service_validation_error_shows_form_error(
-        self, mock_check_token, mock_change_email
-    ):
-        from django.core.exceptions import ValidationError
-
-        mock_check_token.return_value = True
+    def test_post_service_validation_error_shows_form_error(self, mock_change_email):
         mock_change_email.side_effect = ValidationError(
             "This email address is no longer available."
         )
@@ -161,7 +125,8 @@ class TestEmailChangeConfirmationView(TestCase):
         self.assertFormError(
             response.context["form"], None, "This email address is no longer available."
         )
-        mock_check_token.assert_called_once_with(self.user, self.token)
         mock_change_email.assert_called_once_with(
-            user_id=self.user.id, pending_email_change_id=self.pending_email_change.id
+            user_id=self.user.id,
+            pending_email_change_id=self.pending_email_change.id,
+            token=self.token,
         )

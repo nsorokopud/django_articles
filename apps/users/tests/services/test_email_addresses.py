@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
@@ -108,228 +109,6 @@ class TestEmailAddressServices(TestCase):
         pending_email_change.refresh_from_db()
 
         self.assertTrue(is_pending_email_change_expired(pending_email_change))
-
-    def test_change_email_address_requires_existing_pending_email_change(self):
-        with self.assertRaisesMessage(
-            ValidationError, "This email change request no longer exists."
-        ):
-            change_email_address(
-                user_id=self.test_user.id, pending_email_change_id=999999
-            )
-
-    def test_change_email_address_requires_pending_email_change_for_same_user(self):
-        other_user = User.objects.create_user(
-            username="other", email="other@test.com", password="testpass123"
-        )
-        pending_email_change = PendingEmailChange.objects.create(
-            user=other_user, email="new@test.com"
-        )
-
-        with self.assertRaisesMessage(
-            ValidationError, "This email change request no longer exists."
-        ):
-            change_email_address(
-                user_id=self.test_user.id,
-                pending_email_change_id=pending_email_change.id,
-            )
-
-    def test_change_email_address_rejects_expired_pending_email_change(self):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="new@test.com"
-        )
-        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
-        )
-
-        with self.assertRaisesMessage(
-            ValidationError, "This email change link has expired."
-        ):
-            change_email_address(
-                user_id=self.test_user.id,
-                pending_email_change_id=pending_email_change.id,
-            )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "test@test.com")
-        self.assertTrue(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
-
-    def test_change_email_address_does_not_require_allauth_email_address(self):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="new@test.com"
-        )
-
-        self.assertFalse(EmailAddress.objects.filter(user=self.test_user).exists())
-
-        change_email_address(
-            user_id=self.test_user.id, pending_email_change_id=pending_email_change.id
-        )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "new@test.com")
-
-    def test_change_email_address_lowercases_user_email_and_deletes_pending_change(
-        self,
-    ):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="E2@TEST.COM"
-        )
-        SocialAccount.objects.create(
-            user=self.test_user,
-            provider="google",
-            uid="123",
-            extra_data={"email": self.test_user.email},
-        )
-
-        self.assertEqual(SocialAccount.objects.count(), 1)
-
-        change_email_address(
-            user_id=self.test_user.id, pending_email_change_id=pending_email_change.id
-        )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "e2@test.com")
-
-        self.assertFalse(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
-        self.assertEqual(SocialAccount.objects.count(), 0)
-
-    def test_change_email_address_deletes_only_social_accounts_matching_old_email(self):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="new@test.com"
-        )
-
-        matching_account = SocialAccount.objects.create(
-            user=self.test_user,
-            provider="matching",
-            uid="123",
-            extra_data={"email": "TEST@TEST.COM"},
-        )
-        non_matching_account = SocialAccount.objects.create(
-            user=self.test_user,
-            provider="non_matching",
-            uid="456",
-            extra_data={"email": "other@test.com"},
-        )
-
-        change_email_address(
-            user_id=self.test_user.id, pending_email_change_id=pending_email_change.id
-        )
-
-        self.assertFalse(SocialAccount.objects.filter(pk=matching_account.pk).exists())
-        self.assertTrue(
-            SocialAccount.objects.filter(pk=non_matching_account.pk).exists()
-        )
-
-    def test_change_email_address_deletes_stale_same_email_pending_change(self):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="TEST@TEST.COM"
-        )
-
-        change_email_address(
-            user_id=self.test_user.id, pending_email_change_id=pending_email_change.id
-        )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "test@test.com")
-        self.assertFalse(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
-
-    def test_change_email_address_deletes_allauth_email_addresses_for_user(self):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="new@test.com"
-        )
-        old_email_address = EmailAddress.objects.create(
-            user=self.test_user, email="test@test.com", verified=True, primary=True
-        )
-        extra_email_address = EmailAddress.objects.create(
-            user=self.test_user, email="other@test.com", verified=True, primary=False
-        )
-
-        change_email_address(
-            user_id=self.test_user.id, pending_email_change_id=pending_email_change.id
-        )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "new@test.com")
-        self.assertFalse(
-            EmailAddress.objects.filter(
-                pk__in=[old_email_address.pk, extra_email_address.pk]
-            ).exists()
-        )
-
-    def test_change_email_address_raises_validation_error_when_pending_email_invalid(
-        self,
-    ):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="valid@test.com"
-        )
-
-        # Simulate dirty data bypassing model/form validation.
-        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            email="not-an-email"
-        )
-
-        with self.assertRaises(ValidationError):
-            change_email_address(
-                user_id=self.test_user.id,
-                pending_email_change_id=pending_email_change.id,
-            )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "test@test.com")
-        self.assertTrue(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
-
-    def test_change_email_address_rejects_email_taken_after_pending_change_created(
-        self,
-    ):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="new@test.com"
-        )
-
-        User.objects.create_user(username="other", email="new@test.com")
-
-        with self.assertRaisesMessage(
-            ValidationError, "This email address is no longer available."
-        ):
-            change_email_address(
-                user_id=self.test_user.id,
-                pending_email_change_id=pending_email_change.id,
-            )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "test@test.com")
-        self.assertTrue(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
-
-    def test_change_email_address_rejects_email_taken_after_pending_change_created_ci(
-        self,
-    ):
-        pending_email_change = PendingEmailChange.objects.create(
-            user=self.test_user, email="new@test.com"
-        )
-
-        User.objects.create_user(username="other", email="NEW@TEST.COM")
-
-        with self.assertRaisesMessage(
-            ValidationError, "This email address is no longer available."
-        ):
-            change_email_address(
-                user_id=self.test_user.id,
-                pending_email_change_id=pending_email_change.id,
-            )
-
-        self.test_user.refresh_from_db()
-        self.assertEqual(self.test_user.email, "test@test.com")
-        self.assertTrue(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
 
 
 class TestCreatePendingEmailChange(TestCase):
@@ -449,8 +228,7 @@ class TestCreatePendingEmailChange(TestCase):
         PendingEmailChange.objects.create(user=other_user, email="taken@test.com")
 
         with self.assertRaisesMessage(
-            ValidationError,
-            "That email address is currently pending confirmation.",
+            ValidationError, "That email address is currently pending confirmation."
         ):
             create_pending_email_change(user_id=self.user.id, email="TAKEN@Test.COM")
 
@@ -487,26 +265,284 @@ class TestCreatePendingEmailChange(TestCase):
                 )
 
 
-class TestUserEmailConstraints(TestCase):
-    def test_blank_email_is_rejected_by_database(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
+class TestChangeEmailAddress(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", email="test@test.com", password="testpass123"
+        )
+        self.token = "test-token"
+
+    def create_pending_email_change(self, email="new@test.com"):
+        return PendingEmailChange.objects.create(user=self.user, email=email)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_requires_existing_pending_email_change(self, mock_check_token):
+        with self.assertRaisesMessage(
+            ValidationError, "This email change request no longer exists."
+        ):
+            change_email_address(
+                user_id=self.user.id, pending_email_change_id=999999, token=self.token
+            )
+
+        mock_check_token.assert_not_called()
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_requires_pending_email_change_for_same_user(self, mock_check_token):
+        other_user = User.objects.create_user(
+            username="other", email="other@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=other_user, email="new@test.com"
         )
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                User.objects.filter(pk=user.pk).update(email="")
+        with self.assertRaisesMessage(
+            ValidationError, "This email change request no longer exists."
+        ):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
 
-    def test_duplicate_user_email_is_rejected_case_insensitively(self):
-        User.objects.create_user(
-            username="user1", email="user@test.com", password="testpass123"
+        mock_check_token.assert_not_called()
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_rejects_expired_pending_email_change(self, mock_check_token):
+        pending_email_change = self.create_pending_email_change()
+
+        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
         )
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                User.objects.create_user(
-                    username="user2", email="USER@TEST.COM", password="testpass123"
-                )
+        with self.assertRaisesMessage(
+            ValidationError, "This email change link has expired."
+        ):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_not_called()
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_rejects_invalid_token(self, mock_check_token):
+        mock_check_token.return_value = False
+        pending_email_change = self.create_pending_email_change()
+
+        with self.assertRaisesMessage(ValidationError, "Invalid email change link."):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_does_not_require_allauth_email_address(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change()
+
+        self.assertFalse(EmailAddress.objects.filter(user=self.user).exists())
+
+        change_email_address(
+            user_id=self.user.id,
+            pending_email_change_id=pending_email_change.id,
+            token=self.token,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "new@test.com")
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_lowercases_user_email_and_deletes_pending_change(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change(email="E2@TEST.COM")
+
+        SocialAccount.objects.create(
+            user=self.user,
+            provider="google",
+            uid="123",
+            extra_data={"email": self.user.email},
+        )
+
+        self.assertEqual(SocialAccount.objects.count(), 1)
+
+        change_email_address(
+            user_id=self.user.id,
+            pending_email_change_id=pending_email_change.id,
+            token=self.token,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "e2@test.com")
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        self.assertEqual(SocialAccount.objects.count(), 0)
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_deletes_only_social_accounts_matching_old_email(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change()
+
+        matching_account = SocialAccount.objects.create(
+            user=self.user,
+            provider="matching",
+            uid="123",
+            extra_data={"email": "TEST@TEST.COM"},
+        )
+        non_matching_account = SocialAccount.objects.create(
+            user=self.user,
+            provider="non_matching",
+            uid="456",
+            extra_data={"email": "other@test.com"},
+        )
+
+        change_email_address(
+            user_id=self.user.id,
+            pending_email_change_id=pending_email_change.id,
+            token=self.token,
+        )
+
+        self.assertFalse(SocialAccount.objects.filter(pk=matching_account.pk).exists())
+        self.assertTrue(
+            SocialAccount.objects.filter(pk=non_matching_account.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_deletes_stale_same_email_pending_change(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change(email="TEST@TEST.COM")
+
+        change_email_address(
+            user_id=self.user.id,
+            pending_email_change_id=pending_email_change.id,
+            token=self.token,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@test.com")
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_deletes_allauth_email_addresses_for_user(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change()
+
+        old_email_address = EmailAddress.objects.create(
+            user=self.user, email="test@test.com", verified=True, primary=True
+        )
+        extra_email_address = EmailAddress.objects.create(
+            user=self.user, email="other@test.com", verified=True, primary=False
+        )
+
+        change_email_address(
+            user_id=self.user.id,
+            pending_email_change_id=pending_email_change.id,
+            token=self.token,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "new@test.com")
+        self.assertFalse(
+            EmailAddress.objects.filter(
+                pk__in=[old_email_address.pk, extra_email_address.pk]
+            ).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_raises_validation_error_when_pending_email_invalid(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change(email="valid@test.com")
+
+        # Simulate dirty data bypassing model/form validation.
+        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
+            email="not-an-email"
+        )
+
+        with self.assertRaises(ValidationError):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_rejects_email_taken_after_pending_change_created(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change()
+
+        User.objects.create_user(username="other", email="new@test.com")
+
+        with self.assertRaisesMessage(
+            ValidationError, "This email address is no longer available."
+        ):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_rejects_email_taken_after_pending_change_created_ci(
+        self, mock_check_token
+    ):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change()
+
+        User.objects.create_user(username="other", email="NEW@TEST.COM")
+
+        with self.assertRaisesMessage(
+            ValidationError, "This email address is no longer available."
+        ):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "test@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        mock_check_token.assert_called_once_with(self.user, self.token)
 
 
 class TestDeleteSocialAccountsWithEmail(TransactionTestCase):

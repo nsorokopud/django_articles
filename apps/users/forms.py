@@ -4,9 +4,8 @@ from django.contrib.auth.forms import UserCreationForm as DefaultUserCreationFor
 from hcaptcha_field import hCaptchaField
 
 from core.validators import validate_uploaded_image
-from users.models import PendingEmailChange, Profile, User
+from users.models import Profile, User
 
-from .services.tokens import email_change_token_generator
 from .validators import validate_username_is_not_email
 
 
@@ -75,7 +74,6 @@ class EmailChangeConfirmationForm(forms.Form):
         self.user = kwargs.pop("user", None)
         self.pending_email_change_id = kwargs.pop("pending_email_change_id", None)
         self.token = kwargs.pop("token", None)
-        self.pending_email_change = None
         super().__init__(*args, **kwargs)
 
     def clean(self):
@@ -86,17 +84,7 @@ class EmailChangeConfirmationForm(forms.Form):
                 "You must be logged in to change the email address."
             )
 
-        try:
-            pending_email_change = PendingEmailChange.objects.get(
-                id=self.pending_email_change_id, user=self.user
-            )
-        except PendingEmailChange.DoesNotExist as e:
-            raise forms.ValidationError(
-                "This email change request no longer exists."
-            ) from e
+        if not self.pending_email_change_id or not self.token:
+            raise forms.ValidationError("Invalid email change link.")
 
-        if not email_change_token_generator.check_token(self.user, self.token):
-            raise forms.ValidationError("Invalid token.")
-
-        self.pending_email_change = pending_email_change
         return cleaned_data

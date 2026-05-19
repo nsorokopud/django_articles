@@ -10,6 +10,8 @@ from django.utils import timezone
 from users.models import USER_EMAIL_UNIQUE_CONSTRAINT_NAME, PendingEmailChange, User
 from users.settings import PENDING_EMAIL_CHANGE_TTL
 
+from .tokens import email_change_token_generator
+
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,9 @@ def delete_pending_email_change(user: User) -> None:
 
 
 @transaction.atomic
-def change_email_address(*, user_id: int, pending_email_change_id: int) -> None:
+def change_email_address(
+    *, user_id: int, pending_email_change_id: int, token: str
+) -> None:
     logger.info("Attempting to change email address for User(id=%s).", user_id)
 
     user = User.objects.select_for_update().get(id=user_id)
@@ -79,8 +83,10 @@ def change_email_address(*, user_id: int, pending_email_change_id: int) -> None:
         raise ValidationError("This email change request no longer exists.") from e
 
     if is_pending_email_change_expired(pending_email_change):
-        pending_email_change.delete()
         raise ValidationError("This email change link has expired.")
+
+    if not email_change_token_generator.check_token(user, token):
+        raise ValidationError("Invalid email change link.")
 
     new_email = pending_email_change.email.strip().lower()
     old_email = (user.email or "").strip().lower()
@@ -90,7 +96,6 @@ def change_email_address(*, user_id: int, pending_email_change_id: int) -> None:
     if old_email == new_email:
         pending_email_change.delete()
         _delete_allauth_email_addresses_for_user(user_id)
-
         logger.info(
             "Deleted stale same-email PendingEmailChange(id=%s, user_id=%s).",
             pending_email_change_id,
