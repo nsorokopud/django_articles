@@ -23,6 +23,10 @@ PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME = (
     "users_pending_email_change_email_ci_unique"
 )
 
+TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME = (
+    "users_token_counter_user_type_unique"  # nosec B105
+)
+
 
 class User(AbstractUser):
     email = models.EmailField()
@@ -200,15 +204,15 @@ class TokenCounter(models.Model):
     token_count = models.PositiveBigIntegerField(default=0)
 
     class Meta:
-        unique_together = ["user", "token_type"]
-        indexes = [
-            models.Index(fields=["user", "token_type"]),
-        ]
         constraints = [
+            models.UniqueConstraint(
+                fields=["user", "token_type"],
+                name=TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME,
+            ),
             models.CheckConstraint(
                 condition=models.Q(token_type__in=TokenType.values),
                 name="%(app_label)s_%(class)s_token_type_valid",
-            )
+            ),
         ]
 
     def __str__(self):

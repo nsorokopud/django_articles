@@ -5,7 +5,11 @@ from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import IntegrityError, connection, transaction
 
-from ..models import TokenCounter, TokenType
+from ..models import (
+    TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME,
+    TokenCounter,
+    TokenType,
+)
 from ..selectors import get_pending_email_change
 
 
@@ -72,7 +76,11 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
                     user=user, token_type=self.token_type, token_count=1
                 )
                 return counter.token_count
-            except IntegrityError:
+            except IntegrityError as e:
+                constraint_name = _get_constraint_name(e)
+                if constraint_name != TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME:
+                    raise
+
                 logger.warning(
                     "Race condition while creating TokenCounter(user_id=%s, "
                     "token_type=%s). Falling back to select_for_update().get()",
@@ -126,6 +134,11 @@ class CustomPasswordResetTokenGenerator(BaseTokenGenerator):
     """
 
     token_type = TokenType.PASSWORD_CHANGE  # type: ignore[assignment]
+
+
+def _get_constraint_name(exc: IntegrityError) -> str | None:
+    diagnostics = getattr(exc.__cause__, "diag", None)
+    return getattr(diagnostics, "constraint_name", None)
 
 
 activation_token_generator = AccountActivationTokenGenerator()
