@@ -212,6 +212,28 @@ class TestRegisterUser(TestCase):
             PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
         )
 
+    def test_does_not_delete_unrelated_expired_pending_email_change(self):
+        existing_user = User.objects.create_user(
+            username="existing", email="existing@test.com", password="testpass123"
+        )
+        unrelated_pending_email_change = PendingEmailChange.objects.create(
+            user=existing_user, email="unrelated@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=unrelated_pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+        user = register_user(
+            username="newuser", email="new@test.com", password="testpass123"
+        )
+
+        self.assertEqual(user.email, "new@test.com")
+        self.assertTrue(
+            PendingEmailChange.objects.filter(
+                pk=unrelated_pending_email_change.pk
+            ).exists()
+        )
+
 
 class TestActivateUser(TestCase):
     def test_activates_user(self):

@@ -18,15 +18,16 @@ logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChange:
-    delete_expired_pending_email_changes()
-
-    user = User.objects.select_for_update().get(pk=user_id)
     email = (email or "").strip().lower()
 
     if not email:
         raise ValidationError("Email is required.")
 
     validate_email(email)
+
+    delete_expired_pending_email_changes_for_email(email=email)
+
+    user = User.objects.select_for_update().get(pk=user_id)
 
     if PendingEmailChange.objects.filter(user=user).exists():
         raise ValidationError("There is already a pending email change.")
@@ -160,16 +161,15 @@ def delete_social_accounts_with_email(*, user_id: int, email: str) -> None:
 
 
 def delete_expired_pending_email_changes() -> int:
-    cutoff = timezone.now() - PENDING_EMAIL_CHANGE_TTL
+    return _delete_expired_pending_email_changes()
 
-    deleted_count, _ = PendingEmailChange.objects.filter(
-        created_at__lte=cutoff
-    ).delete()
 
-    if deleted_count:
-        logger.info("Deleted %d expired pending email changes.", deleted_count)
+def delete_expired_pending_email_changes_for_email(*, email: str) -> int:
+    email = (email or "").strip().lower()
+    if not email:
+        return 0
 
-    return deleted_count
+    return _delete_expired_pending_email_changes(email=email)
 
 
 def is_pending_email_change_expired(pending_email_change: PendingEmailChange) -> bool:
@@ -189,6 +189,34 @@ def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
     logger.info(
         "Deleted %d allauth EmailAddress rows for User(id=%s).", deleted_count, user_id
     )
+
+
+def _delete_expired_pending_email_changes(*, email: str | None = None) -> int:
+    cutoff = timezone.now() - PENDING_EMAIL_CHANGE_TTL
+
+    queryset = PendingEmailChange.objects.filter(created_at__lte=cutoff)
+
+    if email:
+        queryset = queryset.filter(email__iexact=email)
+
+    deleted_count, _ = queryset.delete()
+
+    if deleted_count:
+        if email:
+            logger.info(
+                "Deleted %d expired pending email change%s for email %s.",
+                deleted_count,
+                "" if deleted_count == 1 else "s",
+                email,
+            )
+        else:
+            logger.info(
+                "Deleted %d expired pending email change%s.",
+                deleted_count,
+                "" if deleted_count == 1 else "s",
+            )
+
+    return deleted_count
 
 
 def _is_user_email_unique_violation(exc: IntegrityError) -> bool:

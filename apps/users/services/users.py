@@ -20,7 +20,7 @@ from users.models import (
 
 from ..cache import get_subscribers_count_cache_key
 from ..validators import validate_username_is_not_email
-from .email_addresses import delete_expired_pending_email_changes
+from .email_addresses import delete_expired_pending_email_changes_for_email
 
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def register_user(*, username: str, email: str, password: str) -> User:
 
     try:
         with transaction.atomic():
-            delete_expired_pending_email_changes()
+            delete_expired_pending_email_changes_for_email(email=email)
 
             _validate_registration_availability(username=username, email=email)
 

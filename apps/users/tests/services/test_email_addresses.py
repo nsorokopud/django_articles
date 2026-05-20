@@ -14,6 +14,7 @@ from users.services.email_addresses import (
     _delete_allauth_email_addresses_for_user,
     create_pending_email_change,
     delete_expired_pending_email_changes,
+    delete_expired_pending_email_changes_for_email,
     delete_pending_email_change,
     delete_social_accounts_with_email,
     is_pending_email_change_expired,
@@ -148,7 +149,7 @@ class TestCreatePendingEmailChange(TestCase):
 
         self.assertEqual(pending_email_change.email, "new.email@test.com")
 
-    def test_deletes_expired_pending_email_changes_before_creating_new_one(self):
+    def test_deletes_expired_pending_email_change_before_creating_new_one(self):
         other_user = User.objects.create_user(
             username="other", email="other@test.com", password="testpass123"
         )
@@ -166,6 +167,29 @@ class TestCreatePendingEmailChange(TestCase):
         self.assertEqual(pending_email_change.user_id, self.user.id)
         self.assertEqual(pending_email_change.email, "new@test.com")
         self.assertFalse(
+            PendingEmailChange.objects.filter(
+                pk=expired_pending_email_change.pk
+            ).exists()
+        )
+
+    def test_does_not_delete_unrelated_expired_pending_email_change(self):
+        other_user = User.objects.create_user(
+            username="other", email="other@test.com", password="testpass123"
+        )
+        expired_pending_email_change = PendingEmailChange.objects.create(
+            user=other_user, email="unrelated@test.com"
+        )
+        PendingEmailChange.objects.filter(pk=expired_pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+        pending_email_change = create_pending_email_change(
+            user_id=self.user.id, email="new@test.com"
+        )
+
+        self.assertEqual(pending_email_change.user_id, self.user.id)
+        self.assertEqual(pending_email_change.email, "new@test.com")
+        self.assertTrue(
             PendingEmailChange.objects.filter(
                 pk=expired_pending_email_change.pk
             ).exists()
@@ -705,3 +729,93 @@ class TestDeleteAllauthEmailAddressesForUser(TransactionTestCase):
             ).exists()
         )
         self.assertTrue(EmailAddress.objects.filter(pk=other_email_address.pk).exists())
+
+
+class TestDeleteExpiredPendingEmailChanges(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username="user1", email="user1@test.com")
+        self.user2 = User.objects.create_user(username="other", email="user2@test.com")
+
+    def _expire(self, pending_email_change):
+        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
+            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+        )
+
+    def test_delete_expired_pending_email_changes_deletes_all_expired_rows(self):
+        expired_one = PendingEmailChange.objects.create(
+            user=self.user1, email="one@test.com"
+        )
+        expired_two = PendingEmailChange.objects.create(
+            user=self.user2, email="two@test.com"
+        )
+
+        self._expire(expired_one)
+        self._expire(expired_two)
+
+        deleted_count = delete_expired_pending_email_changes()
+
+        self.assertEqual(deleted_count, 2)
+        self.assertFalse(PendingEmailChange.objects.filter(pk=expired_one.pk).exists())
+        self.assertFalse(PendingEmailChange.objects.filter(pk=expired_two.pk).exists())
+
+    def test_delete_expired_pending_email_changes_keeps_non_expired_rows(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.user1, email="new@test.com"
+        )
+
+        deleted_count = delete_expired_pending_email_changes()
+
+        self.assertEqual(deleted_count, 0)
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+
+    def test_delete_expired_pending_email_changes_for_email_deletes_only_matching_email(
+        self,
+    ):
+        matching = PendingEmailChange.objects.create(
+            user=self.user1, email="target1@test.com"
+        )
+        unrelated = PendingEmailChange.objects.create(
+            user=self.user2, email="target2@test.com"
+        )
+
+        self._expire(matching)
+        self._expire(unrelated)
+
+        deleted_count = delete_expired_pending_email_changes_for_email(
+            email="TARGET1@Test.COM"
+        )
+
+        self.assertEqual(deleted_count, 1)
+        self.assertFalse(PendingEmailChange.objects.filter(pk=matching.pk).exists())
+        self.assertTrue(PendingEmailChange.objects.filter(pk=unrelated.pk).exists())
+
+    def test_delete_expired_pending_email_changes_for_email_keeps_non_expired_match(
+        self,
+    ):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.user1, email="target@test.com"
+        )
+
+        deleted_count = delete_expired_pending_email_changes_for_email(
+            email="target@test.com"
+        )
+
+        self.assertEqual(deleted_count, 0)
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+
+    def test_delete_expired_pending_email_changes_for_email_ignores_blank_email(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.user1, email="target@test.com"
+        )
+        self._expire(pending_email_change)
+
+        deleted_count = delete_expired_pending_email_changes_for_email(email="   ")
+
+        self.assertEqual(deleted_count, 0)
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
