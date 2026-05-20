@@ -7,7 +7,12 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
-from users.models import USER_EMAIL_UNIQUE_CONSTRAINT_NAME, PendingEmailChange, User
+from users.models import (
+    PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
+    USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
+    PendingEmailChange,
+    User,
+)
 from users.settings import PENDING_EMAIL_CHANGE_TTL
 
 from .tokens import email_change_token_generator
@@ -44,9 +49,12 @@ def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChan
     try:
         pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
     except IntegrityError as e:
-        raise ValidationError(
-            "This email is already in use or pending confirmation."
-        ) from e
+        if _get_constraint_name(e) == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
+            raise ValidationError(
+                "That email address is currently pending confirmation."
+            ) from e
+
+        raise
 
     logger.info(
         "PendingEmailChange(id=%s, user_id=%s) was created.",
@@ -119,7 +127,7 @@ def change_email_address(
         user.save(update_fields=["email"])
         pending_email_change.delete()
     except IntegrityError as e:
-        if _is_user_email_unique_violation(e):
+        if _get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError("This email address is no longer available.") from e
         raise
 
@@ -219,7 +227,6 @@ def _delete_expired_pending_email_changes(*, email: str | None = None) -> int:
     return deleted_count
 
 
-def _is_user_email_unique_violation(exc: IntegrityError) -> bool:
+def _get_constraint_name(exc: IntegrityError) -> str | None:
     diagnostics = getattr(exc.__cause__, "diag", None)
-    constraint_name = getattr(diagnostics, "constraint_name", None)
-    return constraint_name == USER_EMAIL_UNIQUE_CONSTRAINT_NAME
+    return getattr(diagnostics, "constraint_name", None)
