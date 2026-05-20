@@ -63,9 +63,18 @@ class TokenCounterAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "get_profile_image")
+    list_display = ("user", "get_profile_image", "notification_emails_allowed")
     search_fields = ("user__username", "user__email")
-    readonly_fields = ("user",)
+    readonly_fields = ("user", "image", "notification_emails_allowed")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
     @admin.display(description="Profile image")
     def get_profile_image(self, profile):
