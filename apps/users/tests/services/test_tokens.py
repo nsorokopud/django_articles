@@ -11,6 +11,8 @@ from users.services.tokens import (
     password_reset_token_generator,
 )
 
+from ...normalization import normalize_email
+
 
 class TestBaseTokenGenerator(TestCase):
     class TestTokenGenerator(BaseTokenGenerator):
@@ -208,7 +210,7 @@ class TestEmailChangeTokenGenerator(TestCase):
 
         self.assertIn(f"{generator.token_type}0", hash_value)
         self.assertIn(str(self.pending_email_change.pk), hash_value)
-        self.assertIn(self.pending_email_change.email.strip().lower(), hash_value)
+        self.assertIn(normalize_email(self.pending_email_change.email), hash_value)
 
     def test_make_hash_value_without_pending_email_change(self):
         self.pending_email_change.delete()

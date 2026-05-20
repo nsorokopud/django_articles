@@ -5,6 +5,8 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from .normalization import normalize_email
+
 
 class AccountAdapter(DefaultAccountAdapter):
     def get_password_change_redirect_url(self, request):
@@ -28,8 +30,8 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
         extra_data = sociallogin.account.extra_data or {}
 
-        user_email = (sociallogin.user.email or "").strip().lower()
-        google_email = (extra_data.get("email") or "").strip().lower()
+        user_email = normalize_email(sociallogin.user.email)
+        google_email = normalize_email(extra_data.get("email"))
         verified = extra_data.get("email_verified")
 
         if not user_email or not google_email:

@@ -5,6 +5,8 @@ from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.models import AbstractUser
 from django.http.request import HttpRequest
 
+from .normalization import normalize_email, normalize_username
+
 
 class EmailOrUsernameAuthenticationBackend(ModelBackend):
     def authenticate(
@@ -22,14 +24,16 @@ class EmailOrUsernameAuthenticationBackend(ModelBackend):
         if username is None or password is None:
             return None
 
-        identifier = username.strip()
-        if not identifier:
+        raw_identifier = normalize_username(username)
+        if not raw_identifier:
             return None
 
         try:
-            if "@" in identifier:
+            if "@" in raw_identifier:
+                identifier = normalize_email(raw_identifier)
                 user = UserModel.objects.get(email__iexact=identifier)
             else:
+                identifier = normalize_username(raw_identifier)
                 user = UserModel.objects.get(username__iexact=identifier)
         except UserModel.DoesNotExist:
             return None

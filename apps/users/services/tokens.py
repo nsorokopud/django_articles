@@ -10,6 +10,7 @@ from ..models import (
     TokenCounter,
     TokenType,
 )
+from ..normalization import normalize_email
 from ..selectors import get_pending_email_change
 
 
@@ -123,7 +124,7 @@ class EmailChangeTokenGenerator(BaseTokenGenerator):
         return (
             f"{base_hash}"
             f"{pending_email_change.pk}"
-            f"{pending_email_change.email.strip().lower()}"
+            f"{normalize_email(pending_email_change.email)}"
         )
 
 

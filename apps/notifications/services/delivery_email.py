@@ -1,6 +1,7 @@
 from typing import Optional
 
 from core.services import EmailConfigDict
+from users.normalization import normalize_email
 
 from ..models import Notification, NotificationType
 
@@ -32,7 +33,7 @@ def build_notification_email_config(notification_id: int) -> Optional[EmailConfi
     if not n.recipient.profile.notification_emails_allowed:
         return None
 
-    email = (n.recipient.email or "").strip()
+    email = normalize_email(n.recipient.email)
     if not email:
         return None
 

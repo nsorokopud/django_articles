@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils.text import get_valid_filename
 
+from .normalization import normalize_email, normalize_username
 from .validators import validate_username_is_not_email
 
 
@@ -62,20 +63,14 @@ class User(AbstractUser):
     def clean(self):
         super().clean()
 
-        if self.username:
-            self.username = self.username.strip()
-            validate_username_is_not_email(self.username)
-
-        if self.email:
-            self.email = self.email.strip().lower()
+        self.username = normalize_username(self.username)
+        validate_username_is_not_email(self.username)
+        self.email = normalize_email(self.email)
 
     def save(self, *args, **kwargs):
-        if self.username:
-            self.username = self.username.strip()
-            validate_username_is_not_email(self.username)
-
-        if self.email:
-            self.email = self.email.strip().lower()
+        self.username = normalize_username(self.username)
+        validate_username_is_not_email(self.username)
+        self.email = normalize_email(self.email)
 
         super().save(*args, **kwargs)
 
@@ -101,12 +96,10 @@ class PendingEmailChange(models.Model):
 
     def clean(self):
         super().clean()
-        if self.email:
-            self.email = self.email.strip().lower()
+        self.email = normalize_email(self.email)
 
     def save(self, *args, **kwargs):
-        if self.email:
-            self.email = self.email.strip().lower()
+        self.email = normalize_email(self.email)
         super().save(*args, **kwargs)
 
     def __str__(self):

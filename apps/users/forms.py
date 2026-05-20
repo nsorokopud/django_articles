@@ -8,6 +8,7 @@ from hcaptcha_field import hCaptchaField
 from core.validators import validate_uploaded_image
 from users.models import Profile, User
 
+from .normalization import normalize_email, normalize_username
 from .validators import validate_username_is_not_email
 
 
@@ -24,12 +25,12 @@ class UserCreationForm(DefaultUserCreationForm):
         fields = ["username", "email", "password1", "password2"]
 
     def clean_username(self):
-        username = (self.cleaned_data.get("username") or "").strip()
+        username = normalize_username(self.cleaned_data.get("username"))
         validate_username_is_not_email(username)
         return username
 
     def clean_email(self):
-        return (self.cleaned_data.get("email") or "").strip().lower()
+        return normalize_email(self.cleaned_data.get("email"))
 
 
 class UserUpdateForm(forms.ModelForm):
@@ -38,7 +39,7 @@ class UserUpdateForm(forms.ModelForm):
         fields = ["username"]
 
     def clean_username(self):
-        username = (self.cleaned_data.get("username") or "").strip()
+        username = normalize_username(self.cleaned_data.get("username"))
         validate_username_is_not_email(username)
         return username
 
@@ -62,7 +63,7 @@ class EmailChangeForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def clean_new_email(self):
-        return self.cleaned_data["new_email"].strip().lower()
+        return normalize_email(self.cleaned_data["new_email"])
 
     def clean(self):
         cleaned_data = super().clean()

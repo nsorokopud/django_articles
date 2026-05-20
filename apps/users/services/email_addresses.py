@@ -15,6 +15,7 @@ from users.models import (
 )
 from users.settings import PENDING_EMAIL_CHANGE_TTL
 
+from ..normalization import normalize_email
 from .tokens import email_change_token_generator
 
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChange:
-    email = (email or "").strip().lower()
+    email = normalize_email(email)
 
     if not email:
         raise ValidationError("Email is required.")
@@ -37,7 +38,7 @@ def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChan
     if PendingEmailChange.objects.filter(user=user).exists():
         raise ValidationError("There is already a pending email change.")
 
-    if (user.email or "").strip().lower() == email:
+    if normalize_email(user.email) == email:
         raise ValidationError("Enter a different email address.")
 
     if User.objects.exclude(pk=user_id).filter(email__iexact=email).exists():
@@ -97,8 +98,8 @@ def change_email_address(
     if not email_change_token_generator.check_token(user, token):
         raise ValidationError("Invalid email change link.")
 
-    new_email = pending_email_change.email.strip().lower()
-    old_email = (user.email or "").strip().lower()
+    new_email = normalize_email(pending_email_change.email)
+    old_email = normalize_email(user.email)
 
     validate_email(new_email)
 
@@ -145,13 +146,13 @@ def delete_social_accounts_with_email(*, user_id: int, email: str) -> None:
             "This function must be called inside an atomic transaction."
         )
 
-    normalized_email = email.strip().lower()
+    normalized_email = normalize_email(email)
 
     accounts = SocialAccount.objects.select_for_update().filter(user_id=user_id)
 
     count = 0
     for account in accounts:
-        account_email = (account.extra_data.get("email") or "").strip().lower()
+        account_email = normalize_email(account.extra_data.get("email"))
 
         if account_email != normalized_email:
             continue
@@ -173,7 +174,7 @@ def delete_expired_pending_email_changes() -> int:
 
 
 def delete_expired_pending_email_changes_for_email(*, email: str) -> int:
-    email = (email or "").strip().lower()
+    email = normalize_email(email)
     if not email:
         return 0
 

@@ -11,6 +11,7 @@ from core.services.email import EmailConfig, mask_email
 from core.tasks import send_email_task
 
 from ..models import PendingEmailChange, User
+from ..normalization import normalize_email
 from ..settings import (
     ACTIVATION_EMAIL_HTML_TEMPLATE,
     ACTIVATION_EMAIL_SUBJECT,
@@ -51,7 +52,7 @@ def send_email_change_link(
     if pending_email_change.user_id != user.id:
         raise ValidationError("Pending email change does not belong to this user.")
 
-    new_email = pending_email_change.email.strip().lower()
+    new_email = normalize_email(pending_email_change.email)
     validate_email(new_email)
 
     token = email_change_token_generator.make_token(user)
