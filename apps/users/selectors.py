@@ -11,7 +11,7 @@ from users.models import AuthorSubscription, PendingEmailChange, User
 def get_author_with_viewer_subscription_status(
     author_id: int, viewer: User | AnonymousUser
 ) -> User:
-    """Fetches author by ID and annotates them with a boolean field
+    """Fetches an active author by ID and annotates them with a boolean field
     'is_subscribed_by_viewer', indicating whether the provided viewer is
     subscribed to the author.
     """
@@ -22,13 +22,14 @@ def get_author_with_viewer_subscription_status(
         if viewer.is_authenticated
         else Value(False, output_field=BooleanField())
     )
-    queryset = User.objects.select_related("profile").annotate(
-        is_subscribed_by_viewer=annotation
+
+    queryset = (
+        User.objects.filter(is_active=True)
+        .select_related("profile")
+        .annotate(is_subscribed_by_viewer=annotation)
     )
-    return get_object_or_404(
-        queryset,
-        pk=author_id,
-    )
+
+    return get_object_or_404(queryset, pk=author_id)
 
 
 def get_user_by_id(user_id: int) -> User:

@@ -111,6 +111,13 @@ class TestGetAuthorWithViewerSubscriptionStatus(TestCase):
         author = get_author_with_viewer_subscription_status(self.author.id, anonymous)
         self.assertFalse(author.is_subscribed_by_viewer)
 
-    def test_author_does_not_exist(self):
+    def test_inactive_author_raises_404(self):
+        self.author.is_active = False
+        self.author.save(update_fields=["is_active"])
+
+        with self.assertRaises(Http404):
+            get_author_with_viewer_subscription_status(self.author.id, self.user)
+
+    def test_non_existent_author_raises_404(self):
         with self.assertRaises(Http404):
             get_author_with_viewer_subscription_status(9999, self.user)
