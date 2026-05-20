@@ -274,15 +274,17 @@ class TestEmailChangeConfirmationForm(TestCase):
     def test_valid_form(self):
         form = EmailChangeConfirmationForm(
             data=self.data,
-            pending_email_change_id=self.pending_email_change.id,
+            pending_email_change_public_id=self.pending_email_change.public_id,
             token=self.token,
         )
 
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.pending_email_change_id, self.pending_email_change.id)
+        self.assertEqual(
+            form.pending_email_change_public_id, self.pending_email_change.public_id
+        )
         self.assertEqual(form.token, self.token)
 
-    def test_missing_pending_email_change_id(self):
+    def test_missing_pending_email_change_public_id(self):
         form = EmailChangeConfirmationForm(data=self.data, token=self.token)
 
         self.assertFalse(form.is_valid())
@@ -290,7 +292,8 @@ class TestEmailChangeConfirmationForm(TestCase):
 
     def test_missing_token(self):
         form = EmailChangeConfirmationForm(
-            data=self.data, pending_email_change_id=self.pending_email_change.id
+            data=self.data,
+            pending_email_change_public_id=self.pending_email_change.public_id,
         )
 
         self.assertFalse(form.is_valid())
@@ -299,16 +302,16 @@ class TestEmailChangeConfirmationForm(TestCase):
     def test_blank_token(self):
         form = EmailChangeConfirmationForm(
             data=self.data,
-            pending_email_change_id=self.pending_email_change.id,
+            pending_email_change_public_id=self.pending_email_change.public_id,
             token="",
         )
 
         self.assertFalse(form.is_valid())
         self.assertIn("Invalid email change link.", form.non_field_errors())
 
-    def test_zero_pending_email_change_id_is_invalid(self):
+    def test_missing_public_id_is_invalid(self):
         form = EmailChangeConfirmationForm(
-            data=self.data, pending_email_change_id=0, token=self.token
+            data=self.data, pending_email_change_public_id=None, token=self.token
         )
 
         self.assertFalse(form.is_valid())

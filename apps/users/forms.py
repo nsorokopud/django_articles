@@ -74,14 +74,16 @@ class EmailChangeForm(forms.Form):
 
 class EmailChangeConfirmationForm(forms.Form):
     def __init__(self, *args, **kwargs) -> None:
-        self.pending_email_change_id = kwargs.pop("pending_email_change_id", None)
+        self.pending_email_change_public_id = kwargs.pop(
+            "pending_email_change_public_id", None
+        )
         self.token = kwargs.pop("token", None)
         super().__init__(*args, **kwargs)
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
 
-        if not self.pending_email_change_id or not self.token:
+        if not self.pending_email_change_public_id or not self.token:
             raise forms.ValidationError("Invalid email change link.")
 
         return cleaned_data

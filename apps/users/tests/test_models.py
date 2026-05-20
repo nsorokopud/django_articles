@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from allauth.account.models import EmailAddress
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -186,6 +188,22 @@ class TestPendingEmailChangeModel(TestCase):
         self.assertEqual(pending_email_change.user, user)
         self.assertEqual(pending_email_change.email, "new@test.com")
         self.assertIsNotNone(pending_email_change.created_at)
+
+    def test_pending_email_change_public_id_is_uuid4(self):
+        user = User.objects.create_user(username="user", email="user@test.com")
+        pending = PendingEmailChange.objects.create(user=user, email="new@test.com")
+
+        self.assertIsInstance(pending.public_id, UUID)
+        self.assertEqual(pending.public_id.version, 4)
+
+    def test_pending_email_change_public_id_defaults_to_unique_value_per_row(self):
+        user1 = User.objects.create_user(username="user1", email="user1@test.com")
+        user2 = User.objects.create_user(username="user2", email="user2@test.com")
+
+        pending1 = PendingEmailChange.objects.create(user=user1, email="new1@test.com")
+        pending2 = PendingEmailChange.objects.create(user=user2, email="new2@test.com")
+
+        self.assertNotEqual(pending1.public_id, pending2.public_id)
 
     def test_pending_email_change_email_is_lowercased_on_create(self):
         user = User.objects.create_user(

@@ -18,7 +18,7 @@ class TestEmailChangeConfirmationView(TestCase):
         self.url = reverse(
             "email-change-confirm",
             kwargs={
-                "pending_email_change_id": self.pending_email_change.id,
+                "pending_email_change_public_id": self.pending_email_change.public_id,
                 "token": self.token,
             },
         )
@@ -29,8 +29,8 @@ class TestEmailChangeConfirmationView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
         self.assertEqual(
-            response.context["form"].pending_email_change_id,
-            self.pending_email_change.id,
+            response.context["form"].pending_email_change_public_id,
+            self.pending_email_change.public_id,
         )
         self.assertEqual(response.context["form"].token, self.token)
 
@@ -42,8 +42,8 @@ class TestEmailChangeConfirmationView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
         self.assertEqual(
-            response.context["form"].pending_email_change_id,
-            self.pending_email_change.id,
+            response.context["form"].pending_email_change_public_id,
+            self.pending_email_change.public_id,
         )
         self.assertEqual(response.context["form"].token, self.token)
 
@@ -106,6 +106,10 @@ class TestEmailChangeConfirmationView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change_confirm.html")
         self.assertEqual(response.context["form"].token, self.token)
+        self.assertEqual(
+            response.context["form"].pending_email_change_public_id,
+            self.pending_email_change.public_id,
+        )
         self.assertFormError(
             response.context["form"],
             None,

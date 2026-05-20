@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from allauth.account.views import LogoutView
 from allauth.socialaccount.providers.google import views as google_views
 from django.test import SimpleTestCase
@@ -54,7 +56,7 @@ class TestURLs(SimpleTestCase):
         self.assertEqual(resolve(url).func.view_class, EmailChangeView)
 
     def test_email_change_confirmation_url_is_resolved(self):
-        url = reverse("email-change-confirm", args=[123, "token"])
+        url = reverse("email-change-confirm", args=[uuid4(), "token"])
         self.assertEqual(resolve(url).func.view_class, EmailChangeConfirmationView)
 
     def test_password_change_url_is_resolved(self):

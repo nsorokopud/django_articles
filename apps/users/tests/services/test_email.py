@@ -109,7 +109,9 @@ class TestEmailServices(TestCase):
 
         factory = RequestFactory()
         request = factory.get(
-            reverse("email-change-confirm", args=[pending_email_change1.id, "token1"]),
+            reverse(
+                "email-change-confirm", args=[pending_email_change1.public_id, "token1"]
+            ),
             secure=True,
         )
         request.META["HTTP_HOST"] = "testserver"
@@ -136,7 +138,7 @@ class TestEmailServices(TestCase):
 
         expected_url = (
             "https://testserver/"
-            f"confirm_email_change/{pending_email_change1.id}/token1/"
+            f"confirm_email_change/{pending_email_change1.public_id}/token1/"
         )
 
         self.assertEqual(
@@ -149,7 +151,9 @@ class TestEmailServices(TestCase):
         )
 
         request = factory.get(
-            reverse("email-change-confirm", args=[pending_email_change2.id, "token2"]),
+            reverse(
+                "email-change-confirm", args=[pending_email_change2.public_id, "token2"]
+            ),
             secure=False,
         )
         request.META["HTTP_HOST"] = "testserver"
@@ -168,7 +172,7 @@ class TestEmailServices(TestCase):
 
         expected_url = (
             "http://testserver/"
-            f"confirm_email_change/{pending_email_change2.id}/token2/"
+            f"confirm_email_change/{pending_email_change2.public_id}/token2/"
         )
 
         self.assertEqual(len(mail.outbox[1].alternatives), 1)

@@ -76,6 +76,7 @@ class User(AbstractUser):
 
 
 class PendingEmailChange(models.Model):
+    public_id = models.UUIDField(default=uuid4, unique=True, editable=False)
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="pending_email_change"
     )

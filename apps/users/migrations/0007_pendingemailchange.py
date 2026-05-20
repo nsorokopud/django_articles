@@ -1,3 +1,5 @@
+import uuid
+
 import django.db.models.deletion
 import django.db.models.functions.text
 from django.conf import settings
@@ -22,6 +24,10 @@ class Migration(migrations.Migration):
                         serialize=False,
                         verbose_name="ID",
                     ),
+                ),
+                (
+                    "public_id",
+                    models.UUIDField(default=uuid.uuid4, editable=False, unique=True),
                 ),
                 ("email", models.EmailField(max_length=254)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),

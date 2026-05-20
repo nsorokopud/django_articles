@@ -126,14 +126,16 @@ class EmailChangeConfirmationView(FormView):
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["pending_email_change_id"] = self.kwargs.get("pending_email_change_id")
+        kwargs["pending_email_change_public_id"] = self.kwargs.get(
+            "pending_email_change_public_id"
+        )
         kwargs["token"] = self.kwargs.get("token")
         return kwargs
 
     def form_valid(self, form) -> HttpResponse:
         try:
             pending_email_change = PendingEmailChange.objects.only("id", "user_id").get(
-                id=form.pending_email_change_id
+                public_id=form.pending_email_change_public_id
             )
 
             change_email_address(

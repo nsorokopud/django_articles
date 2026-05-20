@@ -59,7 +59,7 @@ def send_email_change_link(
 
     url = urljoin(
         base_url,
-        reverse("email-change-confirm", args=[pending_email_change.id, token]),
+        reverse("email-change-confirm", args=[pending_email_change.public_id, token]),
     )
 
     email_config = EmailConfig(
