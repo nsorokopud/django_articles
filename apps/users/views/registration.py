@@ -7,10 +7,12 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.views import View
 from django.views.generic import FormView
+from django_ratelimit.decorators import ratelimit
 
 from config.settings import LOGIN_URL
 from users.forms import UserCreationForm
@@ -24,6 +26,10 @@ from ..services.users import register_user
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="10/h", method="POST", block=True),
+    name="dispatch",
+)
 class UserRegistrationView(FormView):
     form_class = UserCreationForm
     template_name = "users/registration.html"

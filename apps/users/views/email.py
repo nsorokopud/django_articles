@@ -8,8 +8,10 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import FormView
+from django_ratelimit.decorators import ratelimit
 
 from users.forms import EmailChangeConfirmationForm, EmailChangeForm
 
@@ -25,6 +27,14 @@ from ..services.email_addresses import (
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="5/h", method="POST", block=True),
+    name="dispatch",
+)
+@method_decorator(
+    ratelimit(key="core.ratelimit.post_email", rate="3/h", method="POST", block=True),
+    name="dispatch",
+)
 class EmailChangeView(LoginRequiredMixin, FormView):
     template_name = "users/email_change.html"
     form_class = EmailChangeForm
@@ -60,6 +70,14 @@ class EmailChangeView(LoginRequiredMixin, FormView):
         return super().form_valid(form)
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="1/m", method="POST", block=True),
+    name="dispatch",
+)
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="10/d", method="POST", block=True),
+    name="dispatch",
+)
 class EmailChangeResendView(LoginRequiredMixin, View):
     def post(self, request) -> HttpResponseRedirect:
         pending_email_change = get_pending_email_change(request.user)

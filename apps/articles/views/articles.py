@@ -14,6 +14,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import DeleteView, DetailView, ListView, UpdateView
 from django_filters.views import FilterView
+from django_ratelimit.decorators import ratelimit
 
 from core.decorators import cache_page_for_anonymous
 from users.services.subscriptions import (
@@ -216,6 +217,11 @@ class ArticleDetailView(DetailView):
 
         return context
 
+    @method_decorator(
+        ratelimit(
+            key="core.ratelimit.user_or_ip", rate="5/m", method="POST", block=True
+        )
+    )
     def post(self, request, *args, **kwargs) -> HttpResponse | HttpResponseRedirect:
         if not request.user.is_authenticated:
             return redirect_to_login(request.get_full_path())
@@ -232,6 +238,10 @@ class ArticleDetailView(DetailView):
         return self.render_to_response(self.get_context_data(form=form), status=400)
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="10/h", method="POST", block=True),
+    name="dispatch",
+)
 class ArticleCreateDraftView(LoginRequiredMixin, View):
     def post(self, request) -> HttpResponseRedirect:
         article = get_or_create_empty_draft(author=request.user)
@@ -351,6 +361,10 @@ class ArticleDeleteView(LoginRequiredMixin, DeleteView):
         return HttpResponseRedirect(self.get_success_url())
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="120/h", method="POST", block=True),
+    name="dispatch",
+)
 class ArticleLikeView(LoginRequiredMixin, View):
     def post(self, request, article_slug) -> JsonResponse:
         liked = parse_liked_payload(request)

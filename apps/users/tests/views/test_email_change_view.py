@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from users.models import PendingEmailChange, User
@@ -150,3 +150,12 @@ class TestEmailChangeView(TestCase):
             user_id=self.user.id, email="new@test.com"
         )
         mock_send_email.assert_not_called()
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_is_rate_limited(self):
+        for _ in range(5):
+            self.client.post(self.url, {"new_email": "new@test.com"})
+
+        response = self.client.post(self.url, {"new_email": "new@test.com"})
+
+        self.assertEqual(response.status_code, 429)

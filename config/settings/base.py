@@ -105,6 +105,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_ratelimit.middleware.RatelimitMiddleware",
 ]
 
 if DEBUG:
@@ -399,6 +400,13 @@ CACHES = {
         },
     },
 }
+
+
+# Rate limiting
+
+RATELIMIT_ENABLE = bool(int(os.getenv("RATELIMIT_ENABLE", "1")))
+
+RATELIMIT_VIEW = "core.ratelimit.ratelimited"
 
 
 # Django Channels

@@ -1,5 +1,5 @@
 from django.core import mail
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from users.models import User
@@ -30,3 +30,12 @@ class TestPasswordResetView(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual([self.user.email], mail.outbox[0].to)
         self.assertEqual("Password reset on testserver", mail.outbox[0].subject)
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_is_rate_limited(self):
+        for _ in range(5):
+            self.client.post(self.url, {"email": self.user.email})
+
+        response = self.client.post(self.url, {"email": self.user.email})
+
+        self.assertEqual(response.status_code, 429)

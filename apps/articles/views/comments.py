@@ -1,7 +1,11 @@
+# pylint: disable=R0801
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, JsonResponse
 from django.template.loader import render_to_string
+from django.utils.decorators import method_decorator
 from django.views import View
+from django_ratelimit.decorators import ratelimit
 
 from ..models import Article
 from ..selectors import get_published_article_by_slug
@@ -47,6 +51,10 @@ class ArticleCommentsListView(View):
         )
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="120/h", method="POST", block=True),
+    name="dispatch",
+)
 class CommentLikeView(LoginRequiredMixin, View):
     def post(self, request, comment_id: int) -> JsonResponse:
         liked = parse_liked_payload(request)

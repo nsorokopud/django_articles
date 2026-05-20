@@ -20,6 +20,8 @@ CACHES = {
     "select2": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
 }
 
+RATELIMIT_ENABLE = False
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.InMemoryStorage",

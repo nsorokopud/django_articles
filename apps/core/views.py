@@ -36,6 +36,11 @@ class Error404View(BasicErrorView):
     error_message = "Page not found"
 
 
+class Error429View(BasicErrorView):
+    error_code = 429
+    error_message = "Too many attempts. Please try again later."
+
+
 class Error500View(BasicErrorView):
     error_code = 500
     error_message = "Internal server error"
