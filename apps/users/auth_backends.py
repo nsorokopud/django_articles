@@ -35,9 +35,9 @@ class EmailOrUsernameAuthenticationBackend(ModelBackend):
             else:
                 identifier = normalize_username(raw_identifier)
                 user = UserModel.objects.get(username__iexact=identifier)
-        except UserModel.DoesNotExist:
-            return None
-        except UserModel.MultipleObjectsReturned:
+        except (UserModel.DoesNotExist, UserModel.MultipleObjectsReturned):
+            # Dummy password hash to reduce user-enumeration timing differences
+            UserModel().set_password(password)
             return None
 
         if user.check_password(password) and self.user_can_authenticate(user):
