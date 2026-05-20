@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from django.contrib import messages
+from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
@@ -12,6 +13,7 @@ from django.views.generic import FormView
 
 from users.forms import EmailChangeConfirmationForm, EmailChangeForm
 
+from ..models import PendingEmailChange
 from ..selectors import get_pending_email_change
 from ..services import change_email_address, send_email_change_link
 from ..services.email_addresses import (
@@ -117,28 +119,37 @@ class EmailChangeCancelView(LoginRequiredMixin, View):
         return redirect("email-change")
 
 
-class EmailChangeConfirmationView(LoginRequiredMixin, FormView):
+class EmailChangeConfirmationView(FormView):
     template_name = "users/email_change_confirm.html"
     form_class = EmailChangeConfirmationForm
-    success_url = reverse_lazy("email-change")
+    success_url = reverse_lazy("login")
 
     def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
         kwargs["pending_email_change_id"] = self.kwargs.get("pending_email_change_id")
         kwargs["token"] = self.kwargs.get("token")
         return kwargs
 
     def form_valid(self, form) -> HttpResponse:
         try:
+            pending_email_change = PendingEmailChange.objects.only("id", "user_id").get(
+                id=form.pending_email_change_id
+            )
+
             change_email_address(
-                user_id=self.request.user.id,
-                pending_email_change_id=form.pending_email_change_id,
+                user_id=pending_email_change.user_id,
+                pending_email_change_id=pending_email_change.id,
                 token=form.token,
             )
-        except ValidationError as e:
-            form.add_error(None, e)
+        except (PendingEmailChange.DoesNotExist, ValidationError):
+            form.add_error(None, "This email change link is invalid or has expired.")
             return self.form_invalid(form)
 
-        messages.success(self.request, "Your email address was changed successfully.")
+        if self.request.user.is_authenticated:
+            logout(self.request)
+
+        messages.success(
+            self.request,
+            "Your email address was changed successfully. Please log in again.",
+        )
         return super().form_valid(form)

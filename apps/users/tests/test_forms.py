@@ -1,7 +1,6 @@
 from io import BytesIO
 from unittest.mock import patch
 
-from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from PIL import Image
@@ -275,7 +274,6 @@ class TestEmailChangeConfirmationForm(TestCase):
     def test_valid_form(self):
         form = EmailChangeConfirmationForm(
             data=self.data,
-            user=self.user,
             pending_email_change_id=self.pending_email_change.id,
             token=self.token,
         )
@@ -284,46 +282,15 @@ class TestEmailChangeConfirmationForm(TestCase):
         self.assertEqual(form.pending_email_change_id, self.pending_email_change.id)
         self.assertEqual(form.token, self.token)
 
-    def test_missing_user(self):
-        form = EmailChangeConfirmationForm(
-            data=self.data,
-            pending_email_change_id=self.pending_email_change.id,
-            token=self.token,
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn(
-            "You must be logged in to change the email address.",
-            form.non_field_errors(),
-        )
-
-    def test_anonymous_user(self):
-        form = EmailChangeConfirmationForm(
-            data=self.data,
-            user=AnonymousUser(),
-            pending_email_change_id=self.pending_email_change.id,
-            token=self.token,
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn(
-            "You must be logged in to change the email address.",
-            form.non_field_errors(),
-        )
-
     def test_missing_pending_email_change_id(self):
-        form = EmailChangeConfirmationForm(
-            data=self.data, user=self.user, token=self.token
-        )
+        form = EmailChangeConfirmationForm(data=self.data, token=self.token)
 
         self.assertFalse(form.is_valid())
         self.assertIn("Invalid email change link.", form.non_field_errors())
 
     def test_missing_token(self):
         form = EmailChangeConfirmationForm(
-            data=self.data,
-            user=self.user,
-            pending_email_change_id=self.pending_email_change.id,
+            data=self.data, pending_email_change_id=self.pending_email_change.id
         )
 
         self.assertFalse(form.is_valid())
@@ -332,9 +299,16 @@ class TestEmailChangeConfirmationForm(TestCase):
     def test_blank_token(self):
         form = EmailChangeConfirmationForm(
             data=self.data,
-            user=self.user,
             pending_email_change_id=self.pending_email_change.id,
             token="",
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid email change link.", form.non_field_errors())
+
+    def test_zero_pending_email_change_id_is_invalid(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data, pending_email_change_id=0, token=self.token
         )
 
         self.assertFalse(form.is_valid())
