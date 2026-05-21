@@ -69,32 +69,39 @@ class BaseTokenGenerator(PasswordResetTokenGenerator):
 
         try:
             counter = TokenCounter.objects.select_for_update().get(
-                user=user, token_type=self.token_type
+                user_id=user.pk, token_type=self.token_type
             )
         except TokenCounter.DoesNotExist:
-            try:
-                counter = TokenCounter.objects.create(
-                    user=user, token_type=self.token_type, token_count=1
-                )
-                return counter.token_count
-            except IntegrityError as e:
-                constraint_name = _get_constraint_name(e)
-                if constraint_name != TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME:
-                    raise
-
-                logger.warning(
-                    "Race condition while creating TokenCounter(user_id=%s, "
-                    "token_type=%s). Falling back to select_for_update().get()",
-                    user.pk,
-                    self.token_type,
-                )
-                counter = TokenCounter.objects.select_for_update().get(
-                    user=user, token_type=self.token_type
-                )
+            counter = self._create_or_get_locked_token_counter(user)
 
         counter.token_count += 1
         counter.save(update_fields=["token_count"])
+
         return counter.token_count
+
+    def _create_or_get_locked_token_counter(
+        self, user: AbstractBaseUser
+    ) -> TokenCounter:
+        try:
+            with transaction.atomic():
+                return TokenCounter.objects.create(
+                    user_id=user.pk, token_type=self.token_type, token_count=0
+                )
+        except IntegrityError as e:
+            constraint_name = _get_constraint_name(e)
+            if constraint_name != TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME:
+                raise
+
+            logger.debug(
+                "TokenCounter(user_id=%s, token_type=%s) was created concurrently; "
+                "using the existing locked row.",
+                user.pk,
+                self.token_type,
+            )
+
+            return TokenCounter.objects.select_for_update().get(
+                user_id=user.pk, token_type=self.token_type
+            )
 
 
 class AccountActivationTokenGenerator(BaseTokenGenerator):
