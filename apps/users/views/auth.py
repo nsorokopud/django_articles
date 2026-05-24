@@ -24,12 +24,6 @@ logger = logging.getLogger(__name__)
     ratelimit(key="core.ratelimit.user_or_ip", rate="10/m", method="POST", block=True),
     name="dispatch",
 )
-@method_decorator(
-    ratelimit(
-        key="core.ratelimit.post_username", rate="20/h", method="POST", block=True
-    ),
-    name="dispatch",
-)
 class UserLoginView(LoginView):
     form_class = AuthenticationForm
     template_name = "users/login.html"
