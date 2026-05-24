@@ -15,5 +15,5 @@ EMAIL_CHANGE_TEXT_TEMPLATE = "users/emails/email_change.txt"
 EMAIL_CHANGE_HTML_TEMPLATE = "users/emails/email_change.html"
 
 PENDING_EMAIL_CHANGE_TTL = timedelta(
-    seconds=int(os.getenv("PENDING_EMAIL_CHANGE_TTL_SECONDS", str(3600 * 24)))  # 24h
+    seconds=int(os.getenv("PENDING_EMAIL_CHANGE_TTL_SECONDS", str(3600 * 2)))  # 2h
 )

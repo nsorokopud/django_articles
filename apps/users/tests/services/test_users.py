@@ -39,6 +39,24 @@ class TestRegisterUser(TestCase):
         self.assertEqual(user.username, "newuser")
         self.assertEqual(user.email, "new@test.com")
 
+    def test_allows_email_used_by_pending_email_change(self):
+        existing_user = User.objects.create_user(
+            username="existing", email="existing@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=existing_user, email="pending@test.com"
+        )
+
+        user = register_user(
+            username="newuser", email="PENDING@TEST.COM", password="testpass123"
+        )
+
+        self.assertEqual(user.email, "pending@test.com")
+        self.assertFalse(user.is_active)
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+
     def test_rejects_blank_username(self):
         with self.assertRaises(ValidationError) as context:
             register_user(username="   ", email="new@test.com", password="testpass123")
@@ -128,38 +146,6 @@ class TestRegisterUser(TestCase):
         self.assertEqual(
             context.exception.message_dict,
             {"email": ["A user with that email already exists."]},
-        )
-
-    def test_rejects_email_used_by_pending_email_change(self):
-        existing_user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="testpass123"
-        )
-        PendingEmailChange.objects.create(user=existing_user, email="pending@test.com")
-
-        with self.assertRaises(ValidationError) as context:
-            register_user(
-                username="newuser", email="PENDING@TEST.COM", password="testpass123"
-            )
-
-        self.assertEqual(
-            context.exception.message_dict,
-            {"email": ["That email address is currently pending confirmation."]},
-        )
-
-    def test_rejects_email_used_by_pending_email_change_after_trimming(self):
-        existing_user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="testpass123"
-        )
-        PendingEmailChange.objects.create(user=existing_user, email="pending@test.com")
-
-        with self.assertRaises(ValidationError) as context:
-            register_user(
-                username="newuser", email="  PENDING@TEST.COM  ", password="testpass123"
-            )
-
-        self.assertEqual(
-            context.exception.message_dict,
-            {"email": ["That email address is currently pending confirmation."]},
         )
 
     def test_rejects_existing_username(self):
@@ -279,6 +265,47 @@ class TestActivateUser(TestCase):
 
         self.assertEqual(user.email, "user@test.com")
         self.assertTrue(user.is_active)
+
+    def test_deletes_conflicting_pending_email_change_when_user_activates(self):
+        existing_user = User.objects.create_user(
+            username="existing", email="existing@test.com", password="testpass123"
+        )
+        pending_email_change = PendingEmailChange.objects.create(
+            user=existing_user, email="user@test.com"
+        )
+
+        user = User.objects.create_user(
+            username="user", email="USER@TEST.COM", is_active=False
+        )
+
+        activate_user(user)
+
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+
+    def test_does_not_delete_unrelated_pending_email_change_when_user_activates(self):
+        existing_user = User.objects.create_user(
+            username="existing", email="existing@test.com", password="testpass123"
+        )
+        unrelated_pending_email_change = PendingEmailChange.objects.create(
+            user=existing_user, email="other@test.com"
+        )
+
+        user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=False
+        )
+
+        activate_user(user)
+
+        self.assertTrue(
+            PendingEmailChange.objects.filter(
+                pk=unrelated_pending_email_change.pk
+            ).exists()
+        )
 
 
 class TestCreateUserProfile(TestCase):

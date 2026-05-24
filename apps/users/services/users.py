@@ -9,7 +9,6 @@ from django.db import IntegrityError, transaction
 
 from users.models import (
     DEFAULT_PROFILE_IMAGE,
-    PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
     USER_USERNAME_UNIQUE_CONSTRAINT_NAME,
     AuthorSubscription,
@@ -64,11 +63,6 @@ def register_user(*, username: str, email: str, password: str) -> User:
                 {"username": "A user with that username already exists."}
             ) from e
 
-        if constraint_name == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
-            raise ValidationError(
-                {"email": "That email address is currently pending confirmation."}
-            ) from e
-
         try:
             _validate_registration_availability(username=username, email=email)
         except ValidationError as validation_error:
@@ -84,6 +78,9 @@ def activate_user(user: User) -> None:
     if not user.is_active:
         user.is_active = True
         user.save(update_fields=["is_active"])
+
+        _delete_conflicting_pending_email_changes_for_activated_user(user)
+
         logger.info("User %s was activated.", user.id)
     else:
         logger.info("User %s was already active.", user.id)
@@ -201,9 +198,24 @@ def _validate_registration_availability(*, username: str, email: str) -> None:
     if User.objects.filter(email__iexact=email).exists():
         raise ValidationError({"email": "A user with that email already exists."})
 
-    if PendingEmailChange.objects.filter(email__iexact=email).exists():
-        raise ValidationError(
-            {"email": "That email address is currently pending confirmation."}
+
+def _delete_conflicting_pending_email_changes_for_activated_user(user: User) -> None:
+    email = normalize_email(user.email)
+    if not email:
+        return
+
+    deleted_count, _ = (
+        PendingEmailChange.objects.filter(email__iexact=email)
+        .exclude(user_id=user.id)
+        .delete()
+    )
+
+    if deleted_count:
+        logger.info(
+            "Deleted %d conflicting pending email change%s for activated User(id=%s).",
+            deleted_count,
+            "" if deleted_count == 1 else "s",
+            user.id,
         )
 
 
