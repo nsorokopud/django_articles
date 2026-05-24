@@ -13,8 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django_ratelimit.decorators import ratelimit
 
-from users.forms import AuthenticationForm
-
+from ..forms import AuthenticationForm, PasswordResetForm
 from ..services.tokens import password_reset_token_generator
 
 
@@ -65,12 +64,15 @@ class PasswordSetView(AllauthPasswordSetView):
 )
 class PasswordResetView(DjangoPasswordResetView):
     template_name = "users/password_reset.html"
+    form_class = PasswordResetForm
     token_generator = password_reset_token_generator
     success_url = reverse_lazy("login")
 
     def form_valid(self, form) -> HttpResponse:
         messages.success(
-            self.request, "We've emailed you a link to reset your password."
+            self.request,
+            "If an account exists for that email, we will send a password reset link "
+            "shortly. If you do not receive it, please request a new link.",
         )
         return super().form_valid(form)
 

@@ -8,11 +8,13 @@ from PIL import Image
 from users.forms import (
     EmailChangeConfirmationForm,
     EmailChangeForm,
+    PasswordResetForm,
     ProfileUpdateForm,
     UserCreationForm,
     UserUpdateForm,
 )
 from users.models import PendingEmailChange, Profile, User
+from users.services.tokens import password_reset_token_generator
 
 
 class TestUserCreationForm(TestCase):
@@ -316,3 +318,50 @@ class TestEmailChangeConfirmationForm(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("Invalid email change link.", form.non_field_errors())
+
+
+class TestPasswordResetForm(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", is_active=True
+        )
+        self.user.set_password("password-12345")
+        self.user.save(update_fields=["password"])
+
+    def test_get_users_advances_password_reset_token_version(self):
+        form = PasswordResetForm()
+
+        users = list(form.get_users("user@test.com"))
+
+        self.assertEqual(len(users), 1)
+        self.assertEqual(users[0].password_reset_token_version, 1)
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.password_reset_token_version, 1)
+
+    def test_get_users_returns_user_that_can_generate_valid_latest_token(self):
+        form = PasswordResetForm()
+
+        old_token = password_reset_token_generator.make_token(self.user)
+
+        users = list(form.get_users("user@test.com"))
+        updated_user = users[0]
+
+        new_token = password_reset_token_generator.make_token(updated_user)
+
+        self.assertFalse(
+            password_reset_token_generator.check_token(updated_user, old_token)
+        )
+        self.assertTrue(
+            password_reset_token_generator.check_token(updated_user, new_token)
+        )
+
+    def test_get_users_does_not_advance_for_unknown_email(self):
+        form = PasswordResetForm()
+
+        users = list(form.get_users("missing@test.com"))
+
+        self.assertEqual(users, [])
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.password_reset_token_version, 0)

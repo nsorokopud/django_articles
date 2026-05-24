@@ -208,6 +208,8 @@ SOCIALACCOUNT_PROVIDERS = {
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
 
+PASSWORD_RESET_TIMEOUT = 60 * 15  # 15 min
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": (

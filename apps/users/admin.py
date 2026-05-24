@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 
-from .models import PendingEmailChange, Profile, TokenCounter, User
+from .models import PendingEmailChange, Profile, User
 
 
 @admin.register(User)
@@ -13,6 +13,7 @@ class CustomUserAdmin(UserAdmin):
         "latest_article_publish_sequence",
         "subscriptions_last_seen_publish_sequence",
         "unread_notifications_count",
+        "password_reset_token_version",
     )
 
     fieldsets = UserAdmin.fieldsets + (
@@ -26,6 +27,7 @@ class CustomUserAdmin(UserAdmin):
                 )
             },
         ),
+        ("Security state", {"fields": ("password_reset_token_version",)}),
     )
 
     add_fieldsets = UserAdmin.add_fieldsets + (("Email", {"fields": ("email",)}),)
@@ -42,23 +44,6 @@ class CustomUserAdmin(UserAdmin):
             readonly_fields.append("email")
 
         return tuple(readonly_fields)
-
-
-@admin.register(TokenCounter)
-class TokenCounterAdmin(admin.ModelAdmin):
-    list_display = ("user", "token_type", "token_count")
-    search_fields = ("user__username", "user__email", "token_type")
-    list_filter = ("token_type",)
-    readonly_fields = ("user", "token_type", "token_count")
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(Profile)

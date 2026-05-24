@@ -102,26 +102,17 @@ class TestPasswordResetConfirmView(TestCase):
         self.assertTrue(self.user.check_password(new_password))
         self.assertFalse(password_reset_token_generator.check_token(self.user, token))
 
-    def test_second_password_reset_token_invalidates_first_token(self):
+    def test_get_stale_token_after_token_version_changed(self):
         uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = password_reset_token_generator.make_token(self.user)
 
-        old_token = password_reset_token_generator.make_token(self.user)
-        new_token = password_reset_token_generator.make_token(self.user)
+        User.objects.filter(pk=self.user.pk).update(password_reset_token_version=1)
+        self.user.refresh_from_db(fields=["password_reset_token_version"])
 
-        old_url = reverse("password_reset_confirm", args=[uidb64, old_token])
-        new_url = reverse("password_reset_confirm", args=[uidb64, new_token])
+        url = reverse("password_reset_confirm", args=[uidb64, token])
 
-        old_response = self.client.get(old_url)
-        self.assertEqual(old_response.status_code, 200)
-        self.assertTemplateUsed(old_response, "users/password_reset_confirm.html")
-        self.assertFalse(old_response.context["validlink"])
+        response = self.client.get(url)
 
-        new_response = self.client.get(new_url, follow=True)
-        self.assertRedirects(
-            new_response,
-            reverse("password_reset_confirm", args=[uidb64, "set-password"]),
-            status_code=302,
-            target_status_code=200,
-        )
-        self.assertTemplateUsed(new_response, "users/password_reset_confirm.html")
-        self.assertTrue(new_response.context["validlink"])
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/password_reset_confirm.html")
+        self.assertFalse(response.context["validlink"])

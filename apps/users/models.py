@@ -24,10 +24,6 @@ PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME = (
     "users_pending_email_change_email_ci_unique"
 )
 
-TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME = (
-    "users_token_counter_user_type_unique"  # nosec B105
-)
-
 
 class User(AbstractUser):
     email = models.EmailField()
@@ -42,6 +38,9 @@ class User(AbstractUser):
         default=0, db_index=True
     )
     unread_notifications_count = models.PositiveIntegerField(default=0)
+    password_reset_token_version = models.PositiveIntegerField(
+        default=0, editable=False
+    )
 
     class Meta:
         constraints = [
@@ -184,30 +183,3 @@ class AuthorSubscription(models.Model):
 
     def __str__(self) -> str:
         return f"{self.subscriber_id} -> {self.author_id}"
-
-
-class TokenType(models.TextChoices):
-    ACCOUNT_ACTIVATION = "account_activation", "Account activation"
-    EMAIL_CHANGE = "email_change", "Email change"
-    PASSWORD_CHANGE = "password_change", "Password change"
-
-
-class TokenCounter(models.Model):
-    user = models.ForeignKey("User", on_delete=models.CASCADE)
-    token_type = models.CharField(max_length=32, choices=TokenType.choices)
-    token_count = models.PositiveBigIntegerField(default=0)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "token_type"],
-                name=TOKEN_COUNTER_USER_TYPE_UNIQUE_CONSTRAINT_NAME,
-            ),
-            models.CheckConstraint(
-                condition=models.Q(token_type__in=TokenType.values),
-                name="%(app_label)s_%(class)s_token_type_valid",
-            ),
-        ]
-
-    def __str__(self):
-        return f"{self.user.username} - {self.token_type} - {self.token_count}"

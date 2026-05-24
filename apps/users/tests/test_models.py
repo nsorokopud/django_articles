@@ -14,8 +14,6 @@ from users.models import (
     AuthorSubscription,
     PendingEmailChange,
     Profile,
-    TokenCounter,
-    TokenType,
     User,
     profile_image_upload_path,
 )
@@ -163,6 +161,18 @@ class TestUserModel(TestCase):
                 User.objects.create_user(
                     username="Max", email="max2@test.com", password="testpass123"
                 )
+
+    def test_password_reset_token_version_defaults_to_zero(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+
+        self.assertEqual(user.password_reset_token_version, 0)
+
+    def test_password_reset_token_version_is_not_editable(self):
+        field = User._meta.get_field("password_reset_token_version")
+
+        self.assertFalse(field.editable)
 
     def test_user_delete_deletes_allauth_email_addresses(self):
         user = User.objects.create_user(username="user", email="test@test.com")
@@ -565,88 +575,3 @@ class TestAuthorSubscriptionModel(TestCase):
         )
 
         self.assertEqual(str(subscription), f"{subscriber.id} -> {author.id}")
-
-
-class TestTokenCounterModel(TestCase):
-    def test_token_counter_can_be_created(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        counter = TokenCounter.objects.create(
-            user=user, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=1
-        )
-
-        self.assertEqual(counter.user, user)
-        self.assertEqual(counter.token_type, TokenType.ACCOUNT_ACTIVATION)
-        self.assertEqual(counter.token_count, 1)
-
-    def test_token_counter_user_and_token_type_are_unique_together(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        TokenCounter.objects.create(
-            user=user, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=1
-        )
-
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                TokenCounter.objects.create(
-                    user=user, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=2
-                )
-
-    def test_same_user_can_have_different_token_counter_types(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        TokenCounter.objects.create(
-            user=user, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=1
-        )
-        counter = TokenCounter.objects.create(
-            user=user, token_type=TokenType.EMAIL_CHANGE, token_count=1
-        )
-
-        self.assertEqual(counter.token_type, TokenType.EMAIL_CHANGE)
-
-    def test_different_users_can_have_same_token_counter_type(self):
-        user1 = User.objects.create_user(
-            username="user1", email="user1@test.com", password="testpass123"
-        )
-        user2 = User.objects.create_user(
-            username="user2", email="user2@test.com", password="testpass123"
-        )
-
-        TokenCounter.objects.create(
-            user=user1, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=1
-        )
-        counter2 = TokenCounter.objects.create(
-            user=user2, token_type=TokenType.ACCOUNT_ACTIVATION, token_count=1
-        )
-
-        self.assertEqual(counter2.user, user2)
-
-    def test_invalid_token_type_is_not_allowed(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                TokenCounter.objects.create(
-                    user=user, token_type="invalid", token_count=1
-                )
-
-    def test_token_counter_str(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        counter = TokenCounter.objects.create(
-            user=user, token_type=TokenType.PASSWORD_CHANGE, token_count=3
-        )
-
-        self.assertEqual(
-            str(counter), f"{user.username} - {TokenType.PASSWORD_CHANGE} - 3"
-        )
