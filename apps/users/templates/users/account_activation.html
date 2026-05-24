@@ -2,11 +2,19 @@
 
 {% block form %}
   <div class="logout-block text-center">
-    {% if is_activation_successful %}
-      <h3 class=" mb-5">Your account was successfully activated.</h3>
-      <big><a href="{% url 'login' %}" class="link-green">Log In</a></big>
+    {% if activation_pending %}
+      <h3 class="mb-4">Activate your account?</h3>
+      <p class="mb-4">Click the button below to finish activating your account.</p>
+
+      <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-success" type="submit">Activate account</button>
+      </form>
     {% else %}
-      <h3 class=" mb-5">An error occured during activation: {{ error_message }}.</h3>
+      <h3 class="mb-5">
+        An error occurred during activation:
+        {{ error_message|default:"The activation link is invalid or has expired" }}.
+      </h3>
     {% endif %}
   </div>
 {% endblock form %}

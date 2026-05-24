@@ -14,7 +14,6 @@ from django.views import View
 from django.views.generic import FormView
 from django_ratelimit.decorators import ratelimit
 
-from config.settings import LOGIN_URL
 from users.forms import UserCreationForm
 
 from ..models import User
@@ -84,12 +83,34 @@ class AccountActivationView(View):
             )
             return self._render_failure(self.expired_link_message)
 
+        return render(request, self.template_name, {"activation_pending": True})
+
+    def post(self, request, user_id_b64: str, token: str) -> HttpResponse:
+        user = self._get_user_from_b64(user_id_b64)
+        if user is None:
+            return self._render_failure(self.expired_link_message)
+
+        if user.is_active:
+            messages.info(request, "Your account is already activated.")
+            return redirect("login")
+
+        if not activation_token_generator.check_token(user, token):
+            logger.warning(
+                "Account activation POST with invalid token for user_id_b64=%s.",
+                user_id_b64,
+            )
+            return self._render_failure(self.expired_link_message)
+
         activate_user(user)
+
         if request.user.is_authenticated:
             logout(request)
-        logger.info("User %s activated their account via link", user.id)
-        messages.success(self.request, "Your account was successfully activated.")
-        return redirect(LOGIN_URL)
+
+        logger.info(
+            "User %s activated their account via POST link confirmation", user.id
+        )
+        messages.success(request, "Your account was successfully activated.")
+        return redirect("login")
 
     def _get_user_from_b64(self, user_id_b64: str) -> Optional[User]:
         try:
@@ -100,8 +121,5 @@ class AccountActivationView(View):
             return None
 
     def _render_failure(self, message: str) -> HttpResponse:
-        context = {
-            "is_activation_successful": False,
-            "error_message": message,
-        }
+        context = {"activation_pending": False, "error_message": message}
         return render(self.request, self.template_name, context, status=400)
