@@ -13,8 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django_ratelimit.decorators import ratelimit
 
-from ..forms import AuthenticationForm, PasswordResetForm
-from ..services.tokens import password_reset_token_generator
+from ..forms import AuthenticationForm
 
 
 logger = logging.getLogger(__name__)
@@ -53,13 +52,11 @@ class PasswordSetView(AllauthPasswordSetView):
     name="dispatch",
 )
 @method_decorator(
-    ratelimit(key="core.ratelimit.post_email", rate="5/h", method="POST", block=True),
+    ratelimit(key="core.ratelimit.post_email", rate="3/h", method="POST", block=True),
     name="dispatch",
 )
 class PasswordResetView(DjangoPasswordResetView):
     template_name = "users/password_reset.html"
-    form_class = PasswordResetForm
-    token_generator = password_reset_token_generator
     success_url = reverse_lazy("login")
 
     def form_valid(self, form) -> HttpResponse:
@@ -73,7 +70,6 @@ class PasswordResetView(DjangoPasswordResetView):
 
 class UserPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = "users/password_reset_confirm.html"
-    token_generator = password_reset_token_generator
     success_url = reverse_lazy("login")
 
     def form_valid(self, form) -> HttpResponse:

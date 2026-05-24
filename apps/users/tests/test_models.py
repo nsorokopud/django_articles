@@ -162,18 +162,6 @@ class TestUserModel(TestCase):
                     username="Max", email="max2@test.com", password="testpass123"
                 )
 
-    def test_password_reset_token_version_defaults_to_zero(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-
-        self.assertEqual(user.password_reset_token_version, 0)
-
-    def test_password_reset_token_version_is_not_editable(self):
-        field = User._meta.get_field("password_reset_token_version")
-
-        self.assertFalse(field.editable)
-
     def test_user_delete_deletes_allauth_email_addresses(self):
         user = User.objects.create_user(username="user", email="test@test.com")
         email_address = EmailAddress.objects.create(

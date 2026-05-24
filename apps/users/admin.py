@@ -13,7 +13,6 @@ class CustomUserAdmin(UserAdmin):
         "latest_article_publish_sequence",
         "subscriptions_last_seen_publish_sequence",
         "unread_notifications_count",
-        "password_reset_token_version",
     )
 
     fieldsets = UserAdmin.fieldsets + (
@@ -27,7 +26,6 @@ class CustomUserAdmin(UserAdmin):
                 )
             },
         ),
-        ("Security state", {"fields": ("password_reset_token_version",)}),
     )
 
     add_fieldsets = UserAdmin.add_fieldsets + (("Email", {"fields": ("email",)}),)

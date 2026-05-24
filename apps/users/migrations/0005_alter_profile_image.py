@@ -6,7 +6,7 @@ import users.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("users", "0005_remove_authorsubscription_prevent_self_subscription_and_more"),
+        ("users", "0004_remove_authorsubscription_prevent_self_subscription_and_more"),
     ]
 
     operations = [

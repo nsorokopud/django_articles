@@ -38,9 +38,6 @@ class User(AbstractUser):
         default=0, db_index=True
     )
     unread_notifications_count = models.PositiveIntegerField(default=0)
-    password_reset_token_version = models.PositiveIntegerField(
-        default=0, editable=False
-    )
 
     class Meta:
         constraints = [

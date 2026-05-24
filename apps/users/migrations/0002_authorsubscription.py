@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="TokenCounter",
+            name="AuthorSubscription",
             fields=[
                 (
                     "id",
@@ -22,22 +22,21 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("notifications_enabled", models.BooleanField(default=True)),
                 (
-                    "token_type",
-                    models.CharField(
-                        choices=[
-                            ("account_activation", "Account activation"),
-                            ("email_change", "Email change"),
-                            ("password_change", "Password change"),
-                        ],
-                        max_length=32,
-                    ),
-                ),
-                ("token_count", models.PositiveBigIntegerField(default=0)),
-                (
-                    "user",
+                    "author",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
+                        related_name="subscriptions_received",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "subscriber",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="subscriptions_made",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
@@ -45,26 +44,23 @@ class Migration(migrations.Migration):
             options={
                 "indexes": [
                     models.Index(
-                        fields=["user", "token_type"],
-                        name="users_token_user_id_c1fe10_idx",
-                    )
+                        fields=["subscriber"], name="users_autho_subscri_3ddef0_idx"
+                    ),
+                    models.Index(
+                        fields=["author"], name="users_autho_author__7de617_idx"
+                    ),
                 ],
                 "constraints": [
                     models.CheckConstraint(
                         condition=models.Q(
-                            (
-                                "token_type__in",
-                                [
-                                    "account_activation",
-                                    "email_change",
-                                    "password_change",
-                                ],
-                            )
+                            ("subscriber", models.F("author")), _negated=True
                         ),
-                        name="users_tokencounter_token_type_valid",
-                    )
+                        name="prevent_self_subscription",
+                    ),
+                    models.UniqueConstraint(
+                        fields=("subscriber", "author"), name="unique_subscription"
+                    ),
                 ],
-                "unique_together": {("user", "token_type")},
             },
         ),
     ]
