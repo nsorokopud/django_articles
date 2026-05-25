@@ -16,10 +16,11 @@ class TestEmailServices(TestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
     def test_send_account_activation_email(self):
         html_template = (
-            "Hello, {username}.\n  <br>\n  <br>\n"
-            "  Please follow the link to finish your registration:\n"
-            '  <a href="{url}">'
-            "Finish registration</a>"
+            "Hello, {username}.\n"
+            "<br>\n"
+            "<br>\n"
+            "Please follow the link to finish your registration:\n"
+            '<a href="{url}">Finish registration</a>'
         )
         plain_template = (
             "Hello, {username}.\n\nPlease follow the link to finish your registration:"
@@ -87,10 +88,11 @@ class TestEmailServices(TestCase):
     @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
     def test_send_email_change_link(self):
         html_template = (
-            "Hello, {username}.\n  <br>\n  <br>\n"
-            "  Please follow the link to confirm this email address as your new one:\n"
-            '  <a href="{url}">'
-            "Change email</a>"
+            "Hello, {username}.\n"
+            "<br>\n"
+            "<br>\n"
+            "Please follow the link to confirm this email address as your new one:\n"
+            '<a href="{url}">Change email</a>'
         )
         plain_template = (
             "Hello, {username}.\n\nPlease follow the link to confirm this "
