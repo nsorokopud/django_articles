@@ -137,6 +137,10 @@ class EmailChangeCancelView(LoginRequiredMixin, View):
         return redirect("email-change")
 
 
+@method_decorator(
+    ratelimit(key="ip", rate="20/h", method=["GET", "POST"], block=True),
+    name="dispatch",
+)
 class EmailChangeConfirmationView(FormView):
     template_name = "users/email_change_confirm.html"
     form_class = EmailChangeConfirmationForm
