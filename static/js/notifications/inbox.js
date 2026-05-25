@@ -1,4 +1,4 @@
-import { intVal, postJSON } from './utils.js';
+import { intVal, postJSON, safeInternalPath } from './utils.js';
 import { showToast } from './toasts.js';
 
 const INBOX_PAGE_SIZE = 50;
@@ -280,7 +280,7 @@ function applyUnreadCountFromResponse(data) {
 }
 
 function createInboxNotificationElement(n) {
-  const link = n.payload?.link || n.payload?.url || null;
+  const link = safeInternalPath(n.payload?.link || n.payload?.url || null);
 
   const notification = document.createElement('div');
   notification.id = `notification-${n.id}`;
@@ -350,7 +350,7 @@ function createInboxNotificationElement(n) {
     el.classList.add('notification-title', 'me-3');
     return el;
   })();
-  title.innerHTML = n.title || '';
+  title.textContent = n.title || '';
 
   const time = (() => {
     const el = document.createElement('span');
@@ -367,7 +367,7 @@ function createInboxNotificationElement(n) {
     el.classList.add('notification-message');
     return el;
   })();
-  msg.innerHTML = n.body || '';
+  msg.textContent = n.body || '';
 
   const startedAtText = getInboxStartedAtText(n);
   const meta = (() => {
