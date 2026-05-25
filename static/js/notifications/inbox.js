@@ -94,17 +94,18 @@ async function loadInitialInboxPage() {
 
   const res = await fetch(
     `${location.origin}${NOTIFICATIONS_LIST_PATH}?limit=${INBOX_PAGE_SIZE}`,
-    {
-      credentials: 'same-origin',
-    },
+    { credentials: 'same-origin' },
   );
 
   setInboxLoading(false);
   if (!res.ok) return;
 
   const data = await res.json();
-  renderInboxItems(data.items, { mode: 'replace' });
 
+  inboxNewestId = 0;
+  inboxOldestId = 0;
+
+  renderInboxItems(data.items, { mode: 'replace' });
   updateInboxBounds(data.items);
   updateLoadMoreButton(data.has_more);
 }
