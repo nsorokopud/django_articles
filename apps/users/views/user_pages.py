@@ -7,8 +7,10 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import TemplateView
+from django_ratelimit.decorators import ratelimit
 
 from users.forms import ProfileUpdateForm, UserUpdateForm
 
@@ -85,6 +87,10 @@ class AuthorPageView(TemplateView):
         return context
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="30/m", method="POST", block=True),
+    name="dispatch",
+)
 class AuthorSubscriptionBaseView(LoginRequiredMixin, View):
     should_subscribe: bool
     success_changed_message: str
