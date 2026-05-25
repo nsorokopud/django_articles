@@ -91,7 +91,7 @@ class AuthorSubscriptionBaseView(LoginRequiredMixin, View):
     success_unchanged_message: str
 
     def post(self, request, author_id: int) -> HttpResponseRedirect:
-        author = get_object_or_404(User, pk=author_id)
+        author = get_object_or_404(User, pk=author_id, is_active=True)
 
         try:
             _, changed = set_author_subscription(
