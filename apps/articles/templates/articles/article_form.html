@@ -88,14 +88,14 @@
                       id="articleFormUpdateButton"
                       class="btn btn-success"
                       type="submit"
-                      name="action"
+                      name="article_action"
                       value="save_draft">Save draft</button>
 
               <button form="articleForm"
                       id="articleSubmitForReviewButton"
                       class="btn btn-primary"
                       type="submit"
-                      name="action"
+                      name="article_action"
                       value="submit_for_review">
                 {% if article.status == "rejected" %}
                   Resubmit for review

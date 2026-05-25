@@ -199,7 +199,7 @@ class TestArticleUpdateView(TestCase):
             "preview_text": "updated draft preview text",
             "content": "updated draft content",
             "tags": "tag2, tag3",
-            "action": "save_draft",
+            "article_action": "save_draft",
         }
 
         self.client.force_login(self.author)
@@ -242,7 +242,7 @@ class TestArticleUpdateView(TestCase):
             "preview_text": "updated preview before review",
             "content": "<p>updated content before review</p>",
             "tags": "review-tag, django",
-            "action": "submit_for_review",
+            "article_action": "submit_for_review",
         }
 
         self.client.force_login(self.author)
@@ -276,7 +276,7 @@ class TestArticleUpdateView(TestCase):
             "category": self.category.id,
             "preview_text": "preview exists",
             "content": "<p>content exists</p>",
-            "action": "submit_for_review",
+            "article_action": "submit_for_review",
         }
 
         self.client.force_login(self.author)
@@ -310,7 +310,7 @@ class TestArticleUpdateView(TestCase):
             "category": self.category.id,
             "preview_text": "fixed preview text",
             "content": "<p>fixed content</p>",
-            "action": "submit_for_review",
+            "article_action": "submit_for_review",
         }
 
         self.client.force_login(self.author)
@@ -332,7 +332,7 @@ class TestArticleUpdateView(TestCase):
             "category": self.category.id,
             "preview_text": "preview unchanged author",
             "content": "content unchanged author",
-            "action": "save_draft",
+            "article_action": "save_draft",
         }
 
         self.client.force_login(self.author)
@@ -356,7 +356,7 @@ class TestArticleUpdateView(TestCase):
                 "category": self.other_category.id,
                 "preview_text": "hacked preview",
                 "content": "hacked content",
-                "action": "submit_for_review",
+                "article_action": "submit_for_review",
             },
             headers={"X-Requested-With": "XMLHttpRequest"},
         )

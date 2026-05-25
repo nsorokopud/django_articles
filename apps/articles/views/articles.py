@@ -297,7 +297,7 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form) -> JsonResponse:
         article = form.save()
 
-        if self.request.POST.get("action") == "submit_for_review":
+        if self.request.POST.get("article_action") == "submit_for_review":
             try:
                 article = submit_article_for_review(article_id=article.id)
             except ValueError as e:
