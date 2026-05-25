@@ -13,16 +13,18 @@ class CustomUserAdmin(UserAdmin):
         "latest_article_publish_sequence",
         "subscriptions_last_seen_publish_sequence",
         "unread_notifications_count",
+        "session_auth_version",
     )
 
     fieldsets = UserAdmin.fieldsets + (
         (
-            "Article / notification state",
+            "Article / notification / security state",
             {
                 "fields": (
                     "latest_article_publish_sequence",
                     "subscriptions_last_seen_publish_sequence",
                     "unread_notifications_count",
+                    "session_auth_version",
                 )
             },
         ),

@@ -16,6 +16,7 @@ from users.models import (
 from users.settings import PENDING_EMAIL_CHANGE_TTL
 
 from ..normalization import normalize_email
+from .sessions import invalidate_user_sessions
 from .tokens import email_change_token_generator
 
 
@@ -127,6 +128,7 @@ def change_email_address(
         user.email = new_email
         user.save(update_fields=["email"])
         pending_email_change.delete()
+        invalidate_user_sessions(user_id=user.id)
     except IntegrityError as e:
         if _get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError("This email address is no longer available.") from e

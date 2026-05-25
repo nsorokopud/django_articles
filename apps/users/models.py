@@ -5,6 +5,7 @@ from uuid import uuid4
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.functions import Lower, Trim
+from django.utils.crypto import salted_hmac
 from django.utils.text import get_valid_filename
 
 from .normalization import normalize_email, normalize_username
@@ -38,6 +39,7 @@ class User(AbstractUser):
         default=0, db_index=True
     )
     unread_notifications_count = models.PositiveIntegerField(default=0)
+    session_auth_version = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [
@@ -69,6 +71,15 @@ class User(AbstractUser):
         self.email = normalize_email(self.email)
 
         super().save(*args, **kwargs)
+
+    def get_session_auth_hash(self):
+        key_salt = "django.contrib.auth.models.AbstractBaseUser.get_session_auth_hash"
+        return salted_hmac(
+            key_salt,
+            f"{self.password}:{self.session_auth_version}",
+            secret=None,
+            algorithm="sha256",
+        ).hexdigest()
 
 
 class PendingEmailChange(models.Model):

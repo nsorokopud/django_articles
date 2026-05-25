@@ -422,6 +422,39 @@ class TestChangeEmailAddress(TestCase):
         mock_check_token.assert_called_once_with(self.user, self.token)
 
     @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_invalidates_user_sessions_after_email_change(self, mock_check_token):
+        mock_check_token.return_value = True
+        pending_email_change = self.create_pending_email_change()
+
+        self.assertEqual(self.user.session_auth_version, 0)
+
+        change_email_address(
+            user_id=self.user.id,
+            pending_email_change_id=pending_email_change.id,
+            token=self.token,
+        )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.session_auth_version, 1)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
+    def test_does_not_invalidate_sessions_when_token_invalid(self, mock_check_token):
+        mock_check_token.return_value = False
+        pending_email_change = self.create_pending_email_change()
+
+        original_session_auth_version = self.user.session_auth_version
+
+        with self.assertRaisesMessage(ValidationError, "Invalid email change link."):
+            change_email_address(
+                user_id=self.user.id,
+                pending_email_change_id=pending_email_change.id,
+                token=self.token,
+            )
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.session_auth_version, original_session_auth_version)
+
+    @patch("users.services.email_addresses.email_change_token_generator.check_token")
     def test_deletes_only_social_accounts_matching_old_email(self, mock_check_token):
         mock_check_token.return_value = True
         pending_email_change = self.create_pending_email_change()

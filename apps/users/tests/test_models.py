@@ -162,6 +162,18 @@ class TestUserModel(TestCase):
                     username="Max", email="max2@test.com", password="testpass123"
                 )
 
+    def test_session_auth_hash_changes_when_session_auth_version_changes(self):
+        user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
+        original_hash = user.get_session_auth_hash()
+
+        user.session_auth_version += 1
+        user.save(update_fields=["session_auth_version"])
+
+        user.refresh_from_db()
+        self.assertNotEqual(original_hash, user.get_session_auth_hash())
+
     def test_user_delete_deletes_allauth_email_addresses(self):
         user = User.objects.create_user(username="user", email="test@test.com")
         email_address = EmailAddress.objects.create(
