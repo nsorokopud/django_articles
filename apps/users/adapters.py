@@ -5,6 +5,9 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from users.models import User
+from users.services.users import activate_user
+
 from .normalization import normalize_email
 
 
@@ -45,3 +48,26 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if google_email != user_email:
             messages.error(request, "Google account email mismatch.")
             raise ImmediateHttpResponse(redirect("login"))
+
+        existing_user = (
+            User.objects.only("id", "is_active")
+            .filter(email__iexact=google_email)
+            .first()
+        )
+
+        if existing_user is None or existing_user.is_active:
+            return
+
+        # A verified Google email is accepted as proof of email ownership,
+        # so it may activate an inactive local account with the same email
+        activate_user(existing_user)
+
+        # Keep allauth's in-memory user object in sync for this login flow
+        existing_user.is_active = True
+        if sociallogin.user.pk == existing_user.pk:
+            sociallogin.user.is_active = True
+
+        # Note: when allauth connects/authenticates a social account by verified email,
+        # it may make an unverified local password unusable as a safety measure.
+        # AccountAdapter.get_login_redirect_url() intentionally sends such users to
+        # the password-set page.

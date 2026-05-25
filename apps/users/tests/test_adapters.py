@@ -1,4 +1,4 @@
-# pylint: disable=assignment-from-no-return
+# pylint: disable=assignment-from-no-return,assignment-from-none
 
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -35,7 +35,9 @@ class TestAccountAdapter(TestCase):
 
         self.assertEqual(url, reverse("user-profile"))
 
-    def test_get_login_redirect_url_redirects_user_without_usable_password(self):
+    def test_get_login_redirect_url_sends_user_without_usable_password_to_password_set(
+        self,
+    ):
         user = User.objects.create_user(
             username="googleuser", email="google@test.com", password=None
         )
@@ -91,9 +93,15 @@ class TestSocialAccountAdapter(TestCase):
         user_email="person@test.com",
         extra_email="person@test.com",
         email_verified=True,
+        user_pk=None,
+        user_is_active=True,
     ):
         return SimpleNamespace(
-            user=SimpleNamespace(email=user_email),
+            user=SimpleNamespace(
+                pk=user_pk,
+                email=user_email,
+                is_active=user_is_active,
+            ),
             account=SimpleNamespace(
                 provider=provider,
                 extra_data={"email": extra_email, "email_verified": email_verified},
@@ -136,6 +144,100 @@ class TestSocialAccountAdapter(TestCase):
 
         self.assertIsNone(result)
 
+    def test_pre_social_login_activates_inactive_local_acc_with_verified_google_email(
+        self,
+    ):
+        user = User.objects.create_user(
+            username="pendinguser",
+            email="person@test.com",
+            password="strong-test-password",
+            is_active=False,
+        )
+
+        request = self.build_request()
+        sociallogin = self.build_sociallogin(
+            user_pk=user.pk,
+            user_email="person@test.com",
+            user_is_active=False,
+            extra_email="person@test.com",
+            email_verified=True,
+        )
+
+        result = self.adapter.pre_social_login(request, sociallogin)
+
+        self.assertIsNone(result)
+
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertTrue(sociallogin.user.is_active)
+
+    def test_pre_social_login_only_syncs_same_user_object(self):
+        user = User.objects.create_user(
+            username="pendinguser",
+            email="person@test.com",
+            password="password",
+            is_active=False,
+        )
+
+        request = self.build_request()
+        sociallogin = self.build_sociallogin(
+            user_pk=None,
+            user_email="person@test.com",
+            user_is_active=False,
+            extra_email="person@test.com",
+            email_verified=True,
+        )
+
+        result = self.adapter.pre_social_login(request, sociallogin)
+
+        self.assertIsNone(result)
+
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+
+        # The adapter only syncs sociallogin.user.is_active when it is the same
+        # local user object allauth will continue with
+        self.assertFalse(sociallogin.user.is_active)
+
+    def test_pre_social_login_does_not_activate_already_active_local_account(self):
+        user = User.objects.create_user(
+            username="activeuser",
+            email="person@test.com",
+            password="strong-test-password",
+            is_active=True,
+        )
+
+        request = self.build_request()
+        sociallogin = self.build_sociallogin(
+            user_pk=user.pk,
+            user_email="person@test.com",
+            user_is_active=True,
+            extra_email="person@test.com",
+            email_verified=True,
+        )
+
+        with patch("users.adapters.activate_user") as mock_activate_user:
+            result = self.adapter.pre_social_login(request, sociallogin)
+
+        self.assertIsNone(result)
+        mock_activate_user.assert_not_called()
+
+    def test_pre_social_login_does_nothing_when_no_local_account_matches_google_email(
+        self,
+    ):
+        request = self.build_request()
+        sociallogin = self.build_sociallogin(
+            user_email="person@test.com",
+            extra_email="person@test.com",
+            email_verified=True,
+        )
+
+        with patch("users.adapters.activate_user") as mock_activate_user:
+            result = self.adapter.pre_social_login(request, sociallogin)
+
+        self.assertIsNone(result)
+        mock_activate_user.assert_not_called()
+
     def test_pre_social_login_rejects_non_google_provider(self):
         sociallogin = self.build_sociallogin(
             provider="github",
@@ -148,7 +250,7 @@ class TestSocialAccountAdapter(TestCase):
 
     def test_pre_social_login_rejects_missing_extra_data(self):
         sociallogin = SimpleNamespace(
-            user=SimpleNamespace(email="person@test.com"),
+            user=SimpleNamespace(pk=None, email="person@test.com", is_active=True),
             account=SimpleNamespace(provider="google", extra_data=None),
         )
 
