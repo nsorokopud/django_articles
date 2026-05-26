@@ -35,7 +35,8 @@ def create_or_update_unread_comment_aggregate_notification(
         article_id=article_id,
     )
     link = _build_article_link(article_slug)
-    now_iso = timezone.now().isoformat()
+    now = timezone.now()
+    now_iso = now.isoformat()
 
     def _update_existing(existing: Notification) -> Notification:
         return _update_comment_aggregate_notification(
@@ -46,6 +47,7 @@ def create_or_update_unread_comment_aggregate_notification(
             article_id=article_id,
             article_title=article_title,
             link=link,
+            now=now,
             now_iso=now_iso,
         )
 
@@ -58,27 +60,30 @@ def create_or_update_unread_comment_aggregate_notification(
             return _update_existing(existing), False
 
         try:
-            notification = Notification.objects.create(
-                recipient_id=article_author_id,
-                sender_id=None,
-                notification_type=NotificationType.NEW_COMMENT,
-                level=Notification.Level.INFO,
-                title="New Comment",
-                body=f"New comment by {comment_author_username} "
-                f'on your article "{article_title}".',
-                payload=_build_initial_comment_aggregate_payload(
-                    comment_id=comment_id,
-                    comment_author_id=comment_author_id,
-                    comment_author_username=comment_author_username,
-                    article_id=article_id,
-                    article_title=article_title,
-                    link=link,
-                    now_iso=now_iso,
-                ),
-                aggregate_key=aggregate_key,
-                dedupe_key="",
-            )
-            _increment_unread_notification_count(article_author_id)
+            with transaction.atomic():
+                notification = Notification.objects.create(
+                    recipient_id=article_author_id,
+                    sender_id=None,
+                    notification_type=NotificationType.NEW_COMMENT,
+                    level=Notification.Level.INFO,
+                    title="New Comment",
+                    body=f"New comment by {comment_author_username} "
+                    f'on your article "{article_title}".',
+                    payload=_build_initial_comment_aggregate_payload(
+                        comment_id=comment_id,
+                        comment_author_id=comment_author_id,
+                        comment_author_username=comment_author_username,
+                        article_id=article_id,
+                        article_title=article_title,
+                        link=link,
+                        now_iso=now_iso,
+                    ),
+                    aggregate_key=aggregate_key,
+                    dedupe_key="",
+                    last_event_at=now,
+                )
+                _increment_unread_notification_count(article_author_id)
+
             return notification, True
 
         except IntegrityError as exc:
@@ -126,6 +131,7 @@ def _update_comment_aggregate_notification(
     article_id: int,
     article_title: str,
     link: str,
+    now,
     now_iso: str,
 ) -> Notification:
     payload = _normalize_comment_aggregate_payload(notification.payload)
@@ -162,7 +168,10 @@ def _update_comment_aggregate_notification(
         distinct_commenter_count=distinct_commenter_count,
     )
     notification.payload = payload
-    notification.save(update_fields=["sender", "title", "body", "payload"])
+    notification.last_event_at = now
+    notification.save(
+        update_fields=["sender", "title", "body", "payload", "last_event_at"]
+    )
     return notification
 
 

@@ -7,6 +7,7 @@ export function showToast({
   title,
   body,
   timestamp,
+  lastEventAt = null,
   payload,
   link,
   markReadOnClick,
@@ -42,7 +43,12 @@ export function showToast({
 
   const headerTime = document.createElement('small');
   try {
-    const effectiveTimestamp = getToastTimestamp(timestamp, payload);
+    const effectiveTimestamp = getToastTimestamp({
+      timestamp,
+      lastEventAt,
+      payload,
+    });
+
     headerTime.dataset.relativeTimestamp = effectiveTimestamp;
     headerTime.innerText =
       luxon.DateTime.fromJSDate(new Date(effectiveTimestamp)).toRelative() ||
@@ -109,7 +115,9 @@ export function showToast({
   }
 }
 
-function getToastTimestamp(timestamp, payload) {
+function getToastTimestamp({ timestamp, lastEventAt, payload }) {
+  if (lastEventAt) return lastEventAt;
+
   if (
     payload &&
     payload.kind === 'comment_aggregate' &&
@@ -117,5 +125,6 @@ function getToastTimestamp(timestamp, payload) {
   ) {
     return payload.last_comment_at;
   }
+
   return timestamp;
 }

@@ -57,12 +57,14 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "body": "b",
             "payload": None,
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
         }
         msg = NotificationConsumer._build_message_from_event(event)
         self.assertIsNotNone(msg)
         assert msg is not None
         self.assertIn("payload", msg)
         self.assertIsNone(msg["payload"])
+        self.assertEqual(msg["last_event_at"], "2026-01-01T12:00:00Z")
 
     def test_build_message_from_event_defaults_payload_to_none(self):
         event = {
@@ -71,12 +73,14 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "title": "t",
             "body": "b",
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
         }
         msg = NotificationConsumer._build_message_from_event(event)
         self.assertIsNotNone(msg)
         assert msg is not None
         self.assertIn("payload", msg)
         self.assertIsNone(msg["payload"])
+        self.assertEqual(msg["last_event_at"], "2026-01-01T12:00:00Z")
 
     def test_build_message_from_event_includes_is_new_unread(self):
         event = {
@@ -86,6 +90,7 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "body": "b",
             "payload": None,
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
             "is_new_unread": False,
         }
         msg = NotificationConsumer._build_message_from_event(event)
@@ -102,6 +107,7 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "body": "b",
             "payload": None,
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
         }
         msg = NotificationConsumer._build_message_from_event(event)
         self.assertIsNotNone(msg)
@@ -155,6 +161,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         body: str = "b",
         payload=None,
         timestamp: str = "2026-01-01T12:00:00Z",
+        last_event_at: str = "2026-01-01T12:00:00Z",
         is_new_unread: bool = True,
     ) -> dict:
         return {
@@ -164,6 +171,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             "body": body,
             "payload": payload,
             "timestamp": timestamp,
+            "last_event_at": last_event_at,
             "is_new_unread": is_new_unread,
         }
 
@@ -291,6 +299,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             self.assertEqual(msg["body"], "b")
             self.assertIsNone(msg["payload"])
             self.assertEqual(msg["timestamp"], "2026-01-01T12:00:00Z")
+            self.assertEqual(msg["last_event_at"], "2026-01-01T12:00:00Z")
             self.assertTrue(msg["is_new_unread"])
 
     async def test_group_send_delivers_notification_with_is_new_unread_false(self):
@@ -938,6 +947,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                     body="B",
                     payload=None,
                     timestamp="2026-01-01T12:00:01Z",
+                    last_event_at="2026-01-01T12:00:01Z",
                 ),
             )
 

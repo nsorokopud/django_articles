@@ -25,6 +25,7 @@ class NotificationEvent(TypedDict):
     body: str
     payload: Optional[dict[str, Any]]
     timestamp: str
+    last_event_at: str
     is_new_unread: bool
 
 
@@ -241,6 +242,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "body": event["body"],
                 "payload": event.get("payload"),
                 "timestamp": event["timestamp"],
+                "last_event_at": event["last_event_at"],
                 "is_new_unread": bool(event.get("is_new_unread", True)),
             }
         except KeyError as e:

@@ -25,7 +25,13 @@ async def send_ws_notification(
 
     try:
         n = await Notification.objects.only(
-            "id", "recipient_id", "title", "body", "payload", "created_at"
+            "id",
+            "recipient_id",
+            "title",
+            "body",
+            "payload",
+            "created_at",
+            "last_event_at",
         ).aget(id=notification_id)
     except Notification.DoesNotExist:
         return
@@ -52,6 +58,7 @@ async def _send_notification_throttled(
         "body": n.body,
         "payload": n.payload,
         "timestamp": n.created_at.isoformat(),
+        "last_event_at": n.last_event_at.isoformat(),
         "is_new_unread": is_new_unread,
     }
 

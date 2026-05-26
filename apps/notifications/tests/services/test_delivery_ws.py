@@ -1,6 +1,6 @@
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -17,6 +17,7 @@ class FakeNotification:
     body: str
     payload: dict
     created_at: datetime
+    last_event_at: datetime
 
 
 @override_settings(
@@ -29,13 +30,17 @@ class TestSendWSNotification(SimpleTestCase):
         self.layer = Mock()
         self.layer.group_send = AsyncMock()
 
+        created_at = datetime.now(dt_timezone.utc)
+        last_event_at = created_at + timedelta(minutes=5)
+
         self.notification = FakeNotification(
             id=1,
             recipient_id=1,
             title="T",
             body="B",
             payload={"link": "/x/"},
-            created_at=datetime.now(dt_timezone.utc),
+            created_at=created_at,
+            last_event_at=last_event_at,
         )
 
     async def test_returns_when_no_channel_layer(self) -> None:
@@ -97,6 +102,16 @@ class TestSendWSNotification(SimpleTestCase):
                 notification_id=1, is_new_unread=False
             )
 
+            delivery_ws.Notification.objects.only.assert_called_once_with(
+                "id",
+                "recipient_id",
+                "title",
+                "body",
+                "payload",
+                "created_at",
+                "last_event_at",
+            )
+
         self.layer.group_send.assert_awaited_once()
         group, payload = self.layer.group_send.await_args.args
         self.assertEqual(group, "user_1")
@@ -107,6 +122,11 @@ class TestSendWSNotification(SimpleTestCase):
         self.assertEqual(payload["payload"], {"link": "/x/"})
         self.assertFalse(payload["is_new_unread"])
         self.assertIn("timestamp", payload)
+        self.assertIn("last_event_at", payload)
+        self.assertEqual(payload["timestamp"], self.notification.created_at.isoformat())
+        self.assertEqual(
+            payload["last_event_at"], self.notification.last_event_at.isoformat()
+        )
 
         add_mock.assert_called_once()
         called_key = add_mock.call_args.args[0]
@@ -169,13 +189,15 @@ class TestGroupSendWithTimeout(SimpleTestCase):
         self.layer = Mock()
         self.layer.group_send = AsyncMock()
 
+        now = datetime.now(dt_timezone.utc)
         self.notification = FakeNotification(
             id=1,
             recipient_id=1,
             title="T",
             body="B",
             payload={"link": "/x/"},
-            created_at=datetime.now(dt_timezone.utc),
+            created_at=now,
+            last_event_at=now,
         )
 
     async def test_logs_warning(self) -> None:
