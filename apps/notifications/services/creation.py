@@ -3,7 +3,6 @@ from typing import Any, Optional
 
 from django.db import IntegrityError, transaction
 from django.db.models import F
-from django.template.loader import render_to_string
 
 from users.models import User
 
@@ -98,11 +97,6 @@ def create_deduped_notification(
             dedupe_key=dedupe_key,
         )
         return n, False
-
-
-def _render_notification_message(template_name: str, context: dict[str, Any]) -> str:
-    """Renders a notification message from a template."""
-    return render_to_string(template_name, context).strip("\n").replace("\n", " ")
 
 
 def _normalize_payload(payload: Any, *, recipient_id: int) -> dict[str, Any]:
