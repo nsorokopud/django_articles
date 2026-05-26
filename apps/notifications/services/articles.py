@@ -1,7 +1,7 @@
 from django.urls import reverse
 
 from ..models import Notification
-from .creation import create_system_notification
+from .creation import create_deduped_system_notification
 from .dispatch import dispatch_notification_after_commit
 
 
@@ -14,7 +14,7 @@ def notify_article_published(
     actor_id: int | None = None,
     publish_sequence: int | None = None,
 ) -> None:
-    notification, created = create_system_notification(
+    notification, created = create_deduped_system_notification(
         recipient_id=recipient_id,
         sender_id=actor_id,
         level=Notification.Level.SUCCESS,  # type: ignore[arg-type]
@@ -56,7 +56,7 @@ def notify_article_rejected(
     if review_note:
         body += f" Review note: {review_note}"
 
-    notification, created = create_system_notification(
+    notification, created = create_deduped_system_notification(
         recipient_id=recipient_id,
         sender_id=reviewer_id,
         level=Notification.Level.WARNING,  # type: ignore[arg-type]
@@ -94,7 +94,7 @@ def notify_article_unpublished(
     actor_id: int | None = None,
     unpublished_at_ts: str | None = None,
 ) -> None:
-    notification, created = create_system_notification(
+    notification, created = create_deduped_system_notification(
         recipient_id=recipient_id,
         sender_id=actor_id,
         level=Notification.Level.WARNING,  # type: ignore[arg-type]

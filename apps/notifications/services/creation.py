@@ -36,7 +36,7 @@ def create_new_comment_notification(
     )
 
 
-def create_system_notification(
+def create_deduped_system_notification(
     *,
     recipient_id: int,
     level: str = Notification.Level.INFO,  # type: ignore[assignment]

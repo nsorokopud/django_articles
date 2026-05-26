@@ -8,8 +8,8 @@ from django.test import TestCase
 from notifications.models import Notification, NotificationType
 from notifications.services.creation import (
     create_deduped_notification,
+    create_deduped_system_notification,
     create_new_comment_notification,
-    create_system_notification,
 )
 from users.models import User
 
@@ -17,12 +17,10 @@ from users.models import User
 class TestCreateDedupedNotification(TestCase):
     def setUp(self) -> None:
         self.recipient = User.objects.create_user(
-            username="recipient",
-            email="recipient@test.com",
+            username="recipient", email="recipient@test.com"
         )
         self.sender = User.objects.create_user(
-            username="sender",
-            email="sender@test.com",
+            username="sender", email="sender@test.com"
         )
 
     def test_creates_row_and_increments_unread(self) -> None:
@@ -200,12 +198,10 @@ class TestCreateDedupedNotification(TestCase):
 class TestCreateNewCommentNotification(TestCase):
     def setUp(self) -> None:
         self.recipient = User.objects.create_user(
-            username="recipient",
-            email="recipient@test.com",
+            username="recipient", email="recipient@test.com"
         )
         self.sender = User.objects.create_user(
-            username="sender",
-            email="sender@test.com",
+            username="sender", email="sender@test.com"
         )
 
     def test_returns_none_on_self_comment(self) -> None:
@@ -249,22 +245,18 @@ class TestCreateNewCommentNotification(TestCase):
         )
 
 
-class TestCreateSystemNotification(TestCase):
+class TestCreateDedupedSystemNotification(TestCase):
     def setUp(self) -> None:
         self.recipient = User.objects.create_user(
-            username="recipient",
-            email="recipient@test.com",
+            username="recipient", email="recipient@test.com"
         )
         self.sender = User.objects.create_user(
-            username="sender",
-            email="sender@test.com",
+            username="sender", email="sender@test.com"
         )
 
-    def test_create_system_notification_defaults_type_and_level(self) -> None:
-        n, created = create_system_notification(
-            recipient_id=self.recipient.id,
-            title="T",
-            body="B",
+    def test_create_deduped_system_notification_defaults_type_and_level(self) -> None:
+        n, created = create_deduped_system_notification(
+            recipient_id=self.recipient.id, title="T", body="B"
         )
         self.assertTrue(created)
 
@@ -274,8 +266,8 @@ class TestCreateSystemNotification(TestCase):
         self.assertEqual(n_db.title, "T")
         self.assertEqual(n_db.body, "B")
 
-    def test_create_system_notification_allows_custom_level(self) -> None:
-        n, created = create_system_notification(
+    def test_create_deduped_system_notification_allows_custom_level(self) -> None:
+        n, created = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             level=Notification.Level.ERROR,
             title="T",
@@ -286,10 +278,10 @@ class TestCreateSystemNotification(TestCase):
             Notification.objects.get(id=n.id).level, Notification.Level.ERROR
         )
 
-    def test_create_system_notification_forwards_sender_payload_and_dedupe(
+    def test_create_deduped_system_notification_forwards_sender_payload_and_dedupe(
         self,
     ) -> None:
-        n, created = create_system_notification(
+        n, created = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             sender_id=self.sender.id,
             title="T",
@@ -304,8 +296,8 @@ class TestCreateSystemNotification(TestCase):
         self.assertEqual(n_db.payload, {"link": "/x/"})
         self.assertEqual(n_db.dedupe_key, "sys:1")
 
-    def test_create_system_notification_dedupe_returns_existing(self) -> None:
-        n1, created1 = create_system_notification(
+    def test_create_deduped_system_notification_dedupe_returns_existing(self) -> None:
+        n1, created1 = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             title="T1",
             body="B1",
@@ -316,7 +308,7 @@ class TestCreateSystemNotification(TestCase):
         self.recipient.refresh_from_db()
         self.assertEqual(self.recipient.unread_notifications_count, 1)
 
-        n2, created2 = create_system_notification(
+        n2, created2 = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             title="T2",
             body="B2",

@@ -13,16 +13,16 @@ from notifications.services.articles import (
 
 class TestNotifyArticlePublished(SimpleTestCase):
     @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_system_notification")
+    @patch("notifications.services.articles.create_deduped_system_notification")
     def test_with_publish_sequence(
         self,
-        mock_create_system_notification,
+        mock_create_deduped_system_notification,
         mock_dispatch,
     ):
         notification = Mock()
         notification.id = 101
         notification.notification_type = "system"
-        mock_create_system_notification.return_value = (notification, True)
+        mock_create_deduped_system_notification.return_value = (notification, True)
 
         article_id = 22
 
@@ -35,7 +35,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
             publish_sequence=44,
         )
 
-        mock_create_system_notification.assert_called_once_with(
+        mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=11,
             sender_id=33,
             level=Notification.Level.SUCCESS,
@@ -59,16 +59,16 @@ class TestNotifyArticlePublished(SimpleTestCase):
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_system_notification")
+    @patch("notifications.services.articles.create_deduped_system_notification")
     def test_without_publish_sequence(
         self,
-        mock_create_system_notification,
+        mock_create_deduped_system_notification,
         mock_dispatch,
     ):
         notification = Mock()
         notification.id = 102
         notification.notification_type = "system"
-        mock_create_system_notification.return_value = (notification, False)
+        mock_create_deduped_system_notification.return_value = (notification, False)
 
         article_id = 22
 
@@ -81,7 +81,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
             publish_sequence=None,
         )
 
-        mock_create_system_notification.assert_called_once_with(
+        mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=11,
             sender_id=None,
             level=Notification.Level.SUCCESS,
@@ -107,16 +107,16 @@ class TestNotifyArticlePublished(SimpleTestCase):
 
 class TestNotifyArticleRejected(SimpleTestCase):
     @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_system_notification")
+    @patch("notifications.services.articles.create_deduped_system_notification")
     def test_with_review_note_and_timestamp(
         self,
-        mock_create_system_notification,
+        mock_create_deduped_system_notification,
         mock_dispatch,
     ):
         notification = Mock()
         notification.id = 201
         notification.notification_type = "system"
-        mock_create_system_notification.return_value = (notification, True)
+        mock_create_deduped_system_notification.return_value = (notification, True)
 
         notify_article_rejected(
             recipient_id=10,
@@ -130,7 +130,7 @@ class TestNotifyArticleRejected(SimpleTestCase):
 
         article_id = 20
 
-        mock_create_system_notification.assert_called_once_with(
+        mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=10,
             sender_id=30,
             level=Notification.Level.WARNING,
@@ -155,16 +155,16 @@ class TestNotifyArticleRejected(SimpleTestCase):
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_system_notification")
+    @patch("notifications.services.articles.create_deduped_system_notification")
     def test_without_review_note_or_timestamp(
         self,
-        mock_create_system_notification,
+        mock_create_deduped_system_notification,
         mock_dispatch,
     ):
         notification = Mock()
         notification.id = 202
         notification.notification_type = "system"
-        mock_create_system_notification.return_value = (notification, False)
+        mock_create_deduped_system_notification.return_value = (notification, False)
 
         article_id = 20
 
@@ -178,7 +178,7 @@ class TestNotifyArticleRejected(SimpleTestCase):
             reviewed_at_ts=None,
         )
 
-        mock_create_system_notification.assert_called_once_with(
+        mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=10,
             sender_id=None,
             level=Notification.Level.WARNING,
@@ -202,16 +202,16 @@ class TestNotifyArticleRejected(SimpleTestCase):
 
 class TestNotifyArticleUnpublished(SimpleTestCase):
     @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_system_notification")
+    @patch("notifications.services.articles.create_deduped_system_notification")
     def test_with_timestamp(
         self,
-        mock_create_system_notification,
+        mock_create_deduped_system_notification,
         mock_dispatch,
     ):
         notification = Mock()
         notification.id = 301
         notification.notification_type = "system"
-        mock_create_system_notification.return_value = (notification, True)
+        mock_create_deduped_system_notification.return_value = (notification, True)
 
         article_id = 24
 
@@ -224,7 +224,7 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
             unpublished_at_ts="2026-03-31T15:00:00+00:00",
         )
 
-        mock_create_system_notification.assert_called_once_with(
+        mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=12,
             sender_id=36,
             level=Notification.Level.WARNING,
@@ -245,16 +245,16 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_system_notification")
+    @patch("notifications.services.articles.create_deduped_system_notification")
     def test_without_timestamp(
         self,
-        mock_create_system_notification,
+        mock_create_deduped_system_notification,
         mock_dispatch,
     ):
         notification = Mock()
         notification.id = 302
         notification.notification_type = "system"
-        mock_create_system_notification.return_value = (notification, False)
+        mock_create_deduped_system_notification.return_value = (notification, False)
 
         article_id = 24
 
@@ -267,7 +267,7 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
             unpublished_at_ts=None,
         )
 
-        mock_create_system_notification.assert_called_once_with(
+        mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=12,
             sender_id=None,
             level=Notification.Level.WARNING,
