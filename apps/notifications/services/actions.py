@@ -9,17 +9,19 @@ from ..models import Notification
 
 @transaction.atomic
 def mark_notification_as_read(notification_id: int, user_id: int) -> bool:
-    updated = Notification.objects.filter(
-        id=notification_id,
-        recipient_id=user_id,
-        read_at__isnull=True,
-    ).update(read_at=timezone.now())
+    n = (
+        Notification.objects.select_for_update()
+        .filter(id=notification_id, recipient_id=user_id)
+        .only("id", "read_at")
+        .first()
+    )
+    if not n or n.read_at is not None:
+        return False
 
-    if updated == 1:
-        _decrement_unread(user_id)
-        return True
-
-    return False
+    n.read_at = timezone.now()
+    n.save(update_fields=["read_at"])
+    _decrement_unread(user_id)
+    return True
 
 
 @transaction.atomic

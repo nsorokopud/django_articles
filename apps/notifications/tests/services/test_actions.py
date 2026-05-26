@@ -53,6 +53,17 @@ class TestActionServices(TestCase):
         self.user1.refresh_from_db()
         self.assertEqual(self.user1.unread_notifications_count, 1)
 
+    def test_mark_read_is_idempotent_and_decrements_once(self):
+        self.assertEqual(self.user1.unread_notifications_count, 1)
+
+        self.assertTrue(mark_notification_as_read(self.notification.id, self.user1.id))
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.unread_notifications_count, 0)
+
+        self.assertFalse(mark_notification_as_read(self.notification.id, self.user1.id))
+        self.user1.refresh_from_db()
+        self.assertEqual(self.user1.unread_notifications_count, 0)
+
     def test_mark_notification_as_read_wrong_user(self) -> None:
         result = mark_notification_as_read(self.notification.id, self.user2.id)
 
