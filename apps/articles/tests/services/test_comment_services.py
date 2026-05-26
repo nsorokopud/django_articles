@@ -38,7 +38,7 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_raises_value_error_when_article_not_published(
-        self, mock_create_notification, mock_dispatch
+        self, mock_create_deduped_notification, mock_dispatch
     ):
         self.article.status = ArticleStatus.DRAFT
         self.article.published_at = None
@@ -57,20 +57,20 @@ class TestCreateArticleComment(TestCase):
         self.article.refresh_from_db()
         self.assertEqual(self.article.comments_count, 0)
 
-        mock_create_notification.assert_not_called()
+        mock_create_deduped_notification.assert_not_called()
         mock_dispatch.assert_not_called()
 
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_creates_comment_increments_count_and_dispatches_notification_when_created(
         self,
-        mock_create_notification,
+        mock_create_deduped_notification,
         mock_dispatch,
     ):
         notification = type(
             "NotificationStub", (), {"id": 123, "notification_type": "new_comment"}
         )()
-        mock_create_notification.return_value = (notification, True)
+        mock_create_deduped_notification.return_value = (notification, True)
 
         comment = create_article_comment(
             article_id=self.article.id, user=self.commenter, text="hello world"
@@ -89,7 +89,7 @@ class TestCreateArticleComment(TestCase):
         self.article.refresh_from_db()
         self.assertEqual(self.article.comments_count, 1)
 
-        mock_create_notification.assert_called_once_with(
+        mock_create_deduped_notification.assert_called_once_with(
             comment_id=comment.id,
             comment_author_id=self.commenter.id,
             comment_author_username=self.commenter.username,
@@ -105,12 +105,12 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_creates_comment_and_dispatches_notification_when_unread_state_returned(
-        self, mock_create_notification, mock_dispatch
+        self, mock_create_deduped_notification, mock_dispatch
     ):
         notification = type(
             "NotificationStub", (), {"id": 456, "notification_type": "new_comment"}
         )()
-        mock_create_notification.return_value = (notification, False)
+        mock_create_deduped_notification.return_value = (notification, False)
 
         comment = create_article_comment(
             article_id=self.article.id, user=self.commenter, text="another comment"
@@ -135,9 +135,9 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_creates_comment_and_does_not_dispatch_when_notification_not_created(
-        self, mock_create_notification, mock_dispatch
+        self, mock_create_deduped_notification, mock_dispatch
     ):
-        mock_create_notification.return_value = None
+        mock_create_deduped_notification.return_value = None
 
         comment = create_article_comment(
             article_id=self.article.id, user=self.commenter, text="no notification"
@@ -155,7 +155,7 @@ class TestCreateArticleComment(TestCase):
         self.article.refresh_from_db()
         self.assertEqual(self.article.comments_count, 1)
 
-        mock_create_notification.assert_called_once_with(
+        mock_create_deduped_notification.assert_called_once_with(
             comment_id=comment.id,
             comment_author_id=self.commenter.id,
             comment_author_username=self.commenter.username,
@@ -170,9 +170,11 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_keeps_comment_and_count_when_notification_creation_raises_runtime_error(
-        self, mock_create_notification, mock_dispatch, mock_log_exception
+        self, mock_create_deduped_notification, mock_dispatch, mock_log_exception
     ):
-        mock_create_notification.side_effect = RuntimeError("notification failure")
+        mock_create_deduped_notification.side_effect = RuntimeError(
+            "notification failure"
+        )
 
         comment = create_article_comment(
             article_id=self.article.id, user=self.commenter, text="should persist"
@@ -197,9 +199,9 @@ class TestCreateArticleComment(TestCase):
     @patch("articles.services.comments.dispatch_notification_after_commit")
     @patch("articles.services.comments.create_new_comment_notification")
     def test_keeps_comment_and_count_when_notification_creation_raises_integrity_error(
-        self, mock_create_notification, mock_dispatch, mock_log_exception
+        self, mock_create_deduped_notification, mock_dispatch, mock_log_exception
     ):
-        mock_create_notification.side_effect = IntegrityError("db failure")
+        mock_create_deduped_notification.side_effect = IntegrityError("db failure")
 
         comment = create_article_comment(
             article_id=self.article.id, user=self.commenter, text="should also persist"

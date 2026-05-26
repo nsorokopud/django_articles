@@ -16,7 +16,7 @@ class TestBuildNotificationEmailConfig(TestCase):
             defaults={"notification_emails_allowed": True},
         )
 
-    def _create_notification(
+    def _create_deduped_notification(
         self,
         *,
         notification_type: str = NotificationType.SYSTEM,
@@ -39,7 +39,9 @@ class TestBuildNotificationEmailConfig(TestCase):
         self.assertIsNone(cfg)
 
     def test_returns_none_for_non_system_notification(self) -> None:
-        n = self._create_notification(notification_type=NotificationType.NEW_COMMENT)
+        n = self._create_deduped_notification(
+            notification_type=NotificationType.NEW_COMMENT
+        )
         cfg = build_notification_email_config(notification_id=n.id)
         self.assertIsNone(cfg)
 
@@ -47,12 +49,12 @@ class TestBuildNotificationEmailConfig(TestCase):
         self.user.profile.notification_emails_allowed = False
         self.user.profile.save(update_fields=["notification_emails_allowed"])
 
-        n = self._create_notification(notification_type=NotificationType.SYSTEM)
+        n = self._create_deduped_notification(notification_type=NotificationType.SYSTEM)
         cfg = build_notification_email_config(notification_id=n.id)
         self.assertIsNone(cfg)
 
     def test_builds_config_for_system_notification(self) -> None:
-        n = self._create_notification(
+        n = self._create_deduped_notification(
             notification_type=NotificationType.SYSTEM,
             title="T",
             body="B",
@@ -70,7 +72,7 @@ class TestBuildNotificationEmailConfig(TestCase):
         self.user.email = "  u1@test.com  "
         self.user.save(update_fields=["email"])
 
-        n = self._create_notification(notification_type=NotificationType.SYSTEM)
+        n = self._create_deduped_notification(notification_type=NotificationType.SYSTEM)
         cfg = build_notification_email_config(notification_id=n.id)
 
         self.assertIsNotNone(cfg)

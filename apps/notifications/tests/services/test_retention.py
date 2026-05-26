@@ -11,7 +11,9 @@ from notifications.services.retention import (
 from users.models import User
 
 
-def _create_notification(user: User, *, read_at=None, created_at=None) -> Notification:
+def _create_deduped_notification(
+    user: User, *, read_at=None, created_at=None
+) -> Notification:
     n = Notification.objects.create(
         recipient=user,
         title="t",
@@ -48,10 +50,16 @@ class TestCleanupOldReadNotifications(TestCase):
     )
     def test_uses_settings_defaults(self):
         now = timezone.now()
-        old_read_1 = _create_notification(self.user, read_at=now - timedelta(days=40))
-        old_read_2 = _create_notification(self.user, read_at=now - timedelta(days=35))
-        recent_read = _create_notification(self.user, read_at=now - timedelta(days=5))
-        unread_old = _create_notification(self.user, read_at=None)
+        old_read_1 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=40)
+        )
+        old_read_2 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=35)
+        )
+        recent_read = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=5)
+        )
+        unread_old = _create_deduped_notification(self.user, read_at=None)
 
         deleted = cleanup_old_read_notifications()
 
@@ -68,10 +76,16 @@ class TestCleanupOldReadNotifications(TestCase):
     )
     def test_deletes_only_old_read_notifications(self):
         now = timezone.now()
-        old_read_1 = _create_notification(self.user, read_at=now - timedelta(days=100))
-        old_read_2 = _create_notification(self.user, read_at=now - timedelta(days=31))
-        recent_read = _create_notification(self.user, read_at=now - timedelta(days=29))
-        unread = _create_notification(self.user, read_at=None)
+        old_read_1 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=100)
+        )
+        old_read_2 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=31)
+        )
+        recent_read = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=29)
+        )
+        unread = _create_deduped_notification(self.user, read_at=None)
 
         deleted = cleanup_old_read_notifications()
 
@@ -88,9 +102,9 @@ class TestCleanupOldReadNotifications(TestCase):
     )
     def test_respects_max_batches(self):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=60))
-        _create_notification(self.user, read_at=now - timedelta(days=61))
-        _create_notification(self.user, read_at=now - timedelta(days=62))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=60))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=61))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=62))
 
         deleted = cleanup_old_read_notifications()
 
@@ -104,9 +118,9 @@ class TestCleanupOldReadNotifications(TestCase):
     )
     def test_stops_when_no_more_rows(self):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=60))
-        _create_notification(self.user, read_at=now - timedelta(days=61))
-        _create_notification(self.user, read_at=now - timedelta(days=62))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=60))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=61))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=62))
 
         deleted = cleanup_old_read_notifications()
 
@@ -120,7 +134,7 @@ class TestCleanupOldReadNotifications(TestCase):
     )
     def test_returns_zero_when_max_batches_is_zero(self):
         now = timezone.now()
-        n = _create_notification(self.user, read_at=now - timedelta(days=60))
+        n = _create_deduped_notification(self.user, read_at=now - timedelta(days=60))
 
         deleted = cleanup_old_read_notifications()
 
@@ -175,11 +189,19 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
     )
     def test_deletes_oldest_read_rows_first(self):
         now = timezone.now()
-        oldest = _create_notification(self.user, read_at=now - timedelta(days=100))
-        middle = _create_notification(self.user, read_at=now - timedelta(days=90))
-        newest_old = _create_notification(self.user, read_at=now - timedelta(days=80))
-        recent = _create_notification(self.user, read_at=now - timedelta(days=5))
-        unread = _create_notification(self.user, read_at=None)
+        oldest = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=100)
+        )
+        middle = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=90)
+        )
+        newest_old = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=80)
+        )
+        recent = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=5)
+        )
+        unread = _create_deduped_notification(self.user, read_at=None)
 
         cutoff = now - timedelta(days=30)
         deleted = _delete_old_read_notifications_batch(cutoff=cutoff, batch_size=2)
@@ -200,9 +222,9 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self,
     ):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=100))
-        _create_notification(self.user, read_at=now - timedelta(days=90))
-        _create_notification(self.user, read_at=now - timedelta(days=80))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=100))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=90))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=80))
 
         cutoff = now - timedelta(days=30)
         deleted = _delete_old_read_notifications_batch(cutoff=cutoff)
@@ -219,8 +241,8 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self,
     ):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=5))
-        _create_notification(self.user, read_at=None)
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=5))
+        _create_deduped_notification(self.user, read_at=None)
 
         cutoff = now - timedelta(days=30)
         deleted = _delete_old_read_notifications_batch(cutoff=cutoff, batch_size=10)

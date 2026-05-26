@@ -46,7 +46,7 @@ def create_system_notification(
     sender_id: Optional[int] = None,
     dedupe_key: str = "",
 ) -> tuple[Notification, bool]:
-    notification, created = create_notification(
+    notification, created = create_deduped_notification(
         recipient_id=recipient_id,
         notification_type=NotificationType.SYSTEM,  # type: ignore[arg-type]
         level=level,
@@ -59,7 +59,7 @@ def create_system_notification(
     return notification, created
 
 
-def create_notification(
+def create_deduped_notification(
     *,
     recipient_id: int,
     notification_type: str = NotificationType.SYSTEM,  # type: ignore[assignment]

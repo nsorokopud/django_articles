@@ -13,7 +13,7 @@ class TestGetNotificationsPage(TestCase):
         self.u1 = User.objects.create_user(username="u1", email="u1@test.com")
         self.u2 = User.objects.create_user(username="u2", email="u2@test.com")
 
-    def _create_notification(
+    def _create_deduped_notification(
         self,
         *,
         user: User,
@@ -62,13 +62,13 @@ class TestGetNotificationsPage(TestCase):
     def test_initial_page_orders_newest_first_and_sets_next_before_cursor(self) -> None:
         base = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=base - timedelta(minutes=3)
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=base - timedelta(minutes=2)
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=base - timedelta(minutes=1)
         )
 
@@ -84,7 +84,9 @@ class TestGetNotificationsPage(TestCase):
         self.assertIn("payload", item)
         self.assertEqual(item["is_read"], False)
 
-        self._create_notification(user=self.u2, title="other", last_event_at=base)
+        self._create_deduped_notification(
+            user=self.u2, title="other", last_event_at=base
+        )
 
         res2 = get_notifications_page(user_id=self.u1.id, limit=10)
         self.assertEqual([x["id"] for x in res2["items"]], [n3.id, n2.id, n1.id])
@@ -94,13 +96,13 @@ class TestGetNotificationsPage(TestCase):
     ) -> None:
         same_time = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=same_time
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=same_time
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=same_time
         )
 
@@ -111,16 +113,16 @@ class TestGetNotificationsPage(TestCase):
     def test_before_cursor_paginates_older_items(self) -> None:
         base = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=base - timedelta(minutes=4)
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=base - timedelta(minutes=3)
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=base - timedelta(minutes=2)
         )
-        n4 = self._create_notification(
+        n4 = self._create_deduped_notification(
             user=self.u1, title="n4", last_event_at=base - timedelta(minutes=1)
         )
 
@@ -145,16 +147,16 @@ class TestGetNotificationsPage(TestCase):
     def test_before_cursor_handles_same_last_event_at_tie_breaker(self) -> None:
         same_time = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=same_time
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=same_time
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=same_time
         )
-        n4 = self._create_notification(
+        n4 = self._create_deduped_notification(
             user=self.u1, title="n4", last_event_at=same_time
         )
 
@@ -178,13 +180,13 @@ class TestGetNotificationsPage(TestCase):
     ) -> None:
         base = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=base - timedelta(minutes=3)
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=base - timedelta(minutes=2)
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=base - timedelta(minutes=1)
         )
 
@@ -202,13 +204,13 @@ class TestGetNotificationsPage(TestCase):
     def test_after_cursor_handles_same_last_event_at_tie_breaker(self) -> None:
         same_time = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=same_time
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=same_time
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=same_time
         )
 
@@ -226,16 +228,16 @@ class TestGetNotificationsPage(TestCase):
     def test_after_cursor_has_more_when_more_than_limit(self) -> None:
         base = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=base - timedelta(minutes=4)
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=base - timedelta(minutes=3)
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1, title="n3", last_event_at=base - timedelta(minutes=2)
         )
-        n4 = self._create_notification(
+        n4 = self._create_deduped_notification(
             user=self.u1, title="n4", last_event_at=base - timedelta(minutes=1)
         )
 
@@ -253,13 +255,13 @@ class TestGetNotificationsPage(TestCase):
     def test_updated_aggregate_with_old_id_sorts_by_last_event_at(self) -> None:
         base = timezone.now()
 
-        old_aggregate = self._create_notification(
+        old_aggregate = self._create_deduped_notification(
             user=self.u1,
             title="old-aggregate",
             notification_type=NotificationType.NEW_COMMENT,
             last_event_at=base - timedelta(hours=2),
         )
-        newer_regular = self._create_notification(
+        newer_regular = self._create_deduped_notification(
             user=self.u1, title="newer-regular", last_event_at=base - timedelta(hours=1)
         )
 
@@ -275,19 +277,19 @@ class TestGetNotificationsPage(TestCase):
     def test_include_read_false_filters_out_read_items(self) -> None:
         base = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1,
             title="unread-1",
             is_read=False,
             last_event_at=base - timedelta(minutes=3),
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1,
             title="read-1",
             is_read=True,
             last_event_at=base - timedelta(minutes=2),
         )
-        n3 = self._create_notification(
+        n3 = self._create_deduped_notification(
             user=self.u1,
             title="unread-2",
             is_read=False,
@@ -307,7 +309,7 @@ class TestGetNotificationsPage(TestCase):
         base = timezone.now()
 
         for i in range(INBOX_MAX_PAGE_SIZE + 1):
-            self._create_notification(
+            self._create_deduped_notification(
                 user=self.u1, title=f"n{i}", last_event_at=base + timedelta(seconds=i)
             )
 
@@ -319,10 +321,10 @@ class TestGetNotificationsPage(TestCase):
     def test_limit_below_one_defaults_to_one(self) -> None:
         base = timezone.now()
 
-        n1 = self._create_notification(
+        n1 = self._create_deduped_notification(
             user=self.u1, title="n1", last_event_at=base - timedelta(minutes=2)
         )
-        n2 = self._create_notification(
+        n2 = self._create_deduped_notification(
             user=self.u1, title="n2", last_event_at=base - timedelta(minutes=1)
         )
 
@@ -333,7 +335,9 @@ class TestGetNotificationsPage(TestCase):
         self.assertTrue(res["has_more"])
 
     def test_payload_non_dict_serializes_as_empty_dict(self) -> None:
-        n = self._create_notification(user=self.u1, title="bad-payload", payload=["x"])
+        n = self._create_deduped_notification(
+            user=self.u1, title="bad-payload", payload=["x"]
+        )
 
         res = get_notifications_page(user_id=self.u1.id, limit=10)
 
@@ -344,7 +348,7 @@ class TestGetNotificationsPage(TestCase):
         created_at = timezone.now() - timedelta(days=1)
         last_event_at = timezone.now()
 
-        n = self._create_notification(
+        n = self._create_deduped_notification(
             user=self.u1, title="n", created_at=created_at, last_event_at=last_event_at
         )
 
