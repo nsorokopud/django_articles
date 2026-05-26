@@ -340,28 +340,31 @@ function createInboxNotificationElement(n) {
     const hasLink = !!link;
 
     try {
+      if (!n.is_read) {
+        const data = await postJSON(`/notification/${n.id}/read/`);
+
+        if (data) {
+          applyUnreadCountFromResponse(data);
+          notification.classList.add('read');
+          n.is_read = true;
+        }
+      }
+
       if (hasLink) {
-        notification.classList.add('read');
-        n.is_read = true;
-
-        postJSON(`/notification/${n.id}/read/`, {
-          keepalive: true,
-        }).then((data) => {
-          if (data) applyUnreadCountFromResponse(data);
-        });
-
-        window.location.replace(link);
+        window.location.assign(link);
         return;
       }
+    } catch (err) {
+      console.warn('Failed to mark notification as read', err);
 
-      const data = await postJSON(`/notification/${n.id}/read/`);
-      if (data) {
-        applyUnreadCountFromResponse(data);
-        notification.classList.add('read');
-        n.is_read = true;
+      if (hasLink) {
+        window.location.assign(link);
+        return;
       }
     } finally {
-      notification.dataset.busy = '0';
+      if (!hasLink) {
+        notification.dataset.busy = '0';
+      }
     }
   });
 
