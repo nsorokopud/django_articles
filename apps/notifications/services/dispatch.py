@@ -32,7 +32,7 @@ def dispatch_notification_after_commit(
             lambda: send_notification_ws_task.delay(notification_id, is_new_unread)
         )
 
-    if plan.email:
+    if plan.email and is_new_unread:
         transaction.on_commit(
             lambda: send_notification_email_task.delay(notification_id)
         )
