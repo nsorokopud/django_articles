@@ -96,12 +96,12 @@ def _throttle_allows_send(
         return cache.add(key, True, timeout=cooldown_seconds)
     except Exception:  # pylint: disable=W0718
         logger.warning(
-            "WS cache throttle failed (recipient_id=%s key=%s)",
+            "WS cache throttle failed; allowing send (recipient_id=%s key=%s)",
             recipient_id,
             key,
             exc_info=True,
         )
-        return False
+        return True
 
 
 async def _group_send_with_timeout(

@@ -157,9 +157,7 @@ class TestSendWSNotification(SimpleTestCase):
         self.assertEqual(group, "user_1")
         self.assertEqual(payload, {"type": "send.notification.digest"})
 
-    async def test_cache_error_fails_closed_and_logs_warning(
-        self,
-    ) -> None:
+    async def test_cache_error_fails_open_and_logs_warning(self) -> None:
         only_qs = Mock()
         only_qs.aget = AsyncMock(return_value=self.notification)
 
@@ -176,12 +174,17 @@ class TestSendWSNotification(SimpleTestCase):
         ):
             await delivery_ws.send_ws_notification(notification_id=1)
 
-        self.layer.group_send.assert_not_awaited()
-        self.assertEqual(log_warn.call_count, 2)
+        self.layer.group_send.assert_awaited_once()
+        args = self.layer.group_send.await_args.args
 
-        called_keys = [call.args[2] for call in log_warn.call_args_list]
-        self.assertIn("ws_detailed_notification:v1:1", called_keys)
-        self.assertIn("ws_digest_hint:v1:1", called_keys)
+        self.assertEqual(args[0], "user_1")
+        self.assertEqual(args[1]["type"], "send.notification")
+        self.assertEqual(args[1]["id"], self.notification.id)
+
+        log_warn.assert_called_once()
+        self.assertIn(
+            "WS cache throttle failed; allowing send", log_warn.call_args.args[0]
+        )
 
 
 class TestGroupSendWithTimeout(SimpleTestCase):
