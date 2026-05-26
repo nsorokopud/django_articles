@@ -35,11 +35,12 @@ def notify_article_published(
         ),
     )
 
-    dispatch_notification_after_commit(
-        notification_id=notification.id,
-        notification_type=notification.notification_type,
-        is_new_unread=created,
-    )
+    if created:
+        dispatch_notification_after_commit(
+            notification_id=notification.id,
+            notification_type=notification.notification_type,
+            is_new_unread=True,
+        )
 
 
 def notify_article_rejected(
@@ -78,11 +79,12 @@ def notify_article_rejected(
         ),
     )
 
-    dispatch_notification_after_commit(
-        notification_id=notification.id,
-        notification_type=notification.notification_type,
-        is_new_unread=created,
-    )
+    if created:
+        dispatch_notification_after_commit(
+            notification_id=notification.id,
+            notification_type=notification.notification_type,
+            is_new_unread=True,
+        )
 
 
 def notify_article_unpublished(
@@ -115,8 +117,9 @@ def notify_article_unpublished(
         ),
     )
 
-    dispatch_notification_after_commit(
-        notification_id=notification.id,
-        notification_type=notification.notification_type,
-        is_new_unread=created,
-    )
+    if created:
+        dispatch_notification_after_commit(
+            notification_id=notification.id,
+            notification_type=notification.notification_type,
+            is_new_unread=True,
+        )

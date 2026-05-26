@@ -55,12 +55,14 @@ class TestNotifyArticlePublished(SimpleTestCase):
             dedupe_key=f"article-published:{article_id}:44",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=101, notification_type="system", is_new_unread=True
+            notification_id=101,
+            notification_type="system",
+            is_new_unread=True,
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
     @patch("notifications.services.articles.create_deduped_system_notification")
-    def test_without_publish_sequence(
+    def test_without_publish_sequence_does_not_dispatch_when_deduped(
         self,
         mock_create_deduped_system_notification,
         mock_dispatch,
@@ -100,9 +102,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
             },
             dedupe_key=f"article-published:{article_id}:my-article",
         )
-        mock_dispatch.assert_called_once_with(
-            notification_id=102, notification_type="system", is_new_unread=False
-        )
+        mock_dispatch.assert_not_called()
 
 
 class TestNotifyArticleRejected(SimpleTestCase):
@@ -118,17 +118,17 @@ class TestNotifyArticleRejected(SimpleTestCase):
         notification.notification_type = "system"
         mock_create_deduped_system_notification.return_value = (notification, True)
 
+        article_id = 20
+
         notify_article_rejected(
             recipient_id=10,
-            article_id=20,
+            article_id=article_id,
             article_slug="draft-article",
             article_title="Draft Article",
             review_note="Please improve structure.",
             reviewer_id=30,
             reviewed_at_ts="2026-03-31T12:34:56+00:00",
         )
-
-        article_id = 20
 
         mock_create_deduped_system_notification.assert_called_once_with(
             recipient_id=10,
@@ -151,12 +151,14 @@ class TestNotifyArticleRejected(SimpleTestCase):
             dedupe_key=f"article-rejected:{article_id}:2026-03-31T12:34:56+00:00",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=201, notification_type="system", is_new_unread=True
+            notification_id=201,
+            notification_type="system",
+            is_new_unread=True,
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
     @patch("notifications.services.articles.create_deduped_system_notification")
-    def test_without_review_note_or_timestamp(
+    def test_without_review_note_or_timestamp_does_not_dispatch_when_deduped(
         self,
         mock_create_deduped_system_notification,
         mock_dispatch,
@@ -195,9 +197,7 @@ class TestNotifyArticleRejected(SimpleTestCase):
             },
             dedupe_key=f"article-rejected:{article_id}:draft-article",
         )
-        mock_dispatch.assert_called_once_with(
-            notification_id=202, notification_type="system", is_new_unread=False
-        )
+        mock_dispatch.assert_not_called()
 
 
 class TestNotifyArticleUnpublished(SimpleTestCase):
@@ -241,12 +241,14 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
             dedupe_key=f"article-unpublished:{article_id}:2026-03-31T15:00:00+00:00",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=301, notification_type="system", is_new_unread=True
+            notification_id=301,
+            notification_type="system",
+            is_new_unread=True,
         )
 
     @patch("notifications.services.articles.dispatch_notification_after_commit")
     @patch("notifications.services.articles.create_deduped_system_notification")
-    def test_without_timestamp(
+    def test_without_timestamp_does_not_dispatch_when_deduped(
         self,
         mock_create_deduped_system_notification,
         mock_dispatch,
@@ -283,6 +285,4 @@ class TestNotifyArticleUnpublished(SimpleTestCase):
             },
             dedupe_key=f"article-unpublished:{article_id}:published-article",
         )
-        mock_dispatch.assert_called_once_with(
-            notification_id=302, notification_type="system", is_new_unread=False
-        )
+        mock_dispatch.assert_not_called()
