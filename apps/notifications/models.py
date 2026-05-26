@@ -87,6 +87,11 @@ class Notification(models.Model):
                     & models.Q(notification_type=NotificationType.NEW_COMMENT)
                 ),
             ),
+            models.Index(
+                fields=["read_at", "id"],
+                name="notif_read_cleanup_idx",
+                condition=models.Q(read_at__isnull=False),
+            ),
         ]
 
     def __str__(self) -> str:
