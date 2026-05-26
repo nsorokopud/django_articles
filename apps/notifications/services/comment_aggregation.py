@@ -137,27 +137,15 @@ def _update_comment_aggregate_notification(
     payload["last_comment_at"] = now_iso
     payload["comment_count"] = max(0, _safe_int(payload.get("comment_count"), 0)) + 1
 
-    existing_ids = {
-        int(item["id"])
-        for item in payload.get("sample_commenters", [])
-        if isinstance(item, dict) and "id" in item
-    }
+    commenter_ids = set(payload.get("commenter_ids") or [])
+    commenter_ids.add(comment_author_id)
 
-    distinct_count = max(
-        0,
-        _safe_int(payload.get("distinct_commenter_count"), len(existing_ids)),
-    )
+    payload["commenter_ids"] = sorted(commenter_ids)
+    payload["distinct_commenter_count"] = len(commenter_ids)
 
-    if comment_author_id not in existing_ids:
-        distinct_count += 1
-
-    payload["distinct_commenter_count"] = distinct_count
     payload["sample_commenters"] = _prepend_unique_commenter(
         current=payload.get("sample_commenters") or [],
-        commenter={
-            "id": comment_author_id,
-            "username": comment_author_username,
-        },
+        commenter={"id": comment_author_id, "username": comment_author_username},
         max_items=MAX_SAMPLE_COMMENTERS,
     )
 
@@ -206,6 +194,7 @@ def _build_initial_comment_aggregate_payload(
         "article_title": article_title,
         "comment_count": 1,
         "distinct_commenter_count": 1,
+        "commenter_ids": [comment_author_id],
         "last_comment_id": comment_id,
         "last_comment_at": now_iso,
         "sample_commenters": [
@@ -233,19 +222,25 @@ def _normalize_comment_aggregate_payload(payload: Any) -> dict[str, Any]:
             continue
         normalized_sample.append({"id": item_id, "username": username})
 
+    raw_commenter_ids = payload.get("commenter_ids")
+    if not isinstance(raw_commenter_ids, list):
+        raw_commenter_ids = []
+
+    commenter_ids = sorted(
+        {_safe_int(value) for value in raw_commenter_ids if _safe_int(value) > 0}
+    )
+
     return {
         "kind": "comment_aggregate",
         "link": payload.get("link") or "",
         "article_id": _safe_int(payload.get("article_id"), 0),
         "article_title": str(payload.get("article_title") or ""),
         "comment_count": max(0, _safe_int(payload.get("comment_count"), 0)),
+        "commenter_ids": commenter_ids,
         "last_comment_id": _safe_int(payload.get("last_comment_id"), 0),
         "last_comment_at": str(payload.get("last_comment_at") or ""),
         "sample_commenters": normalized_sample[:MAX_SAMPLE_COMMENTERS],
-        "distinct_commenter_count": max(
-            0,
-            _safe_int(payload.get("distinct_commenter_count"), len(normalized_sample)),
-        ),
+        "distinct_commenter_count": len(commenter_ids),
     }
 
 

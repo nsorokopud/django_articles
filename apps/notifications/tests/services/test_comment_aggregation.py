@@ -105,6 +105,7 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
         self.assertEqual(payload["article_id"], self.article_id)
         self.assertEqual(payload["article_title"], self.article_title)
         self.assertEqual(payload["comment_count"], 1)
+        self.assertEqual(payload["commenter_ids"], [self.commenter1.id])
         self.assertEqual(payload["last_comment_id"], 11)
         self.assertEqual(
             payload["sample_commenters"],
@@ -151,6 +152,10 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
             f'your article "{self.article_title}".',
         )
         self.assertEqual(second.payload["comment_count"], 2)
+        self.assertEqual(
+            second.payload["commenter_ids"],
+            sorted([self.commenter1.id, self.commenter2.id]),
+        )
         self.assertEqual(second.payload["last_comment_id"], 12)
         self.assertEqual(
             second.payload["sample_commenters"],
@@ -264,6 +269,17 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
 
         self.assertEqual(notification.payload["comment_count"], 5)
         self.assertEqual(
+            notification.payload["commenter_ids"],
+            sorted(
+                [
+                    self.commenter1.id,
+                    self.commenter2.id,
+                    self.commenter3.id,
+                    self.commenter4.id,
+                ]
+            ),
+        )
+        self.assertEqual(
             notification.payload["sample_commenters"],
             [
                 {"id": self.commenter4.id, "username": self.commenter4.username},
@@ -271,6 +287,72 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
             ],
         )
         self.assertEqual(notification.payload["distinct_commenter_count"], 4)
+
+    def test_repeat_commenter_not_in_sample_does_not_increase_distinct_count(self):
+        create_or_update_unread_comment_aggregate_notification(
+            comment_id=11,
+            comment_author_id=self.commenter1.id,
+            comment_author_username=self.commenter1.username,
+            article_id=self.article_id,
+            article_author_id=self.article_author.id,
+            article_slug=self.article_slug,
+            article_title=self.article_title,
+        )
+
+        create_or_update_unread_comment_aggregate_notification(
+            comment_id=12,
+            comment_author_id=self.commenter2.id,
+            comment_author_username=self.commenter2.username,
+            article_id=self.article_id,
+            article_author_id=self.article_author.id,
+            article_slug=self.article_slug,
+            article_title=self.article_title,
+        )
+
+        notification, _ = create_or_update_unread_comment_aggregate_notification(
+            comment_id=13,
+            comment_author_id=self.commenter3.id,
+            comment_author_username=self.commenter3.username,
+            article_id=self.article_id,
+            article_author_id=self.article_author.id,
+            article_slug=self.article_slug,
+            article_title=self.article_title,
+        )
+
+        notification.refresh_from_db()
+        self.assertEqual(
+            notification.payload["sample_commenters"],
+            [
+                {"id": self.commenter3.id, "username": self.commenter3.username},
+                {"id": self.commenter2.id, "username": self.commenter2.username},
+            ],
+        )
+
+        notification, _ = create_or_update_unread_comment_aggregate_notification(
+            comment_id=14,
+            comment_author_id=self.commenter1.id,
+            comment_author_username=self.commenter1.username,
+            article_id=self.article_id,
+            article_author_id=self.article_author.id,
+            article_slug=self.article_slug,
+            article_title=self.article_title,
+        )
+
+        notification.refresh_from_db()
+
+        self.assertEqual(notification.payload["comment_count"], 4)
+        self.assertEqual(notification.payload["distinct_commenter_count"], 3)
+        self.assertEqual(
+            notification.payload["commenter_ids"],
+            sorted([self.commenter1.id, self.commenter2.id, self.commenter3.id]),
+        )
+        self.assertEqual(
+            notification.payload["sample_commenters"],
+            [
+                {"id": self.commenter1.id, "username": self.commenter1.username},
+                {"id": self.commenter3.id, "username": self.commenter3.username},
+            ],
+        )
 
     def test_recovers_from_malformed_existing_payload_when_updating(self):
         notification = Notification.objects.create(
@@ -282,6 +364,7 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
             body="bad",
             payload={
                 "comment_count": "not-an-int",
+                "commenter_ids": [self.commenter1.id, "bad", 0],
                 "sample_commenters": [
                     "bad-item",
                     {"id": "x"},
@@ -314,6 +397,10 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
         self.assertEqual(updated.payload["article_id"], self.article_id)
         self.assertEqual(updated.payload["article_title"], self.article_title)
         self.assertEqual(updated.payload["comment_count"], 1)
+        self.assertEqual(
+            updated.payload["commenter_ids"],
+            sorted([self.commenter1.id, self.commenter2.id]),
+        )
         self.assertEqual(updated.payload["last_comment_id"], 99)
         self.assertEqual(
             updated.payload["sample_commenters"],
@@ -454,6 +541,7 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
 
         second.refresh_from_db()
         self.assertEqual(second.payload["comment_count"], 2)
+        self.assertEqual(second.payload["commenter_ids"], [self.commenter1.id])
         self.assertEqual(second.payload["distinct_commenter_count"], 1)
         self.assertEqual(
             second.payload["sample_commenters"],
@@ -501,6 +589,7 @@ class TestCommentAggregateHelpers(SimpleTestCase):
                 "article_id": "12",
                 "article_title": "Hello",
                 "comment_count": "3",
+                "commenter_ids": ["1", "2", "3", "4", "bad", 0, -1],
                 "last_comment_id": "55",
                 "last_comment_at": "ts",
                 "sample_commenters": [
@@ -519,6 +608,7 @@ class TestCommentAggregateHelpers(SimpleTestCase):
         self.assertEqual(normalized["article_id"], 12)
         self.assertEqual(normalized["article_title"], "Hello")
         self.assertEqual(normalized["comment_count"], 3)
+        self.assertEqual(normalized["commenter_ids"], [1, 2, 3, 4])
         self.assertEqual(normalized["last_comment_id"], 55)
         self.assertEqual(normalized["last_comment_at"], "ts")
         self.assertEqual(
