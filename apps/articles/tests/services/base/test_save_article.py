@@ -147,6 +147,126 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(saved.author, self.author)
         self.assertEqual(Article.objects.count(), 1)
 
+    @patch("articles.services.articles._build_article_slug_candidate")
+    def test_raises_when_editing_published_article(
+        self,
+        mock_build_slug,
+    ):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+        article.title = "new published title"
+
+        with self.assertRaisesMessage(
+            ValueError, "published or pending-review articles cannot be edited"
+        ):
+            save_article(article=article)
+
+        mock_build_slug.assert_not_called()
+
+        article.refresh_from_db()
+        self.assertEqual(article.slug, "old-title")
+        self.assertEqual(article.title, "old title")
+        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
+
+    @patch("articles.services.articles._build_article_slug_candidate")
+    def test_raises_when_editing_pending_review_article(
+        self,
+        mock_build_slug,
+    ):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            status=ArticleStatus.PENDING_REVIEW,
+        )
+        article.title = "new pending title"
+
+        with self.assertRaisesMessage(
+            ValueError, "published or pending-review articles cannot be edited"
+        ):
+            save_article(article=article)
+
+        mock_build_slug.assert_not_called()
+
+        article.refresh_from_db()
+        self.assertEqual(article.slug, "old-title")
+        self.assertEqual(article.title, "old title")
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+
+    def test_raises_when_database_article_became_pending_review_before_save(self):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            status=ArticleStatus.DRAFT,
+        )
+
+        stale_article = Article.objects.get(pk=article.pk)
+        stale_article.title = "stale update"
+
+        Article.objects.filter(pk=article.pk).update(
+            status=ArticleStatus.PENDING_REVIEW
+        )
+
+        with self.assertRaisesMessage(
+            ValueError, "published or pending-review articles cannot be edited"
+        ):
+            save_article(article=stale_article)
+
+        article.refresh_from_db()
+        self.assertEqual(article.title, "old title")
+        self.assertEqual(article.status, ArticleStatus.PENDING_REVIEW)
+
+    def test_raises_when_database_article_became_published_before_save(self):
+        article = Article.objects.create(
+            title="old title",
+            slug="old-title",
+            category=self.category,
+            author=self.author,
+            preview_text="preview",
+            content="content",
+            content_text="content",
+            status=ArticleStatus.DRAFT,
+        )
+
+        stale_article = Article.objects.get(pk=article.pk)
+        stale_article.title = "stale update"
+
+        Article.objects.filter(pk=article.pk).update(
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=1,
+        )
+
+        with self.assertRaisesMessage(
+            ValueError, "published or pending-review articles cannot be edited"
+        ):
+            save_article(article=stale_article)
+
+        article.refresh_from_db()
+        self.assertEqual(article.title, "old title")
+        self.assertEqual(article.status, ArticleStatus.PUBLISHED)
+        self.assertIsNotNone(article.published_at)
+        self.assertEqual(article.publish_sequence, 1)
+
     @patch("articles.services.articles.sanitize_article_html")
     def test_calls_sanitizer_before_save(self, mock_sanitize):
         mock_sanitize.return_value = "<p>clean</p>"
@@ -416,34 +536,6 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(article.slug, "title")
 
     @patch("articles.services.articles._build_article_slug_candidate")
-    def test_does_not_regenerate_slug_when_title_changed_for_published_article(
-        self,
-        mock_build_slug,
-    ):
-        article = Article.objects.create(
-            title="old title",
-            slug="old-title",
-            category=self.category,
-            author=self.author,
-            preview_text="preview",
-            content="content",
-            content_text="content",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=1,
-        )
-        article.title = "new published title"
-
-        saved = save_article(article=article)
-
-        self.assertEqual(saved.slug, "old-title")
-        mock_build_slug.assert_not_called()
-
-        article.refresh_from_db()
-        self.assertEqual(article.slug, "old-title")
-        self.assertEqual(article.title, "new published title")
-
-    @patch("articles.services.articles._build_article_slug_candidate")
     def test_regenerates_slug_when_title_changed_for_rejected_article_before_restore(
         self,
         mock_build_slug,
@@ -473,32 +565,6 @@ class TestSaveArticle(TransactionTestCase):
         article.refresh_from_db()
         self.assertEqual(article.slug, "new-rejected-title")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
-
-    @patch("articles.services.articles._build_article_slug_candidate")
-    def test_does_not_regenerate_slug_when_title_changed_for_pending_review_article(
-        self,
-        mock_build_slug,
-    ):
-        article = Article.objects.create(
-            title="old title",
-            slug="old-title",
-            category=self.category,
-            author=self.author,
-            preview_text="preview",
-            content="content",
-            content_text="content",
-            status=ArticleStatus.PENDING_REVIEW,
-        )
-        article.title = "new pending title"
-
-        saved = save_article(article=article)
-
-        self.assertEqual(saved.slug, "old-title")
-        mock_build_slug.assert_not_called()
-
-        article.refresh_from_db()
-        self.assertEqual(article.slug, "old-title")
-        self.assertEqual(article.title, "new pending title")
 
     def test_retries_slug_generation_on_slug_unique_constraint_violation(self):
         Article.objects.create(
@@ -674,41 +740,3 @@ class TestSaveArticle(TransactionTestCase):
 
         save_article(article=article)
         mock_invalidate.assert_called_once_with(article_slug="old-title")
-
-    @patch("articles.services.articles.cache_article_slug_id")
-    def test_caches_slug_id_when_saving_published_article(self, mock_cache):
-        article = Article.objects.create(
-            title="published",
-            slug="published",
-            category=self.category,
-            author=self.author,
-            preview_text="preview",
-            content="content",
-            content_text="content",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=1,
-        )
-        article.preview_text = "updated preview"
-
-        save_article(article=article)
-        mock_cache.assert_called_once_with(
-            article_slug="published", article_id=article.id
-        )
-
-    @patch("articles.services.articles.cache_article_slug_id")
-    def test_does_not_cache_slug_id_when_saving_draft_article(self, mock_cache):
-        article = Article.objects.create(
-            title="draft",
-            slug="draft",
-            category=self.category,
-            author=self.author,
-            preview_text="preview",
-            content="content",
-            content_text="content",
-            status=ArticleStatus.DRAFT,
-        )
-        article.preview_text = "updated preview"
-
-        save_article(article=article)
-        mock_cache.assert_not_called()

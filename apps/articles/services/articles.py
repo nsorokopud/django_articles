@@ -10,7 +10,7 @@ from nanoid import generate
 from core.db import get_constraint_name
 from users.models import User
 
-from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
+from ..cache.slug import invalidate_article_slug_id
 from ..models import (
     ARTICLE_SLUG_MAX_LENGTH,
     ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
@@ -76,6 +76,12 @@ def save_article(
             .get(pk=article.pk)
         )
 
+    if original_article is not None and original_article.status in {
+        ArticleStatus.PUBLISHED,
+        ArticleStatus.PENDING_REVIEW,
+    }:
+        raise ValueError("published or pending-review articles cannot be edited")
+
     old_slug = original_article.slug if original_article is not None else None
     old_preview_image_name = (
         original_article.preview_image.name
@@ -113,13 +119,6 @@ def save_article(
     if old_preview_image_name and old_preview_image_name != new_preview_image_name:
         transaction.on_commit(
             lambda: delete_article_preview_image_file(old_preview_image_name)
-        )
-
-    if article.status == ArticleStatus.PUBLISHED:
-        transaction.on_commit(
-            lambda: cache_article_slug_id(
-                article_slug=article.slug, article_id=article.id
-            )
         )
 
     return article
