@@ -53,8 +53,7 @@ def create_or_update_unread_comment_aggregate_notification(
 
     with transaction.atomic():
         existing = _find_existing_unread_comment_aggregate_for_update(
-            recipient_id=article_author_id,
-            aggregate_key=aggregate_key,
+            recipient_id=article_author_id, aggregate_key=aggregate_key
         )
         if existing is not None:
             return _update_existing(existing), False
@@ -91,8 +90,7 @@ def create_or_update_unread_comment_aggregate_notification(
                 raise
 
             existing = _find_existing_unread_comment_aggregate_for_update(
-                recipient_id=article_author_id,
-                aggregate_key=aggregate_key,
+                recipient_id=article_author_id, aggregate_key=aggregate_key
             )
             if existing is None:
                 raise RuntimeError(
@@ -104,9 +102,7 @@ def create_or_update_unread_comment_aggregate_notification(
 
 
 def _find_existing_unread_comment_aggregate_for_update(
-    *,
-    recipient_id: int,
-    aggregate_key: str,
+    *, recipient_id: int, aggregate_key: str
 ) -> Optional[Notification]:
     return (
         Notification.objects.select_for_update()
@@ -143,21 +139,15 @@ def _update_comment_aggregate_notification(
     payload["last_comment_at"] = now_iso
     payload["comment_count"] = max(0, _safe_int(payload.get("comment_count"), 0)) + 1
 
-    commenter_ids = set(payload.get("commenter_ids") or [])
-    commenter_ids.add(comment_author_id)
-
-    payload["commenter_ids"] = sorted(commenter_ids)
-    payload["distinct_commenter_count"] = len(commenter_ids)
-
-    payload["sample_commenters"] = _prepend_unique_commenter(
-        current=payload.get("sample_commenters") or [],
-        commenter={"id": comment_author_id, "username": comment_author_username},
-        max_items=MAX_SAMPLE_COMMENTERS,
+    _update_commenter_summary(
+        payload=payload,
+        comment_author_id=comment_author_id,
+        comment_author_username=comment_author_username,
     )
 
     count = payload["comment_count"]
     sample_commenters = payload["sample_commenters"]
-    distinct_commenter_count = payload["distinct_commenter_count"]
+    has_other_commenters = payload["has_other_commenters"]
 
     notification.sender = None
     notification.title = _build_comment_aggregate_title(count)
@@ -165,7 +155,7 @@ def _update_comment_aggregate_notification(
         count=count,
         article_title=article_title,
         sample_commenters=sample_commenters,
-        distinct_commenter_count=distinct_commenter_count,
+        has_other_commenters=has_other_commenters,
     )
     notification.payload = payload
     notification.last_event_at = now
@@ -202,8 +192,7 @@ def _build_initial_comment_aggregate_payload(
         "article_id": article_id,
         "article_title": article_title,
         "comment_count": 1,
-        "distinct_commenter_count": 1,
-        "commenter_ids": [comment_author_id],
+        "has_other_commenters": False,
         "last_comment_id": comment_id,
         "last_comment_at": now_iso,
         "sample_commenters": [
@@ -231,25 +220,16 @@ def _normalize_comment_aggregate_payload(payload: Any) -> dict[str, Any]:
             continue
         normalized_sample.append({"id": item_id, "username": username})
 
-    raw_commenter_ids = payload.get("commenter_ids")
-    if not isinstance(raw_commenter_ids, list):
-        raw_commenter_ids = []
-
-    commenter_ids = sorted(
-        {_safe_int(value) for value in raw_commenter_ids if _safe_int(value) > 0}
-    )
-
     return {
         "kind": "comment_aggregate",
         "link": payload.get("link") or "",
         "article_id": _safe_int(payload.get("article_id"), 0),
         "article_title": str(payload.get("article_title") or ""),
         "comment_count": max(0, _safe_int(payload.get("comment_count"), 0)),
-        "commenter_ids": commenter_ids,
+        "has_other_commenters": bool(payload.get("has_other_commenters")),
         "last_comment_id": _safe_int(payload.get("last_comment_id"), 0),
         "last_comment_at": str(payload.get("last_comment_at") or ""),
         "sample_commenters": normalized_sample[:MAX_SAMPLE_COMMENTERS],
-        "distinct_commenter_count": len(commenter_ids),
     }
 
 
@@ -260,49 +240,50 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return default
 
 
-def _prepend_unique_commenter(
-    *,
-    current: list[Any],
-    commenter: dict[str, Any],
-    max_items: int,
-) -> list[dict[str, Any]]:
-    incoming_id = int(commenter["id"])
-    incoming_username = str(commenter["username"])
+def _update_commenter_summary(
+    *, payload: dict[str, Any], comment_author_id: int, comment_author_username: str
+) -> None:
+    sample_commenters = payload.get("sample_commenters") or []
+    has_other_commenters = bool(payload.get("has_other_commenters"))
 
-    result: list[dict[str, Any]] = [{"id": incoming_id, "username": incoming_username}]
-    seen = {incoming_id}
+    if not isinstance(sample_commenters, list):
+        sample_commenters = []
 
-    for item in current:
-        if not isinstance(item, dict):
-            continue
-        try:
-            item_id = int(item["id"])
-            username = str(item["username"])
-        except (KeyError, TypeError, ValueError):
-            continue
+    sample_commenters = sample_commenters[:MAX_SAMPLE_COMMENTERS]
 
-        if item_id in seen:
-            continue
+    sample_ids = {
+        _safe_int(item.get("id"), 0)
+        for item in sample_commenters
+        if isinstance(item, dict)
+    }
 
-        result.append({"id": item_id, "username": username})
-        seen.add(item_id)
+    if comment_author_id in sample_ids:
+        payload["sample_commenters"] = sample_commenters
+        payload["has_other_commenters"] = has_other_commenters
+        return
 
-        if len(result) >= max_items:
-            break
+    if len(sample_commenters) < MAX_SAMPLE_COMMENTERS:
+        sample_commenters.append(
+            {"id": comment_author_id, "username": comment_author_username}
+        )
+        payload["sample_commenters"] = sample_commenters
+        payload["has_other_commenters"] = has_other_commenters
+        return
 
-    return result[:max_items]
+    payload["sample_commenters"] = sample_commenters
+    payload["has_other_commenters"] = True
 
 
 def _build_comment_aggregate_title(count: int) -> str:
     return "New Comment" if count == 1 else "New Comments"
 
 
-def _build_comment_aggregate_body(  # pylint: disable=R0911
+def _build_comment_aggregate_body(
     *,
     count: int,
     article_title: str,
     sample_commenters: list[Any],
-    distinct_commenter_count: int,
+    has_other_commenters: bool,
 ) -> str:
     usernames = [
         str(item.get("username"))
@@ -315,27 +296,21 @@ def _build_comment_aggregate_body(  # pylint: disable=R0911
             return f'New comment by {usernames[0]} on your article "{article_title}".'
         return f'New comment on your article "{article_title}".'
 
-    if distinct_commenter_count <= 1:
-        if usernames:
+    if len(usernames) >= 2:
+        if has_other_commenters:
             return (
-                f"{usernames[0]} left {count} comments on your article "
-                f'"{article_title}".'
+                f"{usernames[0]}, {usernames[1]}, and others commented on your "
+                f'article "{article_title}".'
             )
-        return f'{count} new comments on your article "{article_title}".'
 
-    if distinct_commenter_count == 2:
-        if len(usernames) >= 2:
-            return (
-                f"{usernames[0]} and {usernames[1]} commented on your article "
-                f'"{article_title}".'
-            )
-        return f'2 people commented on your article "{article_title}".'
-
-    if usernames:
-        others = distinct_commenter_count - 1
-        other_word = "other" if others == 1 else "others"
         return (
-            f"{usernames[0]} and {others} {other_word} commented on your article "
+            f"{usernames[0]} and {usernames[1]} commented on your article "
+            f'"{article_title}".'
+        )
+
+    if len(usernames) == 1:
+        return (
+            f"{usernames[0]} left {count} comments on your article "
             f'"{article_title}".'
         )
 
