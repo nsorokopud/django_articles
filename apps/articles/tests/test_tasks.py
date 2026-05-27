@@ -1,9 +1,14 @@
-from unittest.mock import call, patch
+from unittest.mock import ANY, Mock, call, patch
 
 from celery.exceptions import Retry
 from django.test import SimpleTestCase, override_settings
 
 from articles.tasks import (
+    ARTICLE_MEDIA_CLEANUP_LOCK_KEY,
+    ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY,
+    ARTICLE_SYNC_LIKES_LOCK_KEY,
+    ARTICLE_SYNC_VIEWS_LOCK_KEY,
+    COMMENT_SYNC_LIKES_LOCK_KEY,
     cleanup_unused_article_inline_media_task,
     delete_article_media_task,
     sync_article_comments_count_task,
@@ -17,48 +22,48 @@ class LockedTaskTestCase(SimpleTestCase):
     def setUp(self):
         super().setUp()
 
-        self.redis_patcher = patch("articles.tasks.get_redis_connection")
-        self.mock_get_redis_connection = self.redis_patcher.start()
-        self.addCleanup(self.redis_patcher.stop)
+        self.cache_lock_patcher = patch("articles.tasks.cache_lock")
+        self.mock_cache_lock = self.cache_lock_patcher.start()
+        self.addCleanup(self.cache_lock_patcher.stop)
 
-        self.mock_redis = self.mock_get_redis_connection.return_value
-        self.mock_redis.eval.return_value = 1
+    def set_lock_acquired(self):
+        self.mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
+
+    def set_lock_not_acquired(self):
+        self.mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=False)
 
     def assert_lock_released_once(self):
-        self.mock_get_redis_connection.assert_called_once_with("default")
-        self.mock_redis.eval.assert_called_once()
+        self.mock_cache_lock.return_value.__exit__.assert_called_once()
 
     def assert_lock_not_released(self):
-        self.mock_get_redis_connection.assert_not_called()
-        self.mock_redis.eval.assert_not_called()
+        self.mock_cache_lock.return_value.__exit__.assert_not_called()
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class TestSyncArticleViewsTask(LockedTaskTestCase):
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.cache.view_counts.sync_article_views")
     def test_sync_article_views_task_runs_and_updates_views(
-        self, mock_sync, mock_logger, mock_cache
+        self, mock_sync, mock_logger
     ):
-        mock_cache.add.return_value = True
+        self.set_lock_acquired()
 
         result = sync_article_views_task.apply(args=()).get()
 
         self.assertIsNone(result)
-        mock_cache.add.assert_called_once()
+        self.mock_cache_lock.assert_called_once_with(
+            lock_key=ARTICLE_SYNC_VIEWS_LOCK_KEY, lock_value=ANY, timeout=600
+        )
         mock_sync.assert_called_once()
         mock_logger.info.assert_any_call("Updated article view counts.")
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.cache.view_counts.sync_article_views")
     def test_sync_article_views_task_skips_when_lock_exists(
-        self, mock_sync, mock_logger, mock_cache
+        self, mock_sync, mock_logger
     ):
-        mock_cache.add.return_value = False
+        self.set_lock_not_acquired()
 
         result = sync_article_views_task.apply(args=()).get()
 
@@ -67,36 +72,32 @@ class TestSyncArticleViewsTask(LockedTaskTestCase):
         mock_logger.info.assert_called_once_with(
             "Article view sync skipped: already running."
         )
-        mock_cache.delete.assert_not_called()
-        self.assert_lock_not_released()
+        self.assert_lock_released_once()
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class TestSyncArticleLikesCountTask(LockedTaskTestCase):
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.likes.sync_article_likes_count")
-    def test_sync_article_likes_count_task_runs(
-        self, mock_sync, mock_logger, mock_cache
-    ):
-        mock_cache.add.return_value = True
+    def test_sync_article_likes_count_task_runs(self, mock_sync, mock_logger):
+        self.set_lock_acquired()
 
         result = sync_article_likes_count_task.apply(args=()).get()
 
         self.assertIsNone(result)
-        mock_cache.add.assert_called_once()
+        self.mock_cache_lock.assert_called_once_with(
+            lock_key=ARTICLE_SYNC_LIKES_LOCK_KEY, lock_value=ANY, timeout=1800
+        )
         mock_sync.assert_called_once()
         mock_logger.info.assert_any_call("Synced article likes counts.")
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.likes.sync_article_likes_count")
     def test_sync_article_likes_count_task_skips_when_lock_exists(
-        self, mock_sync, mock_logger, mock_cache
+        self, mock_sync, mock_logger
     ):
-        mock_cache.add.return_value = False
+        self.set_lock_not_acquired()
 
         result = sync_article_likes_count_task.apply(args=()).get()
 
@@ -105,36 +106,32 @@ class TestSyncArticleLikesCountTask(LockedTaskTestCase):
         mock_logger.info.assert_called_once_with(
             "Article likes sync skipped: already running."
         )
-        mock_cache.delete.assert_not_called()
-        self.assert_lock_not_released()
+        self.assert_lock_released_once()
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class TestSyncCommentLikesCountTask(LockedTaskTestCase):
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.likes.sync_comment_likes_count")
-    def test_sync_comment_likes_count_task_runs(
-        self, mock_sync, mock_logger, mock_cache
-    ):
-        mock_cache.add.return_value = True
+    def test_sync_comment_likes_count_task_runs(self, mock_sync, mock_logger):
+        self.set_lock_acquired()
 
         result = sync_comment_likes_count_task.apply(args=()).get()
 
         self.assertIsNone(result)
-        mock_cache.add.assert_called_once()
+        self.mock_cache_lock.assert_called_once_with(
+            lock_key=COMMENT_SYNC_LIKES_LOCK_KEY, lock_value=ANY, timeout=1800
+        )
         mock_sync.assert_called_once()
         mock_logger.info.assert_any_call("Synced comment likes counts.")
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.likes.sync_comment_likes_count")
     def test_sync_comment_likes_count_task_skips_when_lock_exists(
-        self, mock_sync, mock_logger, mock_cache
+        self, mock_sync, mock_logger
     ):
-        mock_cache.add.return_value = False
+        self.set_lock_not_acquired()
 
         result = sync_comment_likes_count_task.apply(args=()).get()
 
@@ -143,52 +140,48 @@ class TestSyncCommentLikesCountTask(LockedTaskTestCase):
         mock_logger.info.assert_called_once_with(
             "Comment likes sync skipped: already running."
         )
-        mock_cache.delete.assert_not_called()
-        self.assert_lock_not_released()
+        self.assert_lock_released_once()
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class TestSyncArticleCommentsCountTask(LockedTaskTestCase):
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.comments.sync_article_comments_count")
-    def test_sync_article_comments_count_task_runs(
-        self, mock_sync, mock_logger, mock_cache
-    ):
-        mock_cache.add.return_value = True
+    def test_sync_article_comments_count_task_runs(self, mock_sync, mock_logger):
+        self.set_lock_acquired()
 
         result = sync_article_comments_count_task.apply(args=()).get()
 
         self.assertIsNone(result)
-        mock_cache.add.assert_called_once()
+        self.mock_cache_lock.assert_called_once_with(
+            lock_key=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY, lock_value=ANY, timeout=1800
+        )
         mock_sync.assert_called_once_with(batch_size=1000)
         mock_logger.info.assert_any_call("Synced article comments counts.")
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.comments.sync_article_comments_count")
     def test_sync_article_comments_count_task_runs_with_custom_batch_size(
-        self, mock_sync, mock_logger, mock_cache
+        self, mock_sync, mock_logger
     ):
-        mock_cache.add.return_value = True
+        self.set_lock_acquired()
 
         result = sync_article_comments_count_task.apply(kwargs={"batch_size": 25}).get()
 
         self.assertIsNone(result)
-        mock_cache.add.assert_called_once()
+        self.mock_cache_lock.assert_called_once_with(
+            lock_key=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY, lock_value=ANY, timeout=1800
+        )
         mock_sync.assert_called_once_with(batch_size=25)
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.comments.sync_article_comments_count")
     def test_sync_article_comments_count_task_skips_when_lock_exists(
-        self, mock_sync, mock_logger, mock_cache
+        self, mock_sync, mock_logger
     ):
-        mock_cache.add.return_value = False
+        self.set_lock_not_acquired()
 
         result = sync_article_comments_count_task.apply(args=()).get()
 
@@ -197,8 +190,7 @@ class TestSyncArticleCommentsCountTask(LockedTaskTestCase):
         mock_logger.info.assert_called_once_with(
             "Article comments count sync skipped: already running."
         )
-        mock_cache.delete.assert_not_called()
-        self.assert_lock_not_released()
+        self.assert_lock_released_once()
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -256,11 +248,10 @@ class TestDeleteArticleMediaTask(SimpleTestCase):
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class TestCleanupUnusedArticleInlineMediaTask(LockedTaskTestCase):
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.media.cleanup_unused_article_inline_media")
-    def test_runs_until_empty_batch(self, mock_cleanup, mock_logger, mock_cache):
-        mock_cache.add.return_value = True
+    def test_runs_until_empty_batch(self, mock_cleanup, mock_logger):
+        self.set_lock_acquired()
         mock_cleanup.side_effect = [500, 25, 0]
 
         result = cleanup_unused_article_inline_media_task.apply(
@@ -268,6 +259,9 @@ class TestCleanupUnusedArticleInlineMediaTask(LockedTaskTestCase):
         ).get()
 
         self.assertIsNone(result)
+        self.mock_cache_lock.assert_called_once_with(
+            lock_key=ARTICLE_MEDIA_CLEANUP_LOCK_KEY, lock_value=ANY, timeout=3600
+        )
         self.assertEqual(mock_cleanup.call_count, 3)
         mock_cleanup.assert_has_calls(
             [
@@ -279,14 +273,12 @@ class TestCleanupUnusedArticleInlineMediaTask(LockedTaskTestCase):
         mock_logger.info.assert_any_call(
             "Cleaned up %s unused article media files.", 525
         )
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.media.cleanup_unused_article_inline_media")
-    def test_stops_at_max_batches(self, mock_cleanup, mock_logger, mock_cache):
-        mock_cache.add.return_value = True
+    def test_stops_at_max_batches(self, mock_cleanup, mock_logger):
+        self.set_lock_acquired()
         mock_cleanup.side_effect = [10, 10, 10]
 
         result = cleanup_unused_article_inline_media_task.apply(
@@ -301,14 +293,12 @@ class TestCleanupUnusedArticleInlineMediaTask(LockedTaskTestCase):
         mock_logger.info.assert_any_call(
             "Cleaned up %s unused article media files.", 30
         )
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.tasks.logger")
     @patch("articles.services.media.cleanup_unused_article_inline_media")
-    def test_skips_when_lock_exists(self, mock_cleanup, mock_logger, mock_cache):
-        mock_cache.add.return_value = False
+    def test_skips_when_lock_exists(self, mock_cleanup, mock_logger):
+        self.set_lock_not_acquired()
 
         result = cleanup_unused_article_inline_media_task.apply(args=()).get()
 
@@ -317,17 +307,14 @@ class TestCleanupUnusedArticleInlineMediaTask(LockedTaskTestCase):
         mock_logger.info.assert_called_once_with(
             "Article media cleanup skipped: already running."
         )
-        mock_cache.delete.assert_not_called()
-        self.assert_lock_not_released()
+        self.assert_lock_released_once()
 
-    @patch("articles.tasks.cache")
     @patch("articles.services.media.cleanup_unused_article_inline_media")
-    def test_releases_lock_on_error(self, mock_cleanup, mock_cache):
-        mock_cache.add.return_value = True
+    def test_releases_lock_on_error(self, mock_cleanup):
+        self.set_lock_acquired()
         mock_cleanup.side_effect = ZeroDivisionError("error")
 
         with self.assertRaises(ZeroDivisionError):
             cleanup_unused_article_inline_media_task.apply(args=()).get()
 
-        mock_cache.delete.assert_not_called()
         self.assert_lock_released_once()

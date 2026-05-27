@@ -1,17 +1,15 @@
 import logging
 import smtplib
-from uuid import uuid4
 
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
-from django.core.cache import cache
 from django.db import DatabaseError
-from django_redis import get_redis_connection
 from django_redis.exceptions import ConnectionInterrupted
-from redis import RedisError
+from redis.exceptions import RedisError
 
+from core.cache_locks import cache_lock
 from core.services.email import EmailConfig, send_email
 
 from .services.delivery_email import build_notification_email_config
@@ -20,13 +18,6 @@ from .services.delivery_email import build_notification_email_config
 NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY = "notifications_unread_counts_sync_lock"
 NOTIFICATIONS_CLEANUP_LOCK_KEY = "notifications_cleanup_lock"
 
-RELEASE_LOCK_LUA = """
-if redis.call("GET", KEYS[1]) == ARGV[1] then
-    return redis.call("DEL", KEYS[1])
-else
-    return 0
-end
-"""
 
 logger = logging.getLogger(__name__)
 
@@ -76,19 +67,18 @@ def send_notification_email_task(notification_id: int) -> None:
 def cleanup_old_read_notifications_task(self) -> int:
     from .services.retention import cleanup_old_read_notifications
 
-    lock_value = self.request.id or uuid4().hex
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        NOTIFICATIONS_CLEANUP_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY,
+        lock_value=lock_value,
         timeout=int(settings.NOTIFICATIONS_CLEANUP_LOCK_TTL_SECONDS),
-    ):
-        logger.info("Notification cleanup skipped: already running")
-        return 0
-    try:
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Notification cleanup skipped: already running")
+            return 0
+
         return cleanup_old_read_notifications()
-    finally:
-        _release_lock(lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value=lock_value)
 
 
 @shared_task(
@@ -109,31 +99,19 @@ def cleanup_old_read_notifications_task(self) -> int:
 def sync_unread_notification_counts_task(self) -> dict[str, int]:
     from .services.counters import sync_unread_notification_counts
 
-    lock_value = self.request.id or uuid4().hex
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+        lock_value=lock_value,
         timeout=int(settings.NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_TTL_SECONDS),
-    ):
-        logger.info("Unread-count sync skipped: already running")
-        return {"users_checked": 0, "users_updated": 0, "users_zeroed": 0}
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Unread-count sync skipped: already running")
+            return {"users_checked": 0, "users_updated": 0, "users_zeroed": 0}
 
-    try:
         stats = sync_unread_notification_counts(
             batch_size=int(settings.NOTIFICATIONS_UNREAD_COUNT_SYNC_BATCH_SIZE),
         )
         logger.info("Unread-count sync finished: %s", stats)
         return stats
-    finally:
-        _release_lock(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, lock_value=lock_value
-        )
-
-
-def _release_lock(*, lock_key: str, lock_value: str) -> None:
-    try:
-        redis_conn = get_redis_connection("default")
-        redis_conn.eval(RELEASE_LOCK_LUA, 1, lock_key, lock_value)
-    except (RedisError, ConnectionInterrupted):
-        logger.exception("Failed to release lock %s.", lock_key)

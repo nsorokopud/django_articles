@@ -2,13 +2,12 @@ import logging
 
 from botocore.exceptions import BotoCoreError, ClientError
 from celery.exceptions import SoftTimeLimitExceeded
-from django.core.cache import cache
 from django.db import DatabaseError
-from django_redis import get_redis_connection
 from django_redis.exceptions import ConnectionInterrupted
-from redis import RedisError
+from redis.exceptions import RedisError
 
 from config.celery import app
+from core.cache_locks import cache_lock
 
 
 logger = logging.getLogger(__name__)
@@ -28,14 +27,6 @@ ARTICLE_MEDIA_CLEANUP_LOCK_TIMEOUT_SECONDS = 60 * 60  # 1 hour
 ARTICLE_MEDIA_CLEANUP_BATCH_SIZE = 500
 ARTICLE_MEDIA_CLEANUP_MAX_BATCHES = 10
 
-RELEASE_LOCK_LUA = """
-if redis.call("GET", KEYS[1]) == ARGV[1] then
-    return redis.call("DEL", KEYS[1])
-else
-    return 0
-end
-"""
-
 
 @app.task(
     bind=True,
@@ -47,21 +38,19 @@ end
 def sync_article_views_task(self) -> None:
     from .cache.view_counts import sync_article_views
 
-    lock_value = self.request.id
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        ARTICLE_SYNC_VIEWS_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=ARTICLE_SYNC_VIEWS_LOCK_KEY,
+        lock_value=lock_value,
         timeout=ARTICLE_SYNC_VIEWS_LOCK_TIMEOUT_SECONDS,
-    ):
-        logger.info("Article view sync skipped: already running.")
-        return
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Article view sync skipped: already running.")
+            return
 
-    try:
         sync_article_views()
         logger.info("Updated article view counts.")
-    finally:
-        _release_lock(lock_key=ARTICLE_SYNC_VIEWS_LOCK_KEY, lock_value=lock_value)
 
 
 @app.task(
@@ -74,21 +63,19 @@ def sync_article_views_task(self) -> None:
 def sync_article_likes_count_task(self) -> None:
     from .services.likes import sync_article_likes_count
 
-    lock_value = self.request.id
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        ARTICLE_SYNC_LIKES_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=ARTICLE_SYNC_LIKES_LOCK_KEY,
+        lock_value=lock_value,
         timeout=SYNC_LIKES_LOCK_TIMEOUT_SECONDS,
-    ):
-        logger.info("Article likes sync skipped: already running.")
-        return
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Article likes sync skipped: already running.")
+            return
 
-    try:
         sync_article_likes_count()
         logger.info("Synced article likes counts.")
-    finally:
-        _release_lock(lock_key=ARTICLE_SYNC_LIKES_LOCK_KEY, lock_value=lock_value)
 
 
 @app.task(
@@ -101,21 +88,19 @@ def sync_article_likes_count_task(self) -> None:
 def sync_comment_likes_count_task(self) -> None:
     from .services.likes import sync_comment_likes_count
 
-    lock_value = self.request.id
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        COMMENT_SYNC_LIKES_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=COMMENT_SYNC_LIKES_LOCK_KEY,
+        lock_value=lock_value,
         timeout=SYNC_LIKES_LOCK_TIMEOUT_SECONDS,
-    ):
-        logger.info("Comment likes sync skipped: already running.")
-        return
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Comment likes sync skipped: already running.")
+            return
 
-    try:
         sync_comment_likes_count()
         logger.info("Synced comment likes counts.")
-    finally:
-        _release_lock(lock_key=COMMENT_SYNC_LIKES_LOCK_KEY, lock_value=lock_value)
 
 
 @app.task(
@@ -128,23 +113,19 @@ def sync_comment_likes_count_task(self) -> None:
 def sync_article_comments_count_task(self, *, batch_size: int = 1000) -> None:
     from .services.comments import sync_article_comments_count
 
-    lock_value = self.request.id
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY,
+        lock_value=lock_value,
         timeout=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_TIMEOUT_SECONDS,
-    ):
-        logger.info("Article comments count sync skipped: already running.")
-        return
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Article comments count sync skipped: already running.")
+            return
 
-    try:
         sync_article_comments_count(batch_size=batch_size)
         logger.info("Synced article comments counts.")
-    finally:
-        _release_lock(
-            lock_key=ARTICLE_SYNC_COMMENT_COUNTS_LOCK_KEY, lock_value=lock_value
-        )
 
 
 @app.task(
@@ -189,17 +170,17 @@ def cleanup_unused_article_inline_media_task(
 ) -> None:
     from .services.media import cleanup_unused_article_inline_media
 
-    lock_value = self.request.id
+    lock_value = self.request.id or None
 
-    if not cache.add(
-        ARTICLE_MEDIA_CLEANUP_LOCK_KEY,
-        lock_value,
+    with cache_lock(
+        lock_key=ARTICLE_MEDIA_CLEANUP_LOCK_KEY,
+        lock_value=lock_value,
         timeout=ARTICLE_MEDIA_CLEANUP_LOCK_TIMEOUT_SECONDS,
-    ):
-        logger.info("Article media cleanup skipped: already running.")
-        return
+    ) as lock:
+        if not lock.acquired:
+            logger.info("Article media cleanup skipped: already running.")
+            return
 
-    try:
         total_deleted = 0
 
         for _ in range(max_batches):
@@ -210,13 +191,3 @@ def cleanup_unused_article_inline_media_task(
                 break
 
         logger.info("Cleaned up %s unused article media files.", total_deleted)
-    finally:
-        _release_lock(lock_key=ARTICLE_MEDIA_CLEANUP_LOCK_KEY, lock_value=lock_value)
-
-
-def _release_lock(*, lock_key: str, lock_value: str) -> None:
-    try:
-        redis_conn = get_redis_connection("default")
-        redis_conn.eval(RELEASE_LOCK_LUA, 1, lock_key, lock_value)
-    except RedisError:
-        logger.exception("Failed to release lock %s.", lock_key)

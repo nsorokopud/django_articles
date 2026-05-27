@@ -20,6 +20,19 @@ CACHES = {
     "select2": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
 }
 
+TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/15")
+
+TEST_REDIS_CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": TEST_REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "test",
+    },
+}
+
 RATELIMIT_ENABLE = False
 
 STORAGES = {

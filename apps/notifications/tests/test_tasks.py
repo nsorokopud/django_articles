@@ -1,16 +1,10 @@
-# pylint: disable=too-many-positional-arguments
-
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
-from django_redis.exceptions import ConnectionInterrupted
-from redis import RedisError
 
 from notifications.tasks import (
     NOTIFICATIONS_CLEANUP_LOCK_KEY,
     NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-    RELEASE_LOCK_LUA,
-    _release_lock,
     cleanup_old_read_notifications_task,
     send_notification_email_task,
     send_notification_ws_task,
@@ -100,93 +94,64 @@ class TestSendNotificationEmailTask(SimpleTestCase):
 
 @override_settings(NOTIFICATIONS_CLEANUP_LOCK_TTL_SECONDS=60)
 class TestCleanupOldReadNotificationsTask(SimpleTestCase):
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.retention.cleanup_old_read_notifications")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
+    @patch("notifications.tasks.cache_lock")
     def test_runs_cleanup_when_lock_acquired(
-        self,
-        mock_uuid4,
-        mock_cache_add,
-        mock_cleanup_old_read_notifications,
-        mock_release_lock,
+        self, mock_cache_lock, mock_cleanup_old_read_notifications
     ):
-        mock_uuid4.return_value.hex = "lock-123"
-        mock_cache_add.return_value = True
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_cleanup_old_read_notifications.return_value = 7
 
         result = cleanup_old_read_notifications_task.run()
 
         self.assertEqual(result, 7)
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_CLEANUP_LOCK_KEY, "lock-123", timeout=60
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value=None, timeout=60
         )
         mock_cleanup_old_read_notifications.assert_called_once_with()
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value="lock-123"
-        )
 
     @patch("notifications.tasks.logger.info")
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.retention.cleanup_old_read_notifications")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
+    @patch("notifications.tasks.cache_lock")
     def test_skips_when_lock_not_acquired(
-        self,
-        mock_uuid4,
-        mock_cache_add,
-        mock_cleanup_old_read_notifications,
-        mock_release_lock,
-        mock_logger_info,
+        self, mock_cache_lock, mock_cleanup_old_read_notifications, mock_logger_info
     ):
-        mock_uuid4.return_value.hex = "lock-123"
-        mock_cache_add.return_value = False
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=False)
 
         result = cleanup_old_read_notifications_task.run()
 
         self.assertEqual(result, 0)
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_CLEANUP_LOCK_KEY, "lock-123", timeout=60
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value=None, timeout=60
         )
         mock_cleanup_old_read_notifications.assert_not_called()
-        mock_release_lock.assert_not_called()
         mock_logger_info.assert_called_once_with(
             "Notification cleanup skipped: already running"
         )
 
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.retention.cleanup_old_read_notifications")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
+    @patch("notifications.tasks.cache_lock")
     def test_releases_lock_when_cleanup_raises(
-        self,
-        mock_uuid4,
-        mock_cache_add,
-        mock_cleanup_old_read_notifications,
-        mock_release_lock,
+        self, mock_cache_lock, mock_cleanup_old_read_notifications
     ):
-        mock_uuid4.return_value.hex = "lock-123"
-        mock_cache_add.return_value = True
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_cleanup_old_read_notifications.side_effect = RuntimeError("error")
 
         with self.assertRaises(RuntimeError):
             cleanup_old_read_notifications_task.run()
 
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_CLEANUP_LOCK_KEY, "lock-123", timeout=60
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value=None, timeout=60
         )
         mock_cleanup_old_read_notifications.assert_called_once_with()
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value="lock-123"
-        )
+        mock_cache_lock.return_value.__exit__.assert_called_once()
 
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.retention.cleanup_old_read_notifications")
-    @patch("notifications.tasks.cache.add")
+    @patch("notifications.tasks.cache_lock")
     def test_uses_task_request_id_as_lock_value_when_available(
-        self, mock_cache_add, mock_cleanup_old_read_notifications, mock_release_lock
+        self, mock_cache_lock, mock_cleanup_old_read_notifications
     ):
-        mock_cache_add.return_value = True
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_cleanup_old_read_notifications.return_value = 3
 
         with patch.object(
@@ -195,11 +160,8 @@ class TestCleanupOldReadNotificationsTask(SimpleTestCase):
             result = cleanup_old_read_notifications_task.run()
 
         self.assertEqual(result, 3)
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_CLEANUP_LOCK_KEY, "task-abc", timeout=60
-        )
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value="task-abc"
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value="task-abc", timeout=60
         )
 
 
@@ -208,16 +170,13 @@ class TestCleanupOldReadNotificationsTask(SimpleTestCase):
     NOTIFICATIONS_UNREAD_COUNT_SYNC_BATCH_SIZE=123,
 )
 class TestSyncUnreadNotificationCountsTask(SimpleTestCase):
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.tasks.logger.info")
     @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
+    @patch("notifications.tasks.cache_lock")
     def test_runs_sync_when_lock_acquired(
-        self, mock_uuid4, mock_cache_add, mock_sync, mock_logger_info, mock_release_lock
+        self, mock_cache_lock, mock_sync, mock_logger_info
     ) -> None:
-        mock_uuid4.return_value.hex = "lock-456"
-        mock_cache_add.return_value = True
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_sync.return_value = {
             "users_checked": 10,
             "users_updated": 3,
@@ -230,28 +189,24 @@ class TestSyncUnreadNotificationCountsTask(SimpleTestCase):
             result, {"users_checked": 10, "users_updated": 3, "users_zeroed": 1}
         )
 
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, "lock-456", timeout=60
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+            lock_value=None,
+            timeout=60,
         )
         mock_sync.assert_called_once_with(batch_size=123)
         mock_logger_info.assert_called_once_with(
             "Unread-count sync finished: %s",
             {"users_checked": 10, "users_updated": 3, "users_zeroed": 1},
         )
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, lock_value="lock-456"
-        )
 
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.tasks.logger.info")
     @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
+    @patch("notifications.tasks.cache_lock")
     def test_skips_when_lock_not_acquired(
-        self, mock_uuid4, mock_cache_add, mock_sync, mock_logger_info, mock_release_lock
+        self, mock_cache_lock, mock_sync, mock_logger_info
     ) -> None:
-        mock_uuid4.return_value.hex = "lock-456"
-        mock_cache_add.return_value = False
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=False)
 
         result = sync_unread_notification_counts_task.run()
 
@@ -259,46 +214,37 @@ class TestSyncUnreadNotificationCountsTask(SimpleTestCase):
             result, {"users_checked": 0, "users_updated": 0, "users_zeroed": 0}
         )
 
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, "lock-456", timeout=60
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+            lock_value=None,
+            timeout=60,
         )
         mock_sync.assert_not_called()
         mock_logger_info.assert_called_once_with(
             "Unread-count sync skipped: already running"
         )
-        mock_release_lock.assert_not_called()
 
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
-    def test_releases_lock_when_sync_raises(
-        self, mock_uuid4, mock_cache_add, mock_sync, mock_release_lock
-    ) -> None:
-        mock_uuid4.return_value.hex = "lock-456"
-        mock_cache_add.return_value = True
+    @patch("notifications.tasks.cache_lock")
+    def test_releases_lock_when_sync_raises(self, mock_cache_lock, mock_sync) -> None:
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_sync.side_effect = RuntimeError("error")
 
         with self.assertRaises(RuntimeError):
             sync_unread_notification_counts_task.run()
 
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, "lock-456", timeout=60
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+            lock_value=None,
+            timeout=60,
         )
         mock_sync.assert_called_once_with(batch_size=123)
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, lock_value="lock-456"
-        )
+        mock_cache_lock.return_value.__exit__.assert_called_once()
 
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache.add")
-    @patch("notifications.tasks.uuid4")
-    def test_casts_settings_values_to_int(
-        self, mock_uuid4, mock_cache_add, mock_sync, mock_release_lock
-    ) -> None:
-        mock_uuid4.return_value.hex = "lock-456"
-        mock_cache_add.return_value = True
+    @patch("notifications.tasks.cache_lock")
+    def test_casts_settings_values_to_int(self, mock_cache_lock, mock_sync) -> None:
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_sync.return_value = {
             "users_checked": 1,
             "users_updated": 0,
@@ -314,21 +260,19 @@ class TestSyncUnreadNotificationCountsTask(SimpleTestCase):
         self.assertEqual(
             result, {"users_checked": 1, "users_updated": 0, "users_zeroed": 0}
         )
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, "lock-456", timeout=90
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+            lock_value=None,
+            timeout=90,
         )
         mock_sync.assert_called_once_with(batch_size=250)
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, lock_value="lock-456"
-        )
 
-    @patch("notifications.tasks._release_lock")
     @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache.add")
+    @patch("notifications.tasks.cache_lock")
     def test_uses_task_request_id_as_lock_value_when_available(
-        self, mock_cache_add, mock_sync, mock_release_lock
+        self, mock_cache_lock, mock_sync
     ) -> None:
-        mock_cache_add.return_value = True
+        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
         mock_sync.return_value = {
             "users_checked": 2,
             "users_updated": 1,
@@ -343,53 +287,8 @@ class TestSyncUnreadNotificationCountsTask(SimpleTestCase):
         self.assertEqual(
             result, {"users_checked": 2, "users_updated": 1, "users_zeroed": 0}
         )
-        mock_cache_add.assert_called_once_with(
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, "task-def", timeout=60
-        )
-        mock_release_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY, lock_value="task-def"
-        )
-
-
-class TestReleaseLock(SimpleTestCase):
-    @patch("notifications.tasks.get_redis_connection")
-    def test_releases_lock_with_compare_and_delete_lua(self, mock_get_redis_connection):
-        redis_conn = Mock()
-        mock_get_redis_connection.return_value = redis_conn
-
-        _release_lock(lock_key="some-lock", lock_value="some-value")
-
-        mock_get_redis_connection.assert_called_once_with("default")
-        redis_conn.eval.assert_called_once_with(
-            RELEASE_LOCK_LUA, 1, "some-lock", "some-value"
-        )
-
-    @patch("notifications.tasks.logger.exception")
-    @patch("notifications.tasks.get_redis_connection")
-    def test_logs_when_release_lock_raises_redis_error(
-        self, mock_get_redis_connection, mock_logger_exception
-    ):
-        redis_conn = Mock()
-        redis_conn.eval.side_effect = RedisError("redis down")
-        mock_get_redis_connection.return_value = redis_conn
-
-        _release_lock(lock_key="some-lock", lock_value="some-value")
-
-        mock_logger_exception.assert_called_once_with(
-            "Failed to release lock %s.", "some-lock"
-        )
-
-    @patch("notifications.tasks.logger.exception")
-    @patch("notifications.tasks.get_redis_connection")
-    def test_logs_when_release_lock_raises_connection_interrupted(
-        self, mock_get_redis_connection, mock_logger_exception
-    ):
-        redis_conn = Mock()
-        redis_conn.eval.side_effect = ConnectionInterrupted("redis interrupted")
-        mock_get_redis_connection.return_value = redis_conn
-
-        _release_lock(lock_key="some-lock", lock_value="some-value")
-
-        mock_logger_exception.assert_called_once_with(
-            "Failed to release lock %s.", "some-lock"
+        mock_cache_lock.assert_called_once_with(
+            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
+            lock_value="task-def",
+            timeout=60,
         )
