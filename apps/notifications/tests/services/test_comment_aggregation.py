@@ -5,13 +5,17 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import NoReverseMatch
 from django.utils import timezone
 
-from notifications.models import Notification, NotificationType
+from core.db import get_constraint_name
+from notifications.models import (
+    UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT,
+    Notification,
+    NotificationType,
+)
 from notifications.services.comment_aggregation import (
     _build_article_link,
     _build_comment_aggregate_body,
     _build_comment_aggregate_key,
     _build_comment_aggregate_title,
-    _is_unread_aggregate_violation,
     _normalize_comment_aggregate_payload,
     _safe_int,
     create_or_update_unread_comment_aggregate_notification,
@@ -428,7 +432,10 @@ class TestCreateOrUpdateUnreadCommentAggregateNotification(TestCase):
                 dedupe_key="",
             )
 
-        self.assertTrue(_is_unread_aggregate_violation(exc_ctx.exception))
+        self.assertEqual(
+            get_constraint_name(exc_ctx.exception),
+            UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT,
+        )
 
     def test_read_row_does_not_block_new_unread_row(self):
         aggregate_key = f"new_comment_agg:{self.article_author.id}:{self.article_id}"

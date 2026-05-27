@@ -7,6 +7,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
+from core.db import get_constraint_name
 from users.models import (
     PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
@@ -51,7 +52,7 @@ def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChan
     try:
         pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
     except IntegrityError as e:
-        if _get_constraint_name(e) == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
+        if get_constraint_name(e) == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError(
                 "That email address is currently pending confirmation."
             ) from e
@@ -130,7 +131,7 @@ def change_email_address(
         pending_email_change.delete()
         invalidate_user_sessions(user_id=user.id)
     except IntegrityError as e:
-        if _get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
+        if get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError("This email address is no longer available.") from e
         raise
 
@@ -228,8 +229,3 @@ def _delete_expired_pending_email_changes(*, email: str | None = None) -> int:
             )
 
     return deleted_count
-
-
-def _get_constraint_name(exc: IntegrityError) -> str | None:
-    diagnostics = getattr(exc.__cause__, "diag", None)
-    return getattr(diagnostics, "constraint_name", None)

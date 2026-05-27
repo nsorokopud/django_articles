@@ -7,6 +7,7 @@ from django.core.files.storage import default_storage
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 
+from core.db import get_constraint_name
 from users.models import (
     DEFAULT_PROFILE_IMAGE,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
@@ -51,7 +52,7 @@ def register_user(*, username: str, email: str, password: str) -> User:
             )
 
     except IntegrityError as e:
-        constraint_name = _get_constraint_name(e)
+        constraint_name = get_constraint_name(e)
 
         if constraint_name == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
             raise ValidationError(
@@ -127,7 +128,7 @@ def update_user_profile(
             user.username = username
             user.save(update_fields=["username"])
         except IntegrityError as e:
-            if _get_constraint_name(e) == USER_USERNAME_UNIQUE_CONSTRAINT_NAME:
+            if get_constraint_name(e) == USER_USERNAME_UNIQUE_CONSTRAINT_NAME:
                 raise ValidationError(
                     {"username": "A user with that username already exists."}
                 ) from e
@@ -293,8 +294,3 @@ def _invalidate_subscribers_count_cache_after_commit(*, author_id: int) -> None:
     transaction.on_commit(
         lambda: cache.delete(get_subscribers_count_cache_key(author_id))
     )
-
-
-def _get_constraint_name(exc: IntegrityError) -> str | None:
-    diagnostics = getattr(exc.__cause__, "diag", None)
-    return getattr(diagnostics, "constraint_name", None)

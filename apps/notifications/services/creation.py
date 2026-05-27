@@ -4,6 +4,7 @@ from typing import Any, Optional
 from django.db import IntegrityError, transaction
 from django.db.models import F
 
+from core.db import get_constraint_name
 from users.models import User
 
 from ..models import NOTIFICATION_DEDUPE_CONSTRAINT, Notification, NotificationType
@@ -89,13 +90,10 @@ def create_deduped_notification(
         return n, True
 
     except IntegrityError as e:
-        if not dedupe_key or not _is_dedupe_violation(e):
+        if not dedupe_key or get_constraint_name(e) != NOTIFICATION_DEDUPE_CONSTRAINT:
             raise
 
-        n = Notification.objects.get(
-            recipient_id=recipient_id,
-            dedupe_key=dedupe_key,
-        )
+        n = Notification.objects.get(recipient_id=recipient_id, dedupe_key=dedupe_key)
         return n, False
 
 
@@ -116,15 +114,3 @@ def _increment_unread_notification_count(user_id: int) -> None:
     User.objects.filter(id=user_id).update(
         unread_notifications_count=F("unread_notifications_count") + 1
     )
-
-
-def _is_dedupe_violation(exc: IntegrityError) -> bool:
-    cause = getattr(exc, "__cause__", None) or getattr(exc, "__context__", None)
-    diag = getattr(cause, "diag", None)
-    if (
-        diag
-        and getattr(diag, "constraint_name", None) == NOTIFICATION_DEDUPE_CONSTRAINT
-    ):
-        return True
-
-    return NOTIFICATION_DEDUPE_CONSTRAINT in str(exc)

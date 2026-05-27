@@ -135,11 +135,11 @@ class TestCreateDedupedNotification(TestCase):
         side_effect=IntegrityError("error"),
     )
     @patch(
-        "notifications.services.creation._is_dedupe_violation",
-        return_value=False,
+        "notifications.services.creation.get_constraint_name",
+        return_value="other_constraint",
     )
     def test_integrity_error_other_constraint_is_reraised(
-        self, mock_is_dedupe_violation, mock_create
+        self, mock_get_constraint_name, mock_create
     ) -> None:
         with self.assertRaises(IntegrityError):
             create_deduped_notification(

@@ -7,6 +7,7 @@ from django.db.models import Case, F, IntegerField, Value, When
 from django.template.defaultfilters import slugify
 from nanoid import generate
 
+from core.db import get_constraint_name
 from users.models import User
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
@@ -177,7 +178,7 @@ def _save_with_unique_slug(article: Article) -> None:
                 article.save()
             return
         except IntegrityError as exc:
-            if not _is_slug_unique_violation(exc):
+            if get_constraint_name(exc) != ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME:
                 raise
 
             if attempt == MAX_SLUG_RETRY_ATTEMPTS - 1:
@@ -243,10 +244,3 @@ def bulk_increment_article_view_counts(view_deltas: dict[int, int]) -> None:
     except DatabaseError:
         logger.exception("Failed to bulk update view counts.")
         raise
-
-
-def _is_slug_unique_violation(exc: IntegrityError) -> bool:
-    diagnostics = getattr(exc.__cause__, "diag", None)
-    constraint_name = getattr(diagnostics, "constraint_name", None)
-
-    return constraint_name == ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME

@@ -5,6 +5,7 @@ from django.db.models import F
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
+from core.db import get_constraint_name
 from users.models import User
 
 from ..models import (
@@ -86,7 +87,10 @@ def create_or_update_unread_comment_aggregate_notification(
             return notification, True
 
         except IntegrityError as exc:
-            if not _is_unread_aggregate_violation(exc):
+            if (
+                get_constraint_name(exc)
+                != UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT
+            ):
                 raise
 
             existing = _find_existing_unread_comment_aggregate_for_update(
@@ -321,15 +325,3 @@ def _increment_unread_notification_count(user_id: int) -> None:
     User.objects.filter(id=user_id).update(
         unread_notifications_count=F("unread_notifications_count") + 1
     )
-
-
-def _is_unread_aggregate_violation(exc: IntegrityError) -> bool:
-    cause = getattr(exc, "__cause__", None) or getattr(exc, "__context__", None)
-    diag = getattr(cause, "diag", None)
-    if (
-        diag
-        and getattr(diag, "constraint_name", None)
-        == UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT
-    ):
-        return True
-    return UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT in str(exc)
