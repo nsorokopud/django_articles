@@ -1,31 +1,39 @@
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Count, F
 from django.shortcuts import get_object_or_404
 
 from ..models import Article, ArticleComment, ArticleStatus
 
 
+@transaction.atomic
 def set_article_like(
     *, article_slug: str, user_id: int, liked: bool
 ) -> tuple[int, bool]:
     article = get_object_or_404(
-        Article, slug=article_slug, status=ArticleStatus.PUBLISHED
+        Article.objects.select_for_update(),
+        slug=article_slug,
+        status=ArticleStatus.PUBLISHED,
     )
-    return set_like(article, user_id=user_id, liked=liked)
+    return _set_like(article, user_id=user_id, liked=liked)
 
 
+@transaction.atomic
 def set_comment_like(*, comment_id: int, user_id: int, liked: bool) -> tuple[int, bool]:
     comment = get_object_or_404(
-        ArticleComment, id=comment_id, article__status=ArticleStatus.PUBLISHED
+        ArticleComment.objects.only("id", "article_id"), id=comment_id
     )
-    return set_like(comment, user_id=user_id, liked=liked)
+
+    get_object_or_404(
+        Article.objects.select_for_update(),
+        pk=comment.article_id,
+        status=ArticleStatus.PUBLISHED,
+    )
+
+    return _set_like(comment, user_id=user_id, liked=liked)
 
 
-def set_like(
-    obj: Article | ArticleComment,
-    *,
-    user_id: int,
-    liked: bool,
+def _set_like(
+    obj: Article | ArticleComment, *, user_id: int, liked: bool
 ) -> tuple[int, bool]:
     through = obj.users_that_liked.through
     source_field_name = obj.users_that_liked.source_field_name
@@ -59,27 +67,21 @@ def sync_comment_likes_count(*, batch_size: int = 1000) -> None:
 
 
 def _like(*, through, model, obj_id: int, lookup: dict) -> bool:
-    try:
-        with transaction.atomic():
-            through.objects.create(**lookup)
-            model.objects.filter(pk=obj_id).update(
-                likes_count=F("likes_count") + 1,
-            )
-    except IntegrityError:
-        # Already liked.
-        return True
+    created = through.objects.get_or_create(**lookup)[1]
+
+    if created:
+        model.objects.filter(pk=obj_id).update(likes_count=F("likes_count") + 1)
 
     return True
 
 
 def _unlike(*, through, model, obj_id: int, lookup: dict) -> bool:
-    with transaction.atomic():
-        deleted_count, _ = through.objects.filter(**lookup).delete()
+    deleted_count, _ = through.objects.filter(**lookup).delete()
 
-        if deleted_count:
-            model.objects.filter(pk=obj_id, likes_count__gt=0).update(
-                likes_count=F("likes_count") - 1,
-            )
+    if deleted_count:
+        model.objects.filter(pk=obj_id, likes_count__gt=0).update(
+            likes_count=F("likes_count") - 1
+        )
 
     return False
 
