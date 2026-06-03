@@ -12,7 +12,7 @@ nanoid==2.0.0
 nh3==0.3.4
 
 # Environment management
-python-dotenv==1.0.1
+django-environ==0.13.0
 
 # DB and ORM
 django-sql-utils==0.7.0

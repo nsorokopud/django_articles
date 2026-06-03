@@ -2,43 +2,36 @@ import logging
 import os
 import sys
 from datetime import timedelta
-from pathlib import Path
 
 import sentry_sdk
 from celery.schedules import crontab
 from django.contrib.messages import constants as messages
-from dotenv import load_dotenv
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
+from .env import BASE_DIR, env
 
 
-# Load env. variables
-DOTENV_PATH = os.path.join(BASE_DIR, ".env")
-load_dotenv(DOTENV_PATH, override=True)
+APPS_DIR = BASE_DIR / "apps"
+sys.path.insert(0, str(APPS_DIR))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(int(os.environ["DEBUG"]))
+DEBUG = env.bool("DEBUG")
 
-ALLOWED_HOSTS = os.environ["ALLOWED_HOSTS"].split(" ")
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
 if DEBUG:
     INTERNAL_IPS = ["127.0.0.1"]
 
-SCHEME = os.environ["SCHEME"]
-DOMAIN_NAME = os.environ["DOMAIN_NAME"]
+SCHEME = env("SCHEME")
+DOMAIN_NAME = env("DOMAIN_NAME")
 
 if SCHEME.lower() == "https":
     SECURE_SSL_REDIRECT = True
@@ -51,7 +44,7 @@ if SCHEME.lower() == "https":
     SECURE_HSTS_PRELOAD = True
 
 
-ALLOW_NON_ROUTABLE_IPS = bool(int(os.getenv("ALLOW_NON_ROUTABLE_IPS", "0")))
+ALLOW_NON_ROUTABLE_IPS = env.bool("ALLOW_NON_ROUTABLE_IPS", default=False)
 
 
 # Application definition
@@ -152,12 +145,12 @@ MESSAGE_TAGS = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ["DB_NAME"],
-        "USER": os.environ["DB_USER"],
-        "PASSWORD": os.environ["DB_PASSWORD"],
-        "HOST": os.environ["DB_HOST"],
-        "PORT": int(os.getenv("DB_PORT", "5432")),
-        "CONN_MAX_AGE": int(os.getenv("DB_CONNECTION_MAX_AGE", "60")),
+        "NAME": env("DB_NAME"),
+        "USER": env("DB_USER"),
+        "PASSWORD": env("DB_PASSWORD"),
+        "HOST": env("DB_HOST"),
+        "PORT": env.int("DB_PORT", default=5432),
+        "CONN_MAX_AGE": env.int("DB_CONNECTION_MAX_AGE", default=60),
     }
 }
 
@@ -192,8 +185,8 @@ SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "SCOPE": ["profile", "email"],
         "APP": {
-            "client_id": os.environ["GOOGLE_OAUTH_CLIENT_ID"],
-            "secret": os.environ["GOOGLE_OAUTH_CLIENT_SECRET"],
+            "client_id": env("GOOGLE_OAUTH_CLIENT_ID"),
+            "secret": env("GOOGLE_OAUTH_CLIENT_SECRET"),
         },
         "AUTH_PARAMS": {
             "access_type": "online",
@@ -231,12 +224,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Sentry
 
-USE_SENTRY = bool(int(os.getenv("USE_SENTRY", "0")))
+USE_SENTRY = env.bool("USE_SENTRY", default=False)
 
 if USE_SENTRY:
-    SENTRY_DSN = os.environ["SENTRY_DSN"]
-    SENTRY_TRACES_SAMPLE_RATE = float(os.environ["SENTRY_TRACES_SAMPLE_RATE"])
-    SENTRY_SEND_DEFAULT_PII = bool(int(os.getenv("SENTRY_SEND_DEFAULT_PII", "1")))
+    SENTRY_DSN = env("SENTRY_DSN")
+    SENTRY_TRACES_SAMPLE_RATE = env.float("SENTRY_TRACES_SAMPLE_RATE")
+    SENTRY_SEND_DEFAULT_PII = env.bool("SENTRY_SEND_DEFAULT_PII", default=True)
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -256,7 +249,7 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 
 # Default time zone for frontend rendering
-DEFAULT_USER_TZ = os.getenv("DEFAULT_USER_TZ", "Europe/London")
+DEFAULT_USER_TZ = env("DEFAULT_USER_TZ", default="Europe/London")
 
 USE_I18N = True
 USE_TZ = True
@@ -274,7 +267,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Allowed root URLs for media files (for validating external image URLs in TinyMCE)
-MEDIA_ALLOWED_ROOT_URLS = os.environ["MEDIA_ALLOWED_ROOT_URLS"].split(" ")
+MEDIA_ALLOWED_ROOT_URLS = env.list("MEDIA_ALLOWED_ROOT_URLS")
 
 ALLOWED_IMAGE_UPLOAD_FILE_TYPES = {
     "jpg": "image/jpeg",
@@ -284,8 +277,8 @@ ALLOWED_IMAGE_UPLOAD_FILE_TYPES = {
     "webp": "image/webp",
 }
 
-MAX_IMAGE_UPLOAD_FILE_SIZE = int(
-    os.getenv("MAX_IMAGE_UPLOAD_FILE_SIZE", str(5 * 1024 * 1024))  # 5MB default
+MAX_IMAGE_UPLOAD_FILE_SIZE = env.int(
+    "MAX_IMAGE_UPLOAD_FILE_SIZE", default=5 * 1024 * 1024  # 5MB default
 )
 
 
@@ -305,8 +298,8 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 
 # hCaptcha
 
-HCAPTCHA_SITEKEY = os.environ["HCAPTCHA_SITEKEY"]
-HCAPTCHA_SECRET = os.environ["HCAPTCHA_SECRET"]
+HCAPTCHA_SITEKEY = env("HCAPTCHA_SITEKEY")
+HCAPTCHA_SECRET = env("HCAPTCHA_SECRET")
 
 
 # TinyMCE
@@ -352,12 +345,12 @@ TINYMCE_DEFAULT_CONFIG = {
 
 # AWS
 
-USE_AWS_S3 = bool(int(os.environ["USE_AWS_S3"]))
+USE_AWS_S3 = env.bool("USE_AWS_S3")
 
 if USE_AWS_S3:
-    AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
-    AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
-    AWS_STORAGE_BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     AWS_S3_FILE_OVERWRITE = False
 
@@ -380,8 +373,8 @@ STORAGES = {
 
 # Redis
 
-REDIS_HOST = os.environ["REDIS_HOST"]
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_HOST = env("REDIS_HOST")
+REDIS_PORT = env.int("REDIS_PORT", default=6379)
 
 
 # Cache
@@ -406,7 +399,7 @@ CACHES = {
 
 # Rate limiting
 
-RATELIMIT_ENABLE = bool(int(os.getenv("RATELIMIT_ENABLE", "1")))
+RATELIMIT_ENABLE = env.bool("RATELIMIT_ENABLE", default=True)
 
 RATELIMIT_VIEW = "core.ratelimit.ratelimited"
 
@@ -429,8 +422,8 @@ CHANNEL_LAYERS = {
 
 CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = bool(
-    int(os.getenv("CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", "1"))
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = env.bool(
+    "CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP", default=True
 )
 
 
@@ -477,11 +470,11 @@ SELECT2_CACHE_BACKEND = "select2"
 # Emails
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
-EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
-EMAIL_USE_TLS = bool(int(os.getenv("EMAIL_USE_TLS", "1")))
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 
 
 from .articles import *  # noqa pylint: disable=W0401,W0614

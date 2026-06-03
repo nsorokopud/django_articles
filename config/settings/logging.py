@@ -1,13 +1,11 @@
 import os
-from pathlib import Path
+
+from .env import BASE_DIR, env
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-
-LOGGING_ENABLED = bool(int(os.getenv("ENABLE_LOGGING", "0")))
-LOG_TO_CONSOLE = bool(int(os.getenv("LOG_TO_CONSOLE", "0")))
-LOGS_PATH = os.path.join(BASE_DIR, os.getenv("LOGS_PATH", "logs"))
+LOGGING_ENABLED = env.bool("ENABLE_LOGGING", default=False)
+LOG_TO_CONSOLE = env.bool("LOG_TO_CONSOLE", default=False)
+LOGS_PATH = os.path.join(BASE_DIR, env("LOGS_PATH", default="logs"))
 
 if LOGGING_ENABLED:
     os.makedirs(LOGS_PATH, exist_ok=True)
@@ -118,7 +116,7 @@ if LOGGING_ENABLED:
                 for h in ["console", "file_general", "file_errors"]
                 if h in logging_handlers
             ],
-            "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
+            "level": env("DJANGO_LOG_LEVEL", default="INFO"),
         },
         "loggers": {
             "django": {

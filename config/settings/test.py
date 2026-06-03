@@ -1,6 +1,5 @@
-import os
-
 from .base import *
+from .env import env
 
 
 SECRET_KEY = "test_secret_key"
@@ -20,7 +19,7 @@ CACHES = {
     "select2": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
 }
 
-TEST_REDIS_URL = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/15")
+TEST_REDIS_URL = env("TEST_REDIS_URL", default="redis://localhost:6379/15")
 
 TEST_REDIS_CACHES = {
     "default": {
@@ -45,15 +44,17 @@ STORAGES = {
 }
 
 SOCIALACCOUNT_PROVIDERS["google"]["APP"] = {
-    "client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
-    "secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+    "client_id": env("GOOGLE_OAUTH_CLIENT_ID", default=""),
+    "secret": env("GOOGLE_OAUTH_CLIENT_SECRET", default=""),
 }
 
 # These are the default values suggested by hCaptcha for testing:
 # https://docs.hcaptcha.com/#integration-testing-test-keys.
-HCAPTCHA_SITEKEY = os.getenv("HCAPTCHA_SITEKEY", "10000000-ffff-ffff-ffff-000000000001")
-HCAPTCHA_SECRET = os.getenv(
-    "HCAPTCHA_SECRET", "0x0000000000000000000000000000000000000000"
+HCAPTCHA_SITEKEY = env(
+    "HCAPTCHA_SITEKEY", default="10000000-ffff-ffff-ffff-000000000001"
+)
+HCAPTCHA_SECRET = env(
+    "HCAPTCHA_SECRET", default="0x0000000000000000000000000000000000000000"
 )
 
 CELERY_BROKER_URL = "memory://"

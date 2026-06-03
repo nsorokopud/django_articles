@@ -111,6 +111,8 @@ django-crispy-forms==2.3
     # via
     #   -r requirements.in
     #   crispy-bootstrap4
+django-environ==0.13.0
+    # via -r requirements.in
 django-filter==24.3
     # via -r requirements.in
 django-hcaptcha-field==1.4.0
@@ -191,8 +193,6 @@ python-dateutil==2.9.0.post0
     #   botocore
     #   celery
     #   python-crontab
-python-dotenv==1.0.1
-    # via -r requirements.in
 python-ipware==3.0.0
     # via django-ipware
 python-magic==0.4.27
