@@ -9,6 +9,7 @@ import nh3
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+from ..constants import ALLOWED_ARTICLE_INTERNAL_LINK_PREFIXES
 from ..media_paths import (
     extract_article_media_storage_name,
     is_article_media_storage_name_for_article,
@@ -75,8 +76,8 @@ for tag_name in ALIGNABLE_TAGS:
 def sanitize_article_html(
     html: str, *, article_id: int | None, author_id: int | None
 ) -> str:
-    allowed_internal_link_hosts = _get_allowed_internal_article_link_hosts()
-    allowed_internal_link_prefixes = _get_allowed_internal_article_link_prefixes()
+    allowed_internal_link_hosts = _get_validated_internal_article_link_hosts()
+    allowed_internal_link_prefixes = _get_validated_internal_article_link_prefixes()
 
     def attribute_filter(tag: str, attr: str, value: str) -> str | None:
         return _article_attribute_filter(
@@ -93,7 +94,9 @@ def sanitize_article_html(
         html or "",
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
-        url_schemes=getattr(settings, "ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}),
+        url_schemes=getattr(
+            settings, "ARTICLES_ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}
+        ),
         link_rel="noopener noreferrer nofollow",
         attribute_filter=attribute_filter,
     )
@@ -188,7 +191,7 @@ def _is_allowed_anchor_href(  # pylint: disable=too-many-return-statements
     allowed_schemes = {
         scheme.lower()
         for scheme in getattr(
-            settings, "ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}
+            settings, "ARTICLES_ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", {"https"}
         )
     }
 
@@ -223,14 +226,16 @@ def _is_allowed_internal_article_link(
 
 
 @lru_cache(maxsize=1)
-def _get_allowed_internal_article_link_hosts() -> frozenset[str]:
-    configured_hosts = getattr(settings, "ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS", ())
+def _get_validated_internal_article_link_hosts() -> frozenset[str]:
+    configured_hosts = getattr(
+        settings, "ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS", ()
+    )
 
     hosts = []
     for host in configured_hosts:
         if not isinstance(host, str):
             raise ImproperlyConfigured(
-                "ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS must contain host strings"
+                "ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS must contain host strings"
             )
 
         normalized = host.strip().lower()
@@ -242,7 +247,8 @@ def _get_allowed_internal_article_link_hosts() -> frozenset[str]:
             or ":" in normalized
         ):
             raise ImproperlyConfigured(
-                "ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS must contain bare hostnames only"
+                "ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS must contain "
+                "bare hostnames only"
             )
 
         hosts.append(normalized)
@@ -251,10 +257,8 @@ def _get_allowed_internal_article_link_hosts() -> frozenset[str]:
 
 
 @lru_cache(maxsize=1)
-def _get_allowed_internal_article_link_prefixes() -> frozenset[str]:
-    configured_prefixes = settings.ALLOWED_ARTICLE_INTERNAL_LINK_PREFIXES
-
-    prefixes = tuple(configured_prefixes)
+def _get_validated_internal_article_link_prefixes() -> frozenset[str]:
+    prefixes = tuple(ALLOWED_ARTICLE_INTERNAL_LINK_PREFIXES)
 
     for prefix in prefixes:
         if not _is_valid_internal_link_prefix(prefix):

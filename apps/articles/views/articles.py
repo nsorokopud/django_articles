@@ -39,7 +39,6 @@ from ..services.publishing import (
     submit_article_for_review,
     withdraw_article_from_review,
 )
-from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
 from .decorators import increment_article_view_counter
 from .http import parse_liked_payload
 
@@ -49,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 class BaseArticleListFilterView(FilterView):
     context_object_name = "articles"
-    paginate_by = ARTICLES_PER_PAGE_COUNT
+    paginate_by = settings.ARTICLES_PER_PAGE
     template_name = "articles/article_list_page.html"
 
     page_title = ""
@@ -145,7 +144,7 @@ class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
 class MyArticlesListView(LoginRequiredMixin, ListView):
     model = Article
     context_object_name = "articles"
-    paginate_by = ARTICLES_PER_PAGE_COUNT
+    paginate_by = settings.ARTICLES_PER_PAGE
     template_name = "articles/article_list_page.html"
 
     def get_queryset(self) -> QuerySet[Article]:
@@ -190,7 +189,9 @@ class ArticleDetailView(DetailView):
         return article
 
     @method_decorator(increment_article_view_counter)
-    @method_decorator(cache_page_for_anonymous(ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT))
+    @method_decorator(
+        cache_page_for_anonymous(settings.ARTICLES_DETAIL_PAGE_CACHE_TIMEOUT_SECONDS)
+    )
     def get(self, request, *args, **kwargs) -> HttpResponse:
         return super().get(request, *args, **kwargs)
 

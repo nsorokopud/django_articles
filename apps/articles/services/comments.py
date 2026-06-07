@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.core.paginator import Page, Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Count, F
@@ -10,7 +11,6 @@ from users.models import User
 
 from ..models import Article, ArticleComment, ArticleStatus
 from ..selectors import find_article_comments_liked_by_user, find_comments_to_article
-from ..settings import ARTICLE_COMMENTS_PER_PAGE
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ def get_article_comments_page(
     user: User | None = None,
 ) -> tuple[Page, set[int]]:
     comments_qs = find_comments_to_article(article)
-    paginator = Paginator(comments_qs, ARTICLE_COMMENTS_PER_PAGE)
+    paginator = Paginator(comments_qs, settings.ARTICLES_COMMENTS_PER_PAGE)
     comments_page = paginator.get_page(page_number)
 
     liked_comments: set[int] = set()

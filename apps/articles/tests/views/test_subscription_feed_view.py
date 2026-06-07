@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleStatus
-from articles.settings import ARTICLES_PER_PAGE_COUNT
 from users.models import AuthorSubscription, User
 
 
@@ -167,7 +167,7 @@ class TestSubscriptionFeedView(TestCase):
     def test_does_not_update_last_seen_publish_sequence_on_non_first_page(
         self,
     ):
-        for i in range(ARTICLES_PER_PAGE_COUNT + 1):
+        for i in range(settings.ARTICLES_PER_PAGE + 1):
             Article.objects.create(
                 title=f"Extra subscribed article {i}",
                 slug=f"extra-subscribed-article-{i}",

@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.search import SearchQuery
 from django.db import IntegrityError, connection, transaction
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 
 from articles.models import (
@@ -15,7 +15,7 @@ from articles.models import (
     article_inline_media_upload_path,
     article_preview_image_upload_path,
 )
-from config.settings import CACHES
+from tests.cache_settings import override_settings_with_redis_cache
 
 
 User = get_user_model()
@@ -39,7 +39,7 @@ class TestArticleModel(TestCase):
 
         self.assertIn("validate_uploaded_image", validator_names)
 
-    @override_settings(CACHES=CACHES)
+    @override_settings_with_redis_cache()
     def test_views_property(self):
         self.assertEqual(self.unpublished_article.views, 0)
 

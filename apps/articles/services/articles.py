@@ -1,7 +1,6 @@
 import logging
 from typing import Optional
 
-from django.conf import settings
 from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import Case, F, IntegerField, Value, When
 from django.template.defaultfilters import slugify
@@ -11,6 +10,7 @@ from core.db import get_constraint_name
 from users.models import User
 
 from ..cache.slug import invalidate_article_slug_id
+from ..constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from ..models import (
     ARTICLE_SLUG_MAX_LENGTH,
     ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
@@ -40,7 +40,7 @@ def get_or_create_empty_draft(*, author: User) -> Article:
         .filter(
             author_id=author.pk,
             status=ArticleStatus.DRAFT,
-            title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+            title=DEFAULT_DRAFT_ARTICLE_TITLE,
             preview_text="",
             content="",
             content_text="",
@@ -156,7 +156,7 @@ def delete_article(*, article_id: int) -> None:
 def _create_empty_draft(*, author: User) -> Article:
     article = Article(
         author=author,
-        title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+        title=DEFAULT_DRAFT_ARTICLE_TITLE,
         preview_text="",
         content="",
         content_text="",

@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleStatus
-from config.settings import CACHES
+from tests.cache_settings import override_settings_with_redis_cache
 from users.models import User
 
 
@@ -88,7 +88,7 @@ class TestArticleUpdateView(TestCase):
         self.assertTrue(form.fields["preview_image"].disabled)
         self.assertTrue(form.fields["content"].disabled)
 
-    @override_settings(CACHES=CACHES)
+    @override_settings_with_redis_cache()
     def test_get_for_published_article_redirects_to_detail_page(self):
         redirect_url = reverse(
             "article-details", kwargs={"article_slug": self.published_article.slug}

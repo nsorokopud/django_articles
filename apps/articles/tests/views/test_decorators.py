@@ -1,8 +1,8 @@
 from unittest.mock import Mock, patch
 
+from django.conf import settings
 from django.test import RequestFactory, SimpleTestCase
 
-from articles.settings import ARTICLE_UNIQUE_VIEW_TIMEOUT
 from articles.views.decorators import increment_article_view_counter
 
 
@@ -56,7 +56,7 @@ class TestIncrementArticleViewCounter(SimpleTestCase):
         mock_register_article_view.assert_called_once_with(
             article_id=123,
             viewer_id="visitor-abc",
-            unique_view_timeout=ARTICLE_UNIQUE_VIEW_TIMEOUT,
+            unique_view_timeout=settings.ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS,
         )
         view_func.assert_called_once_with(request, article_slug="test-article")
 

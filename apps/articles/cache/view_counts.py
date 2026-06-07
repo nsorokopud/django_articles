@@ -1,15 +1,12 @@
 import logging
 from typing import Iterable
 
+from django.conf import settings
 from django.db import DatabaseError
 from django_redis import get_redis_connection
 from redis import RedisError
 
 from ..services import bulk_increment_article_view_counts
-from ..settings import (
-    ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE,
-    ARTICLE_VIEW_SYNC_MAX_ITERATIONS,
-)
 
 
 logger = logging.getLogger(__name__)
@@ -86,10 +83,11 @@ def register_article_view(
 def sync_article_views() -> None:
     redis_conn = get_redis_connection("default")
 
-    for batch_index in range(ARTICLE_VIEW_SYNC_MAX_ITERATIONS):
+    for batch_index in range(settings.ARTICLES_VIEW_COUNT_SYNC_MAX_ITERATIONS):
         try:
             encoded_article_ids = redis_conn.spop(
-                VIEWED_ARTICLES_SET_KEY, ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE
+                VIEWED_ARTICLES_SET_KEY,
+                settings.ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE,
             )
         except RedisError as e:
             logger.error("Redis error when popping article IDs to sync: %s", e)

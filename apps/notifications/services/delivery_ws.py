@@ -64,7 +64,7 @@ async def _send_notification_throttled(
 
     if _throttle_allows_send(
         detailed_key,
-        settings.DETAILED_NOTIFICATION_COOLDOWN_SECONDS,
+        settings.NOTIFICATIONS_WS_DETAILED_NOTIFICATION_COOLDOWN_SECONDS,
         recipient_id=recipient_id,
     ):
         await _group_send_with_timeout(
@@ -78,7 +78,9 @@ async def _send_notification_throttled(
         return
 
     if _throttle_allows_send(
-        digest_key, settings.DIGEST_HINT_COOLDOWN_SECONDS, recipient_id=recipient_id
+        digest_key,
+        settings.NOTIFICATIONS_WS_DIGEST_HINT_COOLDOWN_SECONDS,
+        recipient_id=recipient_id,
     ):
         await _group_send_with_timeout(
             layer,
@@ -122,7 +124,9 @@ async def _group_send_with_timeout(
     log_suffix = f" ({', '.join(context)})" if context else ""
 
     try:
-        async with asyncio.timeout(settings.GROUP_SEND_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            settings.NOTIFICATIONS_WS_GROUP_SEND_TIMEOUT_SECONDS
+        ):
             await layer.group_send(group, payload)
     except asyncio.CancelledError:  # pylint: disable=W0706
         raise

@@ -1,7 +1,7 @@
+from django.conf import settings
 from django.core.cache import cache
 
 from ..models import Article, ArticleStatus
-from ..settings import ARTICLE_SLUG_ID_CACHE_TIMEOUT
 
 
 ARTICLE_SLUG_ID_CACHE_KEY = "articles:slug:{slug}:id"
@@ -26,7 +26,7 @@ def get_cached_article_id_by_slug(article_slug: str) -> int | None:
     if article_id is None:
         return None
 
-    cache.set(cache_key, article_id, ARTICLE_SLUG_ID_CACHE_TIMEOUT)
+    cache.set(cache_key, article_id, settings.ARTICLES_SLUG_ID_CACHE_TIMEOUT_SECONDS)
     return int(article_id)
 
 
@@ -34,7 +34,7 @@ def cache_article_slug_id(*, article_slug: str, article_id: int) -> None:
     cache.set(
         ARTICLE_SLUG_ID_CACHE_KEY.format(slug=article_slug),
         article_id,
-        ARTICLE_SLUG_ID_CACHE_TIMEOUT,
+        settings.ARTICLES_SLUG_ID_CACHE_TIMEOUT_SECONDS,
     )
 
 

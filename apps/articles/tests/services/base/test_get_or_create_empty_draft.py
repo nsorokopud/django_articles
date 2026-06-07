@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
-from django.conf import settings
 from django.db import IntegrityError
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
+from articles.constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from articles.models import Article, ArticleStatus
 from articles.services.articles import (
     MAX_SLUG_RETRY_ATTEMPTS,
@@ -28,7 +28,7 @@ class TestGetOrCreateEmptyDraft(TestCase):
     def test_creates_new_draft_when_existing_draft_is_not_empty(self):
         Article.objects.create(
             author=self.author,
-            title=settings.DEFAULT_DRAFT_ARTICLE_TITLE,
+            title=DEFAULT_DRAFT_ARTICLE_TITLE,
             slug="existing-draft",
             preview_text="changed",
             content="",
@@ -46,7 +46,7 @@ class TestGetOrCreateEmptyDraft(TestCase):
 
         self.assertIsNotNone(article.pk)
         self.assertEqual(article.author, self.author)
-        self.assertEqual(article.title, settings.DEFAULT_DRAFT_ARTICLE_TITLE)
+        self.assertEqual(article.title, DEFAULT_DRAFT_ARTICLE_TITLE)
         self.assertEqual(article.preview_text, "")
         self.assertEqual(article.content, "")
         self.assertEqual(article.status, ArticleStatus.DRAFT)
@@ -54,9 +54,8 @@ class TestGetOrCreateEmptyDraft(TestCase):
         self.assertTrue(article.slug)
         self.assertEqual(Article.objects.count(), 1)
 
-    @override_settings(DEFAULT_DRAFT_ARTICLE_TITLE="Untitled article")
     def test_retries_with_suffix_on_slug_collision(self):
-        base_title = settings.DEFAULT_DRAFT_ARTICLE_TITLE
+        base_title = DEFAULT_DRAFT_ARTICLE_TITLE
 
         existing = Article.objects.create(
             author=self.author,

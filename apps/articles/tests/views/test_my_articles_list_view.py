@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 
 from articles.models import Article, ArticleStatus
-from articles.settings import ARTICLES_PER_PAGE_COUNT
 from users.models import User
 
 
@@ -114,7 +114,7 @@ class TestMyArticlesListView(TestCase):
         self.assertContains(response, "You have not created any articles yet")
 
     def test_paginates_articles(self):
-        for i in range(ARTICLES_PER_PAGE_COUNT + 1):
+        for i in range(settings.ARTICLES_PER_PAGE + 1):
             Article.objects.create(
                 title=f"Article {i}",
                 slug=f"article-{i}",
@@ -136,7 +136,6 @@ class TestMyArticlesListView(TestCase):
 
         self.assertTrue(response_page_1.context["is_paginated"])
         self.assertEqual(
-            len(response_page_1.context["articles"]),
-            ARTICLES_PER_PAGE_COUNT,
+            len(response_page_1.context["articles"]), settings.ARTICLES_PER_PAGE
         )
         self.assertEqual(len(response_page_2.context["articles"]), 1)

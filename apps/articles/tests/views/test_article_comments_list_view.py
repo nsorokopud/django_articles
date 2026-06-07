@@ -1,8 +1,7 @@
 # pylint: disable=R0801
 
-from unittest.mock import patch
 
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -10,7 +9,7 @@ from articles.models import Article, ArticleCategory, ArticleComment, ArticleSta
 from users.models import User
 
 
-@patch("articles.services.comments.ARTICLE_COMMENTS_PER_PAGE", 2)
+@override_settings(ARTICLES_COMMENTS_PER_PAGE=2)
 class TestArticleCommentsListView(TestCase):
     def setUp(self):
         self.client = Client()

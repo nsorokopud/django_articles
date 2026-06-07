@@ -127,18 +127,18 @@ class TestNotificationConsumerUnit(SimpleTestCase):
 
 @override_settings(
     CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
-    ACCEPT_TIMEOUT_SECONDS=0.2,
-    GROUP_OPERATION_TIMEOUT_SECONDS=0.2,
-    SEND_JSON_TIMEOUT_SECONDS=0.2,
+    NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS=0.2,
+    NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS=0.2,
+    NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS=0.2,
 )
 class TestNotificationConsumerASGI(SimpleTestCase):
     def setUp(self):
         super().setUp()
         self.no_message_timeout = (
             max(
-                settings.ACCEPT_TIMEOUT_SECONDS,
-                settings.GROUP_OPERATION_TIMEOUT_SECONDS,
-                settings.SEND_JSON_TIMEOUT_SECONDS,
+                settings.NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS,
+                settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS,
+                settings.NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS,
             )
             + 0.2  # > timeouts for CI jitter
         )
@@ -440,7 +440,9 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         layer = get_channel_layer()
 
         async def slow_group_add(group: str, channel: str):
-            await asyncio.sleep(settings.GROUP_OPERATION_TIMEOUT_SECONDS + 0.5)
+            await asyncio.sleep(
+                settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS + 0.5
+            )
 
         try:
             with mock.patch.object(layer, "group_add", new=slow_group_add):
@@ -457,7 +459,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         connect_task = None
 
         async def slow_accept(_self, *args, **kwargs):
-            await asyncio.sleep(settings.ACCEPT_TIMEOUT_SECONDS + 0.5)
+            await asyncio.sleep(settings.NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS + 0.5)
 
         try:
             with mock.patch.object(NotificationConsumer, "accept", new=slow_accept):
@@ -484,7 +486,9 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         comm, captured = self._make_communicator_with_instance(user)
 
         async def slow_send_json(content, close=False, **kwargs):
-            await asyncio.sleep(settings.SEND_JSON_TIMEOUT_SECONDS + 0.5)
+            await asyncio.sleep(
+                settings.NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS + 0.5
+            )
 
         async with self._connected_comm(comm):
             consumer = captured["consumer"]

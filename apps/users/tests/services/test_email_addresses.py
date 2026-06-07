@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
@@ -19,7 +20,6 @@ from users.services.email_addresses import (
     delete_social_accounts_with_email,
     is_pending_email_change_expired,
 )
-from users.settings import PENDING_EMAIL_CHANGE_TTL
 
 
 class TestEmailAddressServices(TestCase):
@@ -76,7 +76,9 @@ class TestEmailAddressServices(TestCase):
             user=active_user, email="active-pending@test.com"
         )
         PendingEmailChange.objects.filter(pk=expired_pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
         deleted_count = delete_expired_pending_email_changes()
@@ -105,7 +107,9 @@ class TestEmailAddressServices(TestCase):
             user=self.test_user, email="pending@test.com"
         )
         PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
         pending_email_change.refresh_from_db()
 
@@ -157,7 +161,9 @@ class TestCreatePendingEmailChange(TestCase):
             user=other_user, email="new@test.com"
         )
         PendingEmailChange.objects.filter(pk=expired_pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
         pending_email_change = create_pending_email_change(
@@ -180,7 +186,9 @@ class TestCreatePendingEmailChange(TestCase):
             user=other_user, email="unrelated@test.com"
         )
         PendingEmailChange.objects.filter(pk=expired_pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
         pending_email_change = create_pending_email_change(
@@ -335,7 +343,9 @@ class TestChangeEmailAddress(TestCase):
         pending_email_change = self.create_pending_email_change()
 
         PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
         with self.assertRaisesMessage(
@@ -771,7 +781,9 @@ class TestDeleteExpiredPendingEmailChanges(TestCase):
 
     def _expire(self, pending_email_change):
         PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
     def test_delete_expired_pending_email_changes_deletes_all_expired_rows(self):

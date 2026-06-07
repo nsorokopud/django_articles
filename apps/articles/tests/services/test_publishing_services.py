@@ -1,10 +1,10 @@
 # pylint: disable=C0302
 from unittest.mock import patch
 
-from django.conf import settings
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
+from articles.constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from articles.models import Article, ArticleStatus
 from articles.services.articles import _build_article_slug_candidate
 from articles.services.publishing import (
@@ -107,7 +107,7 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
 
     def test_raises_when_title_is_default_draft_title(self):
         article = self.create_article(status=ArticleStatus.DRAFT)
-        article.title = settings.DEFAULT_DRAFT_ARTICLE_TITLE
+        article.title = DEFAULT_DRAFT_ARTICLE_TITLE
         article.save(update_fields=["title"])
 
         with self.assertRaisesMessage(
@@ -1149,7 +1149,7 @@ class TestValidateArticleReady(SimpleTestCase):
             _validate_article_ready(article, action="publishing")
 
     def test_raises_when_title_is_default_draft_title(self):
-        article = self.make_article(title=settings.DEFAULT_DRAFT_ARTICLE_TITLE)
+        article = self.make_article(title=DEFAULT_DRAFT_ARTICLE_TITLE)
 
         with self.assertRaisesMessage(
             ValueError, "Title is required before publishing."

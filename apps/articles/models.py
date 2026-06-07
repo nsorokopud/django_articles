@@ -16,13 +16,13 @@ from tinymce.models import HTMLField
 from core.validators import validate_uploaded_image
 from users.models import User
 
-from .settings import DISPLAYED_COMMENT_LENGTH
-
 
 ARTICLE_TITLE_MAX_LENGTH = 200
 ARTICLE_SLUG_MAX_LENGTH = 200
 ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME = "unique_article_slug"
 ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
+
+COMMENT_STR_PREVIEW_LENGTH = 25
 
 
 class ArticleStatus(models.TextChoices):
@@ -286,8 +286,8 @@ class ArticleComment(models.Model):
         verbose_name_plural = "Comments"
 
     def __str__(self):
-        if len(self.text) > DISPLAYED_COMMENT_LENGTH:
-            displayed_text = self.text[:DISPLAYED_COMMENT_LENGTH] + "..."
+        if len(self.text) > COMMENT_STR_PREVIEW_LENGTH:
+            displayed_text = self.text[:COMMENT_STR_PREVIEW_LENGTH] + "..."
         else:
             displayed_text = self.text
         return f"{self.article} - {self.author} - {displayed_text}"

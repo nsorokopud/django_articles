@@ -1,6 +1,6 @@
 import os
 
-from .env import BASE_DIR, env
+from ..env import BASE_DIR, env
 
 
 LOGGING_ENABLED = env.bool("ENABLE_LOGGING", default=False)

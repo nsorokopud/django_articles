@@ -1,15 +1,12 @@
 from unittest.mock import Mock, patch
 
-from django.conf import settings
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase
 from django_redis import get_redis_connection
 from django_redis.exceptions import ConnectionInterrupted
 from redis.exceptions import RedisError
 
 from core.cache_locks import RELEASE_LOCK_LUA, cache_lock, release_redis_lock
-
-
-TEST_CACHE_ALIAS = "default"
+from tests.cache_settings import TEST_CACHE_ALIAS, override_settings_with_redis_cache
 
 
 class TestCacheLock(SimpleTestCase):
@@ -205,7 +202,7 @@ class TestReleaseRedisLock(SimpleTestCase):
         )
 
 
-@override_settings(CACHES=settings.TEST_REDIS_CACHES)
+@override_settings_with_redis_cache()
 class TestCacheLockRedisIntegration(TestCase):
     def setUp(self):
         self.redis = get_redis_connection(TEST_CACHE_ALIAS)

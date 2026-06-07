@@ -7,9 +7,9 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
+from users.constants import ACTIVATION_EMAIL_SUBJECT, EMAIL_CHANGE_SUBJECT
 from users.models import PendingEmailChange, User
 from users.services import send_account_activation_email, send_email_change_link
-from users.settings import ACTIVATION_EMAIL_SUBJECT, EMAIL_CHANGE_SUBJECT
 
 
 class TestEmailServices(TestCase):

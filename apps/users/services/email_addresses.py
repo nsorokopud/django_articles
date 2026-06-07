@@ -2,6 +2,7 @@ import logging
 
 from allauth.account.models import EmailAddress
 from allauth.socialaccount.models import SocialAccount
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, transaction
@@ -14,7 +15,6 @@ from users.models import (
     PendingEmailChange,
     User,
 )
-from users.settings import PENDING_EMAIL_CHANGE_TTL
 
 from ..normalization import normalize_email
 from .sessions import invalidate_user_sessions
@@ -185,7 +185,10 @@ def delete_expired_pending_email_changes_for_email(*, email: str) -> int:
 
 
 def is_pending_email_change_expired(pending_email_change: PendingEmailChange) -> bool:
-    return pending_email_change.created_at <= timezone.now() - PENDING_EMAIL_CHANGE_TTL
+    return (
+        pending_email_change.created_at
+        <= timezone.now() - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+    )
 
 
 def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
@@ -204,7 +207,7 @@ def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
 
 
 def _delete_expired_pending_email_changes(*, email: str | None = None) -> int:
-    cutoff = timezone.now() - PENDING_EMAIL_CHANGE_TTL
+    cutoff = timezone.now() - settings.USERS_PENDING_EMAIL_CHANGE_TTL
 
     queryset = PendingEmailChange.objects.filter(created_at__lte=cutoff)
 

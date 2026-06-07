@@ -1,7 +1,8 @@
 from unittest.mock import ANY, MagicMock, Mock, call, patch
 
+from django.conf import settings
 from django.db import DatabaseError
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase
 from django_redis import get_redis_connection
 from redis import RedisError
 
@@ -18,11 +19,7 @@ from articles.cache.view_counts import (
     register_article_view,
     sync_article_views,
 )
-from articles.settings import (
-    ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE,
-    ARTICLE_VIEW_SYNC_MAX_ITERATIONS,
-)
-from config.settings import CACHES
+from tests.cache_settings import override_settings_with_redis_cache
 
 
 class TestGetCachedArticleViews(SimpleTestCase):
@@ -271,8 +268,7 @@ class TestSyncArticleViews(TestCase):
         sync_article_views()
 
         mock_redis.spop.assert_called_with(
-            VIEWED_ARTICLES_SET_KEY,
-            ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE,
+            VIEWED_ARTICLES_SET_KEY, settings.ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE
         )
         mock_info.assert_called_with("No articles to sync; exiting on batch %d.", 0)
 
@@ -377,7 +373,7 @@ class TestSyncArticleViews(TestCase):
             ANY,
         )
 
-    @override_settings(CACHES=CACHES)
+    @override_settings_with_redis_cache()
     @patch("articles.cache.view_counts.logger.info")
     @patch("articles.cache.view_counts.logger.warning")
     @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
@@ -419,7 +415,7 @@ class TestSyncArticleViews(TestCase):
 
         r.flushdb()
 
-    @override_settings(CACHES=CACHES)
+    @override_settings_with_redis_cache()
     @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_synced_view_delta_key_is_cleared_after_claim(self, mock_increment):
         r = get_redis_connection("default")
@@ -436,7 +432,7 @@ class TestSyncArticleViews(TestCase):
 
         r.flushdb()
 
-    @override_settings(CACHES=CACHES)
+    @override_settings_with_redis_cache()
     @patch("articles.cache.view_counts.logger.info")
     @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_single_batch(self, mock_increment, mock_info):
@@ -471,8 +467,7 @@ class TestSyncArticleViews(TestCase):
 
         r.flushdb()
 
-    @override_settings(CACHES=CACHES)
-    @patch("articles.cache.view_counts.ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE", 2)
+    @override_settings_with_redis_cache(ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE=2)
     @patch("articles.cache.view_counts.logger.info")
     @patch("articles.cache.view_counts.bulk_increment_article_view_counts")
     def test_multiple_batches(self, mock_increment, mock_info):
@@ -530,29 +525,34 @@ class TestSyncArticleViews(TestCase):
     @patch("articles.cache.view_counts.get_redis_connection")
     def test_max_iterations(self, mock_get_redis, mock_sync, mock_decode):
         mock_redis = Mock()
-        article_ids = list(range(ARTICLE_VIEW_SYNC_MAX_ITERATIONS + 1))
+        article_ids = list(range(settings.ARTICLES_VIEW_COUNT_SYNC_MAX_ITERATIONS + 1))
         mock_redis.spop.return_value = True
         mock_get_redis.return_value = mock_redis
         mock_decode.side_effect = [
-            [aid] * ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE for aid in article_ids
+            [aid] * settings.ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE
+            for aid in article_ids
         ]
 
         sync_article_views()
 
         self.assertEqual(
             len(mock_sync.call_args_list),
-            ARTICLE_VIEW_SYNC_MAX_ITERATIONS,
+            settings.ARTICLES_VIEW_COUNT_SYNC_MAX_ITERATIONS,
         )
         for i, _call in enumerate(mock_sync.call_args_list):
             self.assertEqual(
                 _call,
                 call(
-                    [article_ids[i]] * ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE,
+                    [article_ids[i]] * settings.ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE,
                     i,
                     mock_redis,
                 ),
             )
         self.assertNotIn(
-            call([article_ids[-1]] * ARTICLE_VIEW_SYNC_MAX_BATCH_SIZE, ANY, ANY),
+            call(
+                [article_ids[-1]] * settings.ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE,
+                ANY,
+                ANY,
+            ),
             mock_sync.call_args_list,
         )

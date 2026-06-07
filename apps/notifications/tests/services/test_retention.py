@@ -44,9 +44,9 @@ class TestCleanupOldReadNotifications(TestCase):
         )
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_uses_settings_defaults(self):
         now = timezone.now()
@@ -70,9 +70,9 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertTrue(Notification.objects.filter(pk=unread_old.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=5,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=5,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_deletes_only_old_read_notifications(self):
         now = timezone.now()
@@ -96,9 +96,9 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertTrue(Notification.objects.filter(pk=unread.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=1,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=1,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_respects_max_batches(self):
         now = timezone.now()
@@ -112,9 +112,9 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=10,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=10,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_stops_when_no_more_rows(self):
         now = timezone.now()
@@ -128,9 +128,9 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertEqual(Notification.objects.count(), 0)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=0,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=0,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_returns_zero_when_max_batches_is_zero(self):
         now = timezone.now()
@@ -142,9 +142,9 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertTrue(Notification.objects.filter(pk=n.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=1,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=1,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_for_invalid_older_than_days(self):
         with self.assertRaisesMessage(ValueError, "older_than_days must be > 0"):
@@ -154,18 +154,18 @@ class TestCleanupOldReadNotifications(TestCase):
             cleanup_old_read_notifications(older_than_days=-1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=1,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=1,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_for_invalid_max_batches(self):
         with self.assertRaisesMessage(ValueError, "max_batches must be >= 0"):
             cleanup_old_read_notifications(max_batches=-1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=None,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=None,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_when_setting_resolves_max_batches_to_none(
         self,
@@ -183,9 +183,9 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         )
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_deletes_oldest_read_rows_first(self):
         now = timezone.now()
@@ -214,9 +214,9 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self.assertTrue(Notification.objects.filter(pk=unread.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_uses_setting_batch_size_when_omitted(
         self,
@@ -233,9 +233,9 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_returns_zero_when_no_matching_rows(
         self,
@@ -251,9 +251,9 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self.assertEqual(Notification.objects.count(), 2)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_for_invalid_batch_size(self):
         cutoff = timezone.now() - timedelta(days=30)

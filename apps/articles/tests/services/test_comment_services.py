@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
@@ -249,7 +249,7 @@ class TestDecrementArticleCommentsCount(TestCase):
         self.assertEqual(self.article.comments_count, 0)
 
 
-@patch("articles.services.comments.ARTICLE_COMMENTS_PER_PAGE", 2)
+@override_settings(ARTICLES_COMMENTS_PER_PAGE=2)
 class TestGetArticleCommentsPage(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="user", email="user@test.com")

@@ -2,11 +2,12 @@ import logging
 from functools import wraps
 from typing import Any, Callable
 
+from django.conf import settings
+
 from core.visitor_identifiers import get_visitor_id
 
 from ..cache.slug import get_cached_article_id_by_slug
 from ..cache.view_counts import register_article_view
-from ..settings import ARTICLE_UNIQUE_VIEW_TIMEOUT
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ def increment_article_view_counter(view_func: Callable[..., Any]) -> Callable[..
             register_article_view(
                 article_id=article_id,
                 viewer_id=get_visitor_id(request),
-                unique_view_timeout=ARTICLE_UNIQUE_VIEW_TIMEOUT,
+                unique_view_timeout=settings.ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS,
             )
 
         return view_func(request, *args, **kwargs)

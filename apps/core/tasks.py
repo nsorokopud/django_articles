@@ -1,17 +1,12 @@
 import logging
 
 from celery import Task
+from django.conf import settings
 
 from config.celery import app
 
+from .email_errors import EMAIL_PERMANENT_ERRORS, EMAIL_TRANSIENT_ERRORS
 from .services.email import EmailConfig, EmailConfigDict, mask_email, send_email
-from .settings import (
-    EMAIL_PERMANENT_ERRORS,
-    EMAIL_TASK_BASE_RETRY_DELAY,
-    EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR,
-    EMAIL_TASK_MAX_RETRIES,
-    EMAIL_TRANSIENT_ERRORS,
-)
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 @app.task(
     bind=True,
-    max_retries=EMAIL_TASK_MAX_RETRIES,
+    max_retries=settings.EMAIL_TASK_MAX_RETRIES,
     acks_late=True,
     reject_on_worker_lost=True,
 )
@@ -61,13 +56,11 @@ def _create_email_config(config_data: EmailConfigDict) -> EmailConfig:
 
 
 def _handle_transient_error(
-    task: Task,
-    error: Exception,
-    masked_recipients: list[str],
+    task: Task, error: Exception, masked_recipients: list[str]
 ) -> None:
     if task.request.retries < task.max_retries:
-        delay = EMAIL_TASK_BASE_RETRY_DELAY * (
-            EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**task.request.retries
+        delay = settings.EMAIL_TASK_BASE_RETRY_DELAY * (
+            settings.EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**task.request.retries
         )
         logger.warning(
             (

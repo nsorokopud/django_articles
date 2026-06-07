@@ -1,7 +1,6 @@
 from datetime import datetime
 from html import unescape
 
-from django.conf import settings
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.html import strip_tags
@@ -15,6 +14,7 @@ from users.models import User
 from users.services.users import advance_latest_article_publish_sequence
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
+from ..constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from ..models import ARTICLE_PUBLISH_SEQUENCE_NAME, Article, ArticleStatus
 
 
@@ -161,7 +161,7 @@ def get_next_article_publish_sequence_value() -> int:
 def _validate_article_ready(article: Article, *, action: str) -> None:
     if (
         not _normalize_article_text(article.title)
-        or article.title == settings.DEFAULT_DRAFT_ARTICLE_TITLE
+        or article.title == DEFAULT_DRAFT_ARTICLE_TITLE
     ):
         raise ValueError(f"Title is required before {action}.")
 

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -12,15 +13,11 @@ from articles.cache.view_counts import (
 )
 from articles.forms import ArticleCommentForm
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from articles.settings import (
-    ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT,
-    ARTICLE_UNIQUE_VIEW_TIMEOUT,
-)
-from config.settings import CACHES
+from tests.cache_settings import override_settings_with_redis_cache
 from users.models import User
 
 
-@override_settings(CACHES=CACHES)
+@override_settings_with_redis_cache()
 class TestArticleDetailView(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -90,7 +87,8 @@ class TestArticleDetailView(TestCase):
         keys = self.redis_conn.keys(query_string)
         self.assertEqual(len(keys), 1)
         self.assertEqual(
-            self.redis_conn.ttl(keys[0]), ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT
+            self.redis_conn.ttl(keys[0]),
+            settings.ARTICLES_DETAIL_PAGE_CACHE_TIMEOUT_SECONDS,
         )
         self.assertTemplateUsed(response1, "articles/article.html")
 
@@ -141,7 +139,7 @@ class TestArticleDetailView(TestCase):
         self.assertEqual(self.redis_conn.get(viewed_by_key1), b"1")
         ttl1 = self.redis_conn.ttl(viewed_by_key1)
         self.assertGreater(ttl1, 0)
-        self.assertLessEqual(ttl1, ARTICLE_UNIQUE_VIEW_TIMEOUT)
+        self.assertLessEqual(ttl1, settings.ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS)
 
         viewed_by_key2 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:test_user"
@@ -155,7 +153,7 @@ class TestArticleDetailView(TestCase):
         self.assertEqual(self.redis_conn.get(viewed_by_key2), b"1")
         ttl2 = self.redis_conn.ttl(viewed_by_key2)
         self.assertGreater(ttl2, 0)
-        self.assertLessEqual(ttl2, ARTICLE_UNIQUE_VIEW_TIMEOUT)
+        self.assertLessEqual(ttl2, settings.ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS)
 
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"2")
@@ -237,7 +235,7 @@ class TestArticleDetailView(TestCase):
         self.assertIn("/login", response.url)
         self.assertEqual(ArticleComment.objects.count(), 1)
 
-    @patch("articles.services.comments.ARTICLE_COMMENTS_PER_PAGE", 2)
+    @override_settings(ARTICLES_COMMENTS_PER_PAGE=2)
     def test_shows_only_first_comments_page(self):
         ArticleComment.objects.all().delete()
 

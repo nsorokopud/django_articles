@@ -1,6 +1,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.staticfiles.storage import ContentFile
 from django.core.exceptions import ValidationError
 from django.db.models import signals
@@ -16,7 +17,6 @@ from users.services.users import (
     register_user,
     update_user_profile,
 )
-from users.settings import PENDING_EMAIL_CHANGE_TTL
 from users.signals import create_profile
 
 
@@ -186,7 +186,9 @@ class TestRegisterUser(TestCase):
             user=existing_user, email="pending@test.com"
         )
         PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
         user = register_user(
@@ -206,7 +208,9 @@ class TestRegisterUser(TestCase):
             user=existing_user, email="unrelated@test.com"
         )
         PendingEmailChange.objects.filter(pk=unrelated_pending_email_change.pk).update(
-            created_at=timezone.now() - PENDING_EMAIL_CHANGE_TTL - timedelta(seconds=1)
+            created_at=timezone.now()
+            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+            - timedelta(seconds=1)
         )
 
         user = register_user(

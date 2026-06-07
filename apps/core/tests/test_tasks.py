@@ -2,16 +2,12 @@ from dataclasses import asdict
 from unittest.mock import patch
 
 from celery.exceptions import Retry
+from django.conf import settings
 from django.test import TestCase, override_settings
 
+from core.email_errors import EMAIL_PERMANENT_ERRORS, EMAIL_TRANSIENT_ERRORS
 from core.services.email import EmailConfig, mask_email
-from core.settings import (
-    EMAIL_PERMANENT_ERRORS,
-    EMAIL_TASK_BASE_RETRY_DELAY,
-    EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR,
-    EMAIL_TASK_MAX_RETRIES,
-)
-from core.tasks import EMAIL_TRANSIENT_ERRORS, send_email_task
+from core.tasks import send_email_task
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
@@ -115,7 +111,7 @@ class TestSendEmailTask(TestCase):
 
         mock_retry.assert_called_once_with(
             exc=mock_send_email.side_effect,
-            countdown=EMAIL_TASK_BASE_RETRY_DELAY,
+            countdown=settings.EMAIL_TASK_BASE_RETRY_DELAY,
         )
 
         mock_logger.warning.assert_called_once()
@@ -128,7 +124,7 @@ class TestSendEmailTask(TestCase):
                 "Task ID: %s; recipients: %s; error: %s"
             ),
         )
-        self.assertEqual(log_args[1], EMAIL_TASK_BASE_RETRY_DELAY)
+        self.assertEqual(log_args[1], settings.EMAIL_TASK_BASE_RETRY_DELAY)
         self.assertEqual(log_args[2], mock_request.id)
         self.assertEqual(
             log_args[3], [mask_email(r) for r in self.valid_config["recipients"]]
@@ -140,7 +136,7 @@ class TestSendEmailTask(TestCase):
     def test_transient_error_after_max_retries(self, mock_send_email, mock_request):
         mock_request.id = 12345
         mock_send_email.side_effect = EMAIL_TRANSIENT_ERRORS[0]("Transient error")
-        mock_request.retries = EMAIL_TASK_MAX_RETRIES
+        mock_request.retries = settings.EMAIL_TASK_MAX_RETRIES
 
         with (
             patch("core.tasks.send_email_task.retry") as mock_retry,
@@ -160,7 +156,7 @@ class TestSendEmailTask(TestCase):
                 "Task ID: %s; recipients: %s; error: %s"
             ),
         )
-        self.assertEqual(log_args[1], EMAIL_TASK_MAX_RETRIES)
+        self.assertEqual(log_args[1], settings.EMAIL_TASK_MAX_RETRIES)
         self.assertEqual(log_args[2], mock_request.id)
         self.assertEqual(
             log_args[3], [mask_email(r) for r in self.valid_config["recipients"]]
@@ -177,15 +173,15 @@ class TestSendEmailTask(TestCase):
         mock_request.retries = 0
         mock_send_email.side_effect = EMAIL_TRANSIENT_ERRORS[0]("Transient error")
 
-        for retry_count in range(EMAIL_TASK_MAX_RETRIES):
+        for retry_count in range(settings.EMAIL_TASK_MAX_RETRIES):
             mock_request.retries = retry_count
             with patch("core.tasks.send_email_task.retry") as mock_retry:
                 mock_retry.side_effect = Retry()
                 with self.assertRaises(Retry):
                     send_email_task.delay(self.valid_config)
 
-                expected_delay = EMAIL_TASK_BASE_RETRY_DELAY * (
-                    EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**retry_count
+                expected_delay = settings.EMAIL_TASK_BASE_RETRY_DELAY * (
+                    settings.EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**retry_count
                 )
                 mock_retry.assert_called_once_with(
                     exc=mock_send_email.side_effect,
@@ -193,7 +189,7 @@ class TestSendEmailTask(TestCase):
                 )
 
         self.assertEqual(
-            len(mock_logger.warning.call_args_list), EMAIL_TASK_MAX_RETRIES
+            len(mock_logger.warning.call_args_list), settings.EMAIL_TASK_MAX_RETRIES
         )
 
         expected_message = (
@@ -207,8 +203,8 @@ class TestSendEmailTask(TestCase):
             self.assertEqual(log_args[0], expected_message)
             self.assertEqual(
                 log_args[1],
-                EMAIL_TASK_BASE_RETRY_DELAY
-                * (EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**retry_count),
+                settings.EMAIL_TASK_BASE_RETRY_DELAY
+                * (settings.EMAIL_TASK_EXPONENTIAL_BACKOFF_FACTOR**retry_count),
             )
             self.assertEqual(log_args[2], 12345)
             self.assertEqual(log_args[3], masked_recipients)

@@ -10,9 +10,7 @@ from django.utils.http import urlsafe_base64_encode
 from core.services.email import EmailConfig, mask_email
 from core.tasks import send_email_task
 
-from ..models import PendingEmailChange, User
-from ..normalization import normalize_email
-from ..settings import (
+from ..constants import (
     ACTIVATION_EMAIL_HTML_TEMPLATE,
     ACTIVATION_EMAIL_SUBJECT,
     ACTIVATION_EMAIL_TEXT_TEMPLATE,
@@ -20,6 +18,8 @@ from ..settings import (
     EMAIL_CHANGE_SUBJECT,
     EMAIL_CHANGE_TEXT_TEMPLATE,
 )
+from ..models import PendingEmailChange, User
+from ..normalization import normalize_email
 from .tokens import activation_token_generator, email_change_token_generator
 
 
