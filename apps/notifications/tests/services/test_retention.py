@@ -11,7 +11,9 @@ from notifications.services.retention import (
 from users.models import User
 
 
-def _create_notification(user: User, *, read_at=None, created_at=None) -> Notification:
+def _create_deduped_notification(
+    user: User, *, read_at=None, created_at=None
+) -> Notification:
     n = Notification.objects.create(
         recipient=user,
         title="t",
@@ -42,16 +44,22 @@ class TestCleanupOldReadNotifications(TestCase):
         )
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_uses_settings_defaults(self):
         now = timezone.now()
-        old_read_1 = _create_notification(self.user, read_at=now - timedelta(days=40))
-        old_read_2 = _create_notification(self.user, read_at=now - timedelta(days=35))
-        recent_read = _create_notification(self.user, read_at=now - timedelta(days=5))
-        unread_old = _create_notification(self.user, read_at=None)
+        old_read_1 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=40)
+        )
+        old_read_2 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=35)
+        )
+        recent_read = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=5)
+        )
+        unread_old = _create_deduped_notification(self.user, read_at=None)
 
         deleted = cleanup_old_read_notifications()
 
@@ -62,16 +70,22 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertTrue(Notification.objects.filter(pk=unread_old.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=5,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=5,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_deletes_only_old_read_notifications(self):
         now = timezone.now()
-        old_read_1 = _create_notification(self.user, read_at=now - timedelta(days=100))
-        old_read_2 = _create_notification(self.user, read_at=now - timedelta(days=31))
-        recent_read = _create_notification(self.user, read_at=now - timedelta(days=29))
-        unread = _create_notification(self.user, read_at=None)
+        old_read_1 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=100)
+        )
+        old_read_2 = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=31)
+        )
+        recent_read = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=29)
+        )
+        unread = _create_deduped_notification(self.user, read_at=None)
 
         deleted = cleanup_old_read_notifications()
 
@@ -82,15 +96,15 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertTrue(Notification.objects.filter(pk=unread.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=1,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=1,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_respects_max_batches(self):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=60))
-        _create_notification(self.user, read_at=now - timedelta(days=61))
-        _create_notification(self.user, read_at=now - timedelta(days=62))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=60))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=61))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=62))
 
         deleted = cleanup_old_read_notifications()
 
@@ -98,15 +112,15 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=10,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=10,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_stops_when_no_more_rows(self):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=60))
-        _create_notification(self.user, read_at=now - timedelta(days=61))
-        _create_notification(self.user, read_at=now - timedelta(days=62))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=60))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=61))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=62))
 
         deleted = cleanup_old_read_notifications()
 
@@ -114,13 +128,13 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertEqual(Notification.objects.count(), 0)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=0,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=0,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_returns_zero_when_max_batches_is_zero(self):
         now = timezone.now()
-        n = _create_notification(self.user, read_at=now - timedelta(days=60))
+        n = _create_deduped_notification(self.user, read_at=now - timedelta(days=60))
 
         deleted = cleanup_old_read_notifications()
 
@@ -128,9 +142,9 @@ class TestCleanupOldReadNotifications(TestCase):
         self.assertTrue(Notification.objects.filter(pk=n.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=1,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=1,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_for_invalid_older_than_days(self):
         with self.assertRaisesMessage(ValueError, "older_than_days must be > 0"):
@@ -140,18 +154,18 @@ class TestCleanupOldReadNotifications(TestCase):
             cleanup_old_read_notifications(older_than_days=-1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=1,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=1,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_for_invalid_max_batches(self):
         with self.assertRaisesMessage(ValueError, "max_batches must be >= 0"):
             cleanup_old_read_notifications(max_batches=-1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=None,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=None,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_when_setting_resolves_max_batches_to_none(
         self,
@@ -169,17 +183,25 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         )
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_deletes_oldest_read_rows_first(self):
         now = timezone.now()
-        oldest = _create_notification(self.user, read_at=now - timedelta(days=100))
-        middle = _create_notification(self.user, read_at=now - timedelta(days=90))
-        newest_old = _create_notification(self.user, read_at=now - timedelta(days=80))
-        recent = _create_notification(self.user, read_at=now - timedelta(days=5))
-        unread = _create_notification(self.user, read_at=None)
+        oldest = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=100)
+        )
+        middle = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=90)
+        )
+        newest_old = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=80)
+        )
+        recent = _create_deduped_notification(
+            self.user, read_at=now - timedelta(days=5)
+        )
+        unread = _create_deduped_notification(self.user, read_at=None)
 
         cutoff = now - timedelta(days=30)
         deleted = _delete_old_read_notifications_batch(cutoff=cutoff, batch_size=2)
@@ -192,17 +214,17 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self.assertTrue(Notification.objects.filter(pk=unread.pk).exists())
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_uses_setting_batch_size_when_omitted(
         self,
     ):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=100))
-        _create_notification(self.user, read_at=now - timedelta(days=90))
-        _create_notification(self.user, read_at=now - timedelta(days=80))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=100))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=90))
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=80))
 
         cutoff = now - timedelta(days=30)
         deleted = _delete_old_read_notifications_batch(cutoff=cutoff)
@@ -211,16 +233,16 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_returns_zero_when_no_matching_rows(
         self,
     ):
         now = timezone.now()
-        _create_notification(self.user, read_at=now - timedelta(days=5))
-        _create_notification(self.user, read_at=None)
+        _create_deduped_notification(self.user, read_at=now - timedelta(days=5))
+        _create_deduped_notification(self.user, read_at=None)
 
         cutoff = now - timedelta(days=30)
         deleted = _delete_old_read_notifications_batch(cutoff=cutoff, batch_size=10)
@@ -229,9 +251,9 @@ class TestDeleteOldReadNotificationsBatch(TestCase):
         self.assertEqual(Notification.objects.count(), 2)
 
     @override_settings(
-        NOTIFICATION_READ_RETENTION_DAYS=30,
-        NOTIFICATION_CLEANUP_MAX_BATCHES=3,
-        NOTIFICATION_CLEANUP_BATCH_SIZE=2,
+        NOTIFICATIONS_READ_RETENTION_DAYS=30,
+        NOTIFICATIONS_CLEANUP_MAX_BATCHES=3,
+        NOTIFICATIONS_CLEANUP_BATCH_SIZE=2,
     )
     def test_raises_for_invalid_batch_size(self):
         cutoff = timezone.now() - timedelta(days=30)

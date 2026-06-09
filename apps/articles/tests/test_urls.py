@@ -2,13 +2,14 @@ from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 
 from articles.views import (
-    ArticleCommentView,
-    ArticleCreateView,
+    ArticleCommentsListView,
+    ArticleCreateDraftView,
     ArticleDeleteView,
     ArticleDetailView,
     ArticleLikeView,
     ArticleListFilterView,
     ArticleUpdateView,
+    ArticleWithdrawFromReviewView,
     AttachedFileUploadView,
     CommentLikeView,
     HomePageView,
@@ -38,25 +39,29 @@ class TestURLs(SimpleTestCase):
         url = reverse("article-details", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleDetailView)
 
-    def test_article_creation_page_url_is_resolved(self):
-        url = reverse("article-create")
-        self.assertEqual(resolve(url).func.view_class, ArticleCreateView)
+    def test_draft_creation_url_is_resolved(self):
+        url = reverse("article-create-draft")
+        self.assertEqual(resolve(url).func.view_class, ArticleCreateDraftView)
 
     def test_article_update_page_url_is_resolved(self):
         url = reverse("article-update", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleUpdateView)
 
+    def test_article_withdraw_from_review_url_is_resolved(self):
+        url = reverse("article-withdraw-from-review", args=[1])
+        self.assertEqual(resolve(url).func.view_class, ArticleWithdrawFromReviewView)
+
     def test_article_delete_page_url_is_resolved(self):
         url = reverse("article-delete", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleDeleteView)
 
-    def test_article_comment_url_is_resolved(self):
-        url = reverse("article-comment", args=[1])
-        self.assertEqual(resolve(url).func.view_class, ArticleCommentView)
-
     def test_article_like_url_is_resolved(self):
         url = reverse("article-like", args=[1])
         self.assertEqual(resolve(url).func.view_class, ArticleLikeView)
+
+    def test_article_comments_list_view_url_is_resolved(self):
+        url = reverse("article-comments-list", args=[1])
+        self.assertEqual(resolve(url).func.view_class, ArticleCommentsListView)
 
     def test_comment_like_url_is_resolved(self):
         url = reverse("comment-like", args=[1])

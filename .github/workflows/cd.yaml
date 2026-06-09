@@ -12,17 +12,20 @@ jobs:
       SCHEME: ${{ secrets.SCHEME }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build Images
         run: docker compose build
+
       - name: Push Images
         run: |
-          docker push ${{ secrets.WEB_IMAGE }}
-          docker push ${{ secrets.NGINX_IMAGE }}
+          docker push '${{ secrets.WEB_IMAGE }}'
+          docker push '${{ secrets.NGINX_IMAGE }}'
 
   deploy:
     runs-on: ubuntu-latest
@@ -30,12 +33,13 @@ jobs:
     needs: [build_images]
     steps:
       - uses: actions/checkout@v4
-      - name: Send docker-compose File
+
+      - name: Send docker-compose.yaml and Makefile to the server
         run: |
-          sshpass -p ${{ secrets.SSH_PASSWORD }} scp \
-          -o StrictHostKeyChecking=no docker-compose.yaml \
-          ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:\
-          /home/${{ secrets.SSH_USERNAME }}/docker-compose.yaml;
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' scp \
+          -o StrictHostKeyChecking=no docker-compose.yaml Makefile \
+          '${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USERNAME }}/'
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -44,14 +48,29 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
           script: |
-            echo ${{ secrets.SSH_PASSWORD }} | sudo -S \
+            set -e
+
+            echo '${{ secrets.SSH_PASSWORD }}' | sudo -S \
             mv /home/${{ secrets.SSH_USERNAME }}/docker-compose.yaml \
-            /projects/django_articles;
-            cd /projects/django_articles;
-            docker compose down;
-            docker login -u ${{ secrets.DOCKERHUB_USERNAME }} \
-            -p ${{ secrets.DOCKERHUB_TOKEN }};
-            docker pull ${{ secrets.WEB_IMAGE }};
-            docker pull ${{ secrets.NGINX_IMAGE }};
-            docker compose up -d;
-            docker system prune -a --volumes -f;
+            /home/${{ secrets.SSH_USERNAME }}/Makefile \
+            /projects/django_articles
+
+            cd /projects/django_articles
+
+            docker login -u '${{ secrets.DOCKERHUB_USERNAME }}' \
+            -p '${{ secrets.DOCKERHUB_TOKEN }}'
+
+            docker pull '${{ secrets.WEB_IMAGE }}'
+            docker pull '${{ secrets.NGINX_IMAGE }}'
+
+            make prod-check-deploy
+
+            docker compose up -d db redis
+
+            make prod-wait-db
+            make prod-migrate
+            make prod-collectstatic
+
+            docker compose up -d --force-recreate
+
+            docker system prune -a -f

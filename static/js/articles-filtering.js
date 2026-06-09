@@ -1,52 +1,86 @@
-$('#id_author, #id_category, #id_ordering').select2({
+const ajaxUrls = document.getElementById('articleFilterAjaxUrls');
+
+const tagsAutocompleteUrl = ajaxUrls?.dataset.tagsUrl;
+const authorsAutocompleteUrl = ajaxUrls?.dataset.authorsUrl;
+
+$('#id_category, #id_ordering').select2({
   width: '100%',
   minimumResultsForSearch: 10,
 });
-$('#filterTagsInput').select2({ width: '100%' });
+
+if (authorsAutocompleteUrl) {
+  $('#filterAuthorInput').select2({
+    width: '100%',
+    allowClear: true,
+    placeholder: 'Any author',
+    ajax: {
+      url: authorsAutocompleteUrl,
+      dataType: 'json',
+      delay: 300,
+      data: function (params) {
+        return {
+          q: params.term || '',
+        };
+      },
+      processResults: function (data) {
+        return data;
+      },
+    },
+    minimumInputLength: 2,
+  });
+} else {
+  $('#filterAuthorInput').select2({
+    width: '100%',
+    allowClear: true,
+    placeholder: 'Any author',
+    minimumResultsForSearch: 0,
+  });
+}
+
+$('#filterTagsInput').select2({
+  width: '100%',
+  ajax: {
+    url: tagsAutocompleteUrl,
+    dataType: 'json',
+    delay: 300,
+    data: function (params) {
+      return {
+        q: params.term || '',
+      };
+    },
+    processResults: function (data) {
+      return data;
+    },
+  },
+  minimumInputLength: 1,
+});
 
 $('#filterSubmit').click((e) => {
   e.preventDefault();
 
-  const getParameters = {};
-  appendGetParameterFromInput('q', 'id_q', getParameters);
-  appendGetParameterFromInput('author', 'id_author', getParameters);
-  appendGetParameterFromInput('date_after', 'id_date_0', getParameters);
-  appendGetParameterFromInput('date_before', 'id_date_1', getParameters);
-  appendGetParameterFromInput('category', 'id_category', getParameters);
+  const url = new URL(window.location.href.split('?')[0]);
+  const params = new URLSearchParams();
 
-  const tagsInput = document.getElementById('filterTagsInput');
-  if (getSelectValues(tagsInput).length > 0) {
-    getParameters.tags = getSelectValues(tagsInput).join('&tags=');
+  appendGetParameterFromInput(params, 'q', 'id_q');
+  appendGetParameterFromInput(params, 'author', 'filterAuthorInput');
+  appendGetParameterFromInput(params, 'date_after', 'id_date_0');
+  appendGetParameterFromInput(params, 'date_before', 'id_date_1');
+  appendGetParameterFromInput(params, 'category', 'id_category');
+
+  const tags = $('#filterTagsInput').val() || [];
+  for (const tag of tags) {
+    params.append('tags', tag);
   }
 
-  appendGetParameterFromInput('ordering', 'id_ordering', getParameters);
+  appendGetParameterFromInput(params, 'ordering', 'id_ordering');
 
-  try {
-    const url = new URL(window.location.href.split('?')[0]);
-    url.search = decodeURIComponent(new URLSearchParams(getParameters));
-    window.location.href = url;
-  } catch (e) {
-    console.error(e);
-  }
+  url.search = params.toString();
+  window.location.href = url.toString();
 });
 
-function appendGetParameterFromInput(name, inputId, getParameters) {
-  let input = document.getElementById(inputId);
-  if (input.value != '') {
-    getParameters[name] = input.value;
+function appendGetParameterFromInput(params, name, inputId) {
+  const value = document.getElementById(inputId)?.value;
+  if (value) {
+    params.set(name, value);
   }
-}
-
-function getSelectValues(select) {
-  let result = [];
-  let options = select && select.options;
-
-  for (let i = 0; i < options.length; i++) {
-    let opt = options[i];
-
-    if (opt.selected) {
-      result.push(opt.value || opt.text);
-    }
-  }
-  return result;
 }

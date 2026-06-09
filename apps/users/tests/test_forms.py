@@ -1,16 +1,95 @@
+from io import BytesIO
 from unittest.mock import patch
 
-from allauth.account.models import EmailAddress
-from django import forms
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
 
 from users.forms import (
-    EmailAddressModelForm,
     EmailChangeConfirmationForm,
     EmailChangeForm,
+    ProfileUpdateForm,
+    UserCreationForm,
     UserUpdateForm,
 )
-from users.models import User
+from users.models import PendingEmailChange, Profile, User
+
+
+class TestUserCreationForm(TestCase):
+    def _valid_form_data(self, **overrides):
+        data = {
+            "username": "newuser",
+            "email": "newuser@test.com",
+            "password1": "StrongPass123!",
+            "password2": "StrongPass123!",
+            "hcaptcha": "dummy-token",
+        }
+        data.update(overrides)
+        return data
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_valid_form(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data())
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_username_is_trimmed(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(username="  newuser  "))
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["username"], "newuser")
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_email_like_username(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(username="newuser@test.com"))
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors, {"username": ["Username cannot be an email address."]}
+        )
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_email_is_lowercased(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(email="NewUser@TEST.COM"))
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["email"], "newuser@test.com")
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_email_is_trimmed(self, mock_hcaptcha_validate):
+        form = UserCreationForm(
+            data=self._valid_form_data(email="  NewUser@TEST.COM  ")
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["email"], "newuser@test.com")
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_missing_email(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(email=""))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+        self.assertEqual(form.errors["email"], ["This field is required."])
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_invalid_email(self, mock_hcaptcha_validate):
+        form = UserCreationForm(data=self._valid_form_data(email="not-an-email"))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    @patch("hcaptcha_field.fields.hCaptchaField.validate")
+    def test_rejects_password_mismatch(self, mock_hcaptcha_validate):
+        form = UserCreationForm(
+            data=self._valid_form_data(
+                password1="StrongPass123!", password2="DifferentPass123!"
+            )
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("password2", form.errors)
 
 
 class TestUserUpdateForm(TestCase):
@@ -18,103 +97,138 @@ class TestUserUpdateForm(TestCase):
         self.user = User.objects.create_user(username="user", email="user@test.com")
 
     def test_valid_form(self):
-        form = UserUpdateForm(
-            data={"username": "newusername"},
-            instance=self.user,
-        )
-        self.assertTrue(form.is_valid())
-        form.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.username, "newusername")
+        form = UserUpdateForm(data={"username": "newusername"}, instance=self.user)
 
-    def test_invalid_username(self):
-        User.objects.create_user(username="existinguser", email="existinguser@test.com")
-        form = UserUpdateForm(
-            data={"username": "existinguser"},
-            instance=self.user,
-        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_username_is_trimmed(self):
+        form = UserUpdateForm(data={"username": "  newusername  "}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["username"], "newusername")
+
+    def test_rejects_email_like_username(self):
+        form = UserUpdateForm(data={"username": "user@test.com"}, instance=self.user)
+
         self.assertFalse(form.is_valid())
-        self.assertIn("username", form.errors)
         self.assertEqual(
-            form.errors["username"][0], "A user with that username already exists."
+            form.errors, {"username": ["Username cannot be an email address."]}
         )
 
     def test_same_username(self):
-        form = UserUpdateForm(
-            data={"username": "user"},
-            instance=self.user,
-        )
-        self.assertTrue(form.is_valid())
-        form.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.username, "user")
+        form = UserUpdateForm(data={"username": "user"}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_same_username_different_case_is_allowed(self):
+        form = UserUpdateForm(data={"username": "USER"}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_same_username_with_whitespace(self):
+        form = UserUpdateForm(data={"username": "  user  "}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_same_username_different_case_with_whitespace_is_allowed(self):
+        form = UserUpdateForm(data={"username": "  USER  "}, instance=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_email_is_not_changed(self):
         form = UserUpdateForm(
             data={"username": "newusername", "email": "newemail@test.com"},
             instance=self.user,
         )
-        self.assertTrue(form.is_valid())
-        form.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.username, "newusername")
-        self.assertEqual(self.user.email, "user@test.com")
+
+        self.assertTrue(form.is_valid(), form.errors)
 
 
-class TestEmailAddressModelForm(TestCase):
+class TestProfileUpdateForm(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="user", email="u@t.com")
-        self.user2 = User.objects.create_user(username="user2", email="u2@t.com")
-        self.email = EmailAddress.objects.create(
-            user=self.user, email="u@t.com", verified=True, primary=True
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
         )
-        self.form = EmailAddressModelForm(
-            {
-                "user": self.user2,
-                "email": "u2@t.com",
-                "verified": False,
-                "primary": False,
-            },
-            instance=self.email,
+        self.profile = Profile.objects.get(user=self.user)
+
+    def test_valid_without_image_upload(self):
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True}, instance=self.profile
         )
 
-    def test_clean_no_user(self):
-        form = EmailAddressModelForm(
-            {
-                "email": "u@test.com",
-                "verified": False,
-                "primary": False,
-            }
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_valid_with_notification_emails_disabled(self):
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": False}, instance=self.profile
         )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        profile = form.save()
+
+        self.assertFalse(profile.notification_emails_allowed)
+        self.assertEqual(profile.image.name, "users/profile_images/default_avatar.jpg")
+
+    def test_valid_with_uploaded_image(self):
+        image = Image.new("RGB", (1, 1), color="white")
+        image_file = BytesIO()
+        image.save(image_file, format="JPEG")
+        image_file.seek(0)
+
+        uploaded_image = SimpleUploadedFile(
+            "test_image.jpg", image_file.read(), content_type="image/jpeg"
+        )
+
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True},
+            files={"image": uploaded_image},
+            instance=self.profile,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+        profile = form.save()
+
+        self.assertTrue(
+            profile.image.name.startswith(
+                f"users/profile_images/{self.user.id}/test_image_"
+            )
+        )
+        self.assertTrue(profile.image.name.endswith(".jpg"))
+
+    def test_invalid_with_non_image_file(self):
+        uploaded_file = SimpleUploadedFile(
+            "not_image.txt", b"not an image", content_type="text/plain"
+        )
+
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True},
+            files={"image": uploaded_file},
+            instance=self.profile,
+        )
+
         self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {"user": ["This field is required."], "__all__": ["User is required."]},
+        self.assertIn("image", form.errors)
+
+    def test_invalid_with_corrupt_image_file(self):
+        uploaded_file = SimpleUploadedFile(
+            "bad_image.jpg", b"not actually a jpeg", content_type="image/jpeg"
         )
 
-    def test_clean_enforce_unique_email_type_per_user_called(self):
-        with patch("users.forms.enforce_unique_email_type_per_user") as mock:
-            self.assertTrue(self.form.is_valid())
+        form = ProfileUpdateForm(
+            data={"notification_emails_allowed": True},
+            files={"image": uploaded_file},
+            instance=self.profile,
+        )
 
-        mock.assert_called_once()
-        args, _ = mock.call_args
-        instance = args[0]
+        self.assertFalse(form.is_valid())
+        self.assertIn("image", form.errors)
 
-        self.assertEqual(instance.pk, self.email.pk)
-        self.assertEqual(instance.user, self.user2)
-        self.assertEqual(instance.email, "u2@t.com")
-        self.assertEqual(instance.verified, False)
-        self.assertEqual(instance.primary, False)
+    def test_image_field_is_not_required(self):
+        form = ProfileUpdateForm(instance=self.profile)
 
-    def test_modify_instance(self):
-        self.assertTrue(self.form.is_valid())
-        self.form.save()
-
-        self.email.refresh_from_db()
-        self.assertEqual(self.email.user, self.user2)
-        self.assertEqual(self.email.email, "u2@t.com")
-        self.assertEqual(self.email.verified, False)
-        self.assertEqual(self.email.primary, False)
+        self.assertFalse(form.fields["image"].required)
 
 
 class TestEmailChangeForm(TestCase):
@@ -123,88 +237,82 @@ class TestEmailChangeForm(TestCase):
 
     def test_no_new_email(self):
         form = EmailChangeForm(data={}, user=self.user)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors, {"new_email": ["This field is required."]})
 
-    def test_new_email_same_as_old(self):
-        form = EmailChangeForm(data={"new_email": self.user.email}, user=self.user)
+    def test_requires_authenticated_user(self):
+        form = EmailChangeForm(data={"new_email": "new@test.com"}, user=None)
+
         self.assertFalse(form.is_valid())
         self.assertEqual(
-            form.errors, {"new_email": ["Enter a different email address."]}
-        )
-
-    def test_unique_email_violation(self):
-        user2 = User.objects.create_user(username="user2", email="user2@test.com")
-        form = EmailChangeForm(data={"new_email": user2.email}, user=self.user)
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors, {"new_email": ["A user with that email already exists."]}
-        )
-
-    @patch("users.forms.enforce_unique_email_type_per_user")
-    def test_other_unfinished_email_change(self, mock_enforce):
-        mock_enforce.side_effect = forms.ValidationError(
-            "Other unfinished email change"
-        )
-
-        form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors,
-            {
-                "__all__": [
-                    (
-                        "There is an unfinished email address change process. "
-                        "Cancel it to start a new one."
-                    )
-                ]
-            },
+            form.errors, {"__all__": ["You must be logged in to change email."]}
         )
 
     def test_valid_form(self):
         form = EmailChangeForm(data={"new_email": "new@test.com"}, user=self.user)
-        self.assertTrue(form.is_valid())
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["new_email"], "new@test.com")
+
+    def test_valid_form_lowercases_new_email(self):
+        form = EmailChangeForm(data={"new_email": "New@TEST.COM"}, user=self.user)
+
+        self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["new_email"], "new@test.com")
 
 
 class TestEmailChangeConfirmationForm(TestCase):
     def setUp(self):
-        self.user = User(username="user")
-        self.data = {"token": "test-token"}
+        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.pending_email_change = PendingEmailChange.objects.create(
+            user=self.user, email="new@test.com"
+        )
+        self.token = "test-token"
+        self.data = {}
 
-    @patch("users.forms.get_pending_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_valid_form(self, mock_check_token, mock_get_pending_email):
-        mock_get_pending_email.return_value = "pending@test.com"
-        mock_check_token.return_value = True
-
-        form = EmailChangeConfirmationForm(data=self.data, user=self.user)
-        self.assertTrue(form.is_valid())
-
-    def test_missing_user(self):
-        form = EmailChangeConfirmationForm(data=self.data)
-        self.assertFalse(form.is_valid())
-        self.assertIn(
-            "You must be logged in to change the email address.",
-            form.non_field_errors(),
+    def test_valid_form(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data,
+            pending_email_change_public_id=self.pending_email_change.public_id,
+            token=self.token,
         )
 
-    @patch("users.forms.get_pending_email_address")
-    def test_no_pending_email(self, mock_get_pending_email):
-        mock_get_pending_email.return_value = None
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(
+            form.pending_email_change_public_id, self.pending_email_change.public_id
+        )
+        self.assertEqual(form.token, self.token)
 
-        form = EmailChangeConfirmationForm(data=self.data, user=self.user)
+    def test_missing_pending_email_change_public_id(self):
+        form = EmailChangeConfirmationForm(data=self.data, token=self.token)
+
         self.assertFalse(form.is_valid())
-        self.assertIn(
-            "You don't have any pending email addresses.", form.non_field_errors()
+        self.assertIn("Invalid email change link.", form.non_field_errors())
+
+    def test_missing_token(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data,
+            pending_email_change_public_id=self.pending_email_change.public_id,
         )
 
-    @patch("users.forms.get_pending_email_address")
-    @patch("users.forms.email_change_token_generator.check_token")
-    def test_invalid_token(self, mock_check_token, mock_get_pending_email):
-        mock_get_pending_email.return_value = "pending@test.com"
-        mock_check_token.return_value = False
-
-        form = EmailChangeConfirmationForm(data=self.data, user=self.user)
         self.assertFalse(form.is_valid())
-        self.assertIn("Invalid token.", form.non_field_errors())
+        self.assertIn("Invalid email change link.", form.non_field_errors())
+
+    def test_blank_token(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data,
+            pending_email_change_public_id=self.pending_email_change.public_id,
+            token="",
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid email change link.", form.non_field_errors())
+
+    def test_missing_public_id_is_invalid(self):
+        form = EmailChangeConfirmationForm(
+            data=self.data, pending_email_change_public_id=None, token=self.token
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("Invalid email change link.", form.non_field_errors())

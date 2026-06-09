@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block content %}
   {% include "inclusion/messages.html" %}
@@ -16,25 +15,25 @@
       <div class="author-section-bottom">
         <div class="author-subscribe-section my-4">
           <div>Subscribers: {{ subscribers_count }}</div>
-          {% if user != author %}
-            <form class="author-subscribe-form"
-                  method="post"
-                  action="{% url 'author-subscribe' author.id %}">
-              {% csrf_token %}
 
-              {% if is_viewer_subscribed %}
-                <button id="authorSubscribeButton"
-                        class="btn btn-danger p-1"
-                        {% if user.is_authenticated %}isLoggedIn{% endif %}
-                        type="submit">Unsubscribe</button>
-              {% else %}
-                <button id="authorSubscribeButton"
-                        class="btn btn-success p-1"
-                        {% if user.is_authenticated %}isLoggedIn{% endif %}
-                        type="submit">Subscribe</button>
-              {% endif %}
-            </form>
+          {% if user.is_authenticated and user != author %}
+            {% if is_viewer_subscribed %}
+              <form class="author-subscribe-form"
+                    method="post"
+                    action="{% url 'author-unsubscribe' author.id %}">
+                {% csrf_token %}
+                <button class="btn btn-danger p-1" type="submit">Unsubscribe</button>
+              </form>
+            {% else %}
+              <form class="author-subscribe-form"
+                    method="post"
+                    action="{% url 'author-subscribe' author.id %}">
+                {% csrf_token %}
+                <button class="btn btn-success p-1" type="submit">Subscribe</button>
+              </form>
+            {% endif %}
           {% endif %}
+
         </div>
         <div>
           Check out this author's
@@ -45,7 +44,3 @@
     </div>
   </div>
 {% endblock content %}
-
-{% block extra_scripts %}
-  <script src="{% static 'js/author-subscribe.js' %}"></script>
-{% endblock extra_scripts %}

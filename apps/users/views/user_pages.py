@@ -7,8 +7,10 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import TemplateView
+from django_ratelimit.decorators import ratelimit
 
 from users.forms import ProfileUpdateForm, UserUpdateForm
 
@@ -18,7 +20,7 @@ from ..selectors import (
     find_authors_subscribed_by_user,
     get_author_with_viewer_subscription_status,
 )
-from ..services import toggle_user_subscription
+from ..services.users import set_author_subscription, update_user_profile
 
 
 logger = logging.getLogger(__name__)
@@ -37,9 +39,18 @@ class UserProfileView(LoginRequiredMixin, View):
         profile_form = ProfileUpdateForm(
             request.POST, request.FILES, instance=request.user.profile
         )
+
         if user_form.is_valid() and profile_form.is_valid():
-            user_form.save()
-            profile_form.save()
+            update_user_profile(
+                user=request.user,
+                username=user_form.cleaned_data["username"],
+                image=profile_form.cleaned_data.get("image"),
+                image_changed="image" in profile_form.changed_data,
+                notification_emails_allowed=profile_form.cleaned_data[
+                    "notification_emails_allowed"
+                ],
+            )
+
             messages.success(request, "Profile updated successfully.")
             return redirect(request.path)
 
@@ -76,31 +87,45 @@ class AuthorPageView(TemplateView):
         return context
 
 
-class AuthorSubscribeView(LoginRequiredMixin, View):
-    def post(self, request, author_id: int) -> HttpResponseRedirect:
-        author = get_object_or_404(User, pk=author_id)
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="30/m", method="POST", block=True),
+    name="dispatch",
+)
+class AuthorSubscriptionBaseView(LoginRequiredMixin, View):
+    should_subscribe: bool
+    success_changed_message: str
+    success_unchanged_message: str
 
-        if request.user == author:
-            messages.error(
-                request, "You cannot subscribe to or unsubscribe from yourself."
-            )
-            return redirect("author-page", author_id=author.id)
+    def post(self, request, author_id: int) -> HttpResponseRedirect:
+        author = get_object_or_404(User, pk=author_id, is_active=True)
 
         try:
-            subscribed = toggle_user_subscription(request.user, author)
-            message = (
-                f"You are now subscribed to {author.username}."
-                if subscribed
-                else f"You unsubscribed from {author.username}."
+            _, changed = set_author_subscription(
+                subscriber=request.user,
+                author=author,
+                should_subscribe=self.should_subscribe,
             )
-            messages.success(request, message)
-        except ValidationError:
-            logger.exception(
-                "Error while toggling subscription of user %s to author %s",
-                request.user.username,
-                author.username,
+        except ValidationError as e:
+            messages.error(request, e.messages[0] if e.messages else str(e))
+            return redirect("author-page", author_id=author.id)
+
+        if changed:
+            messages.success(
+                request, self.success_changed_message.format(author=author)
             )
-            messages.error(
-                request, "Something went wrong while managing your subscription."
-            )
-        return redirect("author-page", author_id=author_id)
+        else:
+            messages.info(request, self.success_unchanged_message.format(author=author))
+
+        return redirect("author-page", author_id=author.id)
+
+
+class AuthorSubscribeView(AuthorSubscriptionBaseView):
+    should_subscribe = True
+    success_changed_message = "You are now subscribed to {author.username}."
+    success_unchanged_message = "You are already subscribed to {author.username}."
+
+
+class AuthorUnsubscribeView(AuthorSubscriptionBaseView):
+    should_subscribe = False
+    success_changed_message = "You unsubscribed from {author.username}."
+    success_unchanged_message = "You were not subscribed to {author.username}."

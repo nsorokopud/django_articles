@@ -41,7 +41,7 @@ urlpatterns = [
         name="email-change-cancel",
     ),
     path(
-        "confirm_email_change/<str:token>/",
+        "confirm_email_change/<uuid:pending_email_change_public_id>/<str:token>/",
         views.EmailChangeConfirmationView.as_view(),
         name="email-change-confirm",
     ),
@@ -56,6 +56,11 @@ urlpatterns = [
         "author/<int:author_id>/subscribe/",
         views.AuthorSubscribeView.as_view(),
         name="author-subscribe",
+    ),
+    path(
+        "author/<int:author_id>/unsubscribe/",
+        views.AuthorUnsubscribeView.as_view(),
+        name="author-unsubscribe",
     ),
     path(
         "notifications/new_articles_digest_summary/",

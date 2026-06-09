@@ -1,36 +1,29 @@
-from unittest.mock import patch
+from django.contrib.auth import get_user_model
+from django.test import TestCase
 
-from django.db.models import signals
-from django.test import TransactionTestCase
-
-from users.models import User
-
-from ..models import Article
-from ..signals import delete_article_media_files
+from articles.models import Article, ArticleComment
 
 
-class TestSignals(TransactionTestCase):
-    @classmethod
-    def tearDownClass(cls):
-        signals.post_delete.connect(delete_article_media_files, sender=Article)
+User = get_user_model()
 
-    def test_delete_article_media_files(self):
-        user = User.objects.create(username="user")
-        a1 = Article.objects.create(
-            title="a1", slug="a1", author=user, preview_text="a1", content="a1"
+
+class TestArticleCommentPostDeleteSignal(TestCase):
+    def setUp(self):
+        self.author = User.objects.create_user(
+            username="author", email="author@test.com"
+        )
+        self.commenter = User.objects.create_user(
+            username="commenter", email="commenter@test.com"
+        )
+        self.article = Article.objects.create(
+            title="Article", slug="article", author=self.author
+        )
+        self.comment = ArticleComment.objects.create(
+            article=self.article, author=self.commenter, text="Comment"
         )
 
-        with patch("articles.signals.delete_article_inline_media_task.delay") as mock:
-            a1_id = a1.id
-            a1.delete()
-            mock.assert_called_once_with(a1_id, user.id)
+    def test_decrements_article_comments_count(self):
+        self.comment.delete()
 
-        a2 = Article.objects.create(
-            title="a2", slug="a2", author=user, preview_text="a2", content="a2"
-        )
-
-        signals.post_delete.disconnect(delete_article_media_files, sender=Article)
-
-        with patch("articles.signals.delete_article_inline_media_task.delay") as mock:
-            a2.delete()
-            mock.assert_not_called()
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 0)

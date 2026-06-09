@@ -3,8 +3,8 @@ from typing import Any, Optional
 
 from django.db import IntegrityError, transaction
 from django.db.models import F
-from django.template.loader import render_to_string
 
+from core.db import get_constraint_name
 from users.models import User
 
 from ..models import NOTIFICATION_DEDUPE_CONSTRAINT, Notification, NotificationType
@@ -36,7 +36,7 @@ def create_new_comment_notification(
     )
 
 
-def create_system_notification(
+def create_deduped_system_notification(
     *,
     recipient_id: int,
     level: str = Notification.Level.INFO,  # type: ignore[assignment]
@@ -46,7 +46,7 @@ def create_system_notification(
     sender_id: Optional[int] = None,
     dedupe_key: str = "",
 ) -> tuple[Notification, bool]:
-    notification, created = create_notification(
+    notification, created = create_deduped_notification(
         recipient_id=recipient_id,
         notification_type=NotificationType.SYSTEM,  # type: ignore[arg-type]
         level=level,
@@ -59,7 +59,7 @@ def create_system_notification(
     return notification, created
 
 
-def create_notification(
+def create_deduped_notification(
     *,
     recipient_id: int,
     notification_type: str = NotificationType.SYSTEM,  # type: ignore[assignment]
@@ -90,19 +90,11 @@ def create_notification(
         return n, True
 
     except IntegrityError as e:
-        if not dedupe_key or not _is_dedupe_violation(e):
+        if not dedupe_key or get_constraint_name(e) != NOTIFICATION_DEDUPE_CONSTRAINT:
             raise
 
-        n = Notification.objects.get(
-            recipient_id=recipient_id,
-            dedupe_key=dedupe_key,
-        )
+        n = Notification.objects.get(recipient_id=recipient_id, dedupe_key=dedupe_key)
         return n, False
-
-
-def _render_notification_message(template_name: str, context: dict[str, Any]) -> str:
-    """Renders a notification message from a template."""
-    return render_to_string(template_name, context).strip("\n").replace("\n", " ")
 
 
 def _normalize_payload(payload: Any, *, recipient_id: int) -> dict[str, Any]:
@@ -122,15 +114,3 @@ def _increment_unread_notification_count(user_id: int) -> None:
     User.objects.filter(id=user_id).update(
         unread_notifications_count=F("unread_notifications_count") + 1
     )
-
-
-def _is_dedupe_violation(exc: IntegrityError) -> bool:
-    cause = getattr(exc, "__cause__", None) or getattr(exc, "__context__", None)
-    diag = getattr(cause, "diag", None)
-    if (
-        diag
-        and getattr(diag, "constraint_name", None) == NOTIFICATION_DEDUPE_CONSTRAINT
-    ):
-        return True
-
-    return NOTIFICATION_DEDUPE_CONSTRAINT in str(exc)

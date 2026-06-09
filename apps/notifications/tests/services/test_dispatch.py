@@ -1,3 +1,5 @@
+# mypy: disable-error-code="arg-type"
+
 from unittest.mock import Mock, call, patch
 
 from django.db import transaction
@@ -93,6 +95,30 @@ class TestDispatchNotificationAfterCommit(TransactionTestCase):
             email_delay.assert_not_called()
 
         self.assertCountEqual(ws_delay.call_args_list, [call(1, True), call(1, False)])
+        email_delay.assert_not_called()
+
+    @patch("notifications.services.dispatch.send_notification_ws_task")
+    @patch("notifications.services.dispatch.send_notification_email_task")
+    def test_system_deduped_existing_notification_schedules_ws_but_not_email(
+        self, mock_email_task, mock_ws_task
+    ) -> None:
+        ws_delay = Mock()
+        email_delay = Mock()
+
+        mock_ws_task.delay = ws_delay
+        mock_email_task.delay = email_delay
+
+        with transaction.atomic():
+            dispatch_notification_after_commit(
+                notification_id=1,
+                notification_type=NotificationType.SYSTEM,
+                is_new_unread=False,
+            )
+
+            ws_delay.assert_not_called()
+            email_delay.assert_not_called()
+
+        ws_delay.assert_called_once_with(1, False)
         email_delay.assert_not_called()
 
     @patch("notifications.services.dispatch.send_notification_ws_task")

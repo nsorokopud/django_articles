@@ -1,5 +1,5 @@
 from django.db.models import QuerySet
-from django.forms import TextInput
+from django.forms import Select, SelectMultiple, TextInput
 from django_filters import FilterSet
 from django_filters.filters import (
     CharFilter,
@@ -9,17 +9,18 @@ from django_filters.filters import (
     OrderingFilter,
 )
 from django_filters.widgets import DateRangeWidget
-from django_select2.forms import Select2TagWidget
+from taggit.models import Tag
 
 from users.models import User
-from users.selectors import find_authors_subscribed_by_user, get_all_users
+from users.selectors import find_authors_subscribed_by_user
 
-from .models import Article
+from .models import Article, ArticleStatus
 from .selectors import (
+    find_article_filter_authors,
+    find_article_filter_categories,
+    find_article_filter_tags,
     find_articles_by_query,
     find_articles_with_all_tags,
-    get_all_categories,
-    get_all_tags,
 )
 
 
@@ -29,7 +30,10 @@ class ArticleFilter(FilterSet):
         label="Search",
         widget=TextInput(attrs={"placeholder": "Enter text..."}),
     )
-    author = ModelChoiceFilter(to_field_name="username")
+    author = ModelChoiceFilter(
+        to_field_name="username",
+        widget=Select(attrs={"id": "filterAuthorInput", "class": "author-select"}),
+    )
     date = DateFromToRangeFilter(
         field_name="published_at",
         widget=DateRangeWidget(attrs={"type": "date"}),
@@ -39,7 +43,7 @@ class ArticleFilter(FilterSet):
     tags = ModelMultipleChoiceFilter(
         to_field_name="name",
         method="tags_filter",
-        widget=Select2TagWidget(attrs={"id": "filterTagsInput"}),
+        widget=SelectMultiple(attrs={"id": "filterTagsInput"}),
     )
     ordering = OrderingFilter(
         fields=(
@@ -58,11 +62,38 @@ class ArticleFilter(FilterSet):
         model = Article
         fields = ["q", "author", "date", "category", "tags", "ordering"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.filters["author"].queryset = get_all_users()
-        self.filters["category"].queryset = get_all_categories()
-        self.filters["tags"].queryset = get_all_tags()
+
+        data = self.data if self.is_bound else None
+
+        selected_author = data.get("author") if data else None
+        selected_tags = []
+
+        if data:
+            if hasattr(data, "getlist"):
+                selected_tags = data.getlist("tags")
+            else:
+                raw_tags = data.get("tags", [])
+                selected_tags = raw_tags if isinstance(raw_tags, list) else [raw_tags]
+
+            selected_tags = [tag for tag in selected_tags if tag]
+
+        self.filters["category"].queryset = find_article_filter_categories()
+
+        if selected_author:
+            self.filters["author"].queryset = find_article_filter_authors().filter(
+                username=selected_author
+            )
+        else:
+            self.filters["author"].queryset = User.objects.none()
+
+        if selected_tags:
+            self.filters["tags"].queryset = find_article_filter_tags().filter(
+                name__in=selected_tags
+            )
+        else:
+            self.filters["tags"].queryset = Tag.objects.none()
 
     def search_filter(self, queryset, name, value) -> QuerySet[Article]:
         if not value:
@@ -76,11 +107,15 @@ class ArticleFilter(FilterSet):
 
 
 class SubscriptionFeedFilter(ArticleFilter):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
         if user and user.is_authenticated:
-            self.filters["author"].queryset = find_authors_subscribed_by_user(user)
+            self.filters["author"].queryset = (
+                find_authors_subscribed_by_user(user)
+                .filter(article__status=ArticleStatus.PUBLISHED)
+                .distinct()
+            )
         else:
             self.filters["author"].queryset = User.objects.none()

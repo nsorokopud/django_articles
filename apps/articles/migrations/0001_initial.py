@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("title", models.CharField(max_length=256)),
-                ("slug", models.CharField(db_index=True, max_length=256, unique=True)),
+                ("slug", models.SlugField(max_length=256, unique=True)),
                 (
                     "image",
                     models.ImageField(blank=True, upload_to="categories/images/"),

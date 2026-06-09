@@ -25,6 +25,7 @@ class NotificationEvent(TypedDict):
     body: str
     payload: Optional[dict[str, Any]]
     timestamp: str
+    last_event_at: str
     is_new_unread: bool
 
 
@@ -127,7 +128,9 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 
     async def _join_group(self, group_name: str) -> bool:
         try:
-            async with asyncio.timeout(settings.GROUP_OPERATION_TIMEOUT_SECONDS):
+            async with asyncio.timeout(
+                settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS
+            ):
                 await self.channel_layer.group_add(group_name, self.channel_name)
             return True
         except (asyncio.TimeoutError, ConnectionError, OSError):
@@ -136,14 +139,18 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 
     async def _leave_group(self, group_name: str) -> None:
         try:
-            async with asyncio.timeout(settings.GROUP_OPERATION_TIMEOUT_SECONDS):
+            async with asyncio.timeout(
+                settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS
+            ):
                 await self.channel_layer.group_discard(group_name, self.channel_name)
         except (asyncio.TimeoutError, ConnectionError, OSError):
             logger.debug("group_discard failed: %s", group_name, exc_info=True)
 
     async def _accept_with_timeout(self) -> bool:
         try:
-            async with asyncio.timeout(settings.ACCEPT_TIMEOUT_SECONDS):
+            async with asyncio.timeout(
+                settings.NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS
+            ):
                 await self.accept()
                 return True
         except asyncio.TimeoutError:
@@ -207,7 +214,9 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return False
 
         try:
-            async with asyncio.timeout(settings.SEND_JSON_TIMEOUT_SECONDS):
+            async with asyncio.timeout(
+                settings.NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS
+            ):
                 await self.send_json(payload)
             return True
 
@@ -241,6 +250,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "body": event["body"],
                 "payload": event.get("payload"),
                 "timestamp": event["timestamp"],
+                "last_event_at": event["last_event_at"],
                 "is_new_unread": bool(event.get("is_new_unread", True)),
             }
         except KeyError as e:

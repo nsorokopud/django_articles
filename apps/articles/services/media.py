@@ -2,54 +2,150 @@ import logging
 import os
 import posixpath
 import shutil
+from datetime import timedelta
 from pathlib import PurePath, PurePosixPath
 from typing import BinaryIO
-from uuid import uuid4
 
 from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import BotoCoreError, ClientError
+from bs4 import BeautifulSoup
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.core.files.storage import FileSystemStorage, default_storage
-from django.utils.text import get_valid_filename
+from django.utils import timezone
 from storages.backends.s3boto3 import S3Boto3Storage
 
-from config.settings import MEDIA_ROOT
 from core.exceptions import MediaSaveError
 
-from ..models import Article
+from ..media_paths import (
+    extract_article_media_storage_name,
+    is_article_media_storage_name_for_article,
+)
+from ..models import Article, ArticleMedia
 
 
 logger = logging.getLogger(__name__)
 
 MAX_S3_DELETE_BATCH_SIZE = 1000
 ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE = "articles/uploads/{author_id}/{article_id}"
+ARTICLE_MEDIA_UNUSED_GRACE_PERIOD = timedelta(days=7)
 
 
-def save_media_file_attached_to_article(
-    file: BinaryIO, article: Article
-) -> tuple[str, str]:
-    file_path = _build_safe_file_path(file, article)
+def delete_article_preview_image_file(file_name: str) -> None:
+    if not file_name:
+        return
 
     try:
-        file_path = default_storage.save(file_path, file)
-    except (
-        OSError,
-        SuspiciousFileOperation,
-        S3UploadFailedError,
-        ClientError,
-    ) as e:
+        default_storage.delete(file_name)
+    except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+        logger.exception("Failed to delete old article preview image: %s", file_name)
+
+
+def delete_article_media_files(
+    *, article_id: int, author_id: int, preview_image_name: str = ""
+) -> None:
+    delete_article_inline_media_files(article_id=article_id, author_id=author_id)
+
+    if preview_image_name:
+        try:
+            default_storage.delete(preview_image_name)
+        except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+            logger.exception(
+                "Failed to delete preview image %s for article %s.",
+                preview_image_name,
+                article_id,
+            )
+            raise
+
+
+def save_article_inline_media_file(file: BinaryIO, article: Article) -> str:
+    media = ArticleMedia(article=article, unreferenced_at=timezone.now())
+
+    try:
+        media.file.save(file.name, file, save=False)
+        media.save()
+        return media.file.name
+    except (OSError, SuspiciousFileOperation, S3UploadFailedError, ClientError) as e:
+        if media.file.name:
+            try:
+                default_storage.delete(media.file.name)
+            except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+                logger.exception(
+                    "Failed to delete media file after failed save: %s", media.file.name
+                )
+
         logger.exception(
-            "Failed to save file for article %s: %s (%s)",
-            article.id,
-            file_path,
-            type(e).__name__,
+            "Failed to save media for article %s: %s", article.id, type(e).__name__
         )
         raise MediaSaveError("Could not save the uploaded file.") from e
 
-    return file_path, article.get_absolute_url()
+
+def sync_article_inline_media_references(*, article: Article) -> None:
+    referenced_files = extract_article_inline_media_file_names(
+        article.content, article_id=article.id, author_id=article.author_id
+    )
+
+    now = timezone.now()
+
+    if referenced_files:
+        ArticleMedia.objects.filter(
+            article_id=article.id, file__in=referenced_files
+        ).update(unreferenced_at=None)
+
+    ArticleMedia.objects.filter(
+        article_id=article.id, unreferenced_at__isnull=True
+    ).exclude(file__in=referenced_files).update(unreferenced_at=now)
 
 
-def delete_media_files_attached_to_article(article_id: int, author_id: int) -> None:
+def cleanup_unused_article_inline_media(*, batch_size: int = 500) -> int:
+    cutoff = timezone.now() - ARTICLE_MEDIA_UNUSED_GRACE_PERIOD
+
+    media_items = list(
+        ArticleMedia.objects.filter(unreferenced_at__lt=cutoff)
+        .order_by("id")
+        .only("id", "file", "unreferenced_at")[:batch_size]
+    )
+
+    deleted_files_count = 0
+    deleted_rows_count = 0
+
+    for media in media_items:
+        file_name = media.file.name
+        unreferenced_at = media.unreferenced_at
+
+        deleted_rows, _ = ArticleMedia.objects.filter(
+            id=media.id,
+            unreferenced_at=unreferenced_at,
+            unreferenced_at__lt=cutoff,
+        ).delete()
+
+        if not deleted_rows:
+            continue
+
+        deleted_rows_count += deleted_rows
+
+        try:
+            default_storage.delete(file_name)
+        except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
+            logger.exception(
+                "Deleted ArticleMedia row, but failed to delete storage file %s",
+                file_name,
+            )
+            continue
+
+        deleted_files_count += 1
+
+    if deleted_rows_count != deleted_files_count:
+        logger.warning(
+            "Cleaned up %s ArticleMedia rows but only deleted %s storage files.",
+            deleted_rows_count,
+            deleted_files_count,
+        )
+
+    return deleted_files_count
+
+
+def delete_article_inline_media_files(article_id: int, author_id: int) -> None:
     article_dir = ARTICLE_MEDIA_UPLOAD_DIR_TEMPLATE.format(
         author_id=author_id, article_id=article_id
     )
@@ -62,14 +158,25 @@ def delete_media_files_attached_to_article(article_id: int, author_id: int) -> N
         raise ImproperlyConfigured("Media storage not supported.")
 
 
-def _build_safe_file_path(file: BinaryIO, article: Article) -> str:
-    base_name, extension = os.path.splitext(file.name)
-    safe_base_name = get_valid_filename(base_name)
-    filename = f"{safe_base_name}_{uuid4().hex}.{extension.lower()}"
-    directory = posixpath.join(
-        "articles", "uploads", str(article.author.id), str(article.id)
-    )
-    return posixpath.join(directory, filename)
+def extract_article_inline_media_file_names(
+    html: str, *, article_id: int, author_id: int
+) -> set[str]:
+    soup = BeautifulSoup(html or "", "html.parser")
+    file_names = set()
+
+    for img in soup.find_all("img"):
+        src = img.get("src")
+
+        file_name = extract_article_media_storage_name(
+            src if isinstance(src, str) else None
+        )
+
+        if file_name and is_article_media_storage_name_for_article(
+            file_name, article_id=article_id, author_id=author_id
+        ):
+            file_names.add(file_name)
+
+    return file_names
 
 
 def _delete_local_filesystem_media(
@@ -79,7 +186,7 @@ def _delete_local_filesystem_media(
         raise ImproperlyConfigured("Unexpected media storage backend.")
 
     local_path = os.path.join(storage.location, article_media_dir)
-    media_root = os.path.realpath(MEDIA_ROOT)
+    media_root = os.path.realpath(settings.MEDIA_ROOT)
 
     if not os.path.commonpath([media_root, os.path.realpath(local_path)]) == media_root:
         logger.error(

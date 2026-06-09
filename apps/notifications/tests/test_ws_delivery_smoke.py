@@ -10,9 +10,9 @@ from users.models import User
 
 @override_settings(
     CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
-    DETAILED_NOTIFICATION_COOLDOWN_SECONDS=0,
-    DIGEST_HINT_COOLDOWN_SECONDS=0,
-    GROUP_SEND_TIMEOUT_SECONDS=1,
+    NOTIFICATIONS_WS_DETAILED_NOTIFICATION_COOLDOWN_SECONDS=0,
+    NOTIFICATIONS_WS_DIGEST_HINT_COOLDOWN_SECONDS=0,
+    NOTIFICATIONS_WS_GROUP_SEND_TIMEOUT_SECONDS=1,
 )
 class TestWSDeliverySmoke(TransactionTestCase):
     async def test_send_ws_notification_delivers_to_connected_consumer(self):

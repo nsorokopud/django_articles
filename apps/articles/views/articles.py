@@ -1,20 +1,20 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import (
-    CreateView,
-    DeleteView,
-    DetailView,
-    ListView,
-    UpdateView,
-)
+from django.views.generic import DeleteView, DetailView, ListView, UpdateView
 from django_filters.views import FilterView
+from django_ratelimit.decorators import ratelimit
 
 from core.decorators import cache_page_for_anonymous
 from users.services.subscriptions import (
@@ -23,20 +23,24 @@ from users.services.subscriptions import (
 
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
-from ..models import Article
+from ..media_paths import normalize_url_prefix
+from ..models import Article, ArticleStatus
 from ..selectors import (
-    find_article_comments_liked_by_user,
     find_articles_by_author,
-    find_comments_to_article,
     find_published_articles,
     find_subscription_feed_articles,
-    get_article_for_author_by_slug,
+    get_article_for_author_by_id,
     get_published_article_by_slug,
 )
-from ..services import toggle_article_like
-from ..settings import ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT, ARTICLES_PER_PAGE_COUNT
+from ..services import set_article_like
+from ..services.articles import delete_article, get_or_create_empty_draft
+from ..services.comments import get_article_comments_page
+from ..services.publishing import (
+    submit_article_for_review,
+    withdraw_article_from_review,
+)
 from .decorators import increment_article_view_counter
-from .mixins import AllowOnlyAuthorMixin
+from .http import parse_liked_payload
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 class BaseArticleListFilterView(FilterView):
     context_object_name = "articles"
-    paginate_by = ARTICLES_PER_PAGE_COUNT
+    paginate_by = settings.ARTICLES_PER_PAGE
     template_name = "articles/article_list_page.html"
 
     page_title = ""
@@ -54,6 +58,7 @@ class BaseArticleListFilterView(FilterView):
     show_likes = True
     show_comments = True
     draft_edit_url_name = None
+    author_filter_ajax_enabled = True
 
     page_key = ""
     is_subscriptions_feed_page_one = False
@@ -77,6 +82,7 @@ class BaseArticleListFilterView(FilterView):
                 "page_key": self.page_key,
                 "is_subscriptions_feed_page_one": self.is_subscriptions_feed_page_one,
                 "latest_article_publish_sequence": self.latest_article_publish_sequence,
+                "author_filter_ajax_enabled": self.author_filter_ajax_enabled,
             }
         )
         return context
@@ -96,6 +102,7 @@ class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
     page_title = "Subscription feed"
     empty_message = "No matching articles from your subscriptions yet"
     page_key = "subscriptions"
+    author_filter_ajax_enabled = False
 
     def get_queryset(self) -> QuerySet[Article]:
         return find_subscription_feed_articles(self.request.user)
@@ -137,7 +144,7 @@ class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
 class MyArticlesListView(LoginRequiredMixin, ListView):
     model = Article
     context_object_name = "articles"
-    paginate_by = ARTICLES_PER_PAGE_COUNT
+    paginate_by = settings.ARTICLES_PER_PAGE
     template_name = "articles/article_list_page.html"
 
     def get_queryset(self) -> QuerySet[Article]:
@@ -172,11 +179,6 @@ class ArticleDetailView(DetailView):
     context_object_name = "article"
     template_name = "articles/article.html"
 
-    @method_decorator(increment_article_view_counter)
-    @method_decorator(cache_page_for_anonymous(ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT))
-    def dispatch(self, request, *args, **kwargs) -> HttpResponse:
-        return super().dispatch(request, *args, **kwargs)
-
     def get_object(self) -> Article:
         article_slug = self.kwargs.get(self.slug_url_kwarg)
         try:
@@ -186,101 +188,197 @@ class ArticleDetailView(DetailView):
             raise Http404("Article not found") from e
         return article
 
+    @method_decorator(increment_article_view_counter)
+    @method_decorator(
+        cache_page_for_anonymous(settings.ARTICLES_DETAIL_PAGE_CACHE_TIMEOUT_SECONDS)
+    )
+    def get(self, request, *args, **kwargs) -> HttpResponse:
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         article = self.object
         context = super().get_context_data(**kwargs)
-        context["comments"] = find_comments_to_article(article)
-        context["comments_count"] = len(context["comments"])
+
+        comments_page, liked_comments = get_article_comments_page(
+            article=article, page_number=1, user=self.request.user
+        )
+
+        context["comments"] = comments_page.object_list
+        context["comments_page_obj"] = comments_page
+        context["comments_count"] = article.comments_count
+
         context["user_liked"] = (
             self.request.user.is_authenticated
             and article.users_that_liked.filter(id=self.request.user.id).exists()
         )
+
         if self.request.user.is_authenticated:
-            context["form"] = ArticleCommentForm()
-            context["liked_comments"] = find_article_comments_liked_by_user(
-                article, self.request.user
-            )
+            context["form"] = kwargs.get("form") or ArticleCommentForm()
+            context["liked_comments"] = liked_comments
+
         return context
 
-
-class ArticleCreateView(LoginRequiredMixin, CreateView):
-    model = Article
-    form_class = ArticleModelForm
-    template_name = "articles/article_form.html"
-
-    def get_form_kwargs(self) -> dict[str, Any]:
-        kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
-        return kwargs
-
-    def form_valid(self, form) -> JsonResponse:
-        publish = self.request.user.is_staff or self.request.user.is_superuser
-        article = form.save(publish=publish)
-
-        article_url = (
-            article.get_absolute_url()
-            if article.is_published
-            else reverse("article-update", kwargs={"article_slug": article.slug})
+    @method_decorator(
+        ratelimit(
+            key="core.ratelimit.user_or_ip", rate="5/m", method="POST", block=True
         )
+    )
+    def post(self, request, *args, **kwargs) -> HttpResponse | HttpResponseRedirect:
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
 
-        data = {
-            "articleId": article.id,
-            "articleSlug": article.slug,
-            "articleUrl": article_url,
-            "isPublished": article.is_published,
-        }
-        return JsonResponse({"status": "success", "data": data})
+        self.object = self.get_object()
+        form = ArticleCommentForm(request.POST, user=request.user, article=self.object)
 
-    def form_invalid(self, form) -> JsonResponse:
-        return JsonResponse({"status": "fail", "data": form.errors})
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your comment has been posted.")
+            return redirect("article-details", article_slug=self.object.slug)
+
+        messages.error(request, "Your comment could not be posted.")
+        return self.render_to_response(self.get_context_data(form=form), status=400)
 
 
-class ArticleUpdateView(AllowOnlyAuthorMixin, UpdateView):
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="10/h", method="POST", block=True),
+    name="dispatch",
+)
+class ArticleCreateDraftView(LoginRequiredMixin, View):
+    def post(self, request) -> HttpResponseRedirect:
+        article = get_or_create_empty_draft(author=request.user)
+        return redirect("article-update", pk=article.pk)
+
+
+class ArticleUpdateView(LoginRequiredMixin, UpdateView):
     model = Article
     form_class = ArticleModelForm
     template_name_suffix = "_form"
 
+    object: Optional[Article] = None
+
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["update"] = True
+
+        media_allowed_root_urls = []
+
+        for url in getattr(settings, "MEDIA_ALLOWED_ROOT_URLS", []):
+            normalized_url = normalize_url_prefix(url)
+            if normalized_url:
+                media_allowed_root_urls.append(normalized_url)
+
+        context["media_allowed_root_urls"] = media_allowed_root_urls
+
         return context
 
-    def get_object(self) -> Article:
+    def get_object(self, queryset=None) -> Article:
+        if self.object is not None:
+            return self.object
+
         try:
-            return get_article_for_author_by_slug(
-                article_slug=self.kwargs["article_slug"],
-                author_id=self.request.user.id,
+            self.object = get_article_for_author_by_id(
+                article_id=self.kwargs["pk"], author_id=self.request.user.id
             )
         except Article.DoesNotExist as e:
             raise Http404("Article not found") from e
 
-    def form_valid(self, form) -> JsonResponse:
-        article = form.save(publish=False)
+        return self.object
 
-        article_url = (
-            article.get_absolute_url()
-            if article.is_published
-            else reverse("article-update", kwargs={"article_slug": article.slug})
-        )
+    def dispatch(self, request, *args, **kwargs) -> HttpResponse | HttpResponseRedirect:
+        if request.user.is_anonymous:
+            return self.handle_no_permission()
+
+        article = self.get_object()
+
+        if article.status == ArticleStatus.PUBLISHED:
+            return redirect("article-details", article_slug=article.slug)
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form) -> JsonResponse:
+        article = form.save()
+
+        if self.request.POST.get("article_action") == "submit_for_review":
+            try:
+                article = submit_article_for_review(article_id=article.id)
+            except ValueError as e:
+                return JsonResponse(
+                    {"status": "fail", "data": {"__all__": [str(e)]}}, status=400
+                )
+
+            messages.success(self.request, "Article was submitted for review.")
 
         data = {
-            "articleUrl": article_url,
-            "isPublished": article.is_published,
+            "articleUrl": reverse("article-update", kwargs={"pk": article.pk}),
         }
         return JsonResponse({"status": "success", "data": data})
 
     def form_invalid(self, form) -> JsonResponse:
-        return JsonResponse({"status": "fail", "data": form.errors})
+        return JsonResponse({"status": "fail", "data": form.errors}, status=400)
 
 
-class ArticleDeleteView(AllowOnlyAuthorMixin, DeleteView):
+class ArticleWithdrawFromReviewView(LoginRequiredMixin, View):
+    def post(self, request, pk) -> HttpResponseRedirect:
+        try:
+            article = get_article_for_author_by_id(
+                article_id=pk, author_id=request.user.id
+            )
+        except Article.DoesNotExist as e:
+            raise Http404("Article not found") from e
+
+        try:
+            withdraw_article_from_review(article_id=article.id)
+        except ValueError as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Article was withdrawn from review.")
+
+        return redirect("article-update", pk=article.pk)
+
+
+class ArticleDeleteView(LoginRequiredMixin, DeleteView):
     model = Article
     context_object_name = "article"
-    slug_url_kwarg = "article_slug"
-    success_url = reverse_lazy("articles")
+    success_url = reverse_lazy("my-articles")
+
+    def get_queryset(self):
+        return Article.objects.filter(
+            author=self.request.user,
+            status__in=(ArticleStatus.DRAFT, ArticleStatus.REJECTED),
+        )
+
+    def form_valid(self, form) -> HttpResponseRedirect:
+        article = self.get_object()
+
+        try:
+            delete_article(article_id=article.id)
+        except ValueError as e:
+            raise PermissionDenied("This article cannot be deleted.") from e
+
+        messages.success(
+            self.request,
+            f'"{article.title or "Article"}" was deleted successfully.',
+        )
+        return HttpResponseRedirect(self.get_success_url())
 
 
+@method_decorator(
+    ratelimit(key="core.ratelimit.user_or_ip", rate="120/h", method="POST", block=True),
+    name="dispatch",
+)
 class ArticleLikeView(LoginRequiredMixin, View):
     def post(self, request, article_slug) -> JsonResponse:
-        data = {"likes": toggle_article_like(article_slug, request.user.id)}
-        return JsonResponse({"status": "success", "data": data}, status=200)
+        liked = parse_liked_payload(request)
+        if liked is None:
+            return JsonResponse(
+                {"status": "fail", "message": "'liked' must be true or false."},
+                status=400,
+            )
+
+        likes, liked = set_article_like(
+            article_slug=article_slug, user_id=request.user.id, liked=liked
+        )
+
+        return JsonResponse(
+            {"status": "success", "data": {"likes": likes, "liked": liked}}
+        )

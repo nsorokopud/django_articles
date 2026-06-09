@@ -1,7 +1,7 @@
+from django.conf import settings
 from django.core.cache import cache
 
 from .models import User
-from .settings import SUBSCRIBERS_COUNT_CACHE_TIMEOUT
 
 
 def get_cached_subscribers_count(author: User) -> int:
@@ -9,7 +9,11 @@ def get_cached_subscribers_count(author: User) -> int:
     count = cache.get(cache_key)
     if count is None:
         count = author.subscribers.count()
-        cache.set(cache_key, count, timeout=SUBSCRIBERS_COUNT_CACHE_TIMEOUT)
+        cache.set(
+            cache_key,
+            count,
+            timeout=settings.USERS_SUBSCRIBERS_COUNT_CACHE_TIMEOUT_SECONDS,
+        )
     return int(count)
 
 

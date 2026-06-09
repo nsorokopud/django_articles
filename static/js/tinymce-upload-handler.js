@@ -3,7 +3,7 @@ function tinymceUploadHandler(blobInfo, progress) {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
 
-    xhr.open('POST', '/tinymce/upload');
+    xhr.open('POST', '/tinymce/upload/');
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
     xhr.setRequestHeader('X-CSRFToken', Cookies.get('csrftoken'));
     xhr.withCredentials = false;
@@ -11,12 +11,12 @@ function tinymceUploadHandler(blobInfo, progress) {
     formData.append('file', blobInfo.blob(), blobInfo.filename());
 
     try {
-      const articleId = localStorage.getItem('createdArticleId');
-      if (articleId) {
-        formData.append('articleId', articleId);
+      const articleIdInput = document.getElementById('articleId');
+      if (articleIdInput && articleIdInput.value) {
+        formData.append('articleId', articleIdInput.value);
       }
     } catch (err) {
-      console.warn('Failed to get article ID from localStorage', err);
+      console.warn('Failed to read article ID from the form', err);
     }
 
     xhr.upload.onprogress = (e) => {
@@ -90,10 +90,7 @@ function tinymceUploadHandler(blobInfo, progress) {
     xhr.send(formData);
   });
   return uploadPromise.catch((error) => {
-    alert(
-      `${error.message || 'Unknown upload error'} ` +
-        'You will now be redirected back to the article page.',
-    );
+    alert(`${error.message || 'Unknown upload error'} Please try again.`);
     return Promise.reject(error);
   });
 }

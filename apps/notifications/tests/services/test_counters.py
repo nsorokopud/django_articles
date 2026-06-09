@@ -12,7 +12,7 @@ from notifications.services.counters import (
 from users.models import User
 
 
-def _create_notification(
+def _create_deduped_notification(
     *,
     recipient: User,
     read: bool = False,
@@ -62,14 +62,14 @@ class TestSyncUnreadNotificationCounts(TestCase):
             sync_unread_notification_counts(batch_size=-1)
 
     def test_syncs_drifted_counts_and_returns_stats(self) -> None:
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
 
-        _create_notification(recipient=self.u2, read=False)
-        _create_notification(recipient=self.u2, read=False)
-        _create_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
 
-        _create_notification(recipient=self.u3, read=True)
+        _create_deduped_notification(recipient=self.u3, read=True)
 
         stats = sync_unread_notification_counts(batch_size=2)
 
@@ -93,9 +93,9 @@ class TestSyncUnreadNotificationCounts(TestCase):
         self.assertEqual(self.u4.unread_notifications_count, 0)
 
     def test_sync_updates_only_selected_users_when_user_ids_are_provided(self) -> None:
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
 
         original_u3_count = self.u3.unread_notifications_count
         original_u4_count = self.u4.unread_notifications_count
@@ -125,10 +125,10 @@ class TestSyncUnreadNotificationCounts(TestCase):
         self.assertEqual(self.u4.unread_notifications_count, original_u4_count)
 
     def test_sync_with_no_drift_returns_zero_updates(self) -> None:
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u2, read=False)
-        _create_notification(recipient=self.u2, read=False)
-        _create_notification(recipient=self.u3, read=True)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u3, read=True)
 
         self.u1.unread_notifications_count = 1
         self.u2.unread_notifications_count = 2
@@ -151,9 +151,9 @@ class TestSyncUnreadNotificationCounts(TestCase):
         )
 
     def test_sync_ignores_read_notifications_when_counting(self) -> None:
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u1, read=True)
-        _create_notification(recipient=self.u1, read=True)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=True)
+        _create_deduped_notification(recipient=self.u1, read=True)
 
         stats = sync_unread_notification_counts(batch_size=10)
 
@@ -190,9 +190,9 @@ class TestSyncUnreadNotificationCounts(TestCase):
         self.assertEqual(self.u4.unread_notifications_count, 5)
 
     def test_sync_accepts_generator_for_user_ids(self) -> None:
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u2, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u2, read=False)
 
         user_ids_generator = (uid for uid in [self.u1.id, self.u2.id])
 
@@ -260,11 +260,11 @@ class TestCounterHelpers(TestCase):
         self.assertEqual(next_batch[0]["id"], self.u3.id)
 
     def test_get_actual_unread_counts_counts_only_unread(self) -> None:
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u1, read=False)
-        _create_notification(recipient=self.u1, read=True)
-        _create_notification(recipient=self.u2, read=True)
-        _create_notification(recipient=self.u3, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=False)
+        _create_deduped_notification(recipient=self.u1, read=True)
+        _create_deduped_notification(recipient=self.u2, read=True)
+        _create_deduped_notification(recipient=self.u3, read=False)
 
         counts = _get_actual_unread_counts([self.u1.id, self.u2.id, self.u3.id])
 

@@ -25,7 +25,13 @@ async def send_ws_notification(
 
     try:
         n = await Notification.objects.only(
-            "id", "recipient_id", "title", "body", "payload", "created_at"
+            "id",
+            "recipient_id",
+            "title",
+            "body",
+            "payload",
+            "created_at",
+            "last_event_at",
         ).aget(id=notification_id)
     except Notification.DoesNotExist:
         return
@@ -52,12 +58,13 @@ async def _send_notification_throttled(
         "body": n.body,
         "payload": n.payload,
         "timestamp": n.created_at.isoformat(),
+        "last_event_at": n.last_event_at.isoformat(),
         "is_new_unread": is_new_unread,
     }
 
     if _throttle_allows_send(
         detailed_key,
-        settings.DETAILED_NOTIFICATION_COOLDOWN_SECONDS,
+        settings.NOTIFICATIONS_WS_DETAILED_NOTIFICATION_COOLDOWN_SECONDS,
         recipient_id=recipient_id,
     ):
         await _group_send_with_timeout(
@@ -71,7 +78,9 @@ async def _send_notification_throttled(
         return
 
     if _throttle_allows_send(
-        digest_key, settings.DIGEST_HINT_COOLDOWN_SECONDS, recipient_id=recipient_id
+        digest_key,
+        settings.NOTIFICATIONS_WS_DIGEST_HINT_COOLDOWN_SECONDS,
+        recipient_id=recipient_id,
     ):
         await _group_send_with_timeout(
             layer,
@@ -89,12 +98,12 @@ def _throttle_allows_send(
         return cache.add(key, True, timeout=cooldown_seconds)
     except Exception:  # pylint: disable=W0718
         logger.warning(
-            "WS cache throttle failed (recipient_id=%s key=%s)",
+            "WS cache throttle failed; allowing send (recipient_id=%s key=%s)",
             recipient_id,
             key,
             exc_info=True,
         )
-        return False
+        return True
 
 
 async def _group_send_with_timeout(
@@ -115,7 +124,9 @@ async def _group_send_with_timeout(
     log_suffix = f" ({', '.join(context)})" if context else ""
 
     try:
-        async with asyncio.timeout(settings.GROUP_SEND_TIMEOUT_SECONDS):
+        async with asyncio.timeout(
+            settings.NOTIFICATIONS_WS_GROUP_SEND_TIMEOUT_SECONDS
+        ):
             await layer.group_send(group, payload)
     except asyncio.CancelledError:  # pylint: disable=W0706
         raise

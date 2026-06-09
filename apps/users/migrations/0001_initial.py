@@ -93,7 +93,7 @@ class Migration(migrations.Migration):
                         default=django.utils.timezone.now, verbose_name="date joined"
                     ),
                 ),
-                ("email", models.EmailField(max_length=254, unique=True)),
+                ("email", models.EmailField(max_length=254)),
                 (
                     "groups",
                     models.ManyToManyField(
@@ -118,13 +118,27 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "verbose_name": "user",
-                "verbose_name_plural": "users",
                 "abstract": False,
             },
             managers=[
                 ("objects", django.contrib.auth.models.UserManager()),
             ],
+        ),
+        migrations.AddConstraint(
+            model_name="user",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("email", ""), _negated=True),
+                name="users_user_email_not_blank",
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name="user",
+            constraint=models.UniqueConstraint(
+                django.db.models.functions.text.Lower(
+                    django.db.models.functions.text.Trim("email")
+                ),
+                name="users_user_email_ci_unique",
+            ),
         ),
         migrations.CreateModel(
             name="Profile",
@@ -142,6 +156,7 @@ class Migration(migrations.Migration):
                     "image",
                     models.ImageField(
                         default="users/profile_images/default_avatar.jpg",
+                        max_length=512,
                         upload_to="users/profile_images/",
                     ),
                 ),

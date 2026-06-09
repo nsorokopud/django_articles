@@ -8,7 +8,7 @@
           {% csrf_token %}
           <fieldset>
             <div class="form-group">
-              <legend class="botder-bottom mb-4">Delete Article</legend>
+              <legend class="mb-4">Delete Article</legend>
               <h2 class="text-justify">
                 Are you sure you want to delete the article
                 "{{ article.title }}"?
@@ -17,8 +17,13 @@
           </fieldset>
           <div class="form-group">
             <button class="btn btn-outline-danger mx-2" type="submit">Confirm</button>
-            <a class="btn btn-outline-secondary"
-               href="{% url 'article-details' article.slug %}">Cancel</a>
+            {% if article.is_published %}
+              <a class="btn btn-outline-secondary"
+                 href="{% url 'article-details' article.slug %}">Cancel</a>
+            {% else %}
+              <a class="btn btn-outline-secondary"
+                 href="{% url 'article-update' pk=article.pk %}">Cancel</a>
+            {% endif %}
           </div>
         </form>
       </div>

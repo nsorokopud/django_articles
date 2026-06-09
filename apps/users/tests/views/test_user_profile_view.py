@@ -1,11 +1,13 @@
 from io import BytesIO
+from unittest.mock import patch
 
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 from PIL import Image
 
-from users.models import User
+from users.models import DEFAULT_PROFILE_IMAGE, User
 
 
 class TestUserProfileView(TestCase):
@@ -13,6 +15,16 @@ class TestUserProfileView(TestCase):
         self.client = Client()
         self.url = reverse("user-profile")
         self.user = User.objects.create_user(username="user", email="user@test.com")
+
+    def _make_uploaded_image(self, filename: str = "test_image.jpg"):
+        image = Image.new("RGB", (1, 1), color="white")
+        image_file = BytesIO()
+        image.save(image_file, format="JPEG")
+        image_file.seek(0)
+
+        return SimpleUploadedFile(
+            filename, image_file.read(), content_type="image/jpeg"
+        )
 
     def test_get(self):
         response = self.client.get(self.url)
@@ -38,20 +50,30 @@ class TestUserProfileView(TestCase):
 
     def test_post_logged_in(self):
         self.client.force_login(self.user)
-        response = self.client.post(self.url, {"username": "abcd"})
+
+        response = self.client.post(
+            self.url, {"username": "abcd", "notification_emails_allowed": True}
+        )
+
         self.assertRedirects(
             response, self.url, status_code=302, target_status_code=200
         )
 
+        self.user.refresh_from_db()
+        self.user.profile.refresh_from_db()
+
+        self.assertEqual(self.user.username, "abcd")
+        self.assertTrue(self.user.profile.notification_emails_allowed)
+        self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)
+
     def test_post_invalid_user_form_data(self):
         self.assertTrue(self.user.profile.notification_emails_allowed)
-        invalid_data = {
-            "username": "",
-            "notification_emails_allowed": False,
-        }
+
+        invalid_data = {"username": "", "notification_emails_allowed": False}
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, invalid_data)
+
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/profile.html")
         self.assertIn("user_form", response.context)
@@ -62,40 +84,31 @@ class TestUserProfileView(TestCase):
         )
 
         self.user.refresh_from_db()
+        self.user.profile.refresh_from_db()
+
         self.assertEqual(self.user.username, "user")
         self.assertTrue(self.user.profile.notification_emails_allowed)
+        self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)
 
     def test_post_without_profile_image(self):
-        data = {
-            "username": "user",
-            "notification_emails_allowed": True,
-        }
+        data = {"username": "user", "notification_emails_allowed": True}
 
-        self.assertEqual(
-            self.user.profile.image.name, "users/profile_images/default_avatar.jpg"
-        )
+        self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, data)
+
         self.assertRedirects(
-            response,
-            self.url,
-            status_code=302,
-            target_status_code=200,
+            response, self.url, status_code=302, target_status_code=200
         )
 
-        self.assertEqual(
-            self.user.profile.image.name, "users/profile_images/default_avatar.jpg"
-        )
+        self.user.profile.refresh_from_db()
 
-    def test_post_valid_data(self):
-        image = Image.new("RGB", (1, 1), color="white")
-        image_file = BytesIO()
-        image.save(image_file, format="JPEG")
-        image_file.seek(0)
-        uploaded_image = SimpleUploadedFile(
-            "test_image.jpg", image_file.read(), content_type="image/jpeg"
-        )
+        self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)
+
+    def test_post_valid_data_does_not_delete_default_profile_image(self):
+        uploaded_image = self._make_uploaded_image("test_image.jpg")
+
         data = {
             "username": "newusername",
             "notification_emails_allowed": False,
@@ -103,24 +116,95 @@ class TestUserProfileView(TestCase):
         }
 
         self.assertEqual(self.user.username, "user")
-        self.assertEqual(
-            self.user.profile.image.name, "users/profile_images/default_avatar.jpg"
-        )
+        self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)
         self.assertTrue(self.user.profile.notification_emails_allowed)
 
         self.client.force_login(self.user)
-        response = self.client.post(self.url, data)
+
+        with patch("users.services.users._delete_profile_image") as mock_delete:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(self.url, data)
+
         self.assertRedirects(
-            response,
-            self.url,
-            status_code=302,
-            target_status_code=200,
+            response, self.url, status_code=302, target_status_code=200
         )
 
         self.user.refresh_from_db()
+        self.user.profile.refresh_from_db()
+
         self.assertEqual(self.user.username, "newusername")
         self.assertFalse(self.user.profile.notification_emails_allowed)
-        self.assertEqual(
-            self.user.profile.image.name,
-            "users/profile_images/test_image.jpg",
+        self.assertTrue(
+            self.user.profile.image.name.startswith(
+                f"users/profile_images/{self.user.id}/test_image_"
+            )
         )
+        self.assertTrue(self.user.profile.image.name.endswith(".jpg"))
+
+        mock_delete.assert_not_called()
+
+    def test_post_replaces_old_profile_image_after_commit(self):
+        self.client.force_login(self.user)
+
+        profile = self.user.profile
+        profile.image.save(
+            "old_avatar.jpg", ContentFile(b"old fake image content"), save=True
+        )
+        old_image_name = profile.image.name
+
+        uploaded_image = self._make_uploaded_image("test_image.jpg")
+
+        data = {
+            "username": "newusername",
+            "notification_emails_allowed": False,
+            "image": uploaded_image,
+        }
+
+        with patch("users.services.users._delete_profile_image") as mock_delete:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(self.url, data)
+
+        self.assertRedirects(
+            response, self.url, status_code=302, target_status_code=200
+        )
+
+        self.user.refresh_from_db()
+        self.user.profile.refresh_from_db()
+
+        self.assertEqual(self.user.username, "newusername")
+        self.assertFalse(self.user.profile.notification_emails_allowed)
+        self.assertTrue(
+            self.user.profile.image.name.startswith(
+                f"users/profile_images/{self.user.id}/test_image_"
+            )
+        )
+        self.assertTrue(self.user.profile.image.name.endswith(".jpg"))
+
+        mock_delete.assert_called_once_with(old_image_name)
+
+    def test_post_invalid_profile_image(self):
+        uploaded_file = SimpleUploadedFile(
+            "not_image.txt", b"not an image", content_type="text/plain"
+        )
+
+        data = {
+            "username": "user",
+            "notification_emails_allowed": True,
+            "image": uploaded_file,
+        }
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/profile.html")
+        self.assertIn("profile_form", response.context)
+        self.assertFalse(response.context["profile_form"].is_valid())
+        self.assertIn("image", response.context["profile_form"].errors)
+
+        self.user.refresh_from_db()
+        self.user.profile.refresh_from_db()
+
+        self.assertEqual(self.user.username, "user")
+        self.assertTrue(self.user.profile.notification_emails_allowed)
+        self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)

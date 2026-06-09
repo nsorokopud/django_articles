@@ -15,12 +15,12 @@ def cleanup_old_read_notifications(
     *, older_than_days: Optional[int] = None, max_batches: Optional[int] = None
 ) -> int:
     older_than_days = (
-        settings.NOTIFICATION_READ_RETENTION_DAYS
+        settings.NOTIFICATIONS_READ_RETENTION_DAYS
         if older_than_days is None
         else older_than_days
     )
     max_batches = (
-        settings.NOTIFICATION_CLEANUP_MAX_BATCHES
+        settings.NOTIFICATIONS_CLEANUP_MAX_BATCHES
         if max_batches is None
         else max_batches
     )
@@ -55,7 +55,7 @@ def cleanup_old_read_notifications(
             ),
             total_deleted,
             older_than_days,
-            settings.NOTIFICATION_CLEANUP_BATCH_SIZE,
+            settings.NOTIFICATIONS_CLEANUP_BATCH_SIZE,
             max_batches,
             exhausted,
         )
@@ -71,7 +71,7 @@ def _delete_old_read_notifications_batch(
     batch_size: Optional[int] = None,
 ) -> int:
     batch_size = (
-        settings.NOTIFICATION_CLEANUP_BATCH_SIZE if batch_size is None else batch_size
+        settings.NOTIFICATIONS_CLEANUP_BATCH_SIZE if batch_size is None else batch_size
     )
     if batch_size <= 0:
         raise ValueError("batch_size must be > 0")

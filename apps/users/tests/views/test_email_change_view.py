@@ -1,66 +1,161 @@
 from unittest.mock import patch
 
-from allauth.account.models import EmailAddress
-from django.test import Client, TestCase
+from django.core.exceptions import ValidationError
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from users.models import User
+from users.models import PendingEmailChange, User
 
 
 class TestEmailChangeView(TestCase):
     def setUp(self):
         self.client = Client()
         self.url = reverse("email-change")
-        self.user = User.objects.create_user(username="user", email="user@test.com")
+        self.user = User.objects.create_user(
+            username="user", email="user@test.com", password="testpass123"
+        )
 
     def test_get_anonymous_user(self):
         response = self.client.get(self.url)
         redirect_url = f'{reverse("login")}?next={self.url}'
+
         self.assertRedirects(
             response, redirect_url, status_code=302, target_status_code=200
         )
 
-    def test_get_logged_in_user(self):
+    def test_get_logged_in_user_without_pending_email(self):
         self.client.force_login(self.user)
+
         response = self.client.get(self.url)
+
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "users/email_change.html")
         self.assertEqual(response.context["form"].user, self.user)
-        self.assertEqual(response.context["pending_email"], None)
+        self.assertIsNone(response.context["pending_email"])
 
-        email = EmailAddress.objects.create(
-            user=self.user, email=self.user.email, primary=False, verified=False
+    def test_get_logged_in_user_with_pending_email(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.user, email="pending@test.com"
         )
+
+        self.client.force_login(self.user)
         response = self.client.get(self.url)
-        self.assertEqual(response.context["pending_email"], email)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/email_change.html")
+        self.assertEqual(response.context["form"].user, self.user)
+        self.assertEqual(response.context["pending_email"], pending_email_change)
 
     def test_post_anonymous_user(self):
-        response = self.client.post(self.url)
+        response = self.client.post(self.url, {"new_email": "new@test.com"})
         redirect_url = f'{reverse("login")}?next={self.url}'
+
         self.assertRedirects(
             response, redirect_url, status_code=302, target_status_code=200
         )
 
-    @patch("users.views.send_email_change_link")
+    @patch("users.views.email.send_email_change_link")
     def test_post_invalid_data(self, mock_send_email):
         self.client.force_login(self.user)
+
         response = self.client.post(self.url, {})
+
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/email_change.html")
         self.assertFalse(response.context["form"].is_valid())
         mock_send_email.assert_not_called()
 
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())
+
     @patch("users.views.email.send_email_change_link")
     def test_post_valid_data(self, mock_send_email):
-        data = {"new_email": "new@test.com"}
+        data = {"new_email": "New@Test.COM"}
 
         self.client.force_login(self.user)
         response = self.client.post(self.url, data)
-        self.assertRedirects(response, self.url)
 
-        email = EmailAddress.objects.get(
-            user=self.user, primary=False, verified=False
-        ).email
-        self.assertEqual(email, "new@test.com")
-        mock_send_email.assert_called_once_with(
-            self.user, email, response.wsgi_request.build_absolute_uri("/")
+        self.assertRedirects(
+            response, self.url, status_code=302, target_status_code=200
         )
+
+        pending_email_change = PendingEmailChange.objects.get(user=self.user)
+
+        self.assertEqual(pending_email_change.email, "new@test.com")
+        mock_send_email.assert_called_once_with(
+            self.user,
+            pending_email_change,
+            response.wsgi_request.build_absolute_uri("/"),
+        )
+
+    @patch("users.views.email.send_email_change_link")
+    def test_post_same_email_as_current_user_email(self, mock_send_email):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"new_email": "USER@Test.COM"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/email_change.html")
+        self.assertFalse(response.context["form"].is_valid())
+        self.assertIn("__all__", response.context["form"].errors)
+        self.assertEqual(
+            response.context["form"].errors["__all__"][0],
+            "Enter a different email address.",
+        )
+        mock_send_email.assert_not_called()
+
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())
+
+    @patch("users.views.email.send_email_change_link")
+    def test_post_when_pending_email_already_exists(self, mock_send_email):
+        PendingEmailChange.objects.create(user=self.user, email="pending@test.com")
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, {"new_email": "another@test.com"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/email_change.html")
+        self.assertFalse(response.context["form"].is_valid())
+        self.assertIn("__all__", response.context["form"].errors)
+        self.assertEqual(
+            response.context["form"].errors["__all__"][0],
+            "There is already a pending email change.",
+        )
+        mock_send_email.assert_not_called()
+
+        self.assertEqual(PendingEmailChange.objects.filter(user=self.user).count(), 1)
+
+    @patch("users.views.email.create_pending_email_change")
+    @patch("users.views.email.send_email_change_link")
+    def test_post_service_validation_error_is_added_to_form(
+        self, mock_send_email, mock_create_pending_email_change
+    ):
+        mock_create_pending_email_change.side_effect = ValidationError(
+            "There is already a pending email change."
+        )
+
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"new_email": "new@test.com"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "users/email_change.html")
+        self.assertFalse(response.context["form"].is_valid())
+        self.assertIn("__all__", response.context["form"].errors)
+        self.assertEqual(
+            response.context["form"].errors["__all__"][0],
+            "There is already a pending email change.",
+        )
+
+        mock_create_pending_email_change.assert_called_once_with(
+            user_id=self.user.id, email="new@test.com"
+        )
+        mock_send_email.assert_not_called()
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_is_rate_limited(self):
+        for _ in range(5):
+            self.client.post(self.url, {"new_email": "new@test.com"})
+
+        response = self.client.post(self.url, {"new_email": "new@test.com"})
+
+        self.assertEqual(response.status_code, 429)

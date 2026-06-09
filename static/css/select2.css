@@ -67,3 +67,52 @@ button.select2-selection__clear {
   margin-right: 5px;
   padding-bottom: 4px !important;
 }
+
+/* ----- Author Select ----- */
+
+.author-select + .select2-container--default .select2-selection--single {
+  position: relative;
+}
+
+.author-select
+  + .select2-container--default
+  .select2-selection--single
+  .select2-selection__placeholder {
+  color: #6c757d;
+}
+
+.author-select
+  + .select2-container--default
+  .select2-selection--single
+  .select2-selection__rendered {
+  padding-left: 12px;
+  padding-right: 2rem;
+}
+
+/* Extra room when "x" exists */
+.author-select
+  + .select2-container--default
+  .select2-selection--single:has(.select2-selection__clear)
+  .select2-selection__rendered {
+  padding-left: 1.5rem;
+}
+
+.author-select
+  + .select2-container--default
+  .select2-selection--single
+  .select2-selection__clear {
+  position: absolute;
+  left: 0.2rem;
+  right: auto;
+  top: -1px;
+  margin-right: 0;
+  z-index: 2;
+  color: #333333;
+}
+
+.author-select
+  + .select2-container--default
+  .select2-selection--single
+  .select2-selection__arrow {
+  right: 0.5rem;
+}

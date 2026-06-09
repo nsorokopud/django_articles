@@ -1,84 +1,234 @@
 import logging
 
 from allauth.account.models import EmailAddress
+from allauth.socialaccount.models import SocialAccount
+from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.core.validators import validate_email
+from django.db import IntegrityError, connection, transaction
+from django.utils import timezone
 
-from users.models import User
+from core.db import get_constraint_name
+from users.models import (
+    PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
+    USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
+    PendingEmailChange,
+    User,
+)
 
-from ..selectors import get_pending_email_address
-from .users import delete_social_accounts_with_email
+from ..normalization import normalize_email
+from .sessions import invalidate_user_sessions
+from .tokens import email_change_token_generator
 
 
 logger = logging.getLogger(__name__)
 
 
-def enforce_unique_email_type_per_user(instance: EmailAddress) -> None:
-    """Ensures that a user has at most one email address of each type (primary or
-    non-primary). Raises `ValidationError` if the user already has an email address with
-    the same `primary` value.
-    """
-    queryset = EmailAddress.objects.filter(user=instance.user, primary=instance.primary)
-    if instance.pk:
-        queryset = queryset.exclude(pk=instance.pk)
-    if queryset.exists():
-        address_type = "primary" if instance.primary else "non-primary"
-        raise ValidationError(f"This user already has a {address_type} email address.")
+@transaction.atomic
+def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChange:
+    email = normalize_email(email)
 
+    if not email:
+        raise ValidationError("Email is required.")
 
-def create_pending_email_address(user: User, email: str) -> EmailAddress:
-    email_address = EmailAddress.objects.create(
-        user=user, email=email, primary=False, verified=False
-    )
+    validate_email(email)
+
+    delete_expired_pending_email_changes_for_email(email=email)
+
+    user = User.objects.select_for_update().get(pk=user_id)
+
+    if PendingEmailChange.objects.filter(user=user).exists():
+        raise ValidationError("There is already a pending email change.")
+
+    if normalize_email(user.email) == email:
+        raise ValidationError("Enter a different email address.")
+
+    if User.objects.exclude(pk=user_id).filter(email__iexact=email).exists():
+        raise ValidationError("A user with that email already exists.")
+
+    if PendingEmailChange.objects.filter(email__iexact=email).exists():
+        raise ValidationError("That email address is currently pending confirmation.")
+
+    try:
+        pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
+    except IntegrityError as e:
+        if get_constraint_name(e) == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
+            raise ValidationError(
+                "That email address is currently pending confirmation."
+            ) from e
+
+        raise
+
     logger.info(
-        "Pending EmailAddress(id=%s, user_id=%s) was created.",
-        email_address.id,
-        email_address.user_id,
+        "PendingEmailChange(id=%s, user_id=%s) was created.",
+        pending_email_change.id,
+        pending_email_change.user_id,
     )
-    return email_address
+    return pending_email_change
 
 
-def delete_pending_email_address(user: User) -> None:
-    email = get_pending_email_address(user)
-    if email:
-        email.delete()
-        logger.info(
-            "Pending EmailAddress(id=%s, user_id=%s) was removed.",
-            email.id,
-            user.id,
-        )
+def delete_pending_email_change(user: User) -> None:
+    deleted_count, _ = PendingEmailChange.objects.filter(user=user).delete()
+
+    if deleted_count:
+        logger.info("Pending email change for User(id=%s) was removed.", user.id)
     else:
         logger.warning(
-            "Attempt of removing non-existent EmailAddress for User(id=%s)", user.id
+            "Attempted to remove non-existent PendingEmailChange for User(id=%s).",
+            user.id,
         )
 
 
 @transaction.atomic
-def change_email_address(user_id: int) -> None:
-    """Replaces user's email address with the pending one: verifies it,
-    makes it primary, updates user.email, deletes the old address and
-    all social accounts associated with it.
-    """
-    logger.info("Attempting to change email address for User(id=%s)", user_id)
+def change_email_address(
+    *, user_id: int, pending_email_change_id: int, token: str
+) -> None:
+    logger.info("Attempting to change email address for User(id=%s).", user_id)
 
     user = User.objects.select_for_update().get(id=user_id)
-    new_email = EmailAddress.objects.select_for_update().get(
-        user=user, primary=False, verified=False
-    )
-    old_email = EmailAddress.objects.select_for_update().get(user=user, primary=True)
-    user.email = new_email.email
-    user.save(update_fields=["email"])
 
-    # Bypass pre-save signal that enforces email validation
-    EmailAddress.objects.filter(id=old_email.id).update(primary=False)
-    EmailAddress.objects.filter(id=new_email.id).update(primary=True, verified=True)
+    try:
+        pending_email_change = PendingEmailChange.objects.select_for_update().get(
+            id=pending_email_change_id, user_id=user_id
+        )
+    except PendingEmailChange.DoesNotExist as e:
+        raise ValidationError("This email change request no longer exists.") from e
 
-    old_email.delete()
-    logger.info("EmailAddress(id=%s) was deleted.", old_email.id)
-    delete_social_accounts_with_email(old_email.email)
+    if is_pending_email_change_expired(pending_email_change):
+        raise ValidationError("This email change link has expired.")
+
+    if not email_change_token_generator.check_token(user, token):
+        raise ValidationError("Invalid email change link.")
+
+    new_email = normalize_email(pending_email_change.email)
+    old_email = normalize_email(user.email)
+
+    validate_email(new_email)
+
+    if old_email == new_email:
+        pending_email_change.delete()
+        _delete_allauth_email_addresses_for_user(user_id)
+        logger.info(
+            "Deleted stale same-email PendingEmailChange(id=%s, user_id=%s).",
+            pending_email_change_id,
+            user_id,
+        )
+        return
+
+    if User.objects.exclude(pk=user_id).filter(email__iexact=new_email).exists():
+        raise ValidationError("This email address is no longer available.")
+
+    if (
+        PendingEmailChange.objects.exclude(pk=pending_email_change.pk)
+        .filter(email__iexact=new_email)
+        .exists()
+    ):
+        raise ValidationError("This email address is currently pending confirmation.")
+
+    try:
+        user.email = new_email
+        user.save(update_fields=["email"])
+        pending_email_change.delete()
+        invalidate_user_sessions(user_id=user.id)
+    except IntegrityError as e:
+        if get_constraint_name(e) == USER_EMAIL_UNIQUE_CONSTRAINT_NAME:
+            raise ValidationError("This email address is no longer available.") from e
+        raise
+
+    _delete_allauth_email_addresses_for_user(user_id)
+    delete_social_accounts_with_email(user_id=user_id, email=old_email)
+
     logger.info(
-        "User(id=%s) changed email from (id=%s) to (id=%s)",
-        user_id,
-        old_email.id,
-        new_email.id,
+        "User(id=%s) changed email from %s to %s.", user_id, old_email, new_email
     )
+
+
+def delete_social_accounts_with_email(*, user_id: int, email: str) -> None:
+    if not connection.in_atomic_block:
+        raise transaction.TransactionManagementError(
+            "This function must be called inside an atomic transaction."
+        )
+
+    normalized_email = normalize_email(email)
+
+    accounts = SocialAccount.objects.select_for_update().filter(user_id=user_id)
+
+    count = 0
+    for account in accounts:
+        account_email = normalize_email(account.extra_data.get("email"))
+
+        if account_email != normalized_email:
+            continue
+
+        account.delete()
+        logger.info("SocialAccount(id=%s) was removed.", account.id)
+        count += 1
+
+    logger.info(
+        "Deleted %d social accounts for User(id=%s) with email %s.",
+        count,
+        user_id,
+        normalized_email,
+    )
+
+
+def delete_expired_pending_email_changes() -> int:
+    return _delete_expired_pending_email_changes()
+
+
+def delete_expired_pending_email_changes_for_email(*, email: str) -> int:
+    email = normalize_email(email)
+    if not email:
+        return 0
+
+    return _delete_expired_pending_email_changes(email=email)
+
+
+def is_pending_email_change_expired(pending_email_change: PendingEmailChange) -> bool:
+    return (
+        pending_email_change.created_at
+        <= timezone.now() - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+    )
+
+
+def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
+    if not connection.in_atomic_block:
+        raise transaction.TransactionManagementError(
+            "This function must be called inside an atomic transaction."
+        )
+
+    deleted_count, _ = (
+        EmailAddress.objects.select_for_update().filter(user_id=user_id).delete()
+    )
+
+    logger.info(
+        "Deleted %d allauth EmailAddress rows for User(id=%s).", deleted_count, user_id
+    )
+
+
+def _delete_expired_pending_email_changes(*, email: str | None = None) -> int:
+    cutoff = timezone.now() - settings.USERS_PENDING_EMAIL_CHANGE_TTL
+
+    queryset = PendingEmailChange.objects.filter(created_at__lte=cutoff)
+
+    if email:
+        queryset = queryset.filter(email__iexact=email)
+
+    deleted_count, _ = queryset.delete()
+
+    if deleted_count:
+        if email:
+            logger.info(
+                "Deleted %d expired pending email change%s for email %s.",
+                deleted_count,
+                "" if deleted_count == 1 else "s",
+                email,
+            )
+        else:
+            logger.info(
+                "Deleted %d expired pending email change%s.",
+                deleted_count,
+                "" if deleted_count == 1 else "s",
+            )
+
+    return deleted_count

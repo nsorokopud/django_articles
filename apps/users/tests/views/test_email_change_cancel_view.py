@@ -1,8 +1,7 @@
-from allauth.account.models import EmailAddress
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from users.models import User
+from users.models import PendingEmailChange, User
 
 
 class TestEmailChangeCancelView(TestCase):
@@ -18,29 +17,31 @@ class TestEmailChangeCancelView(TestCase):
             response, redirect_url, status_code=302, target_status_code=200
         )
 
-    def test_no_pending_email_address(self):
-        EmailAddress.objects.create(
-            user=self.user, email=self.user.email, primary=True, verified=True
-        )
-        self.assertEqual(EmailAddress.objects.filter(user=self.user).count(), 1)
-        self.client.force_login(self.user)
-        response = self.client.post(self.url)
-        self.assertRedirects(
-            response, reverse("email-change"), status_code=302, target_status_code=200
-        )
-        self.assertEqual(EmailAddress.objects.filter(user=self.user).count(), 1)
-
-    def test_with_pending_email_address(self):
-        email = EmailAddress.objects.create(
-            user=self.user, email=self.user.email, primary=False, verified=False
-        )
-        self.assertEqual(EmailAddress.objects.filter(user=self.user).count(), 1)
+    def test_no_pending_email_change(self):
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())
 
         self.client.force_login(self.user)
         response = self.client.post(self.url)
         self.assertRedirects(
             response, reverse("email-change"), status_code=302, target_status_code=200
         )
-        with self.assertRaises(EmailAddress.DoesNotExist):
-            EmailAddress.objects.get(pk=email.pk)
-        self.assertEqual(EmailAddress.objects.filter(user=self.user).count(), 0)
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())
+
+    def test_with_pending_email_change(self):
+        pending_email_change = PendingEmailChange.objects.create(
+            user=self.user, email="new-user@test.com"
+        )
+
+        self.assertTrue(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.url)
+        self.assertRedirects(
+            response, reverse("email-change"), status_code=302, target_status_code=200
+        )
+        self.assertFalse(
+            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
+        )
+        self.assertFalse(PendingEmailChange.objects.filter(user=self.user).exists())

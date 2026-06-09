@@ -2,44 +2,61 @@ import os
 from typing import BinaryIO
 
 import magic
-
-from config.settings import ALLOWED_UPLOAD_FILE_TYPES, MAX_UPLOAD_FILE_SIZE
-
-from .exceptions import InvalidUpload
+from django.conf import settings
+from django.core.exceptions import ValidationError
 
 
-def validate_uploaded_file(file: BinaryIO) -> None:
+def validate_uploaded_image(file: BinaryIO) -> None:
+    validate_uploaded_file_type(
+        file=file,
+        allowed_file_types=settings.ALLOWED_IMAGE_UPLOAD_FILE_TYPES,
+        max_file_size=settings.MAX_IMAGE_UPLOAD_FILE_SIZE,
+    )
+
+
+def validate_uploaded_file_type(
+    *, file: BinaryIO, allowed_file_types: dict[str, str], max_file_size: int
+) -> None:
     if not hasattr(file, "name"):
-        raise InvalidUpload("Uploaded file must have a name.")
+        raise ValidationError("Uploaded file must have a name.")
 
     _, extension = os.path.splitext(file.name)
     extension = extension.lstrip(".").lower()
-    if extension not in ALLOWED_UPLOAD_FILE_TYPES:
-        raise InvalidUpload(f"Unsupported file extension: {extension}.")
+
+    if not extension:
+        raise ValidationError("Uploaded file must have an extension.")
+
+    if extension not in allowed_file_types:
+        raise ValidationError(f"Unsupported file extension: {extension}.")
 
     if not file.seekable():
-        raise InvalidUpload("Uploaded file must be seekable.")
+        raise ValidationError("Uploaded file must be seekable.")
 
     file.seek(0, os.SEEK_END)
     file_size = file.tell()
     file.seek(0)
-    if file_size > MAX_UPLOAD_FILE_SIZE:
-        raise InvalidUpload(
+
+    if file_size <= 0:
+        raise ValidationError("Uploaded file cannot be empty.")
+
+    if file_size > max_file_size:
+        raise ValidationError(
             f"File too large ({file_size} bytes). "
-            f"Max allowed: {MAX_UPLOAD_FILE_SIZE} bytes "
-            f"({MAX_UPLOAD_FILE_SIZE / 1024**2:.1f} MB)."
+            f"Max allowed: {max_file_size} bytes "
+            f"({max_file_size / 1024**2:.1f} MB)."
         )
 
     try:
-        mime_type = magic.from_buffer(file.read(1024), mime=True)
+        mime_type = magic.from_buffer(file.read(2048), mime=True)
     except (magic.MagicException, TypeError, AttributeError) as e:
-        raise InvalidUpload("File type not recognized.") from e
+        raise ValidationError("File type not recognized.") from e
     finally:
         file.seek(0)
 
-    expected_mime = ALLOWED_UPLOAD_FILE_TYPES[extension]
-    if expected_mime != mime_type:
-        raise InvalidUpload(
+    expected_mime = allowed_file_types[extension]
+
+    if mime_type != expected_mime:
+        raise ValidationError(
             "File content does not match its extension: "
             f"expected {expected_mime}, got {mime_type}."
         )

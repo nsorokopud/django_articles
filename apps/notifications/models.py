@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from users.models import User
 
@@ -46,10 +47,11 @@ class Notification(models.Model):
     dedupe_key = models.CharField(max_length=128, blank=True, default="")
     aggregate_key = models.CharField(max_length=128, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+    last_event_at = models.DateTimeField(default=timezone.now, db_index=True)
     read_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
-        ordering = ("-id",)
+        ordering = ("-last_event_at", "-id")
         constraints = [
             models.UniqueConstraint(
                 fields=["recipient", "dedupe_key"],
@@ -68,11 +70,12 @@ class Notification(models.Model):
         ]
         indexes = [
             models.Index(
-                fields=["recipient", "-id"], name="notif_recipient_id_desc_idx"
+                fields=["recipient", "-last_event_at", "-id"],
+                name="notif_rec_event_id_desc_idx",
             ),
             models.Index(
-                fields=["recipient", "-id"],
-                name="notif_unread_recip_id_desc_idx",
+                fields=["recipient", "-last_event_at", "-id"],
+                name="notif_unread_rec_event_id_idx",
                 condition=models.Q(read_at__isnull=True),
             ),
             models.Index(
@@ -83,6 +86,11 @@ class Notification(models.Model):
                     & models.Q(read_at__isnull=True)
                     & models.Q(notification_type=NotificationType.NEW_COMMENT)
                 ),
+            ),
+            models.Index(
+                fields=["read_at", "id"],
+                name="notif_read_cleanup_idx",
+                condition=models.Q(read_at__isnull=False),
             ),
         ]
 

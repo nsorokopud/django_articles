@@ -14,7 +14,6 @@ services:
     depends_on:
       - db
       - redis
-      - celery-worker
 
   db:
     image: postgres:17.0-alpine
@@ -22,9 +21,9 @@ services:
     expose:
       - 5432
     environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - db-volume:/var/lib/postgresql/data/
 
@@ -69,6 +68,9 @@ services:
     restart: 'unless-stopped'
     env_file:
       - .env
+    environment:
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:?DJANGO_SUPERUSER_USERNAME is required}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:?DJANGO_SUPERUSER_PASSWORD is required}
     entrypoint: celery
     command: >
       -A config flower --url-prefix=__flower__
@@ -80,23 +82,22 @@ services:
       - celery-worker
 
   nginx:
-    image: nsorokopud/django_articles:nginx-${SCHEME}
+    image: nsorokopud/django_articles:nginx-${SCHEME:?SCHEME is required}
     build:
       context: ./nginx
       args:
-        SCHEME: ${SCHEME}
+        SCHEME: ${SCHEME:?SCHEME is required}
     restart: 'unless-stopped'
     environment:
-      - DOMAIN_NAME=${DOMAIN_NAME}
-      - SSL_CERT_PATH=/etc/letsencrypt/live/${DOMAIN_NAME}/fullchain.pem
-      - SSL_CERT_KEY_PATH=/etc/letsencrypt/live/${DOMAIN_NAME}/privkey.pem
-      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+      DOMAIN_NAME: ${DOMAIN_NAME:?DOMAIN_NAME is required}
+      SSL_CERT_PATH: /etc/letsencrypt/live/${DOMAIN_NAME:?DOMAIN_NAME is required}/fullchain.pem
+      SSL_CERT_KEY_PATH: /etc/letsencrypt/live/${DOMAIN_NAME:?DOMAIN_NAME is required}/privkey.pem
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL:?CERTBOT_EMAIL is required}
     ports:
       - 80:80
       - 443:443
     depends_on:
       - web-app
-      - flower
     volumes:
       - media-volume:/app-media/
       - static-volume:/static/

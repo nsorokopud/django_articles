@@ -6,14 +6,14 @@
       {% if page_obj.has_previous %}
         {% if page_obj.number > 3 %}
           <li class="page-item">
-            <a href="{% relative_url 'page' 1 request.GET.urlencode %}"
+            <a href="{% relative_url 'page' 1 %}"
                class="page-link"
                aria-disabled="true">1</a>
           </li>
         {% endif %}
         <li class="page-item">
           <a class="page-link"
-             href="{% relative_url 'page' page_obj.previous_page_number request.GET.urlencode %}"
+             href="{% relative_url 'page' page_obj.previous_page_number %}"
              aria-label="Previous">
             <span aria-hidden="true">&lt;&lt;</span>
           </a>
@@ -23,20 +23,18 @@
       {% for p in paginator.page_range %}
         {% if p == page_obj.number %}
           <li class="page-item active">
-            <a href="{% relative_url 'page' p request.GET.urlencode %}"
-               class="page-link">{{ p }}</a>
+            <a href="{% relative_url 'page' p %}" class="page-link">{{ p }}</a>
           </li>
         {% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %}
           <li class="page-item">
-            <a class="page-link"
-               href="{% relative_url 'page' p request.GET.urlencode %}">{{ p }}</a>
+            <a class="page-link" href="{% relative_url 'page' p %}">{{ p }}</a>
           </li>
         {% endif %}
       {% endfor %}
 
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a href="{% relative_url 'page' page_obj.next_page_number request.GET.urlencode %}"
+          <a href="{% relative_url 'page' page_obj.next_page_number %}"
              class="page-link"
              aria-label="Next">
             <span aria-hidden="true">&gt;&gt;</span>
@@ -46,7 +44,7 @@
 
           <li class="page-item">
             <a class="page-link"
-               href="{% relative_url 'page' paginator.num_pages request.GET.urlencode %}">
+               href="{% relative_url 'page' paginator.num_pages %}">
             {{ paginator.num_pages }}</a>
           </li>
         {% endif %}

@@ -1,0 +1,45 @@
+{# djlint:off H021 #}
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div id="content-main">
+    <p>
+      Are you sure you want to <strong>{{ action }}</strong> this article?
+    </p>
+
+    <fieldset class="module aligned">
+      <div class="form-row">
+        <div>
+          <strong>Title:</strong> {{ article.title }}
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <strong>Status:</strong> {{ article.get_status_display }}
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <strong>Author:</strong> {{ article.author }}
+        </div>
+      </div>
+    </fieldset>
+
+    <form method="post" style="margin-top: 1rem;">
+      {% csrf_token %}
+
+      {% if form %}
+        <fieldset class="module aligned">
+          {{ form.as_p }}
+        </fieldset>
+      {% endif %}
+
+      <input type="submit"
+             value="{{ confirm_label }}"
+             class="default"
+             style="margin-right: 8px">
+      <a href="{{ back_url }}" class="button cancel-link">Cancel</a>
+    </form>
+  </div>
+{% endblock content %}
+{# djlint:on #}

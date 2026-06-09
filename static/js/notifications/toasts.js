@@ -1,4 +1,4 @@
-import { postJSON } from './utils.js';
+import { postJSON, safeInternalPath } from './utils.js';
 
 const TOAST_DISPLAY_DURATION_MS = 10 * 60 * 1000; // 10 min
 
@@ -7,6 +7,7 @@ export function showToast({
   title,
   body,
   timestamp,
+  lastEventAt = null,
   payload,
   link,
   markReadOnClick,
@@ -38,11 +39,16 @@ export function showToast({
 
   const headerText = document.createElement('strong');
   headerText.classList.add('me-auto');
-  headerText.innerHTML = title || '';
+  headerText.textContent = title || '';
 
   const headerTime = document.createElement('small');
   try {
-    const effectiveTimestamp = getToastTimestamp(timestamp, payload);
+    const effectiveTimestamp = getToastTimestamp({
+      timestamp,
+      lastEventAt,
+      payload,
+    });
+
     headerTime.dataset.relativeTimestamp = effectiveTimestamp;
     headerTime.innerText =
       luxon.DateTime.fromJSDate(new Date(effectiveTimestamp)).toRelative() ||
@@ -63,7 +69,7 @@ export function showToast({
 
   const toastBody = document.createElement('div');
   toastBody.classList.add('toast-body');
-  toastBody.innerHTML = body || '';
+  toastBody.textContent = body || '';
 
   toastEl.appendChild(toastHeader);
   toastEl.appendChild(toastBody);
@@ -81,7 +87,9 @@ export function showToast({
 
   toast.show();
 
-  if (link) {
+  const safeLink = safeInternalPath(link);
+
+  if (safeLink) {
     toastEl.style.cursor = 'pointer';
 
     let clicked = false;
@@ -102,12 +110,14 @@ export function showToast({
         await postJSON(`/notification/${id}/read/`);
       }
 
-      window.location.replace(link);
+      window.location.replace(safeLink);
     });
   }
 }
 
-function getToastTimestamp(timestamp, payload) {
+function getToastTimestamp({ timestamp, lastEventAt, payload }) {
+  if (lastEventAt) return lastEventAt;
+
   if (
     payload &&
     payload.kind === 'comment_aggregate' &&
@@ -115,5 +125,6 @@ function getToastTimestamp(timestamp, payload) {
   ) {
     return payload.last_comment_at;
   }
+
   return timestamp;
 }

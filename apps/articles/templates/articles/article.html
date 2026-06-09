@@ -14,9 +14,9 @@
               <div class="article-preview-author-right">
                 <a href="{% url 'author-page' article.author.id %}"
                    class="article-author-name">{{ article.author.username }}</a>
-                <time datetime="{{ article.created_at.isoformat }}"
+                <time datetime="{{ article.published_at.isoformat }}"
                       class="article-preview-date">
-                  {{ article.created_at|localtime|date:'H:i d-m-Y' }}
+                  {{ article.published_at|localtime|date:'H:i d-m-Y' }}
                 </time>
               </div>
             </div>
@@ -33,11 +33,13 @@
               {% with tags=article.tags.all %}
                 {% if tags %}
                   <ul class="article-tags-list">
-                    <span class="tags-span">Tags:</span>
+                    <li class="tags-span">Tags:</li>
                     {% for tag in tags %}
                       <li>
-                        <a href="{% url 'articles' %}?tags={{ tag.name }}"
-                           class="article-tag-link">#{{ tag.name }}</a>
+                        <a class="article-tag-link"
+                           href="{% url 'articles' %}?tags={{ tag.name|urlencode }}">
+                          #{{ tag.name }}
+                        </a>
                       </li>
                     {% endfor %}
                   </ul>
@@ -49,7 +51,7 @@
                        src="{{ article.preview_image.url }}"
                        alt="Article preview image">
                 {% endif %}
-                <p class="article-preview-text mt-3">{{ article.content|safe }}</p>
+                <div class="article-content mt-3">{{ article.content|safe }}</div>
 
                 <span class="article-preview-icons">
                   <span class="mx-2 article-preview-icons__item">
@@ -70,14 +72,6 @@
                     {{ article.likes_count }}</span>
                   </span>
                 </span>
-                {% if article.author == request.user %}
-                  <div class="mt-4">
-                    <a class="btn btn-secondary btn-sm mx-2"
-                       href="{% url 'article-update' article.slug %}">Edit</a>
-                    <a class="btn btn-danger btn-sm"
-                       href="{% url 'article-delete' article.slug %}">Delete</a>
-                  </div>
-                {% endif %}
               </div>
             </div>
           </article>
@@ -107,7 +101,7 @@
                   <h5>Add a comment</h5>
                   <form class="form-outline"
                         method="post"
-                        action="{% url 'article-comment' article.slug %}">
+                        action="{% url 'article-details' article.slug %}">
                     {% csrf_token %}
                     {{ form|crispy }}
                     <button type="submit" class="btn btn-success mt-3">
@@ -122,44 +116,27 @@
             <a href="{% url 'login' %}?next={% url 'article-details' article.slug %}"
                class="link-green">Log in to leave comments</a>
           {% endif %}
-          <div class="article-comments-container row d-flex justify-content-center my-5">
-            <div class="col-12">
-              {% for comment in comments %}
-                <div class="d-flex flex-start mb-4">
-                  <img class="rounded-circle shadow-1-strong me-3"
-                       src="{{ comment.author.profile.image.url }}"
-                       alt="avatar"
-                       width="65"
-                       height="65" />
-                  <div class="card w-100">
-                    <div class="card-body p-4">
-                      <h5>{{ comment.author.username }}</h5>
-                      <p class="small">{{ comment.created_at|localtime|date:'H:i d.m.Y' }}</p>
-                      <p>{{ comment.text }}</p>
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                          <a href="{% url 'comment-like' comment.id %}"
-                             class="like-link link-muted me-2"
-                             data-type="comment"
-                             data-id="{{ comment.id }}"
-                             data-logged-in="{{ request.user.is_authenticated|yesno }}">
-                            <i class="like-icon article-icon fas fa-thumbs-up m-1
-                                      {% if comment.id in liked_comments %}active{% endif %}">
-                            </i>
-                            <span class="like-counter comment-like-count">{{ comment.likes_count }}</span>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
+          <div id="commentsContainer"
+               class="article-comments-container row d-flex justify-content-center my-5">
+            <div class="col-12">{% include "articles/comment_list.html" %}</div>
           </div>
+
+          {% if comments_page_obj.has_next %}
+            <div class="text-center mb-5">
+              <button id="loadMoreCommentsButton"
+                      class="btn btn-outline-secondary"
+                      type="button"
+                      data-next-page="{{ comments_page_obj.next_page_number }}"
+                      data-comments-url="{% url 'article-comments-list' article.slug %}">
+                Load more comments
+              </button>
+            </div>
+          {% endif %}
         </div>
       </div>
     </section>
   </div>
   <!-- End of container 2 -->
   <script src="{% static 'js/likes.js' %}"></script>
+  <script src="{% static 'js/article-comments.js' %}"></script>
 {% endblock content-bottom %}

@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
-from articles.models import Article, ArticleComment
+from articles.models import Article
 from articles.selectors import find_articles_by_author
 from users.models import User
 
@@ -90,64 +90,6 @@ class TestFindArticlesByAuthor(TestCase):
         result = list(find_articles_by_author(self.author))
         self.assertEqual(result, [second, first])
 
-    def test_annotates_likes_count(self):
-        article = Article.objects.create(
-            title="Liked",
-            slug="liked",
-            author=self.author,
-            preview_text="p",
-            content="c",
-        )
-
-        article.users_that_liked.add(self.liker1, self.liker2)
-        result = find_articles_by_author(self.author).get(pk=article.pk)
-        self.assertEqual(result.likes_count, 2)
-
-    def test_annotates_comments_count(self):
-        article = Article.objects.create(
-            title="Commented",
-            slug="commented",
-            author=self.author,
-            preview_text="p",
-            content="c",
-        )
-
-        ArticleComment.objects.create(
-            article=article, author=self.liker1, text="First comment"
-        )
-        ArticleComment.objects.create(
-            article=article, author=self.liker2, text="Second comment"
-        )
-
-        result = find_articles_by_author(self.author).get(pk=article.pk)
-        self.assertEqual(result.comments_count, 2)
-
-    def test_annotates_likes_and_comments_together_correctly(self):
-        article = Article.objects.create(
-            title="Article",
-            slug="article",
-            author=self.author,
-            preview_text="p",
-            content="c",
-        )
-
-        article.users_that_liked.add(self.liker1, self.liker2)
-
-        ArticleComment.objects.create(
-            article=article,
-            author=self.liker1,
-            text="Comment 1",
-        )
-        ArticleComment.objects.create(
-            article=article,
-            author=self.liker2,
-            text="Comment 2",
-        )
-
-        result = find_articles_by_author(self.author).get(pk=article.pk)
-        self.assertEqual(result.likes_count, 2)
-        self.assertEqual(result.comments_count, 2)
-
     def test_prefetches_tags(self):
         article = Article.objects.create(
             title="Tagged",
@@ -181,6 +123,7 @@ class TestFindArticlesByAuthor(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status="rejected",
         )
         published = Article.objects.create(
@@ -189,6 +132,7 @@ class TestFindArticlesByAuthor(TestCase):
             author=self.author,
             preview_text="p",
             content="c",
+            content_text="c",
             status="published",
             published_at=timezone.now(),
             publish_sequence=1,

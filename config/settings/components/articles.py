@@ -1,0 +1,37 @@
+from ..env import env
+
+
+ARTICLES_ALLOWED_ARTICLE_CONTENT_URL_SCHEMES = set(
+    env.list("ARTICLES_ALLOWED_ARTICLE_CONTENT_URL_SCHEMES", default=["https"])
+)
+
+ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS = env.list(
+    "ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS", default=[]
+)
+
+ARTICLES_PER_PAGE = env.int("ARTICLES_PER_PAGE", default=5)
+
+ARTICLES_COMMENTS_PER_PAGE = env.int("ARTICLES_COMMENTS_PER_PAGE", default=20)
+
+# Time window during which the view counter increments only once per unique viewer
+ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS = env.int(
+    "ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS", default=3600
+)
+
+# Cache timeout for article slug-to-ID mappings
+ARTICLES_SLUG_ID_CACHE_TIMEOUT_SECONDS = env.int(
+    "ARTICLES_SLUG_ID_CACHE_TIMEOUT_SECONDS", default=3600
+)
+
+# Cache timeout for anonymous article detail pages
+ARTICLES_DETAIL_PAGE_CACHE_TIMEOUT_SECONDS = env.int(
+    "ARTICLES_DETAIL_PAGE_CACHE_TIMEOUT_SECONDS", default=300  # 5 minutes
+)
+
+ARTICLES_VIEW_COUNT_SYNC_MAX_ITERATIONS = env.int(
+    "ARTICLES_VIEW_COUNT_SYNC_MAX_ITERATIONS", default=20
+)
+
+ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE = env.int(
+    "ARTICLES_VIEW_COUNT_SYNC_MAX_BATCH_SIZE", default=500
+)

@@ -1,0 +1,22 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+  {% if original and can_review_article %}
+    {% if original.status == "pending_review" %}
+      <li>
+        <a href="{% url 'admin:articles_article_publish' original.pk %}">Publish</a>
+      </li>
+      <li>
+        <a href="{% url 'admin:articles_article_reject' original.pk %}">Reject</a>
+      </li>
+    {% elif original.status == "published" %}
+      <li>
+        <a href="{% url 'admin:articles_article_unpublish' original.pk %}">
+          Unpublish
+        </a>
+      </li>
+    {% endif %}
+  {% endif %}
+
+  {{ block.super }}
+{% endblock object-tools-items %}

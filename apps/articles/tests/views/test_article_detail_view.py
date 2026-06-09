@@ -1,26 +1,23 @@
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from django_redis import get_redis_connection
 
-from articles.cache import (
-    ARTICLE_VIEWED_BY_KEY,
-    ARTICLE_VIEWS_KEY,
+from articles.cache.view_counts import (
+    ARTICLE_UNIQUE_VIEW_KEY,
+    ARTICLE_UNSYNCED_VIEWS_KEY,
     VIEWED_ARTICLES_SET_KEY,
 )
 from articles.forms import ArticleCommentForm
 from articles.models import Article, ArticleCategory, ArticleComment, ArticleStatus
-from articles.settings import (
-    ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT,
-    ARTICLE_UNIQUE_VIEW_TIMEOUT,
-)
-from config.settings import CACHES
+from tests.cache_settings import override_settings_with_redis_cache
 from users.models import User
 
 
-@override_settings(CACHES=CACHES)
+@override_settings_with_redis_cache()
 class TestArticleDetailView(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -45,9 +42,11 @@ class TestArticleDetailView(TestCase):
             author=self.user,
             preview_text="1",
             content="1",
+            content_text="1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
             publish_sequence=1,
+            comments_count=1,
         )
         self.comment = ArticleComment.objects.create(
             author=self.user, article=self.article, text="comment"
@@ -88,7 +87,8 @@ class TestArticleDetailView(TestCase):
         keys = self.redis_conn.keys(query_string)
         self.assertEqual(len(keys), 1)
         self.assertEqual(
-            self.redis_conn.ttl(keys[0]), ARTICLE_DETAILS_PAGE_CACHE_TIMEOUT
+            self.redis_conn.ttl(keys[0]),
+            settings.ARTICLES_DETAIL_PAGE_CACHE_TIMEOUT_SECONDS,
         )
         self.assertTemplateUsed(response1, "articles/article.html")
 
@@ -118,12 +118,12 @@ class TestArticleDetailView(TestCase):
         self.article.views_count = 111
         self.article.save(update_fields=["views_count"])
 
-        views_key = ARTICLE_VIEWS_KEY.format(id=self.article.id)
-        viewed_by_key1 = ARTICLE_VIEWED_BY_KEY.format(
+        views_key = ARTICLE_UNSYNCED_VIEWS_KEY.format(id=self.article.id)
+        viewed_by_key1 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:anonymous"
         )
 
-        self.assertIsNone(self.redis_conn.get(VIEWED_ARTICLES_SET_KEY))
+        self.assertEqual(self.redis_conn.smembers(VIEWED_ARTICLES_SET_KEY), set())
         self.assertIsNone(self.redis_conn.get(views_key))
         self.assertIsNone(self.redis_conn.get(viewed_by_key1))
 
@@ -137,11 +137,11 @@ class TestArticleDetailView(TestCase):
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"1")
         self.assertEqual(self.redis_conn.get(viewed_by_key1), b"1")
-        self.assertEqual(
-            self.redis_conn.ttl(viewed_by_key1), ARTICLE_UNIQUE_VIEW_TIMEOUT
-        )
+        ttl1 = self.redis_conn.ttl(viewed_by_key1)
+        self.assertGreater(ttl1, 0)
+        self.assertLessEqual(ttl1, settings.ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS)
 
-        viewed_by_key2 = ARTICLE_VIEWED_BY_KEY.format(
+        viewed_by_key2 = ARTICLE_UNIQUE_VIEW_KEY.format(
             article_id=self.article.id, viewer_id="user:test_user"
         )
         self.assertEqual(self.redis_conn.get(viewed_by_key1), b"1")
@@ -151,9 +151,9 @@ class TestArticleDetailView(TestCase):
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"2")
         self.assertEqual(self.redis_conn.get(viewed_by_key2), b"1")
-        self.assertEqual(
-            self.redis_conn.ttl(viewed_by_key2), ARTICLE_UNIQUE_VIEW_TIMEOUT
-        )
+        ttl2 = self.redis_conn.ttl(viewed_by_key2)
+        self.assertGreater(ttl2, 0)
+        self.assertLessEqual(ttl2, settings.ARTICLES_UNIQUE_VIEW_WINDOW_SECONDS)
 
         self.client.get(self.url)
         self.assertEqual(self.redis_conn.get(views_key), b"2")
@@ -181,3 +181,89 @@ class TestArticleDetailView(TestCase):
     def test_nonexistent_article_returns_404(self):
         response = self.client.get(reverse("article-details", args=["missing-slug"]))
         self.assertEqual(response.status_code, 404)
+
+    def test_authenticated_user_can_post_valid_comment(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"text": "New valid comment"})
+
+        self.assertRedirects(response, self.url)
+        self.assertTrue(
+            ArticleComment.objects.filter(
+                article=self.article,
+                author=self.user,
+                text="New valid comment",
+            ).exists()
+        )
+
+    def test_authenticated_user_sees_form_errors_for_invalid_comment(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(self.url, {"text": "x"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTemplateUsed(response, "articles/article.html")
+        self.assertIsInstance(response.context["form"], ArticleCommentForm)
+        self.assertTrue(response.context["form"].errors)
+        self.assertIn("text", response.context["form"].errors)
+        self.assertEqual(ArticleComment.objects.count(), 1)
+
+    def test_authenticated_user_cannot_post_comment_to_unpublished_article(self):
+        self.client.force_login(self.user)
+
+        draft = Article.objects.create(
+            title="draft",
+            slug="draft",
+            category=self.category,
+            author=self.user,
+            preview_text="draft preview",
+            content="draft content",
+            status=ArticleStatus.DRAFT,
+        )
+
+        response = self.client.post(
+            reverse("article-details", args=[draft.slug]), {"text": "New valid comment"}
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(ArticleComment.objects.count(), 1)
+
+    def test_anonymous_user_cannot_post_comment(self):
+        response = self.client.post(self.url, {"text": "New comment"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.url)
+        self.assertEqual(ArticleComment.objects.count(), 1)
+
+    @override_settings(ARTICLES_COMMENTS_PER_PAGE=2)
+    def test_shows_only_first_comments_page(self):
+        ArticleComment.objects.all().delete()
+
+        comment1 = ArticleComment.objects.create(
+            article=self.article, author=self.user, text="comment 1"
+        )
+        comment2 = ArticleComment.objects.create(
+            article=self.article, author=self.user, text="comment 2"
+        )
+        comment3 = ArticleComment.objects.create(
+            article=self.article, author=self.user, text="comment 3"
+        )
+
+        self.article.comments_count = 3
+        self.article.save(update_fields=["comments_count"])
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["comments_count"], 3)
+        self.assertEqual(len(response.context["comments"]), 2)
+        self.assertContains(response, "Load more comments")
+        self.assertContains(
+            response, reverse("article-comments-list", args=[self.article.slug])
+        )
+
+        visible_comment_ids = [comment.id for comment in response.context["comments"]]
+
+        self.assertIn(comment3.id, visible_comment_ids)
+        self.assertIn(comment2.id, visible_comment_ids)
+        self.assertNotIn(comment1.id, visible_comment_ids)

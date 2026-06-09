@@ -1,10 +1,12 @@
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.like-link').forEach((link) => {
-    link.addEventListener('click', function (e) {
-      e.preventDefault();
-      handleLike(link);
-    });
-  });
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('.like-link');
+
+  if (!link) {
+    return;
+  }
+
+  e.preventDefault();
+  handleLike(link);
 });
 
 function handleLike(linkEl) {
@@ -20,34 +22,35 @@ function handleLike(linkEl) {
   const counterEl =
     linkEl.querySelector('.like-counter') ||
     linkEl.parentElement.querySelector('.like-counter');
-  const csrftoken = Cookies.get('csrftoken');
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', url, true);
-  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-  xhr.setRequestHeader('X-CSRFToken', csrftoken);
-  xhr.responseType = 'json';
-  xhr.send();
+  const liked = !iconEl.classList.contains('active');
 
-  xhr.onload = function () {
-    if (xhr.status === 200 && xhr.response) {
-      const { status, data } = xhr.response;
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRFToken': Cookies.get('csrftoken'),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ liked }),
+  })
+    .then(async (response) => {
+      const payload = await response.json().catch(() => ({}));
 
-      if (status === 'success' && data && typeof data.likes === 'number') {
-        iconEl?.classList.toggle('active');
-        counterEl.textContent = data.likes;
-      } else {
-        console.error('Unexpected response format:', xhr.response);
-        alert('Something went wrong. Please try again.');
+      if (!response.ok || payload.status !== 'success') {
+        throw new Error(
+          payload.message || 'Failed to like. Please try again later.',
+        );
       }
-    } else {
-      console.error('Like request failed. Status:', xhr.status, xhr.response);
-      alert('Failed to like. Please try again later.');
-    }
-  };
 
-  xhr.onerror = function () {
-    console.error('Network error occurred during like request.');
-    alert('Network error. Please check your connection.');
-  };
+      return payload;
+    })
+    .then((payload) => {
+      iconEl.classList.toggle('active', payload.data.liked);
+      counterEl.textContent = payload.data.likes;
+    })
+    .catch((error) => {
+      console.error(error);
+      alert(error.message || 'Something went wrong.');
+    });
 }

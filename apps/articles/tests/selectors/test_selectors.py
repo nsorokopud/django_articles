@@ -10,9 +10,6 @@ from articles.selectors import (
     find_comments_to_article,
     find_published_articles,
     find_subscription_feed_articles,
-    get_all_categories,
-    get_all_tags,
-    get_article_by_slug,
     get_comment_by_id,
 )
 from users.models import AuthorSubscription, User
@@ -36,6 +33,7 @@ class TestSelectors(TestCase):
             "author": self.test_user,
             "preview_text": "text",
             "content": "content",
+            "content_text": "content",
             "status": ArticleStatus.DRAFT,
             "published_at": None,
             "publish_sequence": None,
@@ -61,6 +59,7 @@ class TestSelectors(TestCase):
             author=self.test_user,
             preview_text="text1",
             content="content1",
+            content_text="content 1",
         )
         self.create_article(
             title="a2",
@@ -77,6 +76,7 @@ class TestSelectors(TestCase):
             author=self.test_user,
             preview_text="text3",
             content="content3",
+            content_text="content 3",
         )
         self.assertCountEqual(find_published_articles(), [a1, a3])
 
@@ -139,71 +139,92 @@ class TestSelectors(TestCase):
         cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
 
         a1 = self.create_published_article(
-            title="a1",
+            title="Article 1",
             slug="a1",
             category=self.test_category,
             author=self.test_user,
-            preview_text="text1",
-            content="content1",
+            preview_text="text 1",
+            content="<p>content1</p>",
+            content_text="content 1",
         )
         a1.tags.add("cat1", "tag1")
 
         a2 = self.create_published_article(
-            title="a2",
+            title="Article 2",
             slug="a2",
             category=self.test_category,
             author=self.test_user,
-            preview_text="text2",
-            content="content2",
+            preview_text="text 2",
+            content="<p>content2</p>",
+            content_text="content",
         )
 
         a3 = self.create_published_article(
-            title="a3",
+            title="Article 3",
             slug="a3",
             category=cat1,
             author=self.test_user,
-            preview_text="text3",
-            content="content3",
+            preview_text="text 3",
+            content="<p>content3</p>",
+            content_text="content",
         )
+
         a4 = self.create_published_article(
-            title="a4",
+            title="Article 4",
             slug="a4",
             category=cat1,
             author=self.test_user,
-            preview_text="text4",
-            content="content4",
+            preview_text="text 4",
+            content="<p>content4</p>",
+            content_text="content",
         )
         a4.tags.add("tag", "tag1", "tag2")
+
         self.create_article(
-            title="a5",
+            title="Article 5",
             slug="a5",
             category=cat1,
             author=self.test_user,
-            preview_text="text5",
-            content="content5",
+            preview_text="text 5",
+            content="<p>abc</p>",
+            content_text="abc",
         )
 
-        self.assertCountEqual(find_articles_by_query("a"), [a1, a2, a3, a4])  # By title
-        self.assertCountEqual(
-            find_articles_by_query("content"), [a1, a2, a3, a4]
-        )  # By content
-        self.assertCountEqual(find_articles_by_query("test_"), [a1, a2])  # By category
-        self.assertCountEqual(
-            find_articles_by_query("cat1"), [a1, a3, a4]
-        )  # By category + tag
-        self.assertCountEqual(find_articles_by_query("tag1"), [a1, a4])  # By tag
-        self.assertCountEqual(find_articles_by_query("agrj"), [])  # Not found
+        # Not found
+        self.assertCountEqual(find_articles_by_query("agrj"), [])
+
+        # By title
+        self.assertCountEqual(find_articles_by_query("artcle"), [a1, a2, a3, a4])
+
+        # By preview
+        self.assertCountEqual(find_articles_by_query("text"), [a1, a2, a3, a4])
+
+        # By content
+        self.assertCountEqual(find_articles_by_query("content"), [a1, a2, a3, a4])
+        self.assertCountEqual(find_articles_by_query("content 1"), [a1])
+
+        # Empty queries
+        self.assertCountEqual(find_articles_by_query(""), [a1, a2, a3, a4])
+        self.assertCountEqual(find_articles_by_query("   "), [a1, a2, a3, a4])
 
         # With queryset
         queryset = Article.objects.filter(id__in=[a1.id, a4.id])
-        self.assertCountEqual(find_articles_by_query("a", queryset), [a1, a4])
+        self.assertCountEqual(find_articles_by_query("article", queryset), [a1, a4])
         self.assertCountEqual(find_articles_by_query("content", queryset), [a1, a4])
-        self.assertCountEqual(find_articles_by_query("test_", queryset), [a1])
-        self.assertCountEqual(find_articles_by_query("cat1", queryset), [a1, a4])
 
-        queryset = Article.objects.filter(id__in=[a1.id, a2.id, a3.id])
-        self.assertCountEqual(find_articles_by_query("tag1", queryset), [a1])
-        self.assertCountEqual(find_articles_by_query("agrj", queryset), [])
+    def test_find_articles_by_query_does_not_match_html_tags(self):
+        self.create_published_article(
+            title="x",
+            slug="x",
+            category=self.test_category,
+            author=self.test_user,
+            preview_text="preview",
+            content="<p>Hello <strong>world</strong></p>",
+            content_text="Hello world",
+        )
+
+        self.assertCountEqual(find_articles_by_query("<p>"), [])
+        self.assertCountEqual(find_articles_by_query("strong"), [])
 
     def test_find_comments_to_article(self):
         a1 = self.create_published_article(
@@ -231,60 +252,6 @@ class TestSelectors(TestCase):
         )
         self.assertCountEqual(find_comments_to_article(a1), [comment1, comment3])
 
-    def test_get_all_categories(self):
-        cat1 = ArticleCategory.objects.create(title="cat1", slug="cat1")
-        cat2 = ArticleCategory.objects.create(title="cat2", slug="cat2")
-        self.assertCountEqual(get_all_categories(), [cat1, cat2, self.test_category])
-
-    def test_get_all_tags(self):
-        a1 = self.create_article(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-        a2 = self.create_article(
-            title="a2",
-            slug="a2",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text2",
-            content="content2",
-        )
-
-        res = get_all_tags()
-        self.assertCountEqual(res, [])
-
-        a1.tags.add("tag1", "tag2")
-        res = [tag.name for tag in get_all_tags()]
-        self.assertCountEqual(res, ["tag1", "tag2"])
-
-        a2.tags.add("tag2", "tag3")
-        res = [tag.name for tag in get_all_tags()]
-        self.assertCountEqual(res, ["tag1", "tag2", "tag3"])
-
-    def test_get_article_by_slug(self):
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_slug("a1")
-
-        a = self.create_article(
-            title="a1",
-            slug="a1",
-            category=self.test_category,
-            author=self.test_user,
-            preview_text="text1",
-            content="content1",
-        )
-
-        res = get_article_by_slug("a1")
-        self.assertEqual(res, a)
-
-        a.delete()
-        with self.assertRaises(Article.DoesNotExist):
-            get_article_by_slug("a1")
-
     def test_find_article_comments_liked_by_user(self):
         a1 = self.create_published_article(
             title="a1",
@@ -298,7 +265,9 @@ class TestSelectors(TestCase):
         comment1 = ArticleComment.objects.create(
             article=a1, author=self.test_user, text="text"
         )
-        ArticleComment.objects.create(article=a1, author=self.test_user, text="text")
+        comment2 = ArticleComment.objects.create(
+            article=a1, author=self.test_user, text="text"
+        )
         comment3 = ArticleComment.objects.create(
             article=a1, author=self.test_user, text="text"
         )
@@ -307,8 +276,11 @@ class TestSelectors(TestCase):
         comment3.users_that_liked.add(self.test_user)
 
         self.assertCountEqual(
-            find_article_comments_liked_by_user(a1, self.test_user),
-            [comment1.id, comment3.id],
+            find_article_comments_liked_by_user(
+                [comment1.id, comment2.id],
+                self.test_user,
+            ),
+            [comment1.id],
         )
 
     def test_find_published_articles_ordered_by_publish_sequence_desc(self):
@@ -365,6 +337,7 @@ class TestFindSubscriptionFeedArticles(TestCase):
             author=self.author,
             preview_text="text1",
             content="content1",
+            content_text="content 1",
             status=ArticleStatus.PUBLISHED,
             publish_sequence=1,
             published_at=timezone.now(),
@@ -381,6 +354,7 @@ class TestFindSubscriptionFeedArticles(TestCase):
             author=self.other_author,
             preview_text="text2",
             content="content2",
+            content_text="content 2",
             status=ArticleStatus.PUBLISHED,
             publish_sequence=2,
             published_at=timezone.now(),

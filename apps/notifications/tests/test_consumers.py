@@ -57,12 +57,14 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "body": "b",
             "payload": None,
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
         }
         msg = NotificationConsumer._build_message_from_event(event)
         self.assertIsNotNone(msg)
         assert msg is not None
         self.assertIn("payload", msg)
         self.assertIsNone(msg["payload"])
+        self.assertEqual(msg["last_event_at"], "2026-01-01T12:00:00Z")
 
     def test_build_message_from_event_defaults_payload_to_none(self):
         event = {
@@ -71,12 +73,14 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "title": "t",
             "body": "b",
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
         }
         msg = NotificationConsumer._build_message_from_event(event)
         self.assertIsNotNone(msg)
         assert msg is not None
         self.assertIn("payload", msg)
         self.assertIsNone(msg["payload"])
+        self.assertEqual(msg["last_event_at"], "2026-01-01T12:00:00Z")
 
     def test_build_message_from_event_includes_is_new_unread(self):
         event = {
@@ -86,6 +90,7 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "body": "b",
             "payload": None,
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
             "is_new_unread": False,
         }
         msg = NotificationConsumer._build_message_from_event(event)
@@ -102,6 +107,7 @@ class TestNotificationConsumerUnit(SimpleTestCase):
             "body": "b",
             "payload": None,
             "timestamp": "2026-01-01T12:00:00Z",
+            "last_event_at": "2026-01-01T12:00:00Z",
         }
         msg = NotificationConsumer._build_message_from_event(event)
         self.assertIsNotNone(msg)
@@ -121,18 +127,18 @@ class TestNotificationConsumerUnit(SimpleTestCase):
 
 @override_settings(
     CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
-    ACCEPT_TIMEOUT_SECONDS=0.2,
-    GROUP_OPERATION_TIMEOUT_SECONDS=0.2,
-    SEND_JSON_TIMEOUT_SECONDS=0.2,
+    NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS=0.2,
+    NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS=0.2,
+    NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS=0.2,
 )
 class TestNotificationConsumerASGI(SimpleTestCase):
     def setUp(self):
         super().setUp()
         self.no_message_timeout = (
             max(
-                settings.ACCEPT_TIMEOUT_SECONDS,
-                settings.GROUP_OPERATION_TIMEOUT_SECONDS,
-                settings.SEND_JSON_TIMEOUT_SECONDS,
+                settings.NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS,
+                settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS,
+                settings.NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS,
             )
             + 0.2  # > timeouts for CI jitter
         )
@@ -155,6 +161,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         body: str = "b",
         payload=None,
         timestamp: str = "2026-01-01T12:00:00Z",
+        last_event_at: str = "2026-01-01T12:00:00Z",
         is_new_unread: bool = True,
     ) -> dict:
         return {
@@ -164,6 +171,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             "body": body,
             "payload": payload,
             "timestamp": timestamp,
+            "last_event_at": last_event_at,
             "is_new_unread": is_new_unread,
         }
 
@@ -291,6 +299,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             self.assertEqual(msg["body"], "b")
             self.assertIsNone(msg["payload"])
             self.assertEqual(msg["timestamp"], "2026-01-01T12:00:00Z")
+            self.assertEqual(msg["last_event_at"], "2026-01-01T12:00:00Z")
             self.assertTrue(msg["is_new_unread"])
 
     async def test_group_send_delivers_notification_with_is_new_unread_false(self):
@@ -431,7 +440,9 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         layer = get_channel_layer()
 
         async def slow_group_add(group: str, channel: str):
-            await asyncio.sleep(settings.GROUP_OPERATION_TIMEOUT_SECONDS + 0.5)
+            await asyncio.sleep(
+                settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS + 0.5
+            )
 
         try:
             with mock.patch.object(layer, "group_add", new=slow_group_add):
@@ -448,7 +459,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         connect_task = None
 
         async def slow_accept(_self, *args, **kwargs):
-            await asyncio.sleep(settings.ACCEPT_TIMEOUT_SECONDS + 0.5)
+            await asyncio.sleep(settings.NOTIFICATIONS_WS_ACCEPT_TIMEOUT_SECONDS + 0.5)
 
         try:
             with mock.patch.object(NotificationConsumer, "accept", new=slow_accept):
@@ -475,7 +486,9 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         comm, captured = self._make_communicator_with_instance(user)
 
         async def slow_send_json(content, close=False, **kwargs):
-            await asyncio.sleep(settings.SEND_JSON_TIMEOUT_SECONDS + 0.5)
+            await asyncio.sleep(
+                settings.NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS + 0.5
+            )
 
         async with self._connected_comm(comm):
             consumer = captured["consumer"]
@@ -938,6 +951,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                     body="B",
                     payload=None,
                     timestamp="2026-01-01T12:00:01Z",
+                    last_event_at="2026-01-01T12:00:01Z",
                 ),
             )
 

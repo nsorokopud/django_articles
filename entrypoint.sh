@@ -2,8 +2,8 @@
 
 set -e
 
-mkdir -p /app/logs /app/media /app/staticfiles
-chown -R articles_user:articles_user /app/logs /app/media /app/staticfiles
+mkdir -p /app/logs
+chown -R articles_user:articles_user /app/logs
 
 # Re-exec this script as articles_user
 if [ "$(whoami)" != "articles_user" ]; then
@@ -11,19 +11,6 @@ if [ "$(whoami)" != "articles_user" ]; then
 fi
 
 ./manage.py wait_for_db
-./manage.py migrate --noinput
-
-if [ "$LOAD_INITIAL_FIXTURES" = "1" ]; then
-    echo "Loading initial fixture data..."
-    ./manage.py collect_fixture_media --noinput
-    ./manage.py loaddata fixtures/initial_data.json
-    ./manage.py reset_article_publish_sequence
-else
-    echo "Skipping fixture load"
-fi
-
-./manage.py createsuperuser --noinput || true
-./manage.py collectstatic --noinput
 
 if [ $# -eq 0 ]; then
     if [ "$SCHEME" == "http" ]; then

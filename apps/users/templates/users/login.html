@@ -6,7 +6,7 @@
     {% csrf_token %}
     <fieldset>
       <div class="form-group">
-        <legend class="botder-bottom mb-4">Log In</legend>
+        <legend class="mb-4">Log In</legend>
         {{ form|crispy }}
       </div>
     </fieldset>
@@ -16,20 +16,22 @@
       </button>
       <a href="{% url 'password-reset' %}" class="btn btn-secondary">Reset Password</a>
     </div>
-    <div class="form-group">
-      <h5 class="text-center mb-3">Or</h5>
-      {# djlint:off D018 #}
-      <a class="google-btn"
-         href="{% provider_login_url 'google' action='reauthenticate' %}">
+  </form>
+
+  <div class="form-group">
+    <h5 class="text-center mb-3">Or</h5>
+
+    <form method="post" action="{% provider_login_url 'google' %}">
+      {% csrf_token %}
+      <button type="submit" class="google-btn">
         <img src="https://img.icons8.com/color/48/000000/google-logo.png"
              alt="Google Logo"
              height="30px"
              width="30px">
         <span>Sign in with Google</span>
-      </a>
-      {# djlint:on #}
-    </div>
-  </form>
+      </button>
+    </form>
+  </div>
 {% endblock form %}
 
 {% block form-after %}

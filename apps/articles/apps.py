@@ -6,4 +6,4 @@ class ArticlesConfig(AppConfig):
     name = "articles"
 
     def ready(self):
-        from . import signals  # noqa: F401 pylint: disable=W0611
+        from . import signals  # noqa pylint: disable=unused-import

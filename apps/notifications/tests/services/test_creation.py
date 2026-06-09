@@ -1,3 +1,5 @@
+# mypy: disable-error-code="arg-type"
+
 from unittest.mock import patch, sentinel
 
 from django.db import IntegrityError
@@ -5,29 +7,27 @@ from django.test import TestCase
 
 from notifications.models import Notification, NotificationType
 from notifications.services.creation import (
+    create_deduped_notification,
+    create_deduped_system_notification,
     create_new_comment_notification,
-    create_notification,
-    create_system_notification,
 )
 from users.models import User
 
 
-class TestCreateNotification(TestCase):
+class TestCreateDedupedNotification(TestCase):
     def setUp(self) -> None:
         self.recipient = User.objects.create_user(
-            username="recipient",
-            email="recipient@test.com",
+            username="recipient", email="recipient@test.com"
         )
         self.sender = User.objects.create_user(
-            username="sender",
-            email="sender@test.com",
+            username="sender", email="sender@test.com"
         )
 
     def test_creates_row_and_increments_unread(self) -> None:
         self.recipient.refresh_from_db()
         self.assertEqual(self.recipient.unread_notifications_count, 0)
 
-        n, created = create_notification(
+        n, created = create_deduped_notification(
             recipient_id=self.recipient.id,
             sender_id=self.sender.id,
             notification_type=NotificationType.SYSTEM,
@@ -52,7 +52,7 @@ class TestCreateNotification(TestCase):
         self.assertEqual(n_db.dedupe_key, "k1")
 
     def test_payload_none_normalizes_to_empty_dict(self) -> None:
-        n, created = create_notification(
+        n, created = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T",
@@ -67,7 +67,7 @@ class TestCreateNotification(TestCase):
     def test_payload_non_dict_logs_warning_and_becomes_empty_dict(
         self, mock_logger_warning
     ) -> None:
-        n, created = create_notification(
+        n, created = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T",
@@ -82,7 +82,7 @@ class TestCreateNotification(TestCase):
     def test_dedupe_collision_returns_existing_and_does_not_increment_unread(
         self,
     ) -> None:
-        n1, created1 = create_notification(
+        n1, created1 = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T1",
@@ -94,7 +94,7 @@ class TestCreateNotification(TestCase):
         self.recipient.refresh_from_db()
         self.assertEqual(self.recipient.unread_notifications_count, 1)
 
-        n2, created2 = create_notification(
+        n2, created2 = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T2-ignored",
@@ -121,7 +121,7 @@ class TestCreateNotification(TestCase):
         self, create_mock
     ) -> None:
         with self.assertRaises(IntegrityError):
-            create_notification(
+            create_deduped_notification(
                 recipient_id=self.recipient.id,
                 notification_type=NotificationType.SYSTEM,
                 title="T",
@@ -135,14 +135,14 @@ class TestCreateNotification(TestCase):
         side_effect=IntegrityError("error"),
     )
     @patch(
-        "notifications.services.creation._is_dedupe_violation",
-        return_value=False,
+        "notifications.services.creation.get_constraint_name",
+        return_value="other_constraint",
     )
     def test_integrity_error_other_constraint_is_reraised(
-        self, mock_is_dedupe_violation, mock_create
+        self, mock_get_constraint_name, mock_create
     ) -> None:
         with self.assertRaises(IntegrityError):
-            create_notification(
+            create_deduped_notification(
                 recipient_id=self.recipient.id,
                 notification_type=NotificationType.SYSTEM,
                 title="T",
@@ -152,7 +152,7 @@ class TestCreateNotification(TestCase):
             )
 
     def test_strips_dedupe_key(self) -> None:
-        n1, created1 = create_notification(
+        n1, created1 = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T1",
@@ -162,7 +162,7 @@ class TestCreateNotification(TestCase):
         )
         self.assertTrue(created1)
 
-        n2, created2 = create_notification(
+        n2, created2 = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T2",
@@ -174,7 +174,7 @@ class TestCreateNotification(TestCase):
         self.assertEqual(n2.id, n1.id)
 
     def test_empty_dedupe_key_allows_duplicates(self) -> None:
-        n1, created1 = create_notification(
+        n1, created1 = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T1",
@@ -182,7 +182,7 @@ class TestCreateNotification(TestCase):
             payload={},
             dedupe_key="",
         )
-        n2, created2 = create_notification(
+        n2, created2 = create_deduped_notification(
             recipient_id=self.recipient.id,
             notification_type=NotificationType.SYSTEM,
             title="T2",
@@ -198,12 +198,10 @@ class TestCreateNotification(TestCase):
 class TestCreateNewCommentNotification(TestCase):
     def setUp(self) -> None:
         self.recipient = User.objects.create_user(
-            username="recipient",
-            email="recipient@test.com",
+            username="recipient", email="recipient@test.com"
         )
         self.sender = User.objects.create_user(
-            username="sender",
-            email="sender@test.com",
+            username="sender", email="sender@test.com"
         )
 
     def test_returns_none_on_self_comment(self) -> None:
@@ -247,22 +245,18 @@ class TestCreateNewCommentNotification(TestCase):
         )
 
 
-class TestCreateSystemNotification(TestCase):
+class TestCreateDedupedSystemNotification(TestCase):
     def setUp(self) -> None:
         self.recipient = User.objects.create_user(
-            username="recipient",
-            email="recipient@test.com",
+            username="recipient", email="recipient@test.com"
         )
         self.sender = User.objects.create_user(
-            username="sender",
-            email="sender@test.com",
+            username="sender", email="sender@test.com"
         )
 
-    def test_create_system_notification_defaults_type_and_level(self) -> None:
-        n, created = create_system_notification(
-            recipient_id=self.recipient.id,
-            title="T",
-            body="B",
+    def test_create_deduped_system_notification_defaults_type_and_level(self) -> None:
+        n, created = create_deduped_system_notification(
+            recipient_id=self.recipient.id, title="T", body="B"
         )
         self.assertTrue(created)
 
@@ -272,8 +266,8 @@ class TestCreateSystemNotification(TestCase):
         self.assertEqual(n_db.title, "T")
         self.assertEqual(n_db.body, "B")
 
-    def test_create_system_notification_allows_custom_level(self) -> None:
-        n, created = create_system_notification(
+    def test_create_deduped_system_notification_allows_custom_level(self) -> None:
+        n, created = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             level=Notification.Level.ERROR,
             title="T",
@@ -284,10 +278,10 @@ class TestCreateSystemNotification(TestCase):
             Notification.objects.get(id=n.id).level, Notification.Level.ERROR
         )
 
-    def test_create_system_notification_forwards_sender_payload_and_dedupe(
+    def test_create_deduped_system_notification_forwards_sender_payload_and_dedupe(
         self,
     ) -> None:
-        n, created = create_system_notification(
+        n, created = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             sender_id=self.sender.id,
             title="T",
@@ -302,8 +296,8 @@ class TestCreateSystemNotification(TestCase):
         self.assertEqual(n_db.payload, {"link": "/x/"})
         self.assertEqual(n_db.dedupe_key, "sys:1")
 
-    def test_create_system_notification_dedupe_returns_existing(self) -> None:
-        n1, created1 = create_system_notification(
+    def test_create_deduped_system_notification_dedupe_returns_existing(self) -> None:
+        n1, created1 = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             title="T1",
             body="B1",
@@ -314,7 +308,7 @@ class TestCreateSystemNotification(TestCase):
         self.recipient.refresh_from_db()
         self.assertEqual(self.recipient.unread_notifications_count, 1)
 
-        n2, created2 = create_system_notification(
+        n2, created2 = create_deduped_system_notification(
             recipient_id=self.recipient.id,
             title="T2",
             body="B2",
