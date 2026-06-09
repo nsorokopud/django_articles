@@ -13,47 +13,60 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.12.2
           cache: 'pip'
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: v18.19.1
+
       - name: Install Python Dependencies
         run: pip install -r requirements-dev.txt
+
       - name: Install Node.js Dependencies
-        run: |
-          npm install
+        run: npm ci
+
       - name: Run Djade
         run: |
           djade --target-version 5.1 --check $(git ls-files '*.html')
+
       - name: Run djLint
         run: |
           djlint --check --lint $(git ls-files '*.html')
+
       - name: Run Prettier
         run: |
           npx prettier --check .
+
       - name: Run ESLint
         run: |
           npx eslint $(git ls-files '*.js')
+
       - name: Run isort
         run: |
           isort $(git ls-files '*.py')
+
       - name: Run Black
         run: |
           black --check $(git ls-files '*.py')
+
       - name: Run Bandit
         run: |
           bandit -c pyproject.toml -r $(git ls-files '*.py')
+
       - name: Run Flake8
         run: |
           flake8 $(git ls-files '*.py')
+
       - name: Run Pylint
         run: |
           pylint $(git ls-files '*.py')
+
       - name: Run mypy
         run: |
           mypy --install-types --non-interactive \
