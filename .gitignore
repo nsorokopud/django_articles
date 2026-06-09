@@ -332,3 +332,6 @@ logs
 
 # Docker
 docker-compose.override.yaml
+
+# Local Makefile
+Makefile.local
