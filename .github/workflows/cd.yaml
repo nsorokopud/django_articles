@@ -10,6 +10,18 @@ jobs:
     name: Build Docker Images
     env:
       SCHEME: ${{ secrets.SCHEME }}
+
+      # Build-only placeholders required for docker compose interpolation.
+      # Real production values are read from the server-side .env file.
+      DB_NAME: django_articles_build
+      DB_USER: postgres
+      DB_PASSWORD: build-password
+
+      DOMAIN_NAME: example.com
+      CERTBOT_EMAIL: admin@example.com
+
+      DJANGO_SUPERUSER_USERNAME: build_admin
+      DJANGO_SUPERUSER_PASSWORD: build-password
     steps:
       - uses: actions/checkout@v4
 
