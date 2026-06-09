@@ -5,6 +5,8 @@ services:
     restart: 'unless-stopped'
     env_file:
       - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
     expose:
       - 8000
     volumes:
@@ -33,6 +35,8 @@ services:
     restart: 'unless-stopped'
     env_file:
       - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
     entrypoint: celery
     command: -A config worker -l INFO
     volumes:
@@ -48,6 +52,8 @@ services:
     restart: 'unless-stopped'
     env_file:
       - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
     entrypoint: celery
     command: -A config beat -l INFO
     volumes:
@@ -69,6 +75,7 @@ services:
     env_file:
       - .env
     environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
       DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:?DJANGO_SUPERUSER_USERNAME is required}
       DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:?DJANGO_SUPERUSER_PASSWORD is required}
     entrypoint: celery
