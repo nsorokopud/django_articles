@@ -16,6 +16,8 @@ from articles.models import Article, ArticleCategory, ArticleComment, ArticleSta
 from tests.cache_settings import override_settings_with_redis_cache
 from users.models import User
 
+from ...exceptions import ArticleNotPublishedCommentError
+
 
 @override_settings_with_redis_cache()
 class TestArticleDetailView(TestCase):
@@ -190,11 +192,12 @@ class TestArticleDetailView(TestCase):
         self.assertRedirects(response, self.url)
         self.assertTrue(
             ArticleComment.objects.filter(
-                article=self.article,
-                author=self.user,
-                text="New valid comment",
+                article=self.article, author=self.user, text="New valid comment"
             ).exists()
         )
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 2)
 
     def test_authenticated_user_sees_form_errors_for_invalid_comment(self):
         self.client.force_login(self.user)
@@ -207,6 +210,32 @@ class TestArticleDetailView(TestCase):
         self.assertTrue(response.context["form"].errors)
         self.assertIn("text", response.context["form"].errors)
         self.assertEqual(ArticleComment.objects.count(), 1)
+
+    @patch("articles.forms.create_article_comment")
+    def test_authenticated_user_sees_form_error_when_comment_service_rejects(
+        self, mock_create_article_comment
+    ):
+        self.client.force_login(self.user)
+        mock_create_article_comment.side_effect = ArticleNotPublishedCommentError(
+            "Comments can only be added to published articles."
+        )
+
+        response = self.client.post(self.url, {"text": "New valid comment"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTemplateUsed(response, "articles/article.html")
+        self.assertIsInstance(response.context["form"], ArticleCommentForm)
+
+        form = response.context["form"]
+        self.assertIn("__all__", form.errors)
+        self.assertIn(
+            "Comments can only be added to published articles.", form.errors["__all__"]
+        )
+
+        self.assertEqual(ArticleComment.objects.count(), 1)
+
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.comments_count, 1)
 
     def test_authenticated_user_cannot_post_comment_to_unpublished_article(self):
         self.client.force_login(self.user)

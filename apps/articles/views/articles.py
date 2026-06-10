@@ -21,6 +21,7 @@ from users.services.subscriptions import (
     advance_subscriptions_last_seen_publish_sequence,
 )
 
+from ..exceptions import ArticleCommentError
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
 from ..media_paths import normalize_url_prefix
@@ -231,7 +232,15 @@ class ArticleDetailView(DetailView):
         form = ArticleCommentForm(request.POST, user=request.user, article=self.object)
 
         if form.is_valid():
-            form.save()
+            try:
+                form.save()
+            except ArticleCommentError as e:
+                form.add_error(None, str(e))
+                messages.error(request, "Your comment could not be posted.")
+                return self.render_to_response(
+                    self.get_context_data(form=form), status=400
+                )
+
             messages.success(request, "Your comment has been posted.")
             return redirect("article-details", article_slug=self.object.slug)
 

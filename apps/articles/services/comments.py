@@ -2,13 +2,14 @@ import logging
 
 from django.conf import settings
 from django.core.paginator import Page, Paginator
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Count, F
 
 from notifications.services.creation import create_new_comment_notification
 from notifications.services.dispatch import dispatch_notification_after_commit
 from users.models import User
 
+from ..exceptions import ArticleNotFoundCommentError, ArticleNotPublishedCommentError
 from ..models import Article, ArticleComment, ArticleStatus
 from ..selectors import find_article_comments_liked_by_user, find_comments_to_article
 
@@ -19,16 +20,31 @@ logger = logging.getLogger(__name__)
 def create_article_comment(*, article_id: int, user: User, text: str) -> ArticleComment:
     """Creates an article comment and schedules related notification dispatch."""
     with transaction.atomic():
-        article = Article.objects.select_for_update().get(pk=article_id)
+        try:
+            article = Article.objects.only(
+                "id", "status", "author_id", "slug", "title"
+            ).get(pk=article_id)
+        except Article.DoesNotExist as e:
+            raise ArticleNotFoundCommentError("Article does not exist.") from e
 
         if article.status != ArticleStatus.PUBLISHED:
-            raise ValueError("comments can only be added to published articles")
+            raise ArticleNotPublishedCommentError(
+                "Comments can only be added to published articles."
+            )
 
-        comment = ArticleComment.objects.create(article=article, author=user, text=text)
-
-        Article.objects.filter(pk=article.pk).update(
-            comments_count=F("comments_count") + 1
+        comment = ArticleComment.objects.create(
+            article_id=article_id, author_id=user.id, text=text
         )
+
+        updated_count = Article.objects.filter(
+            pk=article_id,
+            status=ArticleStatus.PUBLISHED,
+        ).update(comments_count=F("comments_count") + 1)
+
+        if updated_count != 1:
+            raise ArticleNotPublishedCommentError(
+                "Comments can only be added to published articles."
+            )
 
         notification_data = {
             "comment_id": comment.id,
@@ -40,24 +56,8 @@ def create_article_comment(*, article_id: int, user: User, text: str) -> Article
             "article_title": article.title,
         }
 
-    try:
-        with transaction.atomic():
-            notification_result = create_new_comment_notification(**notification_data)
-
-            if notification_result is not None:
-                notification, created = notification_result
-                dispatch_notification_after_commit(
-                    notification_id=notification.id,
-                    notification_type=notification.notification_type,
-                    is_new_unread=created,
-                )
-    except (IntegrityError, RuntimeError):
-        logger.exception(
-            "Failed to create notification for article comment %s "
-            "(article_id=%s, user_id=%s)",
-            comment.id,
-            notification_data["article_id"],
-            user.id,
+        transaction.on_commit(
+            lambda: _create_and_dispatch_comment_notification(notification_data)
         )
 
     return comment
@@ -109,3 +109,26 @@ def sync_article_comments_count(*, batch_size: int = 1000) -> None:
                 )
 
         last_id = articles[-1].id
+
+
+def _create_and_dispatch_comment_notification(notification_data: dict) -> None:
+    try:
+        with transaction.atomic():
+            notification_result = create_new_comment_notification(**notification_data)
+
+            if notification_result is not None:
+                notification, created = notification_result
+                dispatch_notification_after_commit(
+                    notification_id=notification.id,
+                    notification_type=notification.notification_type,
+                    is_new_unread=created,
+                )
+
+    except Exception:  # pylint: disable=broad-exception-caught
+        logger.exception(
+            "Failed to create notification for article comment %s "
+            "(article_id=%s, user_id=%s)",
+            notification_data["comment_id"],
+            notification_data["article_id"],
+            notification_data["comment_author_id"],
+        )
