@@ -3,7 +3,7 @@ from uuid import uuid4
 from allauth.account.views import LogoutView
 from allauth.socialaccount.providers.google import views as google_views
 from django.test import SimpleTestCase
-from django.urls import resolve, reverse
+from django.urls import Resolver404, resolve, reverse
 
 from users.views import (
     AccountActivationView,
@@ -87,6 +87,10 @@ class TestURLs(SimpleTestCase):
         url = reverse("login")
         self.assertEqual(resolve(url).func.view_class, UserLoginView)
 
+    def test_google_login_url_is_resolved(self):
+        url = reverse("google_login")
+        self.assertEqual(resolve(url).url_name, "google_login")
+
     def test_google_login_by_token_url_is_resolved(self):
         url = reverse("google_login_by_token")
         self.assertEqual(resolve(url).func.view_class, google_views.LoginByTokenView)
@@ -94,6 +98,15 @@ class TestURLs(SimpleTestCase):
     def test_user_logout_url_is_resolved(self):
         url = reverse("account_logout")
         self.assertEqual(resolve(url).func.view_class, LogoutView)
+
+    def test_allauth_local_account_urls_are_not_exposed(self):
+        for url in (
+            "/accounts/login/",
+            "/accounts/signup/",
+            "/accounts/password/reset/",
+        ):
+            with self.subTest(url=url), self.assertRaises(Resolver404):
+                resolve(url)
 
     def test_user_profile_url_is_resolved(self):
         url = reverse("user-profile")

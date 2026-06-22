@@ -1,3 +1,4 @@
+from allauth.account.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -7,7 +8,11 @@ from apps.core import views as core_views
 
 
 urlpatterns = [
-    path("accounts/", include("allauth.urls")),
+    path("accounts/logout/", LogoutView.as_view(), name="account_logout"),
+    # Keep social auth, but do not mount allauth.urls because that also exposes
+    # parallel local login/signup/password-reset views.
+    path("accounts/3rdparty/", include("allauth.socialaccount.urls")),
+    path("accounts/google/", include("allauth.socialaccount.providers.google.urls")),
     path("select2/", include("django_select2.urls")),
     path("", include("articles.urls")),
     path("", include("users.urls")),
