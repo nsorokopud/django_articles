@@ -4,7 +4,8 @@ from celery import Celery
 from celery.signals import setup_logging
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
+if "DJANGO_SETTINGS_MODULE" not in os.environ:
+    raise RuntimeError("DJANGO_SETTINGS_MODULE must be set explicitly for Celery.")
 
 
 app = Celery("config")
