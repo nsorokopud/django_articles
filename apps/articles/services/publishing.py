@@ -11,7 +11,10 @@ from notifications.services.articles import (
     notify_article_unpublished,
 )
 from users.models import User
-from users.services.users import advance_latest_article_publish_sequence
+from users.services.users import (
+    advance_latest_article_publish_sequence,
+    recompute_latest_article_publish_sequence,
+)
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..constants import DEFAULT_DRAFT_ARTICLE_TITLE
@@ -104,6 +107,8 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
     article.published_at = None
     article.publish_sequence = None
     article.save(update_fields=["status", "published_at", "publish_sequence"])
+
+    recompute_latest_article_publish_sequence(user_id=article.author_id)
 
     _invalidate_article_slug_id_cache_on_commit(article)
     _notify_article_unpublished_on_commit(

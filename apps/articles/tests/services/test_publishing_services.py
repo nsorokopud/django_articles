@@ -716,6 +716,116 @@ class TestUnpublishArticle(TestCase):
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_unpublished")
+    def test_unpublishing_latest_article_recomputes_author_latest_sequence(
+        self, mock_notify
+    ):
+        older_article = Article.objects.create(
+            title="Older",
+            slug="older",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=10,
+        )
+        latest_article = Article.objects.create(
+            title="Latest",
+            slug="latest",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=25,
+        )
+        User.objects.filter(pk=self.author.pk).update(
+            latest_article_publish_sequence=25
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            unpublish_article(article_id=latest_article.id)
+
+        self.author.refresh_from_db()
+        older_article.refresh_from_db()
+        latest_article.refresh_from_db()
+
+        self.assertEqual(self.author.latest_article_publish_sequence, 10)
+        self.assertEqual(older_article.status, ArticleStatus.PUBLISHED)
+        self.assertEqual(latest_article.status, ArticleStatus.DRAFT)
+        self.assertIsNone(latest_article.publish_sequence)
+        mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_unpublished")
+    def test_unpublishing_only_published_article_recomputes_author_latest_to_zero(
+        self, mock_notify
+    ):
+        article = Article.objects.create(
+            title="Only",
+            slug="only",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=25,
+        )
+        User.objects.filter(pk=self.author.pk).update(
+            latest_article_publish_sequence=25
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            unpublish_article(article_id=article.id)
+
+        self.author.refresh_from_db()
+        article.refresh_from_db()
+
+        self.assertEqual(self.author.latest_article_publish_sequence, 0)
+        self.assertEqual(article.status, ArticleStatus.DRAFT)
+        self.assertIsNone(article.publish_sequence)
+        mock_notify.assert_not_called()
+
+    @patch("articles.services.publishing.notify_article_unpublished")
+    def test_unpublishing_older_article_keeps_author_latest_sequence(self, mock_notify):
+        older_article = Article.objects.create(
+            title="Older",
+            slug="older",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=10,
+        )
+        latest_article = Article.objects.create(
+            title="Latest",
+            slug="latest",
+            author=self.author,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=25,
+        )
+        User.objects.filter(pk=self.author.pk).update(
+            latest_article_publish_sequence=25
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            unpublish_article(article_id=older_article.id)
+
+        self.author.refresh_from_db()
+        latest_article.refresh_from_db()
+
+        self.assertEqual(self.author.latest_article_publish_sequence, 25)
+        self.assertEqual(latest_article.status, ArticleStatus.PUBLISHED)
+
+    @patch("articles.services.publishing.notify_article_unpublished")
     def test_unpublish_notifies_when_actor_is_not_author(self, mock_notify):
         editor = User.objects.create_user(username="editor", email="editor@test.com")
         article = Article.objects.create(

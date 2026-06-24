@@ -192,6 +192,27 @@ def advance_latest_article_publish_sequence(
     ).update(latest_article_publish_sequence=publish_sequence)
 
 
+@transaction.atomic
+def recompute_latest_article_publish_sequence(*, user_id: int) -> int:
+    from articles.models import Article, ArticleStatus
+
+    User.objects.select_for_update().only("id").get(pk=user_id)
+
+    latest = (
+        Article.objects.filter(
+            author_id=user_id,
+            status=ArticleStatus.PUBLISHED,
+            publish_sequence__isnull=False,
+        )
+        .order_by("-publish_sequence")
+        .values_list("publish_sequence", flat=True)
+        .first()
+    ) or 0
+
+    User.objects.filter(pk=user_id).update(latest_article_publish_sequence=latest)
+    return latest
+
+
 def _validate_registration_availability(*, username: str, email: str) -> None:
     if User.objects.filter(username__iexact=username).exists():
         raise ValidationError({"username": "A user with that username already exists."})
