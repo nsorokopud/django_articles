@@ -4,7 +4,14 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
       - id: check-yaml
+        exclude: ^docker-compose\.override\.example\.yaml$
+
+      - id: check-yaml
+        name: Check Compose override YAML syntax
+        files: ^docker-compose\.override\.example\.yaml$
+        args: [--unsafe]
 
   - repo: https://github.com/openstack/bashate
     rev: 2.1.1
