@@ -37,8 +37,7 @@ services:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
-    entrypoint: celery
-    command: -A config worker -l INFO
+    command: ['celery', '-A', 'config', 'worker', '-l', 'INFO']
     volumes:
       - media-volume:/app/media/
       - logs-volume:/app/logs/
@@ -54,10 +53,19 @@ services:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
-    entrypoint: celery
-    command: -A config beat -l INFO
+    command:
+      [
+        'celery',
+        '-A',
+        'config',
+        'beat',
+        '-l',
+        'INFO',
+        '--schedule=/app/celerybeat/celerybeat-schedule',
+      ]
     volumes:
       - logs-volume:/app/logs/
+      - celery-beat-volume:/app/celerybeat/
     depends_on:
       - redis
       - db
@@ -76,14 +84,10 @@ services:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
-      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:?DJANGO_SUPERUSER_USERNAME is required}
-      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:?DJANGO_SUPERUSER_PASSWORD is required}
-    entrypoint: celery
-    command: >
-      -A config flower --url-prefix=__flower__
-      --basic-auth=${DJANGO_SUPERUSER_USERNAME}:${DJANGO_SUPERUSER_PASSWORD}
-    expose:
-      - 5555
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:?FLOWER_BASIC_AUTH is required}
+    command: ['celery', '-A', 'config', 'flower', '--url-prefix=__flower__']
+    ports:
+      - 127.0.0.1:5555:5555
     depends_on:
       - web-app
       - celery-worker
@@ -115,4 +119,5 @@ volumes:
   logs-volume:
   media-volume:
   static-volume:
+  celery-beat-volume:
   ssl-cert-volume:
