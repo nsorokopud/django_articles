@@ -13,12 +13,27 @@ services:
       - media-volume:/app/media/
       - static-volume:/app/staticfiles/
       - logs-volume:/app/logs/
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   db:
-    image: postgres:17.0-alpine
+    image: postgres:17.10-alpine
     restart: 'unless-stopped'
     expose:
       - 5432
@@ -28,10 +43,19 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - db-volume:/var/lib/postgresql/data/
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   celery-worker:
     image: nsorokopud/django_articles:web-app
     build: .
+    stop_grace_period: 1m
     restart: 'unless-stopped'
     env_file:
       - .env
@@ -42,8 +66,10 @@ services:
       - media-volume:/app/media/
       - logs-volume:/app/logs/
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   celery-beat:
     image: nsorokopud/django_articles:web-app
@@ -67,14 +93,24 @@ services:
       - logs-volume:/app/logs/
       - celery-beat-volume:/app/celerybeat/
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   redis:
     image: redis:7.4-alpine
     restart: 'unless-stopped'
     expose:
       - 6379
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   flower:
     image: nsorokopud/django_articles:web-app
@@ -89,8 +125,12 @@ services:
     ports:
       - 127.0.0.1:5555:5555
     depends_on:
-      - web-app
-      - celery-worker
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      celery-worker:
+        condition: service_started
 
   nginx:
     image: nsorokopud/django_articles:nginx-${SCHEME:?SCHEME is required}
@@ -108,7 +148,8 @@ services:
       - 80:80
       - 443:443
     depends_on:
-      - web-app
+      web-app:
+        condition: service_healthy
     volumes:
       - media-volume:/app-media/
       - static-volume:/static/
