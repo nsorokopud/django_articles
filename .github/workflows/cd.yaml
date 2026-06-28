@@ -2,17 +2,22 @@ name: Continuous Deployment
 
 on:
   push:
-    branches: ['master']
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
 
 jobs:
   build_images:
     runs-on: ubuntu-latest
     name: Build Docker Images
-    env:
-      SCHEME: ${{ secrets.SCHEME }}
 
-      # Build-only placeholders required for docker compose interpolation.
-      # Real production values are read from the server-side .env file.
+    env:
+      # Build-only placeholders required for Compose interpolation
       DB_NAME: django_articles_build
       DB_USER: postgres
       DB_PASSWORD: build-password
@@ -20,10 +25,15 @@ jobs:
       DOMAIN_NAME: example.com
       CERTBOT_EMAIL: admin@example.com
 
-      DJANGO_SUPERUSER_USERNAME: build_admin
-      DJANGO_SUPERUSER_PASSWORD: build-password
+      FLOWER_BASIC_AUTH: build-user:build-password
+
     steps:
       - uses: actions/checkout@v4
+
+      # Satisfy the required service-level env file during image build/push.
+      # Production values are not needed because no containers run in this job.
+      - name: Create CI environment file
+        run: touch .env
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -31,58 +41,69 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Images
-        run: docker compose build
+      - name: Build images
+        run: docker compose -f docker-compose.yaml build web-app nginx
 
-      - name: Push Images
-        run: |
-          docker push '${{ secrets.WEB_IMAGE }}'
-          docker push '${{ secrets.NGINX_IMAGE }}'
+      - name: Push images
+        run: docker compose -f docker-compose.yaml push web-app nginx
 
   deploy:
+    environment: production
     runs-on: ubuntu-latest
     name: Deployment
     needs: [build_images]
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Send docker-compose.yaml and Makefile to the server
-        run: |
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' scp \
-          -o StrictHostKeyChecking=no docker-compose.yaml Makefile \
-          '${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USERNAME }}/'
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
+      - name: Send deployment files to the server
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
           port: 22
-          script: |
-            set -e
+          source: 'docker-compose.yaml,Makefile'
+          target: '/projects/django_articles'
+          overwrite: true
 
-            echo '${{ secrets.SSH_PASSWORD }}' | sudo -S \
-            mv /home/${{ secrets.SSH_USERNAME }}/docker-compose.yaml \
-            /home/${{ secrets.SSH_USERNAME }}/Makefile \
-            /projects/django_articles
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          port: 22
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          command_timeout: 30m
+          script: |
+            set -eu
 
             cd /projects/django_articles
 
-            docker login -u '${{ secrets.DOCKERHUB_USERNAME }}' \
-            -p '${{ secrets.DOCKERHUB_TOKEN }}'
+            # Applies to every direct `docker compose` command below.
+            # The Makefile also explicitly uses -f docker-compose.yaml.
+            export COMPOSE_FILE=docker-compose.yaml
 
-            docker pull '${{ secrets.WEB_IMAGE }}'
-            docker pull '${{ secrets.NGINX_IMAGE }}'
+            docker compose config --quiet
 
-            make prod-check-deploy
+            printf '%s' "$DOCKERHUB_TOKEN" |
+              docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+
+            docker compose pull web-app nginx
 
             docker compose up -d db redis
 
             make prod-wait-db
+            make prod-check-deploy
             make prod-migrate
             make prod-collectstatic
 
-            docker compose up -d --force-recreate
+            docker compose up -d --wait --wait-timeout 180
 
-            docker system prune -a -f
+            docker image prune -f
