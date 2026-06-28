@@ -133,11 +133,11 @@ services:
         condition: service_started
 
   nginx:
-    image: nsorokopud/django_articles:nginx-${SCHEME:?SCHEME is required}
+    image: nsorokopud/django_articles:nginx
     build:
       context: ./nginx
       args:
-        SCHEME: ${SCHEME:?SCHEME is required}
+        NGINX_TEMPLATE: https
     restart: 'unless-stopped'
     environment:
       DOMAIN_NAME: ${DOMAIN_NAME:?DOMAIN_NAME is required}

@@ -13,7 +13,6 @@ SECRET_KEY = env("SECRET_KEY", default="unsafe-secret-key")
 DEBUG = False
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
-SCHEME = env("SCHEME", default="http")
 DOMAIN_NAME = env("DOMAIN_NAME", default="localhost")
 
 SECURE_SSL_REDIRECT = False

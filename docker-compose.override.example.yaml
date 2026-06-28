@@ -3,8 +3,11 @@
 
 services:
   web-app:
-    env_file:
+    env_file: !override
       - .env.docker # Use a different .env file when running via docker
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+    command: ['python', 'manage.py', 'runserver', '0.0.0.0:8000']
     ports:
       - 8000:8000
       - 8001:5678 # For debugging
@@ -13,21 +16,33 @@ services:
       - .env.docker:/app/.env
 
   celery-worker:
-    env_file:
-      - .env.docker
-
-  flower:
-    env_file:
-      - .env.docker
-    ports:
-      - 5555:5555
-
-  nginx:
-    env_file:
+    env_file: !override
       - .env.docker
     environment:
-      # Use local SSL certificate authority (`jonasal/nginx-certbot` image)
-      - USE_LOCAL_CA=1
+      DJANGO_SETTINGS_MODULE: config.settings.local
+
+  celery-beat:
+    env_file: !override
+      - .env.docker
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+
+  flower:
+    env_file: !override
+      - .env.docker
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+
+  nginx:
+    image: nsorokopud/django_articles:nginx-http-local
+    build:
+      context: ./nginx
+      args:
+        NGINX_TEMPLATE: http
+    env_file: !override
+      - .env.docker
+    ports: !override
+      - 80:80
 
   db:
     ports:
