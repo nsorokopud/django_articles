@@ -126,28 +126,23 @@ class TestVisitorIdentifiers(TestCase):
     @patch("core.visitor_identifiers.get_client_ip")
     @override_settings(ALLOW_NON_ROUTABLE_IPS=False)
     def test_get_visitor_ip_returns_none_for_non_routable_ip_when_disallowed(
-        self,
-        mocked_get_client_ip,
+        self, mocked_get_client_ip
     ):
         mocked_get_client_ip.return_value = ("192.168.1.10", False)
         request = self._build_request()
 
-        with patch("core.visitor_identifiers.ALLOW_NON_ROUTABLE_IPS", False):
-            result = get_visitor_ip(request)
-
+        result = get_visitor_ip(request)
         self.assertIsNone(result)
 
     @patch("core.visitor_identifiers.get_client_ip")
+    @override_settings(ALLOW_NON_ROUTABLE_IPS=True)
     def test_get_visitor_ip_returns_non_routable_ip_when_allowed(
-        self,
-        mocked_get_client_ip,
+        self, mocked_get_client_ip
     ):
         mocked_get_client_ip.return_value = ("192.168.1.10", False)
         request = self._build_request()
 
-        with patch("core.visitor_identifiers.ALLOW_NON_ROUTABLE_IPS", True):
-            result = get_visitor_ip(request)
-
+        result = get_visitor_ip(request)
         self.assertEqual(result, "192.168.1.10")
 
     @patch("core.visitor_identifiers.get_client_ip")

@@ -8,8 +8,6 @@ from django.conf import settings
 from django.http import HttpRequest
 from ipware import get_client_ip
 
-from config.settings import ALLOW_NON_ROUTABLE_IPS
-
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +42,7 @@ def get_visitor_ip(request: HttpRequest) -> Optional[str]:
         logger.warning("Invalid IP address detected: %s", ip)
         return None
 
-    if not is_routable and not ALLOW_NON_ROUTABLE_IPS:
+    if not is_routable and not settings.ALLOW_NON_ROUTABLE_IPS:
         logger.info(
             "Non-routable IP address (%s) detected for request %s", ip, request.path
         )

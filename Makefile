@@ -1,7 +1,15 @@
-COMPOSE = docker compose
-SERVICE = web-app
-SETTINGS = config.settings.production
-PYTHON = python manage.py
+COMPOSE := docker compose -f docker-compose.yaml
+SERVICE := web-app
+SETTINGS := config.settings.production
+PYTHON := python manage.py
+
+RUN_APP := $(COMPOSE) run --rm --user articles_user --entrypoint "" $(SERVICE)
+
+RUN_APP_NO_DEPS := $(COMPOSE) run --rm \
+	--no-deps \
+	--user articles_user \
+	--entrypoint "" \
+	$(SERVICE)
 
 .DEFAULT_GOAL := help
 
@@ -19,56 +27,66 @@ help:
 	@echo "  make prod-createsuperuser"
 	@echo "  make prod-container-shell"
 
-.PHONY: prod-check-deploy prod-wait-db prod-migrate prod-collectstatic prod-container-shell
-.PHONY: prod-load-fixtures prod-collect-fixture-media prod-backfill-article-content-text
-.PHONY: prod-reset-article-publish-sequence prod-createsuperuser
+.PHONY: prod-check-deploy
+.PHONY: prod-wait-db
+.PHONY: prod-migrate
+.PHONY: prod-collectstatic
+.PHONY: prod-collect-fixture-media
+.PHONY: prod-load-fixtures
+.PHONY: prod-backfill-article-content-text
+.PHONY: prod-reset-article-publish-sequence
+.PHONY: prod-createsuperuser
+.PHONY: prod-container-shell
 
 prod-check-deploy:
-	$(COMPOSE) run --rm --no-deps --entrypoint "" $(SERVICE) \
-	$(PYTHON) check --deploy --settings=$(SETTINGS)
+	$(RUN_APP_NO_DEPS) $(PYTHON) check --deploy --settings=$(SETTINGS)
 
 prod-wait-db:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	$(PYTHON) wait_for_db --settings=$(SETTINGS)
+	$(RUN_APP) $(PYTHON) wait_for_db --settings=$(SETTINGS)
 
 prod-migrate:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	$(PYTHON) migrate --settings=$(SETTINGS) --noinput
+	$(RUN_APP) $(PYTHON) migrate --settings=$(SETTINGS) --noinput
 
 prod-collectstatic:
-	$(COMPOSE) run --rm --no-deps --user root --entrypoint "" $(SERVICE) \
+	$(COMPOSE) run --rm \
+	--no-deps \
+	--user root \
+	--entrypoint "" \
+	$(SERVICE) \
 	sh -c '\
 		mkdir -p /app/staticfiles && \
 		chown -R articles_user:articles_user /app/staticfiles && \
-		gosu articles_user $(PYTHON) collectstatic --settings=$(SETTINGS) --noinput \
+		exec gosu articles_user $(PYTHON) collectstatic \
+			--settings=$(SETTINGS) \
+			--noinput \
 	'
 
 prod-collect-fixture-media:
-	$(COMPOSE) run --rm --user root --entrypoint "" $(SERVICE) \
+	$(COMPOSE) run --rm \
+	--user root \
+	--entrypoint "" \
+	$(SERVICE) \
 	sh -c '\
 		mkdir -p /app/media && \
 		chown -R articles_user:articles_user /app/media && \
-		gosu articles_user $(PYTHON) collect_fixture_media --settings=$(SETTINGS) --noinput \
+		exec gosu articles_user $(PYTHON) collect_fixture_media \
+			--settings=$(SETTINGS) \
+			--noinput \
 	'
 
 prod-load-fixtures:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	$(PYTHON) loaddata fixtures/initial_data.json --settings=$(SETTINGS)
+	$(RUN_APP) $(PYTHON) loaddata fixtures/initial_data.json --settings=$(SETTINGS)
 
 prod-backfill-article-content-text:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	$(PYTHON) backfill_article_content_text --settings=$(SETTINGS)
+	$(RUN_APP) $(PYTHON) backfill_article_content_text --settings=$(SETTINGS)
 
 prod-reset-article-publish-sequence:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	$(PYTHON) reset_article_publish_sequence --settings=$(SETTINGS)
+	$(RUN_APP) $(PYTHON) reset_article_publish_sequence --settings=$(SETTINGS)
 
 prod-createsuperuser:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	$(PYTHON) createsuperuser --settings=$(SETTINGS) --noinput
+	$(RUN_APP) $(PYTHON) createsuperuser --settings=$(SETTINGS) --noinput
 
 prod-container-shell:
-	$(COMPOSE) run --rm --entrypoint "" $(SERVICE) \
-	sh
+	$(RUN_APP) sh
 
 -include Makefile.local

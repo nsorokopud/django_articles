@@ -4,8 +4,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic.base import RedirectView
+from django_ratelimit.decorators import ratelimit
 
 from core.exceptions import MediaSaveError
 
@@ -21,6 +23,15 @@ class HomePageView(RedirectView):
     pattern_name = "articles"
 
 
+@method_decorator(
+    ratelimit(key="user", rate="10/s", method="POST", block=True), name="dispatch"
+)
+@method_decorator(
+    ratelimit(key="user", rate="30/m", method="POST", block=True), name="dispatch"
+)
+@method_decorator(
+    ratelimit(key="user", rate="100/h", method="POST", block=True), name="dispatch"
+)
 class AttachedFileUploadView(LoginRequiredMixin, View):
     def post(self, request) -> JsonResponse:
         try:

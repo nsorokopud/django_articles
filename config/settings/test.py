@@ -5,7 +5,6 @@ SECRET_KEY = "test_secret_key"
 DEBUG = False
 ALLOWED_HOSTS = ["*"]
 
-SCHEME = "http"
 DOMAIN_NAME = "testserver"
 
 SECURE_SSL_REDIRECT = False

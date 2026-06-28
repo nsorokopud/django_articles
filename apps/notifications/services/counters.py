@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
 from django.db import transaction
-from django.db.models import Count, QuerySet
+from django.db.models import Count
 
 from users.models import User
 
@@ -9,7 +9,7 @@ from ..models import Notification
 
 
 def sync_unread_notification_counts(
-    *, user_ids: Iterable[int] | None = None, batch_size: int = 1000
+    *, user_ids: Iterable[int] | None = None, batch_size: int = 500
 ) -> dict[str, int]:
     if batch_size <= 0:
         raise ValueError("batch_size must be > 0")
@@ -24,28 +24,30 @@ def sync_unread_notification_counts(
     users_zeroed = 0
 
     while True:
-        user_batch = _load_user_batch(
-            base_users=base_users,
-            last_id=last_id,
-            batch_size=batch_size,
-        )
-        if not user_batch:
-            break
+        with transaction.atomic():
+            user_batch = list(
+                base_users.select_for_update()
+                .filter(id__gt=last_id)
+                .values("id", "unread_notifications_count")[:batch_size]
+            )
 
-        batch_user_ids = [row["id"] for row in user_batch]
+            if not user_batch:
+                break
+
+            batch_user_ids = [row["id"] for row in user_batch]
+
+            actual_unread_counts = _get_actual_unread_counts(batch_user_ids)
+
+            ids_to_zero, ids_to_fix_by_count = _plan_unread_count_updates(
+                user_batch=user_batch, actual_unread_counts=actual_unread_counts
+            )
+
+            updated, zeroed = _apply_unread_count_updates(
+                ids_to_zero=ids_to_zero, ids_to_fix_by_count=ids_to_fix_by_count
+            )
+
         last_id = batch_user_ids[-1]
         users_checked += len(batch_user_ids)
-
-        actual_unread_counts = _get_actual_unread_counts(batch_user_ids)
-        ids_to_zero, ids_to_fix_by_count = _plan_unread_count_updates(
-            user_batch=user_batch,
-            actual_unread_counts=actual_unread_counts,
-        )
-
-        updated, zeroed = _apply_unread_count_updates(
-            ids_to_zero=ids_to_zero,
-            ids_to_fix_by_count=ids_to_fix_by_count,
-        )
         users_updated += updated
         users_zeroed += zeroed
 
@@ -56,24 +58,12 @@ def sync_unread_notification_counts(
     }
 
 
-def _load_user_batch(
-    *, base_users: QuerySet[User], last_id: int, batch_size: int
-) -> list[dict[str, int]]:
-    return list(
-        base_users.filter(id__gt=last_id).values(
-            "id",
-            "unread_notifications_count",
-        )[:batch_size]
-    )
-
-
 def _get_actual_unread_counts(batch_user_ids: list[int]) -> dict[int, int]:
     return {
         row["recipient_id"]: row["actual_unread"]
         for row in (
             Notification.objects.filter(
-                recipient_id__in=batch_user_ids,
-                read_at__isnull=True,
+                recipient_id__in=batch_user_ids, read_at__isnull=True
             )
             .values("recipient_id")
             .annotate(actual_unread=Count("id"))
@@ -82,9 +72,7 @@ def _get_actual_unread_counts(batch_user_ids: list[int]) -> dict[int, int]:
 
 
 def _plan_unread_count_updates(
-    *,
-    user_batch: list[dict[str, int]],
-    actual_unread_counts: dict[int, int],
+    *, user_batch: list[dict[str, int]], actual_unread_counts: dict[int, int]
 ) -> tuple[list[int], dict[int, list[int]]]:
     ids_to_zero: list[int] = []
     ids_to_fix_by_count: dict[int, list[int]] = {}
@@ -106,29 +94,26 @@ def _plan_unread_count_updates(
 
 
 def _apply_unread_count_updates(
-    *,
-    ids_to_zero: list[int],
-    ids_to_fix_by_count: dict[int, list[int]],
+    *, ids_to_zero: list[int], ids_to_fix_by_count: dict[int, list[int]]
 ) -> tuple[int, int]:
     users_updated = 0
     users_zeroed = 0
 
-    with transaction.atomic():
-        if ids_to_zero:
-            updated = (
-                User.objects.filter(id__in=ids_to_zero)
-                .exclude(unread_notifications_count=0)
-                .update(unread_notifications_count=0)
-            )
-            users_updated += updated
-            users_zeroed += updated
+    if ids_to_zero:
+        updated = (
+            User.objects.filter(id__in=ids_to_zero)
+            .exclude(unread_notifications_count=0)
+            .update(unread_notifications_count=0)
+        )
+        users_updated += updated
+        users_zeroed += updated
 
-        for actual, ids in ids_to_fix_by_count.items():
-            updated = (
-                User.objects.filter(id__in=ids)
-                .exclude(unread_notifications_count=actual)
-                .update(unread_notifications_count=actual)
-            )
-            users_updated += updated
+    for actual, ids in ids_to_fix_by_count.items():
+        updated = (
+            User.objects.filter(id__in=ids)
+            .exclude(unread_notifications_count=actual)
+            .update(unread_notifications_count=actual)
+        )
+        users_updated += updated
 
     return users_updated, users_zeroed

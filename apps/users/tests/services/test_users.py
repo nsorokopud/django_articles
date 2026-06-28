@@ -8,12 +8,14 @@ from django.db.models import signals
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from articles.models import Article, ArticleStatus
 from users.models import DEFAULT_PROFILE_IMAGE, PendingEmailChange, Profile, User
 from users.services.users import (
     _delete_profile_image,
     activate_user,
     advance_latest_article_publish_sequence,
     create_user_profile,
+    recompute_latest_article_publish_sequence,
     register_user,
     update_user_profile,
 )
@@ -624,6 +626,63 @@ class TestAdvanceLatestArticlePublishSequence(TestCase):
         advance_latest_article_publish_sequence(user_id=999999, publish_sequence=20)
 
         self.user.refresh_from_db()
+        self.assertEqual(self.user.latest_article_publish_sequence, 10)
+
+
+class TestRecomputeLatestArticlePublishSequence(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="author",
+            email="author@test.com",
+            latest_article_publish_sequence=999,
+        )
+
+    def create_published_article(self, *, slug: str, sequence: int) -> Article:
+        return Article.objects.create(
+            author=self.user,
+            title=slug,
+            slug=slug,
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.PUBLISHED,
+            published_at=timezone.now(),
+            publish_sequence=sequence,
+        )
+
+    def test_recomputes_to_latest_currently_published_article(self):
+        self.create_published_article(slug="older", sequence=10)
+        self.create_published_article(slug="newer", sequence=25)
+
+        result = recompute_latest_article_publish_sequence(user_id=self.user.id)
+
+        self.user.refresh_from_db()
+        self.assertEqual(result, 25)
+        self.assertEqual(self.user.latest_article_publish_sequence, 25)
+
+    def test_recomputes_to_zero_when_author_has_no_published_articles(self):
+        result = recompute_latest_article_publish_sequence(user_id=self.user.id)
+
+        self.user.refresh_from_db()
+        self.assertEqual(result, 0)
+        self.assertEqual(self.user.latest_article_publish_sequence, 0)
+
+    def test_ignores_draft_articles_with_no_publish_sequence(self):
+        self.create_published_article(slug="published", sequence=10)
+        Article.objects.create(
+            author=self.user,
+            title="Draft",
+            slug="draft",
+            preview_text="p",
+            content="c",
+            content_text="c",
+            status=ArticleStatus.DRAFT,
+        )
+
+        result = recompute_latest_article_publish_sequence(user_id=self.user.id)
+
+        self.user.refresh_from_db()
+        self.assertEqual(result, 10)
         self.assertEqual(self.user.latest_article_publish_sequence, 10)
 
 

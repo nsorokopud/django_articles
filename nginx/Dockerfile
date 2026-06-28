@@ -1,6 +1,5 @@
-FROM jonasal/nginx-certbot:5.4.1-nginx1.27.4-alpine
+FROM jonasal/nginx-certbot:6.2.0-nginx1.31.2-alpine
 
-ARG SCHEME
-ENV SCHEME=${SCHEME}
+ARG NGINX_TEMPLATE=https
 
-COPY ${SCHEME}.conf.template /etc/nginx/templates/default.conf.template
+COPY ${NGINX_TEMPLATE}.conf.template /etc/nginx/templates/default.conf.template

@@ -15,7 +15,8 @@ from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
+if "DJANGO_SETTINGS_MODULE" not in os.environ:
+    raise RuntimeError("DJANGO_SETTINGS_MODULE must be set explicitly for ASGI.")
 
 django_asgi_app = get_asgi_application()
 

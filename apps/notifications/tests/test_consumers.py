@@ -140,7 +140,7 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                 settings.NOTIFICATIONS_WS_GROUP_OPERATION_TIMEOUT_SECONDS,
                 settings.NOTIFICATIONS_WS_SEND_JSON_TIMEOUT_SECONDS,
             )
-            + 0.2  # > timeouts for CI jitter
+            + 0.1  # > timeouts for CI jitter
         )
 
     def tearDown(self) -> None:
@@ -213,10 +213,22 @@ class TestNotificationConsumerASGI(SimpleTestCase):
         comm.scope["user"] = user
         return comm, captured
 
-    async def _disconnect_safely(self, comm: WebsocketCommunicator):
-        # If the app task crashed, asgiref may re-raise on disconnect().
-        with suppress(Exception):
+    async def _disconnect_safely(self, comm: WebsocketCommunicator) -> None:
+        if comm.future.done():
+            if comm.future.cancelled():
+                return
+
+            # Surface a real application crash instead of hiding it
+            comm.future.result()
+            return
+
+        try:
             await comm.disconnect()
+        except asyncio.CancelledError:
+            # Ignore cancellation only when the communicator itself was cancelled.
+            # Preserve cancellation of the surrounding test.
+            if not comm.future.cancelled():
+                raise
 
     @asynccontextmanager
     async def _connected_comm(self, comm: WebsocketCommunicator):
@@ -353,8 +365,10 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                 )
                 send_mock.assert_not_awaited()
 
-            with self.assertRaises(asyncio.TimeoutError):
-                await comm.receive_json_from(timeout=self.no_message_timeout)
+            nothing_received = await comm.receive_nothing(
+                timeout=self.no_message_timeout
+            )
+            self.assertTrue(nothing_received)
 
     async def test_two_connections_same_user_receive_group_message(self):
         user = UserStub(user_id=1, authenticated=True)
@@ -395,8 +409,10 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             self.assertEqual(msg_b["kind"], "notification")
             self.assertEqual(msg_b["title"], "toB")
 
-            with self.assertRaises(asyncio.TimeoutError):
-                await comm_a.receive_json_from(timeout=self.no_message_timeout)
+            nothing_received = await comm_a.receive_nothing(
+                timeout=self.no_message_timeout
+            )
+            self.assertTrue(nothing_received)
 
     async def test_join_group_false_rejects_connection(self):
         user = UserStub(user_id=1, authenticated=True)
@@ -682,8 +698,10 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                 m2 = await comm.receive_json_from(timeout=1)
                 self.assertEqual(m2["kind"], "digest")
 
-                with self.assertRaises(asyncio.TimeoutError):
-                    await comm.receive_json_from(timeout=self.no_message_timeout)
+                nothing_received = await comm.receive_nothing(
+                    timeout=self.no_message_timeout
+                )
+                self.assertTrue(nothing_received)
 
                 self.assertFalse(consumer._digest_pending)
 
@@ -736,8 +754,10 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                 m2 = await comm.receive_json_from(timeout=1)
                 self.assertEqual(m2["kind"], "digest")
 
-                with self.assertRaises(asyncio.TimeoutError):
-                    await comm.receive_json_from(timeout=self.no_message_timeout)
+                nothing_received = await comm.receive_nothing(
+                    timeout=self.no_message_timeout
+                )
+                self.assertTrue(nothing_received)
 
     async def test_notification_dropped_when_send_lock_held_by_digest(self):
         """Digest holds lock => notification dropped, digest arrives."""
@@ -774,8 +794,10 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                 msg = await comm.receive_json_from(timeout=1)
                 self.assertEqual(msg["kind"], "digest")
 
-                with self.assertRaises(asyncio.TimeoutError):
-                    await comm.receive_json_from(timeout=self.no_message_timeout)
+                nothing_received = await comm.receive_nothing(
+                    timeout=self.no_message_timeout
+                )
+                self.assertTrue(nothing_received)
 
                 self.assertFalse(consumer._digest_pending)
 
@@ -832,8 +854,10 @@ class TestNotificationConsumerASGI(SimpleTestCase):
                 m2 = await comm.receive_json_from(timeout=1.0)
                 self.assertEqual(m2["kind"], "digest")
 
-                with self.assertRaises(asyncio.TimeoutError):
-                    await comm.receive_json_from(timeout=self.no_message_timeout)
+                nothing_received = await comm.receive_nothing(
+                    timeout=self.no_message_timeout
+                )
+                self.assertTrue(nothing_received)
 
                 self.assertFalse(consumer._digest_pending)
 
@@ -847,8 +871,11 @@ class TestNotificationConsumerASGI(SimpleTestCase):
             await comm.disconnect()
 
             await layer.group_send(group, self._notification_event(999))
-            with self.assertRaises(asyncio.TimeoutError):
-                await comm.receive_json_from(timeout=self.no_message_timeout)
+
+            nothing_received = await comm.receive_nothing(
+                timeout=self.no_message_timeout
+            )
+            self.assertTrue(nothing_received)
 
     async def test_disconnect_attempts_group_discard_and_handles_errors(self):
         user = UserStub(user_id=1, authenticated=True)
