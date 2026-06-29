@@ -3,7 +3,7 @@ from django.db.models import Max
 from ..models import AuthorSubscription, User
 
 
-def get_new_articles_digest_summary(
+def get_new_articles_summary(
     *, user_id: int, since_publish_sequence: int = 0
 ) -> dict[str, bool | int]:
     last_seen = (

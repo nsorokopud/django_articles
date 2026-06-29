@@ -63,8 +63,8 @@ urlpatterns = [
         name="author-unsubscribe",
     ),
     path(
-        "notifications/new_articles_digest_summary/",
-        views.new_articles_digest_summary,
-        name="new-articles-digest-summary",
+        "subscriptions/new_articles_summary/",
+        views.new_articles_summary,
+        name="new-articles-summary",
     ),
 ]

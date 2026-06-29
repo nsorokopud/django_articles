@@ -3,7 +3,7 @@ from django.test import TestCase
 from users.models import AuthorSubscription, User
 from users.services.subscriptions import (
     advance_subscriptions_last_seen_publish_sequence,
-    get_new_articles_digest_summary,
+    get_new_articles_summary,
 )
 
 
@@ -41,16 +41,12 @@ class TestGetNewArticlesDigestSummary(TestCase):
 
         # since_publish_sequence=5 => watermark should
         # still be 10 => has_new True, latest 11
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=5
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=5)
         self.assertEqual(res, {"has_new": True, "latest_article_publish_sequence": 11})
 
         # since_publish_sequence=12 => watermark should
         # be 12 => author(11) not > 12 => False
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=12
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=12)
         self.assertEqual(res, {"has_new": False, "latest_article_publish_sequence": 12})
 
     def test_ignores_subscriptions_with_disabled_notifications(
@@ -61,9 +57,7 @@ class TestGetNewArticlesDigestSummary(TestCase):
         )
         self._sub(self.author1, notifications_enabled=False)
 
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=0
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=0)
         self.assertEqual(res, {"has_new": False, "latest_article_publish_sequence": 0})
 
     def test_aggregate_considers_only_notifications_enabled_subscriptions(self) -> None:
@@ -77,9 +71,7 @@ class TestGetNewArticlesDigestSummary(TestCase):
             latest_article_publish_sequence=5
         )
 
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=0
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=0)
 
         self.assertEqual(
             res,
@@ -103,17 +95,13 @@ class TestGetNewArticlesDigestSummary(TestCase):
             latest_article_publish_sequence=42
         )
 
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=0
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=0)
         self.assertEqual(res, {"has_new": True, "latest_article_publish_sequence": 99})
 
     def test_returns_false_when_no_subscriptions(
         self,
     ) -> None:
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=0
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=0)
         self.assertEqual(res, {"has_new": False, "latest_article_publish_sequence": 0})
 
     def test_returns_false_when_all_latest_are_at_or_below_watermark(
@@ -127,9 +115,7 @@ class TestGetNewArticlesDigestSummary(TestCase):
         User.objects.filter(id=self.user.id).update(
             subscriptions_last_seen_publish_sequence=10
         )
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=0
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=0)
         self.assertEqual(res, {"has_new": False, "latest_article_publish_sequence": 10})
 
     def test_returns_false_when_subscribed_authors_have_no_published_articles(
@@ -138,9 +124,7 @@ class TestGetNewArticlesDigestSummary(TestCase):
         self._sub(self.author1, notifications_enabled=True)
         self._sub(self.author2, notifications_enabled=True)
 
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=0
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=0)
 
         self.assertEqual(
             res,
@@ -153,9 +137,7 @@ class TestGetNewArticlesDigestSummary(TestCase):
             latest_article_publish_sequence=10
         )
 
-        res = get_new_articles_digest_summary(
-            user_id=self.user.id, since_publish_sequence=10
-        )
+        res = get_new_articles_summary(user_id=self.user.id, since_publish_sequence=10)
 
         self.assertEqual(
             res,

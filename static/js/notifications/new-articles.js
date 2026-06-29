@@ -402,9 +402,7 @@ function onLostLeadership() {
 // Gating + idle helpers
 
 function digestSummaryUrl(sincePublishSequence) {
-  const url = new URL(
-    `${location.origin}/notifications/new_articles_digest_summary/`,
-  );
+  const url = new URL(`${location.origin}/subscriptions/new_articles_summary/`);
   url.searchParams.set('since_publish_sequence', String(sincePublishSequence));
   return url;
 }
