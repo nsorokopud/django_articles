@@ -121,7 +121,7 @@ class TestUserProfileView(TestCase):
 
         self.client.force_login(self.user)
 
-        with patch("users.services.users._delete_profile_image") as mock_delete:
+        with patch("users.services.profiles._delete_profile_image") as mock_delete:
             with self.captureOnCommitCallbacks(execute=True):
                 response = self.client.post(self.url, data)
 
@@ -160,7 +160,7 @@ class TestUserProfileView(TestCase):
             "image": uploaded_image,
         }
 
-        with patch("users.services.users._delete_profile_image") as mock_delete:
+        with patch("users.services.profiles._delete_profile_image") as mock_delete:
             with self.captureOnCommitCallbacks(execute=True):
                 response = self.client.post(self.url, data)
 

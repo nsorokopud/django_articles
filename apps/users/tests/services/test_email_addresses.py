@@ -10,9 +10,9 @@ from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
 from users.models import PendingEmailChange, User
-from users.services import change_email_address
 from users.services.email_addresses import (
     _delete_allauth_email_addresses_for_user,
+    change_email_address,
     create_pending_email_change,
     delete_expired_pending_email_changes,
     delete_expired_pending_email_changes_for_email,

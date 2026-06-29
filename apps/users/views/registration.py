@@ -17,9 +17,9 @@ from django_ratelimit.decorators import ratelimit
 from users.forms import UserCreationForm
 
 from ..models import User
-from ..services import activate_user, send_account_activation_email
+from ..services.accounts import activate_user, register_user
+from ..services.email import send_account_activation_email
 from ..services.tokens import activation_token_generator
-from ..services.users import register_user
 
 
 logger = logging.getLogger(__name__)

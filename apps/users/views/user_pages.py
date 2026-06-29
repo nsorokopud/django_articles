@@ -20,7 +20,8 @@ from ..selectors import (
     find_authors_subscribed_by_user,
     get_author_with_viewer_subscription_status,
 )
-from ..services.users import set_author_subscription, update_user_profile
+from ..services.profiles import update_user_profile
+from ..services.subscriptions import set_author_subscription
 
 
 logger = logging.getLogger(__name__)

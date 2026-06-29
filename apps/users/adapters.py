@@ -6,7 +6,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from users.models import User
-from users.services.users import activate_user
+from users.services.accounts import activate_user
 
 from .normalization import normalize_email
 

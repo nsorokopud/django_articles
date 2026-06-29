@@ -11,7 +11,7 @@ from notifications.services.articles import (
     notify_article_unpublished,
 )
 from users.models import User
-from users.services.users import (
+from users.services.author_state import (
     advance_latest_article_publish_sequence,
     recompute_latest_article_publish_sequence,
 )
