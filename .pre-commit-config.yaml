@@ -6,11 +6,11 @@ repos:
       - id: trailing-whitespace
 
       - id: check-yaml
-        exclude: ^docker-compose\.override\.example\.yaml$
+        exclude: ^docker-compose\.override\.yaml$
 
       - id: check-yaml
         name: Check Compose override YAML syntax
-        files: ^docker-compose\.override\.example\.yaml$
+        files: ^docker-compose\.override\.yaml$
         args: [--unsafe]
 
   - repo: https://github.com/openstack/bashate

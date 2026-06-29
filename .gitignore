@@ -5,7 +5,6 @@
 !.env.production.example
 
 # Local Docker and Make configuration
-docker-compose.override.yaml
 Makefile.local
 
 # Python bytecode and caches
