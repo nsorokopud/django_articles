@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from articles.constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from articles.models import Article, ArticleStatus
-from articles.services.articles import (
+from articles.services.editing import (
     MAX_SLUG_RETRY_ATTEMPTS,
     get_or_create_empty_draft,
 )
@@ -69,7 +69,7 @@ class TestGetOrCreateEmptyDraft(TestCase):
         self.assertIsNotNone(existing.pk)
 
         with patch(
-            "articles.services.articles._build_article_slug_candidate",
+            "articles.services.editing._build_article_slug_candidate",
             side_effect=["untitled-article", "untitled-article-abc12345"],
         ) as mocked_builder:
             article = get_or_create_empty_draft(author=self.author)
@@ -81,7 +81,7 @@ class TestGetOrCreateEmptyDraft(TestCase):
         self.assertEqual(Article.objects.count(), 2)
 
     @patch(
-        "articles.services.articles._build_article_slug_candidate",
+        "articles.services.editing._build_article_slug_candidate",
         side_effect=["same-slug"] * MAX_SLUG_RETRY_ATTEMPTS,
     )
     def test_raises_after_max_slug_retry_attempts(self, mocked_build_slug):

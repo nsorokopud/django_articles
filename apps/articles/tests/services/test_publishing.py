@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from articles.constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from articles.models import Article, ArticleStatus
-from articles.services.articles import _build_article_slug_candidate
+from articles.services.editing import _build_article_slug_candidate
 from articles.services.publishing import (
     _has_meaningful_html_content,
     _normalize_article_text,

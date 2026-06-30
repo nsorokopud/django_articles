@@ -4,7 +4,7 @@ from django.db import DatabaseError
 from django.test import TestCase
 
 from articles.models import Article
-from articles.services.articles import bulk_increment_article_view_counts
+from articles.services.view_counts import bulk_increment_article_view_counts
 from users.models import User
 
 
@@ -49,15 +49,17 @@ class TestBulkIncrementArticleViewCounts(TestCase):
         self.assertEqual(a3.views_count, 50)
 
     def test_empty_input(self):
-        with patch("articles.services.articles.logger.warning") as mock_warn:
+        with patch("articles.services.view_counts.logger.warning") as mock_warn:
             bulk_increment_article_view_counts({})
             mock_warn.assert_called_once_with("No deltas to process for bulk update.")
 
     def test_db_error_is_logged_and_reraised(self):
-        with patch("articles.services.articles.Article.objects.filter") as mock_filter:
+        with patch(
+            "articles.services.view_counts.Article.objects.filter"
+        ) as mock_filter:
             mock_filter.return_value.update.side_effect = DatabaseError("DB failed")
 
-            with patch("articles.services.articles.logger.exception") as mock_exc:
+            with patch("articles.services.view_counts.logger.exception") as mock_exc:
                 with self.assertRaises(DatabaseError):
                     bulk_increment_article_view_counts({1: 5})
 

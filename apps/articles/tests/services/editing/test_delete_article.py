@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from articles.models import Article, ArticleCategory, ArticleStatus
-from articles.services.articles import delete_article
+from articles.services.editing import delete_article
 from users.models import User
 
 
@@ -75,7 +75,7 @@ class TestDeleteArticle(TestCase):
         self.assertTrue(Article.objects.filter(pk=article.pk).exists())
 
     @patch("articles.tasks.delete_article_media_task.delay")
-    @patch("articles.services.articles.invalidate_article_slug_id")
+    @patch("articles.services.editing.invalidate_article_slug_id")
     def test_after_commit_invalidates_slug_cache_and_schedules_media_cleanup(
         self, mock_invalidate, mock_delete_media_task
     ):

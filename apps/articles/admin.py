@@ -14,7 +14,7 @@ from .models import (
     ArticleMedia,
     ArticleStatus,
 )
-from .services.articles import delete_article, save_article
+from .services.editing import delete_article, save_article
 from .services.publishing import publish_article, reject_article, unpublish_article
 
 

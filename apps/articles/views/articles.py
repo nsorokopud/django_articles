@@ -34,8 +34,8 @@ from ..selectors import (
     get_published_article_by_slug,
 )
 from ..services import set_article_like
-from ..services.articles import delete_article, get_or_create_empty_draft
 from ..services.comments import get_article_comments_page
+from ..services.editing import delete_article, get_or_create_empty_draft
 from ..services.publishing import (
     submit_article_for_review,
     withdraw_article_from_review,

@@ -6,7 +6,7 @@ from django.db import DatabaseError
 from django_redis import get_redis_connection
 from redis import RedisError
 
-from ..services import bulk_increment_article_view_counts
+from ..services.view_counts import bulk_increment_article_view_counts
 
 
 logger = logging.getLogger(__name__)

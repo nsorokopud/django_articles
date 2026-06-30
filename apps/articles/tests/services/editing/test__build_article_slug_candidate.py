@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 
 from articles.models import ARTICLE_SLUG_MAX_LENGTH
-from articles.services.articles import (
+from articles.services.editing import (
     ARTICLE_SLUG_SUFFIX_LENGTH,
     _build_article_slug_candidate,
 )
@@ -18,7 +18,7 @@ class TestBuildArticleSlugCandidate(SimpleTestCase):
         self.assertEqual(len(slug), ARTICLE_SLUG_MAX_LENGTH)
         self.assertEqual(slug, "a" * ARTICLE_SLUG_MAX_LENGTH)
 
-    @patch("articles.services.articles.generate")
+    @patch("articles.services.editing.generate")
     def test_keeps_suffixed_slug_within_max_length(self, mock_generate):
         mock_generate.return_value = "abc123xy"
         title = "a" * (ARTICLE_SLUG_MAX_LENGTH + 50)
@@ -30,7 +30,7 @@ class TestBuildArticleSlugCandidate(SimpleTestCase):
         self.assertEqual(len(slug), ARTICLE_SLUG_MAX_LENGTH)
         self.assertEqual(slug, f"{'a' * expected_base_length}-abc123xy")
 
-    @patch("articles.services.articles.generate")
+    @patch("articles.services.editing.generate")
     def test_removes_trailing_hyphen_before_suffix(self, mock_generate):
         mock_generate.return_value = "abc123xy"
 
@@ -48,7 +48,7 @@ class TestBuildArticleSlugCandidate(SimpleTestCase):
 
         self.assertEqual(slug, "article")
 
-    @patch("articles.services.articles.generate")
+    @patch("articles.services.editing.generate")
     def test_falls_back_to_article_with_suffix(self, mock_generate):
         mock_generate.return_value = "abc123xy"
 

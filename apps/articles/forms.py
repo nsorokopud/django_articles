@@ -7,8 +7,8 @@ from django.db import transaction
 from core.validators import validate_uploaded_image
 
 from .models import Article, ArticleComment, ArticleStatus
-from .services.articles import save_article
 from .services.comments import create_article_comment
+from .services.editing import save_article
 
 
 ARTICLE_REJECT_REASON_MIN_LENGTH = 10

@@ -12,7 +12,7 @@ from articles.models import (
     ArticleMedia,
     ArticleStatus,
 )
-from articles.services.articles import save_article
+from articles.services.editing import save_article
 from users.models import User
 
 
@@ -147,7 +147,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(saved.author, self.author)
         self.assertEqual(Article.objects.count(), 1)
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_raises_when_editing_published_article(
         self,
         mock_build_slug,
@@ -178,7 +178,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(article.title, "old title")
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_raises_when_editing_pending_review_article(
         self,
         mock_build_slug,
@@ -267,7 +267,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertIsNotNone(article.published_at)
         self.assertEqual(article.publish_sequence, 1)
 
-    @patch("articles.services.articles.sanitize_article_html")
+    @patch("articles.services.editing.sanitize_article_html")
     def test_calls_sanitizer_before_save(self, mock_sanitize):
         mock_sanitize.return_value = "<p>clean</p>"
 
@@ -330,7 +330,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertIsNone(article.reviewed_at)
         self.assertIsNone(article.reviewed_by)
 
-    @patch("articles.services.articles.sync_article_inline_media_references")
+    @patch("articles.services.editing.sync_article_inline_media_references")
     def test_syncs_inline_media_references(self, mock_sync):
         article = Article(
             title="a1",
@@ -459,7 +459,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertTrue(saved_second.slug.startswith("same-title-"))
         self.assertNotEqual(saved_first.slug, saved_second.slug)
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_does_not_generate_slug_for_new_article_when_slug_already_set(
         self,
         mock_build_slug,
@@ -484,7 +484,7 @@ class TestSaveArticle(TransactionTestCase):
         db_article = Article.objects.get(id=saved.id)
         self.assertEqual(db_article.slug, "custom-slug")
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_regenerates_slug_when_title_changed_for_draft_article(
         self,
         mock_build_slug,
@@ -510,7 +510,7 @@ class TestSaveArticle(TransactionTestCase):
         article.refresh_from_db()
         self.assertEqual(article.slug, "new-title")
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_does_not_regenerate_slug_when_title_not_changed_for_draft_article(
         self,
         mock_build_slug,
@@ -535,7 +535,7 @@ class TestSaveArticle(TransactionTestCase):
         article.refresh_from_db()
         self.assertEqual(article.slug, "title")
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_regenerates_slug_when_title_changed_for_rejected_article_before_restore(
         self,
         mock_build_slug,
@@ -593,7 +593,7 @@ class TestSaveArticle(TransactionTestCase):
         db_article = Article.objects.get(id=saved.id)
         self.assertEqual(db_article.slug, saved.slug)
 
-    @patch("articles.services.articles._build_article_slug_candidate")
+    @patch("articles.services.editing._build_article_slug_candidate")
     def test_does_not_retry_non_slug_integrity_error(self, mock_build_slug):
         article = Article(
             title="a1",
@@ -616,7 +616,7 @@ class TestSaveArticle(TransactionTestCase):
         mock_build_slug.assert_called_once_with("a1", use_suffix=False)
         self.assertEqual(Article.objects.count(), 0)
 
-    @patch("articles.services.articles.delete_article_preview_image_file")
+    @patch("articles.services.editing.delete_article_preview_image_file")
     def test_deletes_old_preview_image_when_preview_image_is_replaced(
         self,
         mock_delete_preview_image,
@@ -647,7 +647,7 @@ class TestSaveArticle(TransactionTestCase):
             "articles/preview_images/author/old.jpg"
         )
 
-    @patch("articles.services.articles.delete_article_preview_image_file")
+    @patch("articles.services.editing.delete_article_preview_image_file")
     def test_deletes_old_preview_image_when_preview_image_is_cleared(
         self,
         mock_delete_preview_image,
@@ -673,7 +673,7 @@ class TestSaveArticle(TransactionTestCase):
             "articles/preview_images/author/old.jpg"
         )
 
-    @patch("articles.services.articles.delete_article_preview_image_file")
+    @patch("articles.services.editing.delete_article_preview_image_file")
     def test_does_not_delete_preview_image_when_preview_image_is_unchanged(
         self,
         mock_delete_preview_image,
@@ -699,7 +699,7 @@ class TestSaveArticle(TransactionTestCase):
         )
         mock_delete_preview_image.assert_not_called()
 
-    @patch("articles.services.articles.delete_article_preview_image_file")
+    @patch("articles.services.editing.delete_article_preview_image_file")
     def test_does_not_delete_preview_image_when_creating_article_with_preview_image(
         self,
         mock_delete_preview_image,
@@ -724,7 +724,7 @@ class TestSaveArticle(TransactionTestCase):
         self.assertTrue(saved.preview_image.name)
         mock_delete_preview_image.assert_not_called()
 
-    @patch("articles.services.articles.invalidate_article_slug_id")
+    @patch("articles.services.editing.invalidate_article_slug_id")
     def test_invalidates_old_slug_when_slug_changes(self, mock_invalidate):
         article = Article.objects.create(
             title="old title",

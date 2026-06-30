@@ -44,7 +44,7 @@ load-plugins = ["pylint_django", "pylint_per_file_ignores"]
 django-settings-module="config.settings"
 max-line-length = 88
 disable = [
-  "C0114", "C0115", "C0116", "C0207", "C0411", "C0415",
+  "C0114", "C0115", "C0116", "C0207", "C0411", "C0415", "R0801",
   "R0901", "R0903", "R1710", "W0201, W0221"
 ]
 ignored-argument-names="_.*|^ignored_|^unused_|request|sender"
