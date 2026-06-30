@@ -17,8 +17,9 @@ from users.forms import EmailChangeConfirmationForm, EmailChangeForm
 
 from ..models import PendingEmailChange
 from ..selectors import get_pending_email_change
-from ..services import change_email_address, send_email_change_link
+from ..services.email import send_email_change_link
 from ..services.email_addresses import (
+    change_email_address,
     create_pending_email_change,
     delete_pending_email_change,
 )

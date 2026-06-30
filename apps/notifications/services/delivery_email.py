@@ -1,6 +1,6 @@
 from typing import Optional
 
-from core.services import EmailConfigDict
+from core.services.email import EmailConfigDict
 from users.normalization import normalize_email
 
 from ..models import Notification, NotificationType

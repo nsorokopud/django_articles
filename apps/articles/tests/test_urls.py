@@ -1,8 +1,7 @@
 from django.test import SimpleTestCase
 from django.urls import resolve, reverse
 
-from articles.views import (
-    ArticleCommentsListView,
+from articles.views.articles import (
     ArticleCreateDraftView,
     ArticleDeleteView,
     ArticleDetailView,
@@ -10,12 +9,11 @@ from articles.views import (
     ArticleListFilterView,
     ArticleUpdateView,
     ArticleWithdrawFromReviewView,
-    AttachedFileUploadView,
-    CommentLikeView,
-    HomePageView,
     MyArticlesListView,
     SubscriptionFeedView,
 )
+from articles.views.base import AttachedFileUploadView, HomePageView
+from articles.views.comments import ArticleCommentsListView, CommentLikeView
 
 
 class TestURLs(SimpleTestCase):

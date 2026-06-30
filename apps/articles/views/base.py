@@ -13,7 +13,7 @@ from core.exceptions import MediaSaveError
 
 from ..forms import AttachedFileUploadForm
 from ..models import Article, ArticleStatus
-from ..services import save_article_inline_media_file
+from ..services.media import save_article_inline_media_file
 
 
 logger = logging.getLogger(__name__)

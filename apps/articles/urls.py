@@ -1,68 +1,82 @@
 from django.urls import path
 
-from articles import views
+from articles.views.articles import (
+    ArticleCreateDraftView,
+    ArticleDeleteView,
+    ArticleDetailView,
+    ArticleLikeView,
+    ArticleListFilterView,
+    ArticleUpdateView,
+    ArticleWithdrawFromReviewView,
+    MyArticlesListView,
+    SubscriptionFeedView,
+)
+from articles.views.autocomplete import (
+    ArticleAuthorAutocompleteView,
+    ArticleTagAutocompleteView,
+)
+from articles.views.base import AttachedFileUploadView, HomePageView
+from articles.views.comments import ArticleCommentsListView, CommentLikeView
 
 
 urlpatterns = [
-    path("", views.HomePageView.as_view(), name="home"),
+    path("", HomePageView.as_view(), name="home"),
     path(
         "tinymce/upload/",
-        views.AttachedFileUploadView.as_view(),
+        AttachedFileUploadView.as_view(),
         name="attached-file-upload",
     ),
     path(
         "articles/filter-tags-autocomplete/",
-        views.ArticleTagAutocompleteView.as_view(),
+        ArticleTagAutocompleteView.as_view(),
         name="article-filter-tags-autocomplete",
     ),
     path(
         "articles/filter-authors-autocomplete/",
-        views.ArticleAuthorAutocompleteView.as_view(),
+        ArticleAuthorAutocompleteView.as_view(),
         name="article-filter-authors-autocomplete",
     ),
-    path("articles/", views.ArticleListFilterView.as_view(), name="articles"),
-    path(
-        "subscriptions/", views.SubscriptionFeedView.as_view(), name="subscription-feed"
-    ),
-    path("my-articles/", views.MyArticlesListView.as_view(), name="my-articles"),
+    path("articles/", ArticleListFilterView.as_view(), name="articles"),
+    path("subscriptions/", SubscriptionFeedView.as_view(), name="subscription-feed"),
+    path("my-articles/", MyArticlesListView.as_view(), name="my-articles"),
     path(
         "articles/create-draft/",
-        views.ArticleCreateDraftView.as_view(),
+        ArticleCreateDraftView.as_view(),
         name="article-create-draft",
     ),
     path(
         "articles/<int:pk>/edit/",
-        views.ArticleUpdateView.as_view(),
+        ArticleUpdateView.as_view(),
         name="article-update",
     ),
     path(
         "articles/<int:pk>/withdraw-from-review/",
-        views.ArticleWithdrawFromReviewView.as_view(),
+        ArticleWithdrawFromReviewView.as_view(),
         name="article-withdraw-from-review",
     ),
     path(
         "articles/<int:pk>/delete/",
-        views.ArticleDeleteView.as_view(),
+        ArticleDeleteView.as_view(),
         name="article-delete",
     ),
     path(
         "articles/<slug:article_slug>/like/",
-        views.ArticleLikeView.as_view(),
+        ArticleLikeView.as_view(),
         name="article-like",
     ),
     path(
         "articles/<slug:article_slug>/comments/",
-        views.ArticleCommentsListView.as_view(),
+        ArticleCommentsListView.as_view(),
         name="article-comments-list",
     ),
     path(
         "articles/<slug:article_slug>/",
-        views.ArticleDetailView.as_view(),
+        ArticleDetailView.as_view(),
         name="article-details",
     ),
     path(
         "comments/<int:comment_id>/like/",
-        views.CommentLikeView.as_view(),
+        CommentLikeView.as_view(),
         name="comment-like",
     ),
 ]

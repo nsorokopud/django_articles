@@ -1,70 +1,92 @@
 from django.urls import path
 
-from users import views
+from users.views.auth import (
+    PasswordChangeView,
+    PasswordResetView,
+    PasswordSetView,
+    UserLoginView,
+    UserPasswordResetConfirmView,
+)
+from users.views.email import (
+    EmailChangeCancelView,
+    EmailChangeConfirmationView,
+    EmailChangeResendView,
+    EmailChangeView,
+)
+from users.views.registration import (
+    AccountActivationView,
+    PostUserRegistrationView,
+    UserRegistrationView,
+)
+from users.views.subscriptions import new_articles_summary
+from users.views.user_pages import (
+    AuthorPageView,
+    AuthorSubscribeView,
+    AuthorUnsubscribeView,
+    UserProfileView,
+)
 
 
 urlpatterns = [
-    path("register/", views.UserRegistrationView.as_view(), name="registration"),
+    path("register/", UserRegistrationView.as_view(), name="registration"),
     path(
         "post_registration/",
-        views.PostUserRegistrationView.as_view(),
+        PostUserRegistrationView.as_view(),
         name="post-registration",
     ),
     path(
         "activate_account/<str:user_id_b64>/<str:token>/",
-        views.AccountActivationView.as_view(),
+        AccountActivationView.as_view(),
         name="account-activate",
     ),
-    path("set_password/", views.PasswordSetView.as_view(), name="password-set"),
-    path(
-        "change_password/", views.PasswordChangeView.as_view(), name="password-change"
-    ),
-    path("change_email/", views.EmailChangeView.as_view(), name="email-change"),
+    path("set_password/", PasswordSetView.as_view(), name="password-set"),
+    path("change_password/", PasswordChangeView.as_view(), name="password-change"),
+    path("change_email/", EmailChangeView.as_view(), name="email-change"),
     path(
         "reset_password/",
-        views.PasswordResetView.as_view(),
+        PasswordResetView.as_view(),
         name="password-reset",
     ),
     path(
         "confirm_password_reset/<str:uidb64>/<str:token>/",
-        views.UserPasswordResetConfirmView.as_view(),
+        UserPasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
     ),
     path(
         "change_email_resend/",
-        views.EmailChangeResendView.as_view(),
+        EmailChangeResendView.as_view(),
         name="email-change-resend",
     ),
     path(
         "cancel_email_change/",
-        views.EmailChangeCancelView.as_view(),
+        EmailChangeCancelView.as_view(),
         name="email-change-cancel",
     ),
     path(
         "confirm_email_change/<uuid:pending_email_change_public_id>/<str:token>/",
-        views.EmailChangeConfirmationView.as_view(),
+        EmailChangeConfirmationView.as_view(),
         name="email-change-confirm",
     ),
-    path("login/", views.UserLoginView.as_view(), name="login"),
-    path("user/profile/", views.UserProfileView.as_view(), name="user-profile"),
+    path("login/", UserLoginView.as_view(), name="login"),
+    path("user/profile/", UserProfileView.as_view(), name="user-profile"),
     path(
         "author/<int:author_id>/",
-        views.AuthorPageView.as_view(),
+        AuthorPageView.as_view(),
         name="author-page",
     ),
     path(
         "author/<int:author_id>/subscribe/",
-        views.AuthorSubscribeView.as_view(),
+        AuthorSubscribeView.as_view(),
         name="author-subscribe",
     ),
     path(
         "author/<int:author_id>/unsubscribe/",
-        views.AuthorUnsubscribeView.as_view(),
+        AuthorUnsubscribeView.as_view(),
         name="author-unsubscribe",
     ),
     path(
         "subscriptions/new_articles_summary/",
-        views.new_articles_summary,
+        new_articles_summary,
         name="new-articles-summary",
     ),
 ]

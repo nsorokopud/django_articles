@@ -5,24 +5,30 @@ from allauth.socialaccount.providers.google import views as google_views
 from django.test import SimpleTestCase
 from django.urls import Resolver404, resolve, reverse
 
-from users.views import (
-    AccountActivationView,
-    AuthorPageView,
-    AuthorSubscribeView,
-    AuthorUnsubscribeView,
+from users.views.auth import (
+    PasswordChangeView,
+    PasswordResetView,
+    PasswordSetView,
+    UserLoginView,
+    UserPasswordResetConfirmView,
+)
+from users.views.email import (
     EmailChangeCancelView,
     EmailChangeConfirmationView,
     EmailChangeResendView,
     EmailChangeView,
-    PasswordChangeView,
-    PasswordResetView,
-    PasswordSetView,
+)
+from users.views.registration import (
+    AccountActivationView,
     PostUserRegistrationView,
-    UserLoginView,
-    UserPasswordResetConfirmView,
-    UserProfileView,
     UserRegistrationView,
-    new_articles_summary,
+)
+from users.views.subscriptions import new_articles_summary
+from users.views.user_pages import (
+    AuthorPageView,
+    AuthorSubscribeView,
+    AuthorUnsubscribeView,
+    UserProfileView,
 )
 
 

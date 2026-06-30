@@ -9,8 +9,8 @@ from django_ratelimit.decorators import ratelimit
 
 from ..models import Article
 from ..selectors import get_published_article_by_slug
-from ..services import set_comment_like
 from ..services.comments import get_article_comments_page
+from ..services.likes import set_comment_like
 from .http import parse_liked_payload
 
 
