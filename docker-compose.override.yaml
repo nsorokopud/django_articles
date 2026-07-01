@@ -13,7 +13,7 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.local
     command: ['python', 'manage.py', 'runserver', '0.0.0.0:8000']
     ports:
-      - 8000:8000
+      - '8000:8000'
     volumes:
       - .:/app # Mount project dir to avoid image rebuilding
 
@@ -60,12 +60,12 @@ services:
       args:
         NGINX_TEMPLATE: http
     ports: !override
-      - 80:80
+      - '127.0.0.1:80:80'
 
   db:
     ports:
-      - 5432:5432
+      - '127.0.0.1:5432:5432'
 
   redis:
     ports:
-      - 6379:6379
+      - '127.0.0.1:6379:6379'
