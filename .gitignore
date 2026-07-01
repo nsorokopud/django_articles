@@ -57,7 +57,9 @@ celerybeat.pid
 node_modules/
 
 # Editors
-.vscode/
+.vscode/*
+!.vscode/launch.json
+
 .idea/
 .history/
 *.swp

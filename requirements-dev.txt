@@ -93,6 +93,8 @@ cssbeautifier==1.15.4
     # via djlint
 daphne==4.1.2
     # via -r requirements.in
+debugpy==1.8.21
+    # via -r requirements-dev.in
 dill==0.3.9
     # via pylint
 distlib==0.3.9
