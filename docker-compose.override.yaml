@@ -26,6 +26,8 @@ services:
       - .env.docker
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
+    volumes:
+      - .:/app
 
   celery-beat:
     build:
@@ -36,6 +38,8 @@ services:
       - .env.docker
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
+    volumes:
+      - .:/app
 
   flower:
     build:
@@ -46,6 +50,8 @@ services:
       - .env.docker
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
+    volumes:
+      - .:/app
 
   nginx:
     image: nsorokopud/django_articles:nginx-http-local
