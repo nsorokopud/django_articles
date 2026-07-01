@@ -73,7 +73,6 @@ node_modules/
 
 # Development-only dependencies and tooling
 requirements-dev.in
-requirements-dev.txt
 .prettierignore
 .prettierrc
 eslint.config.mjs

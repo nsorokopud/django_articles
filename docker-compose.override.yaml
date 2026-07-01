@@ -3,6 +3,10 @@
 
 services:
   web-app:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
     env_file: !override
       - .env.docker
     environment:
@@ -15,18 +19,30 @@ services:
       - .:/app # Mount project dir to avoid image rebuilding
 
   celery-worker:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
     env_file: !override
       - .env.docker
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
 
   celery-beat:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
     env_file: !override
       - .env.docker
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
 
   flower:
+    build:
+      context: .
+      args:
+        REQUIREMENTS_FILE: requirements-dev.txt
     env_file: !override
       - .env.docker
     environment:

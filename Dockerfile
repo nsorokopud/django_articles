@@ -2,6 +2,8 @@
 
 FROM python:3.12-slim-bookworm AS builder
 
+ARG REQUIREMENTS_FILE=requirements.txt
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
@@ -10,9 +12,17 @@ RUN apt-get update && \
 
 WORKDIR /build
 
-COPY requirements.txt .
+# Always needed because requirements-dev.txt imports it
+COPY requirements.txt /build/requirements.txt
 
-RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+# Production: requirements.txt
+# Development: requirements-dev.txt
+COPY ${REQUIREMENTS_FILE} /build/selected-requirements.txt
+
+RUN python -m pip wheel \
+        --no-cache-dir \
+        --wheel-dir /wheels \
+        -r /build/selected-requirements.txt
 
 
 FROM python:3.12-slim-bookworm
@@ -31,21 +41,20 @@ ENV PYTHONUNBUFFERED=1
 
 RUN adduser --disabled-password --gecos "" articles_user
 
-COPY requirements.txt .
-
 RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
+    --mount=type=bind,from=builder,source=/build,target=/requirements \
     python -m pip install \
         --no-cache-dir \
         --no-index \
         --find-links=/wheels \
-        -r requirements.txt
+        -r /requirements/selected-requirements.txt
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN sed -i 's/\r$//g' /usr/local/bin/entrypoint.sh && \
     chmod 755 /usr/local/bin/entrypoint.sh
 
-COPY . .
+COPY --exclude=requirements-dev.txt . .
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
