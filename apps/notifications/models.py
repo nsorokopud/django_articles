@@ -9,7 +9,6 @@ UNREAD_COMMENT_NOTIFICATION_AGGREGATE_CONSTRAINT = "uniq_rec_unread_comm_notif_a
 
 
 class NotificationType(models.TextChoices):
-    NEW_ARTICLE = "new_article", "New article"
     NEW_COMMENT = "new_comment", "New comment"
     SYSTEM = "system", "System"
     OTHER = "other", "Other"

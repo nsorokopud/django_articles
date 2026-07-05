@@ -11,10 +11,6 @@ from notifications.services.articles import (
     notify_article_unpublished,
 )
 from users.models import User
-from users.services.author_state import (
-    advance_latest_article_publish_sequence,
-    recompute_latest_article_publish_sequence,
-)
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..constants import DEFAULT_DRAFT_ARTICLE_TITLE
@@ -84,9 +80,6 @@ def publish_article(*, article_id: int, reviewer: User | None = None) -> Article
     )
 
     _cache_article_slug_id_on_commit(article)
-    _advance_author_latest_publish_sequence_on_commit(
-        article=article, publish_sequence=publish_sequence
-    )
     _notify_article_published_on_commit(
         article=article, actor=reviewer, publish_sequence=publish_sequence
     )
@@ -107,8 +100,6 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
     article.published_at = None
     article.publish_sequence = None
     article.save(update_fields=["status", "published_at", "publish_sequence"])
-
-    recompute_latest_article_publish_sequence(user_id=article.author_id)
 
     _invalidate_article_slug_id_cache_on_commit(article)
     _notify_article_unpublished_on_commit(
@@ -200,18 +191,6 @@ def _invalidate_article_slug_id_cache_on_commit(article: Article) -> None:
     article_slug = article.slug
 
     transaction.on_commit(lambda: invalidate_article_slug_id(article_slug=article_slug))
-
-
-def _advance_author_latest_publish_sequence_on_commit(
-    *, article: Article, publish_sequence: int
-) -> None:
-    author_id = article.author_id
-
-    transaction.on_commit(
-        lambda: advance_latest_article_publish_sequence(
-            user_id=author_id, publish_sequence=publish_sequence
-        )
-    )
 
 
 def _notify_article_published_on_commit(

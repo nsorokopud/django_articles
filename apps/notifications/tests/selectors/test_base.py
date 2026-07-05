@@ -17,8 +17,8 @@ class TestBaseSelectors(TestCase):
 
     def test_find_notifications_by_user_filters_by_recipient_id(self) -> None:
         n1 = Notification.objects.create(
-            notification_type=NotificationType.NEW_ARTICLE,
-            title="New Article",
+            notification_type=NotificationType.SYSTEM,
+            title="System",
             body="body1",
             payload={"link": "/x/"},
             sender=self.author,
@@ -33,7 +33,7 @@ class TestBaseSelectors(TestCase):
             recipient=self.user,
         )
         Notification.objects.create(
-            notification_type=NotificationType.NEW_ARTICLE,
+            notification_type=NotificationType.OTHER,
             title="Other",
             body="body3",
             payload={"link": "/z/"},

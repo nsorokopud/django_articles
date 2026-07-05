@@ -102,8 +102,6 @@ class TestMyArticlesListView(TestCase):
         self.assertTrue(response.context["show_comments"])
         self.assertEqual(response.context["draft_edit_url_name"], "article-update")
         self.assertEqual(response.context["page_key"], "my-articles")
-        self.assertFalse(response.context["is_subscriptions_feed_page_one"])
-        self.assertEqual(response.context["latest_article_publish_sequence"], 0)
 
     def test_empty_articles_list(self):
         self.client.force_login(self.user)

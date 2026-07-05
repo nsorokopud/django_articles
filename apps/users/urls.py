@@ -18,7 +18,6 @@ from users.views.registration import (
     PostUserRegistrationView,
     UserRegistrationView,
 )
-from users.views.subscriptions import new_articles_summary
 from users.views.user_pages import (
     AuthorPageView,
     AuthorSubscribeView,
@@ -75,10 +74,5 @@ urlpatterns = [
         "author/<int:author_id>/unsubscribe/",
         AuthorUnsubscribeView.as_view(),
         name="author-unsubscribe",
-    ),
-    path(
-        "subscriptions/new_articles_summary/",
-        new_articles_summary,
-        name="new-articles-summary",
     ),
 ]

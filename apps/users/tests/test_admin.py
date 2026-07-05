@@ -16,8 +16,6 @@ class TestCustomUserAdmin(TestCase):
         )
 
         self.assertNotIn("email", readonly_fields)
-        self.assertIn("latest_article_publish_sequence", readonly_fields)
-        self.assertIn("subscriptions_last_seen_publish_sequence", readonly_fields)
         self.assertIn("unread_notifications_count", readonly_fields)
 
     def test_email_is_readonly_when_editing_existing_user(self):
@@ -30,8 +28,6 @@ class TestCustomUserAdmin(TestCase):
         )
 
         self.assertIn("email", readonly_fields)
-        self.assertIn("latest_article_publish_sequence", readonly_fields)
-        self.assertIn("subscriptions_last_seen_publish_sequence", readonly_fields)
         self.assertIn("unread_notifications_count", readonly_fields)
 
     def test_email_is_not_duplicated_in_readonly_fields(self):
@@ -88,6 +84,5 @@ class TestPendingEmailChangeAdmin(TestCase):
         pending_email_change_admin = admin.site._registry[PendingEmailChange]
 
         self.assertEqual(
-            pending_email_change_admin.readonly_fields,
-            ("user", "email", "created_at"),
+            pending_email_change_admin.readonly_fields, ("user", "email", "created_at")
         )

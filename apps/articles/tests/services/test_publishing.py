@@ -240,9 +240,7 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
 class TestPublishArticle(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
-            username="author",
-            email="author@test.com",
-            latest_article_publish_sequence=0,
+            username="author", email="author@test.com"
         )
         self.article = Article.objects.create(
             author=self.author,
@@ -294,17 +292,11 @@ class TestPublishArticle(TestCase):
             second_article.publish_sequence, first_article.publish_sequence
         )
 
-        self.assertEqual(
-            self.author.latest_article_publish_sequence, second_article.publish_sequence
-        )
-
         self.assertEqual(first_published.id, first_article.id)
         self.assertEqual(second_published.id, second_article.id)
 
     @patch("articles.services.publishing.notify_article_published")
-    def test_sets_published_fields_review_metadata_and_updates_author_sequence(
-        self, mock_notify
-    ):
+    def test_sets_published_fields_review_metadata(self, mock_notify):
         reviewer = User.objects.create_user(
             username="reviewer", email="reviewer@test.com"
         )
@@ -332,10 +324,6 @@ class TestPublishArticle(TestCase):
         self.assertGreaterEqual(self.article.reviewed_at, before)
         self.assertLessEqual(self.article.reviewed_at, after)
         self.assertEqual(self.article.reviewed_by, reviewer)
-
-        self.assertEqual(
-            self.author.latest_article_publish_sequence, self.article.publish_sequence
-        )
 
         mock_notify.assert_called_once_with(
             recipient_id=self.author.id,
@@ -429,10 +417,7 @@ class TestPublishArticle(TestCase):
 
     @patch("articles.services.publishing.notify_article_published")
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
-    def test_raises_for_already_published_article(
-        self, mock_advance, mock_get_next, mock_notify
-    ):
+    def test_raises_for_already_published_article(self, mock_get_next, mock_notify):
         reviewer = User.objects.create_user(
             username="reviewer", email="reviewer@test.com"
         )
@@ -454,9 +439,6 @@ class TestPublishArticle(TestCase):
             ]
         )
 
-        self.author.latest_article_publish_sequence = 123
-        self.author.save(update_fields=["latest_article_publish_sequence"])
-
         with self.assertRaisesMessage(
             ValueError, "only articles pending review can be published"
         ):
@@ -470,29 +452,19 @@ class TestPublishArticle(TestCase):
         self.assertEqual(self.article.published_at, published_at)
         self.assertEqual(self.article.reviewed_at, reviewed_at)
         self.assertEqual(self.article.reviewed_by, reviewer)
-        self.assertEqual(self.author.latest_article_publish_sequence, 123)
 
         mock_get_next.assert_not_called()
-        mock_advance.assert_not_called()
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_calls_advance_with_author_id_and_sequence(
-        self,
-        mock_get_next,
-        mock_advance,
-        mock_notify,
+    def test_uses_generated_publish_sequence_and_notifies_author(
+        self, mock_get_next, mock_notify
     ):
         mock_get_next.return_value = 777
 
         with self.captureOnCommitCallbacks(execute=True):
             publish_article(article_id=self.article.id)
-
-        mock_advance.assert_called_once_with(
-            user_id=self.author.id, publish_sequence=777
-        )
 
         self.article.refresh_from_db()
 
@@ -563,7 +535,7 @@ class TestPublishArticle(TestCase):
             publish_article(article_id=self.article.id)
 
         mock_notify.assert_not_called()
-        self.assertEqual(len(callbacks), 3)
+        self.assertEqual(len(callbacks), 2)
 
     @patch("articles.services.publishing.notify_article_published")
     def test_raises_for_missing_article(self, mock_notify):
@@ -573,11 +545,8 @@ class TestPublishArticle(TestCase):
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.advance_latest_article_publish_sequence")
     @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_raises_when_content_is_empty_html(
-        self, mock_get_next, mock_advance, mock_notify
-    ):
+    def test_raises_when_content_is_empty_html(self, mock_get_next, mock_notify):
         self.article.content = "<p>&nbsp;</p>"
         self.article.save(update_fields=["content"])
 
@@ -593,7 +562,6 @@ class TestPublishArticle(TestCase):
         self.assertIsNone(self.article.publish_sequence)
 
         mock_get_next.assert_not_called()
-        mock_advance.assert_not_called()
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.cache_article_slug_id")
@@ -714,116 +682,6 @@ class TestUnpublishArticle(TestCase):
         self.assertIsNone(article.published_at)
         self.assertIsNone(article.publish_sequence)
         mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.notify_article_unpublished")
-    def test_unpublishing_latest_article_recomputes_author_latest_sequence(
-        self, mock_notify
-    ):
-        older_article = Article.objects.create(
-            title="Older",
-            slug="older",
-            author=self.author,
-            preview_text="p",
-            content="c",
-            content_text="c",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=10,
-        )
-        latest_article = Article.objects.create(
-            title="Latest",
-            slug="latest",
-            author=self.author,
-            preview_text="p",
-            content="c",
-            content_text="c",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=25,
-        )
-        User.objects.filter(pk=self.author.pk).update(
-            latest_article_publish_sequence=25
-        )
-
-        with self.captureOnCommitCallbacks(execute=True):
-            unpublish_article(article_id=latest_article.id)
-
-        self.author.refresh_from_db()
-        older_article.refresh_from_db()
-        latest_article.refresh_from_db()
-
-        self.assertEqual(self.author.latest_article_publish_sequence, 10)
-        self.assertEqual(older_article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(latest_article.status, ArticleStatus.DRAFT)
-        self.assertIsNone(latest_article.publish_sequence)
-        mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.notify_article_unpublished")
-    def test_unpublishing_only_published_article_recomputes_author_latest_to_zero(
-        self, mock_notify
-    ):
-        article = Article.objects.create(
-            title="Only",
-            slug="only",
-            author=self.author,
-            preview_text="p",
-            content="c",
-            content_text="c",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=25,
-        )
-        User.objects.filter(pk=self.author.pk).update(
-            latest_article_publish_sequence=25
-        )
-
-        with self.captureOnCommitCallbacks(execute=True):
-            unpublish_article(article_id=article.id)
-
-        self.author.refresh_from_db()
-        article.refresh_from_db()
-
-        self.assertEqual(self.author.latest_article_publish_sequence, 0)
-        self.assertEqual(article.status, ArticleStatus.DRAFT)
-        self.assertIsNone(article.publish_sequence)
-        mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.notify_article_unpublished")
-    def test_unpublishing_older_article_keeps_author_latest_sequence(self, mock_notify):
-        older_article = Article.objects.create(
-            title="Older",
-            slug="older",
-            author=self.author,
-            preview_text="p",
-            content="c",
-            content_text="c",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=10,
-        )
-        latest_article = Article.objects.create(
-            title="Latest",
-            slug="latest",
-            author=self.author,
-            preview_text="p",
-            content="c",
-            content_text="c",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=25,
-        )
-        User.objects.filter(pk=self.author.pk).update(
-            latest_article_publish_sequence=25
-        )
-
-        with self.captureOnCommitCallbacks(execute=True):
-            unpublish_article(article_id=older_article.id)
-
-        self.author.refresh_from_db()
-        latest_article.refresh_from_db()
-
-        self.assertEqual(self.author.latest_article_publish_sequence, 25)
-        self.assertEqual(latest_article.status, ArticleStatus.PUBLISHED)
 
     @patch("articles.services.publishing.notify_article_unpublished")
     def test_unpublish_notifies_when_actor_is_not_author(self, mock_notify):

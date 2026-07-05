@@ -64,7 +64,6 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 choices=[
-                    ("new_article", "New article"),
                     ("new_comment", "New comment"),
                     ("system", "System"),
                     ("other", "Other"),

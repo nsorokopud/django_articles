@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -126,8 +125,6 @@ class TestSubscriptionFeedView(TestCase):
         self.assertTrue(response.context["show_filters"])
         self.assertFalse(response.context["author_filter_ajax_enabled"])
         self.assertEqual(response.context["page_key"], "subscriptions")
-        self.assertTrue(response.context["is_subscriptions_feed_page_one"])
-        self.assertEqual(response.context["latest_article_publish_sequence"], 100)
 
     def test_author_filter_contains_only_subscribed_authors(self):
         self.client.force_login(self.subscriber)
@@ -152,44 +149,6 @@ class TestSubscriptionFeedView(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.feed_article1.title)
         self.assertNotContains(response, self.feed_article2.title)
-
-    def test_updates_last_seen_publish_sequence_on_page_one(self):
-        self.client.force_login(self.subscriber)
-        self.assertEqual(self.subscriber.subscriptions_last_seen_publish_sequence, 0)
-
-        response = self.client.get(reverse("subscription-feed"))
-
-        self.assertEqual(response.status_code, 200)
-
-        self.subscriber.refresh_from_db()
-        self.assertEqual(self.subscriber.subscriptions_last_seen_publish_sequence, 100)
-
-    def test_does_not_update_last_seen_publish_sequence_on_non_first_page(
-        self,
-    ):
-        for i in range(settings.ARTICLES_PER_PAGE + 1):
-            Article.objects.create(
-                title=f"Extra subscribed article {i}",
-                slug=f"extra-subscribed-article-{i}",
-                category=self.category,
-                author=self.author1,
-                preview_text=f"Preview extra {i}",
-                content=f"Content extra {i}",
-                content_text=f"Content extra {i}",
-                status=ArticleStatus.PUBLISHED,
-                published_at=timezone.now(),
-                publish_sequence=1000 + i,
-            )
-
-        self.client.force_login(self.subscriber)
-
-        response = self.client.get(reverse("subscription-feed"), {"page": 2})
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["is_subscriptions_feed_page_one"])
-
-        self.subscriber.refresh_from_db()
-        self.assertEqual(self.subscriber.subscriptions_last_seen_publish_sequence, 0)
 
     def test_empty_state_when_user_has_no_subscriptions(self):
         user = User.objects.create_user(username="u", email="u@test.com")

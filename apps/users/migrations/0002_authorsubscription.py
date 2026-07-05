@@ -23,7 +23,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
-                ("notifications_enabled", models.BooleanField(default=True)),
                 (
                     "author",
                     models.ForeignKey(

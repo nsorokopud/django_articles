@@ -501,7 +501,6 @@ class TestAuthorSubscriptionModel(TestCase):
 
         self.assertEqual(subscription.subscriber, subscriber)
         self.assertEqual(subscription.author, author)
-        self.assertTrue(subscription.notifications_enabled)
 
     def test_user_cannot_subscribe_to_self(self):
         user = User.objects.create_user(

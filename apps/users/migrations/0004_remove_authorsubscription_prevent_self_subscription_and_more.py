@@ -26,16 +26,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="user",
-            name="latest_article_publish_sequence",
-            field=models.BigIntegerField(db_index=True, default=0),
-        ),
-        migrations.AddField(
-            model_name="user",
-            name="subscriptions_last_seen_publish_sequence",
-            field=models.BigIntegerField(db_index=True, default=0),
-        ),
-        migrations.AddField(
-            model_name="user",
             name="unread_notifications_count",
             field=models.PositiveIntegerField(default=0),
         ),
@@ -43,14 +33,6 @@ class Migration(migrations.Migration):
             model_name="profile",
             name="notification_emails_allowed",
             field=models.BooleanField(db_index=True, default=True),
-        ),
-        migrations.AddIndex(
-            model_name="authorsubscription",
-            index=models.Index(
-                condition=models.Q(("notifications_enabled", True)),
-                fields=["subscriber", "author"],
-                name="sub_notif_enabl_sub_author_idx",
-            ),
         ),
         migrations.AddConstraint(
             model_name="authorsubscription",

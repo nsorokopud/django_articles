@@ -34,10 +34,6 @@ class User(AbstractUser):
         symmetrical=False,
         related_name="subscribers",
     )
-    latest_article_publish_sequence = models.BigIntegerField(default=0, db_index=True)
-    subscriptions_last_seen_publish_sequence = models.BigIntegerField(
-        default=0, db_index=True
-    )
     unread_notifications_count = models.PositiveIntegerField(default=0)
     session_auth_version = models.PositiveIntegerField(default=0)
 
@@ -168,16 +164,8 @@ class AuthorSubscription(models.Model):
         User, on_delete=models.CASCADE, related_name="subscriptions_received"
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    notifications_enabled = models.BooleanField(default=True)
 
     class Meta:
-        indexes = [
-            models.Index(
-                fields=["subscriber", "author"],
-                name="sub_notif_enabl_sub_author_idx",
-                condition=models.Q(notifications_enabled=True),
-            ),
-        ]
         constraints = [
             models.CheckConstraint(
                 condition=~models.Q(subscriber=models.F("author")),

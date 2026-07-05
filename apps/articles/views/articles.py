@@ -17,9 +17,6 @@ from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
 from core.decorators import cache_page_for_anonymous
-from users.services.subscriptions import (
-    advance_subscriptions_last_seen_publish_sequence,
-)
 
 from ..exceptions import ArticleCommentError
 from ..filters import ArticleFilter, SubscriptionFeedFilter
@@ -62,8 +59,6 @@ class BaseArticleListFilterView(FilterView):
     author_filter_ajax_enabled = True
 
     page_key = ""
-    is_subscriptions_feed_page_one = False
-    latest_article_publish_sequence = 0
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
@@ -81,8 +76,6 @@ class BaseArticleListFilterView(FilterView):
                 "show_comments": self.show_comments,
                 "draft_edit_url_name": self.draft_edit_url_name,
                 "page_key": self.page_key,
-                "is_subscriptions_feed_page_one": self.is_subscriptions_feed_page_one,
-                "latest_article_publish_sequence": self.latest_article_publish_sequence,
                 "author_filter_ajax_enabled": self.author_filter_ajax_enabled,
             }
         )
@@ -113,34 +106,6 @@ class SubscriptionFeedView(LoginRequiredMixin, BaseArticleListFilterView):
         kwargs["user"] = self.request.user
         return kwargs
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
-        context = super().get_context_data(**kwargs)
-
-        page_obj = context.get("page_obj")
-        articles = context.get("articles")
-
-        is_page_one = bool(page_obj and page_obj.number == 1)
-
-        latest_publish_sequence = 0
-        first_article = next(iter(articles), None) if articles else None
-        if first_article and first_article.publish_sequence:
-            latest_publish_sequence = first_article.publish_sequence
-
-        if is_page_one and latest_publish_sequence > 0:
-            advance_subscriptions_last_seen_publish_sequence(
-                user_id=self.request.user.id,
-                last_seen_publish_sequence=latest_publish_sequence,
-            )
-
-        context.update(
-            {
-                "page_key": self.page_key,
-                "is_subscriptions_feed_page_one": is_page_one,
-                "latest_article_publish_sequence": latest_publish_sequence,
-            }
-        )
-        return context
-
 
 class MyArticlesListView(LoginRequiredMixin, ListView):
     model = Article
@@ -167,8 +132,6 @@ class MyArticlesListView(LoginRequiredMixin, ListView):
                 "show_comments": True,
                 "draft_edit_url_name": "article-update",
                 "page_key": "my-articles",
-                "is_subscriptions_feed_page_one": False,
-                "latest_article_publish_sequence": 0,
             }
         )
         return context

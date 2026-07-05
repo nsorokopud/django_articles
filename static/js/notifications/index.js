@@ -1,4 +1,3 @@
-import { initNewArticlesDigest } from './new-articles.js';
 import {
   initInboxUI,
   onNotificationReceived,
@@ -9,22 +8,11 @@ import { initWebSocket } from './ws.js';
 const dataset = document.body?.dataset;
 
 const isAuthenticated = dataset?.isAuthenticated === '1';
-const isSubscriptionsPage = dataset?.page === 'subscriptions';
-const isSubscriptionsFeedPageOne = dataset?.isSubscriptionsFeedPageOne === '1';
-const latestArticlePublishSequence =
-  Number(dataset?.latestArticlePublishSequence) || 0;
 
 if (isAuthenticated) {
   initInboxUI();
   initWebSocket({
     onNotification: onNotificationReceived,
     onDigest: onNotificationDigestReceived,
-  });
-
-  initNewArticlesDigest({
-    isAuthenticated,
-    isSubscriptionsPage,
-    isSubscriptionsFeedPageOne,
-    latestArticlePublishSequence,
   });
 }
