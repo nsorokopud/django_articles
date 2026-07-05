@@ -169,15 +169,7 @@ function renderInboxItems(items, { mode } = { mode: 'replace' }) {
     fragment.appendChild(createInboxNotificationElement(n));
   }
 
-  switch (mode) {
-    case 'prepend':
-      container.prepend(fragment);
-      break;
-    case 'replace':
-    case 'append':
-    default:
-      container.appendChild(fragment);
-  }
+  container.appendChild(fragment);
 }
 
 function prependInboxItem(n) {
