@@ -42,11 +42,7 @@ urlpatterns = [
     path("set_password/", PasswordSetView.as_view(), name="password-set"),
     path("change_password/", PasswordChangeView.as_view(), name="password-change"),
     path("change_email/", EmailChangeView.as_view(), name="email-change"),
-    path(
-        "reset_password/",
-        PasswordResetView.as_view(),
-        name="password-reset",
-    ),
+    path("reset_password/", PasswordResetView.as_view(), name="password-reset"),
     path(
         "confirm_password_reset/<str:uidb64>/<str:token>/",
         UserPasswordResetConfirmView.as_view(),
@@ -69,11 +65,7 @@ urlpatterns = [
     ),
     path("login/", UserLoginView.as_view(), name="login"),
     path("user/profile/", UserProfileView.as_view(), name="user-profile"),
-    path(
-        "author/<int:author_id>/",
-        AuthorPageView.as_view(),
-        name="author-page",
-    ),
+    path("author/<int:author_id>/", AuthorPageView.as_view(), name="author-page"),
     path(
         "author/<int:author_id>/subscribe/",
         AuthorSubscribeView.as_view(),
