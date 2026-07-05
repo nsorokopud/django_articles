@@ -8,7 +8,6 @@ export function showToast({
   body,
   timestamp,
   lastEventAt = null,
-  payload,
   link,
   markReadOnClick,
   displayDurationMs,
@@ -43,11 +42,7 @@ export function showToast({
 
   const headerTime = document.createElement('small');
   try {
-    const effectiveTimestamp = getToastTimestamp({
-      timestamp,
-      lastEventAt,
-      payload,
-    });
+    const effectiveTimestamp = lastEventAt || timestamp;
 
     headerTime.dataset.relativeTimestamp = effectiveTimestamp;
     headerTime.innerText =
@@ -113,18 +108,4 @@ export function showToast({
       window.location.replace(safeLink);
     });
   }
-}
-
-function getToastTimestamp({ timestamp, lastEventAt, payload }) {
-  if (lastEventAt) return lastEventAt;
-
-  if (
-    payload &&
-    payload.kind === 'comment_aggregate' &&
-    payload.last_comment_at
-  ) {
-    return payload.last_comment_at;
-  }
-
-  return timestamp;
 }

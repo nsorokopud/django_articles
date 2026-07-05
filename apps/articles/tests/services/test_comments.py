@@ -111,7 +111,6 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.assert_called_once_with(
             comment_id=comment.id,
             comment_author_id=self.commenter.id,
-            comment_author_username=self.commenter.username,
             article_id=self.article.id,
             article_author_id=self.article.author_id,
             article_slug=self.article.slug,
@@ -151,7 +150,6 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.assert_called_once_with(
             comment_id=comment.id,
             comment_author_id=self.commenter.id,
-            comment_author_username=self.commenter.username,
             article_id=self.article.id,
             article_author_id=self.article.author_id,
             article_slug=self.article.slug,
@@ -188,7 +186,6 @@ class TestCreateArticleComment(TestCase):
         mock_create_notification.assert_called_once_with(
             comment_id=comment.id,
             comment_author_id=self.commenter.id,
-            comment_author_username=self.commenter.username,
             article_id=self.article.id,
             article_author_id=self.article.author_id,
             article_slug=self.article.slug,

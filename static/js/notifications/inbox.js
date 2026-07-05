@@ -25,7 +25,6 @@ export function onNotificationReceived(n) {
     body: n.body,
     timestamp: n.timestamp,
     lastEventAt: n.last_event_at || n.timestamp,
-    payload: n.payload,
     link: n.payload?.link || n.payload?.url || null,
     markReadOnClick: true,
   });
@@ -53,7 +52,6 @@ export function onNotificationDigestReceived() {
     title: 'New Notifications',
     body: 'You have new notifications. Check your inbox.',
     timestamp: new Date().toISOString(),
-    payload: {},
     link: null,
     markReadOnClick: false,
   });

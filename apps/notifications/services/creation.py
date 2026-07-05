@@ -18,7 +18,6 @@ def create_new_comment_notification(
     *,
     comment_id: int,
     comment_author_id: int,
-    comment_author_username: str,
     article_author_id: int,
     article_id: int,
     article_slug: str,
@@ -28,7 +27,6 @@ def create_new_comment_notification(
     return create_or_update_unread_comment_aggregate_notification(
         comment_id=comment_id,
         comment_author_id=comment_author_id,
-        comment_author_username=comment_author_username,
         article_id=article_id,
         article_author_id=article_author_id,
         article_slug=article_slug,

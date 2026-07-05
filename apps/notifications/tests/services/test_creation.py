@@ -208,7 +208,6 @@ class TestCreateNewCommentNotification(TestCase):
         res = create_new_comment_notification(
             comment_id=1,
             comment_author_id=self.recipient.id,
-            comment_author_username=self.recipient.username,
             article_author_id=self.recipient.id,
             article_id=123,
             article_slug="slug",
@@ -226,7 +225,6 @@ class TestCreateNewCommentNotification(TestCase):
         res = create_new_comment_notification(
             comment_id=1,
             comment_author_id=self.sender.id,
-            comment_author_username=self.sender.username,
             article_author_id=self.recipient.id,
             article_id=123,
             article_slug="a-slug",
@@ -237,7 +235,6 @@ class TestCreateNewCommentNotification(TestCase):
         mock_delegate.assert_called_once_with(
             comment_id=1,
             comment_author_id=self.sender.id,
-            comment_author_username=self.sender.username,
             article_id=123,
             article_author_id=self.recipient.id,
             article_slug="a-slug",

@@ -49,7 +49,6 @@ def create_article_comment(*, article_id: int, user: User, text: str) -> Article
         notification_data = {
             "comment_id": comment.id,
             "comment_author_id": user.id,
-            "comment_author_username": user.username,
             "article_id": article.id,
             "article_author_id": article.author_id,
             "article_slug": article.slug,
