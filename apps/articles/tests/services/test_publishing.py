@@ -11,7 +11,6 @@ from articles.services.publishing import (
     _has_meaningful_html_content,
     _normalize_article_text,
     _validate_article_ready,
-    get_next_article_publish_sequence_value,
     publish_article,
     reject_article,
     submit_article_for_review,
@@ -29,11 +28,9 @@ class ArticleServiceBaseTestCase(TestCase):
 
     def create_article(self, *, status=ArticleStatus.DRAFT) -> Article:
         published_at = None
-        publish_sequence = None
 
         if status == ArticleStatus.PUBLISHED:
             published_at = timezone.now()
-            publish_sequence = 123
 
         return Article.objects.create(
             title="a",
@@ -44,7 +41,6 @@ class ArticleServiceBaseTestCase(TestCase):
             content_text="c",
             status=status,
             published_at=published_at,
-            publish_sequence=publish_sequence,
         )
 
 
@@ -79,7 +75,6 @@ class TestSubmitArticleForReview(ArticleServiceBaseTestCase):
         article.refresh_from_db()
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(article.published_at)
-        self.assertIsNotNone(article.publish_sequence)
 
     def test_submit_article_for_review_from_rejected_raises_error(self):
         article = self.create_article(status=ArticleStatus.REJECTED)
@@ -234,7 +229,6 @@ class TestWithdrawArticleFromReview(ArticleServiceBaseTestCase):
         article.refresh_from_db()
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(article.published_at)
-        self.assertIsNotNone(article.publish_sequence)
 
 
 class TestPublishArticle(TestCase):
@@ -250,50 +244,6 @@ class TestPublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PENDING_REVIEW,
         )
-
-    def test_publishing_two_articles_assigns_unique_increasing_sequences(self):
-        first_article = Article.objects.create(
-            author=self.author,
-            title="First article",
-            slug="first-article",
-            preview_text="First preview",
-            content="<p>First body</p>",
-            content_text="First body",
-            status=ArticleStatus.PENDING_REVIEW,
-        )
-        second_article = Article.objects.create(
-            author=self.author,
-            title="Second article",
-            slug="second-article",
-            preview_text="Second preview",
-            content="<p>Second body</p>",
-            content_text="Second body",
-            status=ArticleStatus.PENDING_REVIEW,
-        )
-
-        with self.captureOnCommitCallbacks(execute=True):
-            first_published = publish_article(article_id=first_article.id)
-
-        with self.captureOnCommitCallbacks(execute=True):
-            second_published = publish_article(article_id=second_article.id)
-
-        first_article.refresh_from_db()
-        second_article.refresh_from_db()
-        self.author.refresh_from_db()
-
-        self.assertEqual(first_article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(second_article.status, ArticleStatus.PUBLISHED)
-
-        sequences = [first_article.publish_sequence, second_article.publish_sequence]
-
-        self.assertNotIn(None, sequences)
-        self.assertEqual(len(set(sequences)), 2)
-        self.assertGreater(
-            second_article.publish_sequence, first_article.publish_sequence
-        )
-
-        self.assertEqual(first_published.id, first_article.id)
-        self.assertEqual(second_published.id, second_article.id)
 
     @patch("articles.services.publishing.notify_article_published")
     def test_sets_published_fields_review_metadata(self, mock_notify):
@@ -314,7 +264,6 @@ class TestPublishArticle(TestCase):
         self.assertEqual(published.id, self.article.id)
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(self.article.published_at)
-        self.assertIsNotNone(self.article.publish_sequence)
 
         self.assertGreaterEqual(self.article.published_at, before)
         self.assertLessEqual(self.article.published_at, after)
@@ -331,7 +280,7 @@ class TestPublishArticle(TestCase):
             article_slug=self.article.slug,
             article_title=self.article.title,
             actor_id=reviewer.id,
-            publish_sequence=self.article.publish_sequence,
+            published_at=self.article.published_at,
         )
 
     @patch("articles.services.publishing.notify_article_published")
@@ -382,7 +331,7 @@ class TestPublishArticle(TestCase):
             article_slug=self.article.slug,
             article_title=self.article.title,
             actor_id=None,
-            publish_sequence=self.article.publish_sequence,
+            published_at=self.article.published_at,
         )
 
     @patch("articles.services.publishing.notify_article_published")
@@ -412,12 +361,10 @@ class TestPublishArticle(TestCase):
         self.assertEqual(self.article.reviewed_at, reviewed_at)
         self.assertEqual(self.article.reviewed_by, reviewer)
         self.assertIsNone(self.article.published_at)
-        self.assertIsNone(self.article.publish_sequence)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_raises_for_already_published_article(self, mock_get_next, mock_notify):
+    def test_raises_for_already_published_article(self, mock_notify):
         reviewer = User.objects.create_user(
             username="reviewer", email="reviewer@test.com"
         )
@@ -426,17 +373,10 @@ class TestPublishArticle(TestCase):
 
         self.article.status = ArticleStatus.PUBLISHED
         self.article.published_at = published_at
-        self.article.publish_sequence = 123
         self.article.reviewed_at = reviewed_at
         self.article.reviewed_by = reviewer
         self.article.save(
-            update_fields=[
-                "status",
-                "published_at",
-                "publish_sequence",
-                "reviewed_at",
-                "reviewed_by",
-            ]
+            update_fields=["status", "published_at", "reviewed_at", "reviewed_by"]
         )
 
         with self.assertRaisesMessage(
@@ -448,28 +388,20 @@ class TestPublishArticle(TestCase):
         self.author.refresh_from_db()
 
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(self.article.publish_sequence, 123)
         self.assertEqual(self.article.published_at, published_at)
         self.assertEqual(self.article.reviewed_at, reviewed_at)
         self.assertEqual(self.article.reviewed_by, reviewer)
 
-        mock_get_next.assert_not_called()
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_uses_generated_publish_sequence_and_notifies_author(
-        self, mock_get_next, mock_notify
-    ):
-        mock_get_next.return_value = 777
-
+    def test_notifies_author(self, mock_notify):
         with self.captureOnCommitCallbacks(execute=True):
             publish_article(article_id=self.article.id)
 
         self.article.refresh_from_db()
 
         self.assertEqual(self.article.status, ArticleStatus.PUBLISHED)
-        self.assertEqual(self.article.publish_sequence, 777)
         self.assertIsNotNone(self.article.published_at)
         self.assertIsNotNone(self.article.reviewed_at)
         self.assertIsNone(self.article.reviewed_by)
@@ -480,7 +412,7 @@ class TestPublishArticle(TestCase):
             article_slug=self.article.slug,
             article_title=self.article.title,
             actor_id=None,
-            publish_sequence=777,
+            published_at=self.article.published_at,
         )
 
     @patch("articles.services.publishing.notify_article_published")
@@ -494,7 +426,7 @@ class TestPublishArticle(TestCase):
             article_slug=published.slug,
             article_title=published.title,
             actor_id=None,
-            publish_sequence=published.publish_sequence,
+            published_at=published.published_at,
         )
 
     @patch("articles.services.publishing.notify_article_published")
@@ -516,7 +448,7 @@ class TestPublishArticle(TestCase):
             article_slug=published.slug,
             article_title=published.title,
             actor_id=reviewer.id,
-            publish_sequence=published.publish_sequence,
+            published_at=self.article.published_at,
         )
 
     @patch("articles.services.publishing.notify_article_published")
@@ -545,8 +477,7 @@ class TestPublishArticle(TestCase):
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_published")
-    @patch("articles.services.publishing.get_next_article_publish_sequence_value")
-    def test_raises_when_content_is_empty_html(self, mock_get_next, mock_notify):
+    def test_raises_when_content_is_empty_html(self, mock_notify):
         self.article.content = "<p>&nbsp;</p>"
         self.article.save(update_fields=["content"])
 
@@ -559,9 +490,7 @@ class TestPublishArticle(TestCase):
 
         self.assertEqual(self.article.status, ArticleStatus.PENDING_REVIEW)
         self.assertIsNone(self.article.published_at)
-        self.assertIsNone(self.article.publish_sequence)
 
-        mock_get_next.assert_not_called()
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.cache_article_slug_id")
@@ -588,19 +517,6 @@ class TestPublishArticle(TestCase):
         mock_cache.assert_not_called()
 
 
-class TestGetNextArticlePublishSequenceValue(TestCase):
-    def test_returns_int(self):
-        value = get_next_article_publish_sequence_value()
-
-        self.assertIsInstance(value, int)
-
-    def test_returns_increasing_values(self):
-        first = get_next_article_publish_sequence_value()
-        second = get_next_article_publish_sequence_value()
-
-        self.assertGreater(second, first)
-
-
 class TestUnpublishArticle(TestCase):
     def setUp(self):
         self.author = User.objects.create_user(
@@ -618,7 +534,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -629,7 +544,6 @@ class TestUnpublishArticle(TestCase):
         self.assertEqual(returned_article.id, article.id)
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertIsNone(article.published_at)
-        self.assertIsNone(article.publish_sequence)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_unpublished")
@@ -643,7 +557,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.DRAFT,
             published_at=None,
-            publish_sequence=None,
         )
 
         with self.assertRaisesMessage(
@@ -654,7 +567,6 @@ class TestUnpublishArticle(TestCase):
         article.refresh_from_db()
         self.assertEqual(article.status, ArticleStatus.DRAFT)
         self.assertIsNone(article.published_at)
-        self.assertIsNone(article.publish_sequence)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_unpublished")
@@ -668,7 +580,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.REJECTED,
             published_at=None,
-            publish_sequence=None,
         )
 
         with self.assertRaisesMessage(
@@ -680,7 +591,6 @@ class TestUnpublishArticle(TestCase):
 
         self.assertEqual(article.status, ArticleStatus.REJECTED)
         self.assertIsNone(article.published_at)
-        self.assertIsNone(article.publish_sequence)
         mock_notify.assert_not_called()
 
     @patch("articles.services.publishing.notify_article_unpublished")
@@ -695,7 +605,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -721,7 +630,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -740,7 +648,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -759,7 +666,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
         editor = User.objects.create_user(username="editor", email="editor@test.com")
 
@@ -788,7 +694,6 @@ class TestUnpublishArticle(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
 
         with self.captureOnCommitCallbacks(execute=True):
@@ -856,7 +761,6 @@ class TestRejectArticle(TestCase):
         self.assertEqual(result.id, article.id)
         self.assertEqual(article.status, ArticleStatus.REJECTED)
         self.assertIsNone(article.published_at)
-        self.assertIsNone(article.publish_sequence)
         self.assertEqual(article.review_note, "Please improve structure.")
         self.assertEqual(article.reviewed_by, self.reviewer)
         self.assertIsNotNone(article.reviewed_at)

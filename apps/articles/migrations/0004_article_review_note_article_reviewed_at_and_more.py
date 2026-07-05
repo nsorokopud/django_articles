@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0004_remove_article_art_author_pub_seq_id_desc_idx_and_more"),
+        ("articles", "0003_article_status_and_publication_indexes"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

@@ -29,7 +29,6 @@ class TestArticleCommentsListView(TestCase):
             content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
         self.comment1 = ArticleComment.objects.create(

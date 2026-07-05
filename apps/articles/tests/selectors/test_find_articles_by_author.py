@@ -135,7 +135,6 @@ class TestFindArticlesByAuthor(TestCase):
             content_text="c",
             status="published",
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
         result = find_articles_by_author(self.author)

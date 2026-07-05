@@ -359,8 +359,7 @@ class TestArticleModelForm(TestCase):
     def test_published_article_cannot_be_edited(self):
         self.article.status = ArticleStatus.PUBLISHED
         self.article.published_at = timezone.now()
-        self.article.publish_sequence = 1
-        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+        self.article.save(update_fields=["status", "published_at"])
 
         form = ArticleModelForm(
             instance=self.article,

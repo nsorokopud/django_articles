@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0008_article_content_text_and_more"),
+        ("articles", "0007_article_content_text_and_more"),
     ]
 
     operations = [

@@ -42,7 +42,6 @@ class TestGetCachedArticleIdBySlug(TestCase):
         )
         if status == ArticleStatus.PUBLISHED:
             article.published_at = timezone.now()
-            article.publish_sequence = 1
 
         article.save()
         return article

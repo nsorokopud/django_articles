@@ -7,7 +7,7 @@ import core.validators
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0015_articlemedia"),
+        ("articles", "0014_articlemedia"),
     ]
 
     operations = [

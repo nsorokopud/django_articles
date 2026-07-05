@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0009_alter_article_views_count"),
+        ("articles", "0008_alter_article_views_count"),
     ]
 
     operations = [

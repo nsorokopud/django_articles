@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0012_article_comments_count"),
+        ("articles", "0011_article_comments_count"),
     ]
 
     operations = [

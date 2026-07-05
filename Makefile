@@ -23,7 +23,6 @@ help:
 	@echo "  make prod-collect-fixture-media"
 	@echo "  make prod-load-fixtures"
 	@echo "  make prod-backfill-article-content-text"
-	@echo "  make prod-reset-article-publish-sequence"
 	@echo "  make prod-createsuperuser"
 	@echo "  make prod-container-shell"
 
@@ -34,7 +33,6 @@ help:
 .PHONY: prod-collect-fixture-media
 .PHONY: prod-load-fixtures
 .PHONY: prod-backfill-article-content-text
-.PHONY: prod-reset-article-publish-sequence
 .PHONY: prod-createsuperuser
 .PHONY: prod-container-shell
 
@@ -79,9 +77,6 @@ prod-load-fixtures:
 
 prod-backfill-article-content-text:
 	$(RUN_APP) $(PYTHON) backfill_article_content_text --settings=$(SETTINGS)
-
-prod-reset-article-publish-sequence:
-	$(RUN_APP) $(PYTHON) reset_article_publish_sequence --settings=$(SETTINGS)
 
 prod-createsuperuser:
 	$(RUN_APP) $(PYTHON) createsuperuser --settings=$(SETTINGS) --noinput

@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0017_alter_article_slug_article_unique_article_slug"),
+        ("articles", "0016_alter_article_slug_article_unique_article_slug"),
         (
             "taggit",
             "0006_rename_taggeditem_content_type_object_id_taggit_tagg_content_8fc721_idx",
@@ -18,16 +18,16 @@ class Migration(migrations.Migration):
             model_name="article",
             index=models.Index(
                 condition=models.Q(("status", "published")),
-                fields=["-views_count", "-publish_sequence", "-id"],
-                name="art_pub_views_seq_id_idx",
+                fields=["-views_count", "-published_at", "-id"],
+                name="art_pub_views_pub_at_id_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="article",
             index=models.Index(
                 condition=models.Q(("status", "published")),
-                fields=["-likes_count", "-publish_sequence", "-id"],
-                name="art_pub_likes_seq_id_idx",
+                fields=["-likes_count", "-published_at", "-id"],
+                name="art_pub_likes_pub_at_id_idx",
             ),
         ),
     ]

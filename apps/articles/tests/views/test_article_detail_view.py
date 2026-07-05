@@ -47,7 +47,6 @@ class TestArticleDetailView(TestCase):
             content_text="1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
             comments_count=1,
         )
         self.comment = ArticleComment.objects.create(
@@ -172,7 +171,6 @@ class TestArticleDetailView(TestCase):
             preview_text="draft preview",
             content="draft content",
             published_at=None,
-            publish_sequence=None,
         )
 
         url = reverse("article-details", args=[unpublished_article.slug])

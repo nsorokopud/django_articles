@@ -48,7 +48,6 @@ class TestArticleFilterSelectors(TestCase):
             author=cls.author_with_published,
             category=cls.public_category,
             status=ArticleStatus.PUBLISHED,
-            publish_sequence=1,
         )
         cls.published_article.tags.add("django", "python", "public-tag")
 
@@ -58,7 +57,6 @@ class TestArticleFilterSelectors(TestCase):
             author=cls.author_with_published,
             category=cls.public_category,
             status=ArticleStatus.PUBLISHED,
-            publish_sequence=2,
         )
         cls.second_published_article.tags.add("django", "postgres")
 
@@ -89,7 +87,6 @@ class TestArticleFilterSelectors(TestCase):
         author,
         category=None,
         status=ArticleStatus.DRAFT,
-        publish_sequence=None,
     ) -> Article:
         is_published = status == ArticleStatus.PUBLISHED
 
@@ -103,7 +100,6 @@ class TestArticleFilterSelectors(TestCase):
             content_text="Article content",
             status=status,
             published_at=timezone.now() if is_published else None,
-            publish_sequence=publish_sequence if is_published else None,
         )
 
     def test_find_article_filter_categories_returns_only_cats_with_published_articles(
@@ -171,7 +167,6 @@ class TestArticleFilterSelectors(TestCase):
                 author=self.author_with_published,
                 category=self.public_category,
                 status=ArticleStatus.PUBLISHED,
-                publish_sequence=100 + index,
             )
             article.tags.add(f"limit-tag-{index:02d}")
 
@@ -213,7 +208,6 @@ class TestArticleFilterSelectors(TestCase):
                 author=author,
                 category=self.public_category,
                 status=ArticleStatus.PUBLISHED,
-                publish_sequence=200 + index,
             )
 
         suggestions = list(find_article_filter_author_suggestions("limit_author"))

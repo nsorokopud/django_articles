@@ -31,7 +31,6 @@ class TestSetLikeServices(TestCase):
             content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
     def test_set_article_like(self):
@@ -273,7 +272,7 @@ class TestSyncLikeCountServices(TestCase):
         )
         self.category = ArticleCategory.objects.create(title="cat", slug="cat")
 
-    def create_published_article(self, *, slug="a1", publish_sequence=1) -> Article:
+    def create_published_article(self, *, slug="a1") -> Article:
         return Article.objects.create(
             title=slug,
             slug=slug,
@@ -284,7 +283,6 @@ class TestSyncLikeCountServices(TestCase):
             content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=publish_sequence,
         )
 
     def test_sync_article_likes_count_repairs_stale_count(self):
@@ -308,9 +306,9 @@ class TestSyncLikeCountServices(TestCase):
         self.assertEqual(article.likes_count, 0)
 
     def test_sync_article_likes_count_handles_multiple_batches(self):
-        article_1 = self.create_published_article(slug="a1", publish_sequence=1)
-        article_2 = self.create_published_article(slug="a2", publish_sequence=2)
-        article_3 = self.create_published_article(slug="a3", publish_sequence=3)
+        article_1 = self.create_published_article(slug="a1")
+        article_2 = self.create_published_article(slug="a2")
+        article_3 = self.create_published_article(slug="a3")
 
         article_1.users_that_liked.add(self.user)
         article_2.users_that_liked.add(self.user, self.other_user)

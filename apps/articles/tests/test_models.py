@@ -70,7 +70,6 @@ class TestArticleSearchVectorColumn(TestCase):
             content_text="Hello world",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
         with connection.cursor() as cursor:
@@ -105,7 +104,6 @@ class TestArticleSearchVectorColumn(TestCase):
             content_text="old content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
         article.title = "quantum django"
@@ -172,7 +170,7 @@ class TestArticleModelConstraints(TestCase):
             ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
         )
 
-    def test_published_requires_published_at_and_publish_sequence(self):
+    def test_published_requires_published_at(self):
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 Article.objects.create(
@@ -184,7 +182,6 @@ class TestArticleModelConstraints(TestCase):
                     content_text="Content",
                     status=ArticleStatus.PUBLISHED,
                     published_at=None,
-                    publish_sequence=None,
                 )
 
     def test_draft_cannot_have_publication_fields(self):
@@ -199,63 +196,6 @@ class TestArticleModelConstraints(TestCase):
                     content_text="Content",
                     status=ArticleStatus.DRAFT,
                     published_at=timezone.now(),
-                    publish_sequence=1,
-                )
-
-    def test_published_at_and_publish_sequence_must_be_set_together(self):
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Article.objects.create(
-                    title="Draft",
-                    slug="no-sequence",
-                    author=self.user,
-                    preview_text="Preview",
-                    content="Content",
-                    content_text="Content",
-                    status=ArticleStatus.DRAFT,
-                    published_at=timezone.now(),
-                    publish_sequence=None,
-                )
-
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Article.objects.create(
-                    title="Draft",
-                    slug="no-published-at",
-                    author=self.user,
-                    preview_text="Preview",
-                    content="Content",
-                    content_text="Content",
-                    status=ArticleStatus.DRAFT,
-                    published_at=None,
-                    publish_sequence=1,
-                )
-
-    def test_publish_sequence_must_be_unique_when_not_null(self):
-        Article.objects.create(
-            title="Article 1",
-            slug="article-1",
-            author=self.user,
-            preview_text="Preview",
-            content="Content",
-            content_text="Content",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=100,
-        )
-
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Article.objects.create(
-                    title="Article 2",
-                    slug="article-2",
-                    author=self.user,
-                    preview_text="Preview",
-                    content="Content",
-                    content_text="Content",
-                    status=ArticleStatus.PUBLISHED,
-                    published_at=timezone.now(),
-                    publish_sequence=100,
                 )
 
     def test_non_draft_requires_non_whitespace_title_preview_and_content_text(self):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from html import unescape
 
-from django.db import connection, transaction
+from django.db import transaction
 from django.utils import timezone
 from django.utils.html import strip_tags
 
@@ -14,7 +14,7 @@ from users.models import User
 
 from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
 from ..constants import DEFAULT_DRAFT_ARTICLE_TITLE
-from ..models import ARTICLE_PUBLISH_SEQUENCE_NAME, Article, ArticleStatus
+from ..models import Article, ArticleStatus
 
 
 @transaction.atomic
@@ -59,11 +59,9 @@ def publish_article(*, article_id: int, reviewer: User | None = None) -> Article
     _validate_article_ready(article, action="publishing")
 
     now = timezone.now()
-    publish_sequence = get_next_article_publish_sequence_value()
 
     article.status = ArticleStatus.PUBLISHED
     article.published_at = now
-    article.publish_sequence = publish_sequence
     article.review_note = ""
     article.reviewed_at = now
     article.reviewed_by = reviewer
@@ -72,7 +70,6 @@ def publish_article(*, article_id: int, reviewer: User | None = None) -> Article
         update_fields=[
             "status",
             "published_at",
-            "publish_sequence",
             "review_note",
             "reviewed_at",
             "reviewed_by",
@@ -81,7 +78,7 @@ def publish_article(*, article_id: int, reviewer: User | None = None) -> Article
 
     _cache_article_slug_id_on_commit(article)
     _notify_article_published_on_commit(
-        article=article, actor=reviewer, publish_sequence=publish_sequence
+        article=article, actor=reviewer, published_at=article.published_at
     )
 
     return article
@@ -98,8 +95,7 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
 
     article.status = ArticleStatus.DRAFT
     article.published_at = None
-    article.publish_sequence = None
-    article.save(update_fields=["status", "published_at", "publish_sequence"])
+    article.save(update_fields=["status", "published_at"])
 
     _invalidate_article_slug_id_cache_on_commit(article)
     _notify_article_unpublished_on_commit(
@@ -126,7 +122,6 @@ def reject_article(
 
     article.status = ArticleStatus.REJECTED
     article.published_at = None
-    article.publish_sequence = None
     article.review_note = cleaned_reason
     article.reviewed_at = timezone.now()
     article.reviewed_by = reviewer
@@ -135,7 +130,6 @@ def reject_article(
         update_fields=[
             "status",
             "published_at",
-            "publish_sequence",
             "review_note",
             "reviewed_at",
             "reviewed_by",
@@ -146,12 +140,6 @@ def reject_article(
     _notify_article_rejected_on_commit(article=article, reviewer=reviewer)
 
     return article
-
-
-def get_next_article_publish_sequence_value() -> int:
-    with connection.cursor() as cursor:
-        cursor.execute(f"SELECT nextval('{ARTICLE_PUBLISH_SEQUENCE_NAME}')")
-        return int(cursor.fetchone()[0])
 
 
 def _validate_article_ready(article: Article, *, action: str) -> None:
@@ -194,7 +182,7 @@ def _invalidate_article_slug_id_cache_on_commit(article: Article) -> None:
 
 
 def _notify_article_published_on_commit(
-    *, article: Article, actor: User | None, publish_sequence: int
+    *, article: Article, actor: User | None, published_at: datetime
 ) -> None:
     article_id = article.id
     author_id = article.author_id
@@ -212,7 +200,7 @@ def _notify_article_published_on_commit(
             article_slug=article_slug,
             article_title=article_title,
             actor_id=actor_id,
-            publish_sequence=publish_sequence,
+            published_at=published_at,
         )
     )
 

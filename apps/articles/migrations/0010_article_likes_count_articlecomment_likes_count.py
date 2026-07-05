@@ -35,7 +35,7 @@ def backfill_likes_count(_apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("articles", "0010_article_article_title_trigram_idx"),
+        ("articles", "0009_article_article_title_trigram_idx"),
     ]
 
     operations = [

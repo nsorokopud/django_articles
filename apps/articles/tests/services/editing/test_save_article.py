@@ -42,13 +42,11 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(saved.author, self.author)
         self.assertEqual(saved.status, ArticleStatus.DRAFT)
         self.assertIsNone(saved.published_at)
-        self.assertIsNone(saved.publish_sequence)
 
         db_article = Article.objects.get(id=saved.id)
         self.assertEqual(db_article.author, self.author)
         self.assertEqual(db_article.status, ArticleStatus.DRAFT)
         self.assertIsNone(db_article.published_at)
-        self.assertIsNone(db_article.publish_sequence)
 
     def test_updates_existing_article_without_replacing_author(self):
         article = Article.objects.create(
@@ -162,7 +160,6 @@ class TestSaveArticle(TransactionTestCase):
             content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
         article.title = "new published title"
 
@@ -251,9 +248,7 @@ class TestSaveArticle(TransactionTestCase):
         stale_article.title = "stale update"
 
         Article.objects.filter(pk=article.pk).update(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=1,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
 
         with self.assertRaisesMessage(
@@ -265,7 +260,6 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(article.title, "old title")
         self.assertEqual(article.status, ArticleStatus.PUBLISHED)
         self.assertIsNotNone(article.published_at)
-        self.assertEqual(article.publish_sequence, 1)
 
     @patch("articles.services.editing.sanitize_article_html")
     def test_calls_sanitizer_before_save(self, mock_sanitize):

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.urls import reverse
 
 from ..models import Notification
@@ -12,7 +14,7 @@ def notify_article_published(
     article_slug: str,
     article_title: str,
     actor_id: int | None = None,
-    publish_sequence: int | None = None,
+    published_at: datetime,
 ) -> None:
     notification, created = create_deduped_system_notification(
         recipient_id=recipient_id,
@@ -26,13 +28,8 @@ def notify_article_published(
             "articleSlug": article_slug,
             "articleTitle": article_title,
             "url": reverse("article-details", kwargs={"article_slug": article_slug}),
-            "publishSequence": publish_sequence,
         },
-        dedupe_key=(
-            f"article-published:{article_id}:{publish_sequence}"
-            if publish_sequence is not None
-            else f"article-published:{article_id}:{article_slug}"
-        ),
+        dedupe_key=f"article-published:{article_id}:{published_at.isoformat()}",
     )
 
     if created:

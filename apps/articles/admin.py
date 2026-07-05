@@ -46,7 +46,6 @@ class ArticleAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
-        "pub_seq",
         "status",
         "title",
         "category",
@@ -59,7 +58,6 @@ class ArticleAdmin(admin.ModelAdmin):
     readonly_fields = (
         "status",
         "published_at",
-        "publish_sequence",
         "review_note",
         "reviewed_at",
         "reviewed_by",
@@ -93,13 +91,7 @@ class ArticleAdmin(admin.ModelAdmin):
         ),
         (
             "Publication",
-            {
-                "fields": (
-                    "status",
-                    "published_at",
-                    "publish_sequence",
-                )
-            },
+            {"fields": ("status", "published_at")},
         ),
         (
             "Timestamps",
@@ -243,10 +235,6 @@ class ArticleAdmin(admin.ModelAdmin):
                 f"{preview}{suffix}",
                 level=messages.ERROR,
             )
-
-    @admin.display(description="PSeq", ordering="publish_sequence")
-    def pub_seq(self, obj):
-        return obj.publish_sequence if obj.publish_sequence is not None else "-"
 
     def get_urls(self):
         urls = super().get_urls()

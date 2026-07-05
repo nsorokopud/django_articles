@@ -49,7 +49,6 @@ class TestSubscriptionFeedView(TestCase):
             content_text="Content 1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=100,
         )
         self.feed_article2 = Article.objects.create(
             title="Subscribed published article 2",
@@ -61,7 +60,6 @@ class TestSubscriptionFeedView(TestCase):
             content_text="Content 2",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=90,
         )
         self.unsubscribed_article = Article.objects.create(
             title="Unsubscribed published article",
@@ -73,7 +71,6 @@ class TestSubscriptionFeedView(TestCase):
             content_text="Content 3",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=80,
         )
         self.unpublished_subscribed_article = Article.objects.create(
             title="Subscribed unpublished article",

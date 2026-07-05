@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.test import TestCase
 from django.utils import timezone
 from taggit.models import Tag
@@ -23,7 +25,6 @@ class TestSelectors(TestCase):
         self.test_category = ArticleCategory.objects.create(
             title="test_cat", slug="test_cat"
         )
-        self._publish_sequence = 0
 
     def create_article(self, **kwargs) -> Article:
         defaults = {
@@ -36,18 +37,12 @@ class TestSelectors(TestCase):
             "content_text": "content",
             "status": ArticleStatus.DRAFT,
             "published_at": None,
-            "publish_sequence": None,
         }
         defaults.update(kwargs)
         return Article.objects.create(**defaults)
 
     def create_published_article(self, **kwargs) -> Article:
-        self._publish_sequence += 1
-        defaults = {
-            "status": ArticleStatus.PUBLISHED,
-            "published_at": timezone.now(),
-            "publish_sequence": self._publish_sequence,
-        }
+        defaults = {"status": ArticleStatus.PUBLISHED, "published_at": timezone.now()}
         defaults.update(kwargs)
         return self.create_article(**defaults)
 
@@ -283,13 +278,32 @@ class TestSelectors(TestCase):
             [comment1.id],
         )
 
-    def test_find_published_articles_ordered_by_publish_sequence_desc(self):
-        a1 = self.create_published_article(title="a1", slug="a1", publish_sequence=10)
-        a2 = self.create_published_article(title="a2", slug="a2", publish_sequence=30)
-        a3 = self.create_published_article(title="a3", slug="a3", publish_sequence=20)
+    def test_find_published_articles_ordered_by_published_at_desc(self):
+        now = timezone.now()
+
+        a1 = self.create_published_article(
+            title="a1", slug="a1", published_at=now - timedelta(days=2)
+        )
+        a2 = self.create_published_article(
+            title="a2", slug="a2", published_at=now - timedelta(days=1)
+        )
+        a3 = self.create_published_article(title="a3", slug="a3", published_at=now)
 
         result = list(find_published_articles())
-        self.assertEqual(result, [a2, a3, a1])
+        self.assertEqual(result, [a3, a2, a1])
+
+    def test_find_published_articles_ordered_by_id_desc_when_published_at_matches(self):
+        published_at = timezone.now()
+
+        a1 = self.create_published_article(
+            title="a1", slug="a1", published_at=published_at
+        )
+        a2 = self.create_published_article(
+            title="a2", slug="a2", published_at=published_at
+        )
+
+        result = list(find_published_articles())
+        self.assertEqual(result, [a2, a1])
 
     def test_get_comment_by_id(self):
         a = self.create_article(
@@ -339,7 +353,6 @@ class TestFindSubscriptionFeedArticles(TestCase):
             content="content1",
             content_text="content 1",
             status=ArticleStatus.PUBLISHED,
-            publish_sequence=1,
             published_at=timezone.now(),
         )
 
@@ -356,7 +369,6 @@ class TestFindSubscriptionFeedArticles(TestCase):
             content="content2",
             content_text="content 2",
             status=ArticleStatus.PUBLISHED,
-            publish_sequence=2,
             published_at=timezone.now(),
         )
 

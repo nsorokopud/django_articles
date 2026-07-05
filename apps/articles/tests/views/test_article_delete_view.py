@@ -35,7 +35,6 @@ class TestArticleDeleteView(TestCase):
             content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
     def _article(self, **overrides):

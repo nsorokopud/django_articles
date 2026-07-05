@@ -35,7 +35,6 @@ class TestCreateArticleComment(TestCase):
             content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
             comments_count=0,
         )
 
@@ -46,8 +45,7 @@ class TestCreateArticleComment(TestCase):
     ):
         self.article.status = ArticleStatus.DRAFT
         self.article.published_at = None
-        self.article.publish_sequence = None
-        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+        self.article.save(update_fields=["status", "published_at"])
 
         with self.assertRaises(ArticleNotPublishedCommentError):
             create_article_comment(
@@ -336,7 +334,6 @@ class TestGetArticleCommentsPage(TestCase):
             content_text="content",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
 
         self.comment1 = ArticleComment.objects.create(

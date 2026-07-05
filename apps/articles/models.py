@@ -20,7 +20,6 @@ from users.models import User
 ARTICLE_TITLE_MAX_LENGTH = 200
 ARTICLE_SLUG_MAX_LENGTH = 200
 ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME = "unique_article_slug"
-ARTICLE_PUBLISH_SEQUENCE_NAME = "article_publish_seq"
 
 COMMENT_STR_PREVIEW_LENGTH = 25
 
@@ -88,12 +87,6 @@ class Article(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    publish_sequence = models.BigIntegerField(
-        null=True,
-        blank=True,
-        db_index=True,
-        editable=False,
-    )
     modified_at = models.DateTimeField(auto_now=True)
     review_note = models.TextField(blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -118,23 +111,23 @@ class Article(models.Model):
 
         indexes = [
             models.Index(
-                fields=["author", "-publish_sequence", "-id"],
-                name="art_author_pub_seq_id_desc_idx",
+                fields=["author", "-published_at", "-id"],
+                name="art_author_pub_at_id_desc_idx",
                 condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             models.Index(
-                fields=["-publish_sequence"],
-                name="article_publish_seq_desc_idx",
+                fields=["-published_at", "-id"],
+                name="article_pub_at_id_desc_idx",
                 condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             models.Index(
-                fields=["-views_count", "-publish_sequence", "-id"],
-                name="art_pub_views_seq_id_idx",
+                fields=["-views_count", "-published_at", "-id"],
+                name="art_pub_views_pub_at_id_idx",
                 condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             models.Index(
-                fields=["-likes_count", "-publish_sequence", "-id"],
-                name="art_pub_likes_seq_id_idx",
+                fields=["-likes_count", "-published_at", "-id"],
+                name="art_pub_likes_pub_at_id_idx",
                 condition=Q(status=ArticleStatus.PUBLISHED),
             ),
             GinIndex(
@@ -155,24 +148,11 @@ class Article(models.Model):
                 fields=["slug"],
                 name=ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME,
             ),
-            models.UniqueConstraint(
-                fields=["publish_sequence"],
-                condition=Q(publish_sequence__isnull=False),
-                name="uniq_article_publish_sequence_not_null",
-            ),
-            models.CheckConstraint(
-                condition=(
-                    Q(published_at__isnull=True, publish_sequence__isnull=True)
-                    | Q(published_at__isnull=False, publish_sequence__isnull=False)
-                ),
-                name="article_publish_fields_consistent",
-            ),
             models.CheckConstraint(
                 condition=(
                     Q(
                         status=ArticleStatus.PUBLISHED,
                         published_at__isnull=False,
-                        publish_sequence__isnull=False,
                     )
                     | Q(
                         status__in=[
@@ -181,7 +161,6 @@ class Article(models.Model):
                             ArticleStatus.REJECTED,
                         ],
                         published_at__isnull=True,
-                        publish_sequence__isnull=True,
                     )
                 ),
                 name="art_status_matches_publ_fields",

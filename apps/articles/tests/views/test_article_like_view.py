@@ -22,7 +22,6 @@ class TestArticleLikeView(TestCase):
             content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
         self.url = reverse("article-like", args=[self.article.slug])
 

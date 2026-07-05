@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from notifications.models import Notification
 from notifications.services.articles import (
@@ -14,10 +15,8 @@ from notifications.services.articles import (
 class TestNotifyArticlePublished(SimpleTestCase):
     @patch("notifications.services.articles.dispatch_notification_after_commit")
     @patch("notifications.services.articles.create_deduped_system_notification")
-    def test_with_publish_sequence(
-        self,
-        mock_create_deduped_system_notification,
-        mock_dispatch,
+    def test_with_published_at(
+        self, mock_create_deduped_system_notification, mock_dispatch
     ):
         notification = Mock()
         notification.id = 101
@@ -25,6 +24,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
         mock_create_deduped_system_notification.return_value = (notification, True)
 
         article_id = 22
+        published_at = timezone.now()
 
         notify_article_published(
             recipient_id=11,
@@ -32,7 +32,7 @@ class TestNotifyArticlePublished(SimpleTestCase):
             article_slug="my-article",
             article_title="My Article",
             actor_id=33,
-            publish_sequence=44,
+            published_at=published_at,
         )
 
         mock_create_deduped_system_notification.assert_called_once_with(
@@ -50,59 +50,12 @@ class TestNotifyArticlePublished(SimpleTestCase):
                     "article-details",
                     kwargs={"article_slug": "my-article"},
                 ),
-                "publishSequence": 44,
             },
-            dedupe_key=f"article-published:{article_id}:44",
+            dedupe_key=f"article-published:{article_id}:{published_at.isoformat()}",
         )
         mock_dispatch.assert_called_once_with(
-            notification_id=101,
-            notification_type="system",
-            is_new_unread=True,
+            notification_id=101, notification_type="system", is_new_unread=True
         )
-
-    @patch("notifications.services.articles.dispatch_notification_after_commit")
-    @patch("notifications.services.articles.create_deduped_system_notification")
-    def test_without_publish_sequence_does_not_dispatch_when_deduped(
-        self,
-        mock_create_deduped_system_notification,
-        mock_dispatch,
-    ):
-        notification = Mock()
-        notification.id = 102
-        notification.notification_type = "system"
-        mock_create_deduped_system_notification.return_value = (notification, False)
-
-        article_id = 22
-
-        notify_article_published(
-            recipient_id=11,
-            article_id=article_id,
-            article_slug="my-article",
-            article_title="My Article",
-            actor_id=None,
-            publish_sequence=None,
-        )
-
-        mock_create_deduped_system_notification.assert_called_once_with(
-            recipient_id=11,
-            sender_id=None,
-            level=Notification.Level.SUCCESS,
-            title="Article published",
-            body='Your article "My Article" has been published.',
-            payload={
-                "kind": "article_published",
-                "articleId": article_id,
-                "articleSlug": "my-article",
-                "articleTitle": "My Article",
-                "url": reverse(
-                    "article-details",
-                    kwargs={"article_slug": "my-article"},
-                ),
-                "publishSequence": None,
-            },
-            dedupe_key=f"article-published:{article_id}:my-article",
-        )
-        mock_dispatch.assert_not_called()
 
 
 class TestNotifyArticleRejected(SimpleTestCase):

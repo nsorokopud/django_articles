@@ -19,7 +19,7 @@ def backfill_comments_count(_apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("articles", "0011_article_likes_count_articlecomment_likes_count"),
+        ("articles", "0010_article_likes_count_articlecomment_likes_count"),
     ]
 
     operations = [

@@ -100,7 +100,6 @@ class TestArticleAdmin(TestCase):
         article = self._article(
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
         request = self._request()
 
@@ -157,7 +156,6 @@ class TestArticleAdmin(TestCase):
         article = self._article(
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=123,
         )
         article.title = "Changed title"
 
@@ -225,20 +223,6 @@ class TestArticleAdmin(TestCase):
         article.refresh_from_db()
         self.assertEqual(set(article.tags.names()), {"django", "postgres"})
 
-    def test_pub_seq_returns_dash_when_empty(self):
-        article = self._article(publish_sequence=None)
-
-        self.assertEqual(self.article_admin.pub_seq(article), "-")
-
-    def test_pub_seq_returns_publish_sequence(self):
-        article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=10,
-        )
-
-        self.assertEqual(self.article_admin.pub_seq(article), 10)
-
     def test_change_view_adds_review_permission_to_context_for_reviewer(self):
         self.client.force_login(self.reviewer_user)
         article = self._article(status=ArticleStatus.PENDING_REVIEW)
@@ -266,7 +250,6 @@ class TestArticleAdmin(TestCase):
         article = self._article(
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=20,
         )
 
         response = self.client.get(
@@ -342,9 +325,7 @@ class TestArticleAdmin(TestCase):
     def test_change_form_shows_unpublish_button_for_published_article_reviewer(self):
         self.client.force_login(self.reviewer_user)
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=20,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
 
         response = self.client.get(
@@ -446,9 +427,7 @@ class TestArticleAdmin(TestCase):
 
     def test_process_unpublish_get_renders_confirmation(self):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=30,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request("get")
 
@@ -460,9 +439,7 @@ class TestArticleAdmin(TestCase):
 
     def test_process_unpublish_get_requires_review_permission(self):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=30,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request("get", user=self.editor_user)
 
@@ -472,9 +449,7 @@ class TestArticleAdmin(TestCase):
     @patch("articles.admin.unpublish_article")
     def test_process_unpublish_post_calls_service_and_redirects(self, mock_unpublish):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=40,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request("post")
 
@@ -569,13 +544,11 @@ class TestArticleAdmin(TestCase):
             slug="article-1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=101,
         )
         article_2 = self._article(
             slug="article-2",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=102,
         )
         request = self._request("post")
 
@@ -588,9 +561,7 @@ class TestArticleAdmin(TestCase):
     @patch("articles.admin.unpublish_article")
     def test_unpublish_action_requires_review_permission(self, mock_unpublish):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=101,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request("post", user=self.editor_user)
 
@@ -620,9 +591,7 @@ class TestArticleAdmin(TestCase):
 
     def test_has_delete_permission_false_for_published_article(self):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=999,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request()
 
@@ -702,9 +671,7 @@ class TestArticleAdmin(TestCase):
 
     def test_get_prepopulated_fields_for_published_article_is_empty(self):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=999,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request()
 
@@ -720,9 +687,7 @@ class TestArticleAdmin(TestCase):
 
     def test_slug_is_readonly_for_published_article(self):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=999,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
         request = self._request()
 

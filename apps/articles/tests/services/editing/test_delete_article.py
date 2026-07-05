@@ -52,9 +52,7 @@ class TestDeleteArticle(TestCase):
 
     def test_rejects_published_article(self):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=123,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
 
         with self.assertRaisesMessage(
@@ -99,9 +97,7 @@ class TestDeleteArticle(TestCase):
         self, mock_delete_media_task
     ):
         article = self._article(
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-            publish_sequence=123,
+            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
 
         with self.assertRaisesMessage(

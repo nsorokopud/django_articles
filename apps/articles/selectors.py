@@ -17,7 +17,7 @@ def find_published_articles() -> QuerySet[Article]:
         Article.objects.filter(status=ArticleStatus.PUBLISHED)
         .select_related("category", "author", "author__profile")
         .prefetch_related("tags")
-        .order_by("-publish_sequence", "-id")
+        .order_by("-published_at", "-id")
     )
 
 
@@ -92,7 +92,7 @@ def find_articles_by_query(
             "-title_contains_match",
             "-rank",
             "-title_similarity",
-            "-publish_sequence",
+            "-published_at",
             "-id",
         )
     )

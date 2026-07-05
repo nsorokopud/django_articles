@@ -32,8 +32,7 @@ class TestGetPublishedArticleBySlug(TestCase):
         if published:
             article.status = ArticleStatus.PUBLISHED
             article.published_at = article.created_at
-            article.publish_sequence = 1
-            article.save(update_fields=["status", "published_at", "publish_sequence"])
+            article.save(update_fields=["status", "published_at"])
 
         return article
 

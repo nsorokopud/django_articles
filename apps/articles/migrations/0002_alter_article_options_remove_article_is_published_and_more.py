@@ -26,55 +26,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="article",
-            name="publish_sequence",
-            field=models.BigIntegerField(
-                blank=True, db_index=True, editable=False, null=True
-            ),
-        ),
-        migrations.AddField(
-            model_name="article",
             name="published_at",
             field=models.DateTimeField(blank=True, db_index=True, null=True),
-        ),
-        migrations.AddIndex(
-            model_name="article",
-            index=models.Index(
-                condition=models.Q(("publish_sequence__isnull", False)),
-                fields=["author", "-publish_sequence", "-id"],
-                name="art_author_pub_seq_id_desc_idx",
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="article",
-            index=models.Index(
-                condition=models.Q(("publish_sequence__isnull", False)),
-                fields=["-publish_sequence"],
-                name="article_publish_seq_desc_idx",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="article",
-            constraint=models.UniqueConstraint(
-                condition=models.Q(("publish_sequence__isnull", False)),
-                fields=("publish_sequence",),
-                name="uniq_article_publish_sequence_not_null",
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name="article",
-            constraint=models.CheckConstraint(
-                condition=models.Q(
-                    models.Q(
-                        ("publish_sequence__isnull", True),
-                        ("published_at__isnull", True),
-                    ),
-                    models.Q(
-                        ("publish_sequence__isnull", False),
-                        ("published_at__isnull", False),
-                    ),
-                    _connector="OR",
-                ),
-                name="article_publish_fields_consistent",
-            ),
         ),
     ]

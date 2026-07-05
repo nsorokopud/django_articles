@@ -69,8 +69,7 @@ class TestAttachedFileUploadView(TestCase):
     def test_cannot_upload_to_published_article(self):
         self.article.status = "published"
         self.article.published_at = timezone.now()
-        self.article.publish_sequence = 1
-        self.article.save(update_fields=["status", "published_at", "publish_sequence"])
+        self.article.save(update_fields=["status", "published_at"])
 
         self.client.force_login(self.user)
         file = SimpleUploadedFile("test.jpg", b"hello", content_type="image/jpeg")

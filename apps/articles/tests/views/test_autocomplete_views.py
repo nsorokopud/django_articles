@@ -40,7 +40,6 @@ class TestArticleAutocompleteViews(TestCase):
             slug="published-article",
             author=cls.published_author,
             status=ArticleStatus.PUBLISHED,
-            publish_sequence=1,
         )
         cls.published_article.tags.add("django", "python", "public-tag")
 
@@ -49,7 +48,6 @@ class TestArticleAutocompleteViews(TestCase):
             slug="second-published-article",
             author=cls.second_published_author,
             status=ArticleStatus.PUBLISHED,
-            publish_sequence=2,
         )
         cls.second_published_article.tags.add("django-rest", "postgres")
 
@@ -70,15 +68,7 @@ class TestArticleAutocompleteViews(TestCase):
         cls.pending_article.tags.add("pending-tag")
 
     @classmethod
-    def create_article(
-        cls,
-        *,
-        title: str,
-        slug: str,
-        author,
-        status: str,
-        publish_sequence: int | None = None,
-    ) -> Article:
+    def create_article(cls, *, title: str, slug: str, author, status: str) -> Article:
         is_published = status == ArticleStatus.PUBLISHED
 
         return Article.objects.create(
@@ -91,7 +81,6 @@ class TestArticleAutocompleteViews(TestCase):
             content_text="Article content",
             status=status,
             published_at=timezone.now() if is_published else None,
-            publish_sequence=publish_sequence if is_published else None,
         )
 
     def test_tag_autocomplete_returns_matching_published_tags(self):
@@ -148,7 +137,6 @@ class TestArticleAutocompleteViews(TestCase):
                 slug=f"limit-tag-article-{index}",
                 author=self.published_author,
                 status=ArticleStatus.PUBLISHED,
-                publish_sequence=100 + index,
             )
             article.tags.add(f"limit-tag-{index:02d}")
 
@@ -217,7 +205,6 @@ class TestArticleAutocompleteViews(TestCase):
                 slug=f"limit-author-article-{index}",
                 author=author,
                 status=ArticleStatus.PUBLISHED,
-                publish_sequence=200 + index,
             )
 
         response = self.client.get(

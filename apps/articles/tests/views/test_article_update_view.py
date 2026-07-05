@@ -31,7 +31,6 @@ class TestArticleUpdateView(TestCase):
             content_text="content1",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
         self.published_article.tags.add("tag1")
 
@@ -230,7 +229,6 @@ class TestArticleUpdateView(TestCase):
         self.assertEqual(self.draft_article.content, "updated draft content")
         self.assertEqual(self.draft_article.status, ArticleStatus.DRAFT)
         self.assertIsNone(self.draft_article.published_at)
-        self.assertIsNone(self.draft_article.publish_sequence)
         self.assertCountEqual(
             [tag.name for tag in self.draft_article.tags.all()], ["tag2", "tag3"]
         )
@@ -264,7 +262,6 @@ class TestArticleUpdateView(TestCase):
         )
         self.assertEqual(self.draft_article.status, ArticleStatus.PENDING_REVIEW)
         self.assertIsNone(self.draft_article.published_at)
-        self.assertIsNone(self.draft_article.publish_sequence)
         self.assertCountEqual(
             [tag.name for tag in self.draft_article.tags.all()],
             ["review-tag", "django"],

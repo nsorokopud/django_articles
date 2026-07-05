@@ -41,7 +41,6 @@ class TestArticleFilter(TestCase):
             content_text="Content 1",
             status=ArticleStatus.PUBLISHED,
             published_at=self.now - timedelta(days=100),
-            publish_sequence=1,
             views_count=5,
         )
         self.article1.created_at = self.article1.published_at
@@ -58,7 +57,6 @@ class TestArticleFilter(TestCase):
             content_text="Content 2",
             status=ArticleStatus.PUBLISHED,
             published_at=self.now - timedelta(days=1),
-            publish_sequence=2,
             views_count=100,
             likes_count=1,
         )
@@ -420,7 +418,6 @@ class TestSubscriptionFeedFilter(TestCase):
             content_text="c",
             status=ArticleStatus.PUBLISHED,
             published_at=timezone.now(),
-            publish_sequence=1,
         )
         Article.objects.create(
             author=self.subscribed_author_without_published_articles,

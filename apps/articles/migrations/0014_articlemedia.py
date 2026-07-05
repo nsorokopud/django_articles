@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         (
             "articles",
-            "0014_remove_article_art_non_draft_core_fields_not_blank_and_more",
+            "0013_remove_article_art_non_draft_core_fields_not_blank_and_more",
         ),
     ]
 
