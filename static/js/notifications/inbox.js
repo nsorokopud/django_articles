@@ -261,18 +261,30 @@ function applyUnreadCountFromResponse(data) {
 function createInboxNotificationElement(n) {
   const link = safeInternalPath(n.payload?.link || n.payload?.url || null);
 
-  const notification = document.createElement('div');
+  const notification = createElement('div', 'notification');
   notification.id = `notification-${n.id}`;
-  notification.classList.add('notification');
   if (n.is_read) notification.classList.add('read');
 
+  attachNotificationHoverHandlers(notification);
+  attachNotificationClickHandler(notification, n, link);
+
+  notification.append(
+    createNotificationMain(n),
+    createDeleteButton(notification, n),
+  );
+  return notification;
+}
+
+function attachNotificationHoverHandlers(notification) {
   notification.addEventListener('touchstart', () =>
     notification.classList.add('notification-hover'),
   );
   notification.addEventListener('touchend', () =>
     notification.classList.remove('notification-hover'),
   );
+}
 
+function attachNotificationClickHandler(notification, n, link) {
   notification.addEventListener('click', async () => {
     if (notification.dataset.busy === '1') return;
     notification.dataset.busy = '1';
@@ -307,67 +319,58 @@ function createInboxNotificationElement(n) {
       }
     }
   });
+}
 
-  const notificationMain = (() => {
-    const el = document.createElement('div');
-    el.classList.add('notification-main');
-    return el;
-  })();
-  const circle = (() => {
-    const el = document.createElement('div');
-    el.classList.add('rounded-circle');
-    return el;
-  })();
-  const content = (() => {
-    const el = document.createElement('div');
-    el.classList.add('notification-content');
-    return el;
-  })();
+function createNotificationMain(n) {
+  const notificationMain = createElement('div', 'notification-main');
+  const circle = createElement('div', 'rounded-circle');
+  const content = createElement('div', 'notification-content');
+  const msg = createElement('div', 'notification-message');
 
-  const header = document.createElement('h6');
-  header.classList.add('notification-header');
+  msg.textContent = n.body || '';
+  content.append(createNotificationHeader(n), msg);
 
-  const title = (() => {
-    const el = document.createElement('span');
-    el.classList.add('notification-title', 'me-3');
-    return el;
-  })();
+  const startedAtText = getInboxStartedAtText(n);
+  if (startedAtText) {
+    const meta = createElement(
+      'div',
+      'notification-meta',
+      'text-muted',
+      'small',
+      'mt-1',
+    );
+    meta.innerText = startedAtText;
+    content.append(meta);
+  }
+
+  notificationMain.append(circle, content);
+  return notificationMain;
+}
+
+function createNotificationHeader(n) {
+  const header = createElement('h6', 'notification-header');
+  const title = createElement('span', 'notification-title', 'me-3');
+  const time = createElement('span', 'notification-time');
+
   title.textContent = n.title || '';
 
-  const time = (() => {
-    const el = document.createElement('span');
-    el.classList.add('notification-time');
-    return el;
-  })();
   time.dataset.relativeTimestamp = n.last_event_at || n.timestamp;
   time.innerText = formatNotificationRelativeTime(
     time.dataset.relativeTimestamp,
   );
 
-  const msg = (() => {
-    const el = document.createElement('div');
-    el.classList.add('notification-message');
-    return el;
-  })();
-  msg.textContent = n.body || '';
-
-  const startedAtText = getInboxStartedAtText(n);
-  const meta = (() => {
-    const el = document.createElement('div');
-    el.classList.add('notification-meta', 'text-muted', 'small', 'mt-1');
-    return el;
-  })();
-  meta.innerText = startedAtText;
-
   header.append(title, time);
-  content.append(header, msg);
-  if (startedAtText) {
-    content.append(meta);
-  }
-  notificationMain.append(circle, content);
+  return header;
+}
 
-  const del = document.createElement('button');
-  del.classList.add('notification-delete-button', 'btn', 'btn-danger', 'p-1');
+function createDeleteButton(notification, n) {
+  const del = createElement(
+    'button',
+    'notification-delete-button',
+    'btn',
+    'btn-danger',
+    'p-1',
+  );
   del.innerText = 'Delete';
 
   del.addEventListener('click', async (event) => {
@@ -383,8 +386,13 @@ function createInboxNotificationElement(n) {
     updateEmptyUIIfInboxEmpty();
   });
 
-  notification.append(notificationMain, del);
-  return notification;
+  return del;
+}
+
+function createElement(tagName, ...classNames) {
+  const el = document.createElement(tagName);
+  if (classNames.length) el.classList.add(...classNames);
+  return el;
 }
 
 function formatNotificationDateTime(value) {
@@ -462,8 +470,5 @@ function normalizeCursor(cursor) {
   if (!Number.isFinite(id) || id <= 0) return null;
   if (!Number.isFinite(ts)) return null;
 
-  return {
-    lastEventAt: cursor.last_event_at,
-    id,
-  };
+  return { lastEventAt: cursor.last_event_at, id };
 }
