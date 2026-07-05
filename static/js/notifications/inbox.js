@@ -7,7 +7,6 @@ const UNREAD_COUNT_PATH = '/notifications/unread_count/';
 const UNREAD_COUNT_SYNC_THROTTLE_MS = 2000;
 const RELATIVE_TIME_REFRESH_INTERVAL_MS = 30 * 1000;
 
-let inboxNewestCursor = null;
 let inboxOldestCursor = null;
 let lastUnreadSyncMs = 0;
 let relativeTimeRefreshStarted = false;
@@ -102,14 +101,9 @@ async function loadInitialInboxPage() {
 
   const data = await res.json();
 
-  inboxNewestCursor = null;
-  inboxOldestCursor = null;
-
   renderInboxItems(data.items, { mode: 'replace' });
 
-  updateInboxBounds(data.items);
-  inboxOldestCursor =
-    normalizeCursor(data.next_before_cursor) || inboxOldestCursor;
+  inboxOldestCursor = normalizeCursor(data.next_before_cursor);
 
   updateLoadMoreButton(data.has_more);
 }
@@ -128,9 +122,7 @@ async function loadOlderNotifications() {
   const data = await res.json();
   renderInboxItems(data.items, { mode: 'append' });
 
-  updateInboxBounds(data.items);
-  inboxOldestCursor =
-    normalizeCursor(data.next_before_cursor) || inboxOldestCursor;
+  inboxOldestCursor = normalizeCursor(data.next_before_cursor);
 
   updateLoadMoreButton(data.has_more);
 }
@@ -201,49 +193,7 @@ function prependInboxItem(n) {
   if (existing) {
     existing.remove();
   }
-
   container.prepend(nextEl);
-  updateInboxBounds([n]);
-}
-
-function updateInboxBounds(items) {
-  if (!items || !items.length) return;
-
-  const cursors = items
-    .filter((x) => x.last_event_at && x.id)
-    .map((x) => ({
-      lastEventAt: x.last_event_at,
-      id: x.id,
-    }));
-
-  if (!cursors.length) return;
-
-  cursors.sort(compareCursorDesc);
-
-  const newest = cursors[0];
-  const oldest = cursors[cursors.length - 1];
-
-  if (!inboxNewestCursor || compareCursorDesc(newest, inboxNewestCursor) < 0) {
-    inboxNewestCursor = newest;
-  }
-
-  if (!inboxOldestCursor || compareCursorDesc(oldest, inboxOldestCursor) > 0) {
-    inboxOldestCursor = oldest;
-  }
-}
-
-function compareCursorDesc(a, b) {
-  const aTime = Date.parse(a.lastEventAt);
-  const bTime = Date.parse(b.lastEventAt);
-
-  if (!Number.isFinite(aTime) && !Number.isFinite(bTime)) {
-    return b.id - a.id;
-  }
-  if (!Number.isFinite(aTime)) return 1;
-  if (!Number.isFinite(bTime)) return -1;
-
-  if (aTime !== bTime) return bTime - aTime;
-  return b.id - a.id;
 }
 
 function setInboxLoading(isLoading) {

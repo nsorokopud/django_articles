@@ -57,19 +57,14 @@ class NotificationDeleteView(LoginRequiredMixin, View):
 @login_required
 def notifications_list(request) -> JsonResponse:
     try:
+        if "after_last_event_at" in request.GET or "after_id" in request.GET:
+            raise BadRequest("after cursor is not supported.")
+
         limit = get_int_param(request, "limit", 50)
-        after_id = get_int_param(request, "after_id", 0)
         before_id = get_int_param(request, "before_id", 0)
-        after_last_event_at = _get_datetime_param(request, "after_last_event_at")
         before_last_event_at = _get_datetime_param(request, "before_last_event_at")
 
-        after_has_cursor = after_last_event_at is not None or after_id > 0
         before_has_cursor = before_last_event_at is not None or before_id > 0
-
-        if after_has_cursor and not (after_last_event_at is not None and after_id > 0):
-            raise BadRequest(
-                "after cursor requires after_last_event_at and positive after_id"
-            )
 
         if before_has_cursor and not (
             before_last_event_at is not None and before_id > 0
@@ -77,17 +72,12 @@ def notifications_list(request) -> JsonResponse:
             raise BadRequest(
                 "before cursor requires before_last_event_at and positive before_id"
             )
-
-        if after_has_cursor and before_has_cursor:
-            raise BadRequest("Use either after cursor or before cursor, not both.")
     except BadRequest as e:
         return JsonResponse({"error": str(e)}, status=400)
 
     data = get_notifications_page(
         user_id=request.user.id,
         limit=limit,
-        after_last_event_at=after_last_event_at,
-        after_id=after_id,
         before_last_event_at=before_last_event_at,
         before_id=before_id,
         include_read=request.GET.get("include_read", "1") == "1",

@@ -222,10 +222,8 @@ class TestNotificationListView(TestCase):
         self.assertIn("is_read", first)
         self.assertFalse(first["is_read"])
 
-        self.assertEqual(data["next_before_cursor"]["id"], self.n.id)
-        self.assertEqual(
-            data["next_before_cursor"]["last_event_at"], first["last_event_at"]
-        )
+        self.assertIsNone(data["next_before_cursor"])
+        self.assertFalse(data["has_more"])
 
     def test_orders_by_last_event_at_then_id(self) -> None:
         older = Notification.objects.create(
@@ -428,26 +426,16 @@ class TestNotificationListView(TestCase):
             [item["id"] for item in second_data["items"]], [n2.id, self.n.id]
         )
 
-    def test_after_cursor_returns_newer_items(self) -> None:
-        older = Notification.objects.create(
-            notification_type=NotificationType.SYSTEM,
-            title="older",
-            body="older",
-            payload={},
-            sender=self.sender,
-            recipient=self.recipient,
-            last_event_at=self.now - timedelta(minutes=10),
-        )
-        newer = Notification.objects.create(
-            notification_type=NotificationType.SYSTEM,
-            title="newer",
-            body="newer",
-            payload={},
-            sender=self.sender,
-            recipient=self.recipient,
-            last_event_at=self.now + timedelta(minutes=10),
-        )
+    def test_invalid_limit_returns_400(self) -> None:
+        self.client.force_login(self.recipient)
+        url = reverse("notifications-list")
 
+        res = self.client.get(url, {"limit": "abc"})
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json(), {"error": "invalid integer for 'limit'"})
+
+    def test_after_cursor_is_rejected(self) -> None:
         self.client.force_login(self.recipient)
         url = reverse("notifications-list")
 
@@ -459,61 +447,17 @@ class TestNotificationListView(TestCase):
             },
         )
 
-        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json(), {"error": "after cursor is not supported."})
 
-        data = res.json()
-        self.assertEqual([item["id"] for item in data["items"]], [newer.id])
-        self.assertNotIn(older.id, [item["id"] for item in data["items"]])
-
-    def test_after_cursor_handles_same_last_event_at(self) -> None:
-        same_time = self.now + timedelta(minutes=10)
-
-        n2 = Notification.objects.create(
-            notification_type=NotificationType.SYSTEM,
-            title="n2",
-            body="n2",
-            payload={},
-            sender=self.sender,
-            recipient=self.recipient,
-            last_event_at=same_time,
-        )
-        n3 = Notification.objects.create(
-            notification_type=NotificationType.SYSTEM,
-            title="n3",
-            body="n3",
-            payload={},
-            sender=self.sender,
-            recipient=self.recipient,
-            last_event_at=same_time,
-        )
-
+    def test_after_cursor_rejects_single_field(self) -> None:
         self.client.force_login(self.recipient)
         url = reverse("notifications-list")
 
-        res = self.client.get(
-            url, {"after_last_event_at": same_time.isoformat(), "after_id": n2.id}
-        )
-
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual([item["id"] for item in res.json()["items"]], [n3.id])
-
-    def test_invalid_limit_returns_400(self) -> None:
-        self.client.force_login(self.recipient)
-        url = reverse("notifications-list")
-
-        res = self.client.get(url, {"limit": "abc"})
+        res = self.client.get(url, {"after_id": self.n.id})
 
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json(), {"error": "invalid integer for 'limit'"})
-
-    def test_invalid_after_id_returns_400(self) -> None:
-        self.client.force_login(self.recipient)
-        url = reverse("notifications-list")
-
-        res = self.client.get(url, {"after_id": "abc"})
-
-        self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json(), {"error": "invalid integer for 'after_id'"})
+        self.assertEqual(res.json(), {"error": "after cursor is not supported."})
 
     def test_invalid_before_id_returns_400(self) -> None:
         self.client.force_login(self.recipient)
@@ -523,17 +467,6 @@ class TestNotificationListView(TestCase):
 
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json(), {"error": "invalid integer for 'before_id'"})
-
-    def test_invalid_after_last_event_at_returns_400(self) -> None:
-        self.client.force_login(self.recipient)
-        url = reverse("notifications-list")
-
-        res = self.client.get(
-            url, {"after_last_event_at": "not-a-date", "after_id": self.n.id}
-        )
-
-        self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json(), {"error": "Invalid after_last_event_at."})
 
     def test_invalid_before_last_event_at_returns_400(self) -> None:
         self.client.force_login(self.recipient)
@@ -545,24 +478,6 @@ class TestNotificationListView(TestCase):
 
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json(), {"error": "Invalid before_last_event_at."})
-
-    def test_after_cursor_requires_both_fields(self) -> None:
-        self.client.force_login(self.recipient)
-        url = reverse("notifications-list")
-
-        res = self.client.get(
-            url, {"after_last_event_at": self.n.last_event_at.isoformat()}
-        )
-
-        self.assertEqual(res.status_code, 400)
-        self.assertEqual(
-            res.json(),
-            {
-                "error": (
-                    "after cursor requires after_last_event_at and positive after_id"
-                )
-            },
-        )
 
     def test_before_cursor_requires_both_fields(self) -> None:
         self.client.force_login(self.recipient)
@@ -578,23 +493,4 @@ class TestNotificationListView(TestCase):
                     "before cursor requires before_last_event_at and positive before_id"
                 )
             },
-        )
-
-    def test_rejects_after_and_before_cursor_together(self) -> None:
-        self.client.force_login(self.recipient)
-        url = reverse("notifications-list")
-
-        res = self.client.get(
-            url,
-            {
-                "after_last_event_at": self.n.last_event_at.isoformat(),
-                "after_id": self.n.id,
-                "before_last_event_at": self.n.last_event_at.isoformat(),
-                "before_id": self.n.id,
-            },
-        )
-
-        self.assertEqual(res.status_code, 400)
-        self.assertEqual(
-            res.json(), {"error": "Use either after cursor or before cursor, not both."}
         )

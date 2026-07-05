@@ -141,7 +141,7 @@ class TestGetNotificationsPage(TestCase):
         )
 
         self.assertEqual([x["id"] for x in second["items"]], [n2.id, n1.id])
-        self.assertEqual(second["next_before_cursor"], self._cursor_for(n1))
+        self.assertIsNone(second["next_before_cursor"])
         self.assertFalse(second["has_more"])
 
     def test_before_cursor_handles_same_last_event_at_tie_breaker(self) -> None:
@@ -174,83 +174,6 @@ class TestGetNotificationsPage(TestCase):
 
         self.assertEqual([x["id"] for x in second["items"]], [n2.id, n1.id])
         self.assertFalse(second["has_more"])
-
-    def test_after_cursor_fetches_newer_items_and_next_before_cursor_is_none(
-        self,
-    ) -> None:
-        base = timezone.now()
-
-        n1 = self._create_deduped_notification(
-            user=self.u1, title="n1", last_event_at=base - timedelta(minutes=3)
-        )
-        n2 = self._create_deduped_notification(
-            user=self.u1, title="n2", last_event_at=base - timedelta(minutes=2)
-        )
-        n3 = self._create_deduped_notification(
-            user=self.u1, title="n3", last_event_at=base - timedelta(minutes=1)
-        )
-
-        res = get_notifications_page(
-            user_id=self.u1.id,
-            after_last_event_at=n1.last_event_at,
-            after_id=n1.id,
-            limit=10,
-        )
-
-        self.assertEqual([x["id"] for x in res["items"]], [n3.id, n2.id])
-        self.assertIsNone(res["next_before_cursor"])
-        self.assertFalse(res["has_more"])
-
-    def test_after_cursor_handles_same_last_event_at_tie_breaker(self) -> None:
-        same_time = timezone.now()
-
-        n1 = self._create_deduped_notification(
-            user=self.u1, title="n1", last_event_at=same_time
-        )
-        n2 = self._create_deduped_notification(
-            user=self.u1, title="n2", last_event_at=same_time
-        )
-        n3 = self._create_deduped_notification(
-            user=self.u1, title="n3", last_event_at=same_time
-        )
-
-        res = get_notifications_page(
-            user_id=self.u1.id,
-            after_last_event_at=n1.last_event_at,
-            after_id=n1.id,
-            limit=10,
-        )
-
-        self.assertEqual([x["id"] for x in res["items"]], [n3.id, n2.id])
-        self.assertIsNone(res["next_before_cursor"])
-        self.assertFalse(res["has_more"])
-
-    def test_after_cursor_has_more_when_more_than_limit(self) -> None:
-        base = timezone.now()
-
-        n1 = self._create_deduped_notification(
-            user=self.u1, title="n1", last_event_at=base - timedelta(minutes=4)
-        )
-        n2 = self._create_deduped_notification(
-            user=self.u1, title="n2", last_event_at=base - timedelta(minutes=3)
-        )
-        n3 = self._create_deduped_notification(
-            user=self.u1, title="n3", last_event_at=base - timedelta(minutes=2)
-        )
-        n4 = self._create_deduped_notification(
-            user=self.u1, title="n4", last_event_at=base - timedelta(minutes=1)
-        )
-
-        res = get_notifications_page(
-            user_id=self.u1.id,
-            after_last_event_at=n1.last_event_at,
-            after_id=n1.id,
-            limit=2,
-        )
-
-        self.assertEqual([x["id"] for x in res["items"]], [n4.id, n3.id])
-        self.assertTrue(res["has_more"])
-        self.assertIsNone(res["next_before_cursor"])
 
     def test_updated_aggregate_with_old_id_sorts_by_last_event_at(self) -> None:
         base = timezone.now()
