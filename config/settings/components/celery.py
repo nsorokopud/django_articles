@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-from celery.schedules import crontab
-
 from ..env import env
 from .cache import REDIS_CELERY_BROKER_URL, REDIS_CELERY_RESULT_URL
 
@@ -37,10 +35,6 @@ CELERY_BEAT_SCHEDULE = {
     "notifications.cleanup-old-read": {
         "task": "notifications.tasks.cleanup_old_read_notifications_task",
         "schedule": timedelta(hours=1),
-    },
-    "notifications.sync-unread-counts": {
-        "task": "notifications.tasks.sync_unread_notification_counts_task",
-        "schedule": crontab(minute=0, hour="*/6"),  # every 6 hours
     },
     "users.delete-expired-pending-email-changes": {
         "task": "users.tasks.delete_expired_pending_email_changes_task",

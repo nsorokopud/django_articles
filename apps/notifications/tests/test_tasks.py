@@ -4,11 +4,9 @@ from django.test import SimpleTestCase, override_settings
 
 from notifications.tasks import (
     NOTIFICATIONS_CLEANUP_LOCK_KEY,
-    NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
     cleanup_old_read_notifications_task,
     send_notification_email_task,
     send_notification_ws_task,
-    sync_unread_notification_counts_task,
 )
 
 
@@ -162,133 +160,4 @@ class TestCleanupOldReadNotificationsTask(SimpleTestCase):
         self.assertEqual(result, 3)
         mock_cache_lock.assert_called_once_with(
             lock_key=NOTIFICATIONS_CLEANUP_LOCK_KEY, lock_value="task-abc", timeout=60
-        )
-
-
-@override_settings(
-    NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_TTL_SECONDS=60,
-    NOTIFICATIONS_UNREAD_COUNT_SYNC_BATCH_SIZE=123,
-)
-class TestSyncUnreadNotificationCountsTask(SimpleTestCase):
-    @patch("notifications.tasks.logger.info")
-    @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache_lock")
-    def test_runs_sync_when_lock_acquired(
-        self, mock_cache_lock, mock_sync, mock_logger_info
-    ) -> None:
-        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
-        mock_sync.return_value = {
-            "users_checked": 10,
-            "users_updated": 3,
-            "users_zeroed": 1,
-        }
-
-        result = sync_unread_notification_counts_task.run()
-
-        self.assertEqual(
-            result, {"users_checked": 10, "users_updated": 3, "users_zeroed": 1}
-        )
-
-        mock_cache_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-            lock_value=None,
-            timeout=60,
-        )
-        mock_sync.assert_called_once_with(batch_size=123)
-        mock_logger_info.assert_called_once_with(
-            "Unread-count sync finished: %s",
-            {"users_checked": 10, "users_updated": 3, "users_zeroed": 1},
-        )
-
-    @patch("notifications.tasks.logger.info")
-    @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache_lock")
-    def test_skips_when_lock_not_acquired(
-        self, mock_cache_lock, mock_sync, mock_logger_info
-    ) -> None:
-        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=False)
-
-        result = sync_unread_notification_counts_task.run()
-
-        self.assertEqual(
-            result, {"users_checked": 0, "users_updated": 0, "users_zeroed": 0}
-        )
-
-        mock_cache_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-            lock_value=None,
-            timeout=60,
-        )
-        mock_sync.assert_not_called()
-        mock_logger_info.assert_called_once_with(
-            "Unread-count sync skipped: already running"
-        )
-
-    @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache_lock")
-    def test_releases_lock_when_sync_raises(self, mock_cache_lock, mock_sync) -> None:
-        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
-        mock_sync.side_effect = RuntimeError("error")
-
-        with self.assertRaises(RuntimeError):
-            sync_unread_notification_counts_task.run()
-
-        mock_cache_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-            lock_value=None,
-            timeout=60,
-        )
-        mock_sync.assert_called_once_with(batch_size=123)
-        mock_cache_lock.return_value.__exit__.assert_called_once()
-
-    @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache_lock")
-    def test_casts_settings_values_to_int(self, mock_cache_lock, mock_sync) -> None:
-        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
-        mock_sync.return_value = {
-            "users_checked": 1,
-            "users_updated": 0,
-            "users_zeroed": 0,
-        }
-
-        with override_settings(
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_TTL_SECONDS="90",
-            NOTIFICATIONS_UNREAD_COUNT_SYNC_BATCH_SIZE="250",
-        ):
-            result = sync_unread_notification_counts_task.run()
-
-        self.assertEqual(
-            result, {"users_checked": 1, "users_updated": 0, "users_zeroed": 0}
-        )
-        mock_cache_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-            lock_value=None,
-            timeout=90,
-        )
-        mock_sync.assert_called_once_with(batch_size=250)
-
-    @patch("notifications.services.counters.sync_unread_notification_counts")
-    @patch("notifications.tasks.cache_lock")
-    def test_uses_task_request_id_as_lock_value_when_available(
-        self, mock_cache_lock, mock_sync
-    ) -> None:
-        mock_cache_lock.return_value.__enter__.return_value = Mock(acquired=True)
-        mock_sync.return_value = {
-            "users_checked": 2,
-            "users_updated": 1,
-            "users_zeroed": 0,
-        }
-
-        with patch.object(
-            sync_unread_notification_counts_task.request, "id", "task-def"
-        ):
-            result = sync_unread_notification_counts_task.run()
-
-        self.assertEqual(
-            result, {"users_checked": 2, "users_updated": 1, "users_zeroed": 0}
-        )
-        mock_cache_lock.assert_called_once_with(
-            lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-            lock_value="task-def",
-            timeout=60,
         )

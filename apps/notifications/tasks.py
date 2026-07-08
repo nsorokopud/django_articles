@@ -15,7 +15,6 @@ from core.services.email import EmailConfig, send_email
 from .services.delivery_email import build_notification_email_config
 
 
-NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY = "notifications_unread_counts_sync_lock"
 NOTIFICATIONS_CLEANUP_LOCK_KEY = "notifications_cleanup_lock"
 
 
@@ -79,39 +78,3 @@ def cleanup_old_read_notifications_task(self) -> int:
             return 0
 
         return cleanup_old_read_notifications()
-
-
-@shared_task(
-    bind=True,
-    soft_time_limit=300,
-    time_limit=310,
-    autoretry_for=(
-        OSError,
-        DatabaseError,
-        RedisError,
-        ConnectionInterrupted,
-        SoftTimeLimitExceeded,
-    ),
-    retry_backoff=True,
-    retry_jitter=True,
-    max_retries=3,
-)
-def sync_unread_notification_counts_task(self) -> dict[str, int]:
-    from .services.counters import sync_unread_notification_counts
-
-    lock_value = self.request.id or None
-
-    with cache_lock(
-        lock_key=NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_KEY,
-        lock_value=lock_value,
-        timeout=int(settings.NOTIFICATIONS_UNREAD_COUNT_SYNC_LOCK_TTL_SECONDS),
-    ) as lock:
-        if not lock.acquired:
-            logger.info("Unread-count sync skipped: already running")
-            return {"users_checked": 0, "users_updated": 0, "users_zeroed": 0}
-
-        stats = sync_unread_notification_counts(
-            batch_size=int(settings.NOTIFICATIONS_UNREAD_COUNT_SYNC_BATCH_SIZE),
-        )
-        logger.info("Unread-count sync finished: %s", stats)
-        return stats
