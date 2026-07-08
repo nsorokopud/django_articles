@@ -171,10 +171,8 @@ class TestSaveArticleInlineMediaFile(TestCase):
         name, ext = file_name.rsplit(".", 1)
         self.assertEqual(ext, "jpeg")
 
-        prefix, uuid_part = name.rsplit("_", 1)
-        self.assertEqual(prefix, "img")
-        self.assertEqual(len(uuid_part), 32)
-        self.assertTrue(all(c in "0123456789abcdef" for c in uuid_part))
+        self.assertEqual(len(name), 32)
+        self.assertTrue(all(c in "0123456789abcdef" for c in name))
 
     @patch("articles.services.media.logger")
     @patch("articles.models.ArticleMedia.file.field.storage.save")
@@ -194,11 +192,13 @@ class TestSaveArticleInlineMediaFile(TestCase):
         self.assertFalse(ArticleMedia.objects.filter(article=self.article).exists())
 
     @patch("articles.services.media.logger")
+    @patch("articles.models.uuid4")
     @patch("articles.services.media.default_storage.delete")
     @patch("articles.services.media.ArticleMedia.save")
     def test_db_save_failure_deletes_uploaded_file(
-        self, mock_media_save, mock_delete, mock_logger
+        self, mock_media_save, mock_delete, mock_uuid, mock_logger
     ):
+        mock_uuid.return_value.hex = "abc123"
         mock_media_save.side_effect = OSError("DB error")
         file = SimpleUploadedFile("file.jpeg", b"test", content_type="image/jpeg")
 
@@ -211,7 +211,7 @@ class TestSaveArticleInlineMediaFile(TestCase):
         deleted_path = mock_delete.call_args.args[0]
         self.assertTrue(
             deleted_path.startswith(
-                f"articles/uploads/{self.user.id}/{self.article.id}/file_"
+                f"articles/uploads/{self.user.id}/{self.article.id}/abc123"
             )
         )
         self.assertTrue(deleted_path.endswith(".jpeg"))

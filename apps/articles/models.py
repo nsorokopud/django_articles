@@ -21,6 +21,10 @@ ARTICLE_TITLE_MAX_LENGTH = 200
 ARTICLE_SLUG_MAX_LENGTH = 200
 ARTICLE_SLUG_UNIQUE_CONSTRAINT_NAME = "unique_article_slug"
 
+ARTICLE_PREVIEW_IMAGE_UPLOAD_PREFIX = "articles/preview_images"
+ARTICLE_INLINE_MEDIA_UPLOAD_PREFIX = "articles/uploads"
+ARTICLE_UPLOAD_EXTENSION_MAX_LENGTH = 16
+
 COMMENT_STR_PREVIEW_LENGTH = 25
 
 
@@ -35,20 +39,10 @@ def article_preview_image_upload_path(instance, filename) -> str:
     if not instance.author_id:
         raise ValueError("author_id is required to upload preview images")
 
-    raw_base_name = os.path.basename(filename)
-    base_name, extension = os.path.splitext(raw_base_name)
-
-    safe_base_name = get_valid_filename(base_name).strip("._-") or "preview"
-    safe_extension = (
-        get_valid_filename(extension.lower()).strip("._") if extension else ""
-    )
-
-    filename = f"{safe_base_name}_{uuid4().hex}"
-    if safe_extension:
-        filename = f"{filename}.{safe_extension}"
-
     return posixpath.join(
-        "articles", "preview_images", str(instance.author_id), filename
+        ARTICLE_PREVIEW_IMAGE_UPLOAD_PREFIX,
+        str(instance.author_id),
+        _build_uuid_article_upload_filename(filename),
     )
 
 
@@ -211,24 +205,11 @@ class ArticleCategory(models.Model):
 
 
 def article_inline_media_upload_path(instance, filename) -> str:
-    raw_base_name = os.path.basename(filename)
-    base_name, extension = os.path.splitext(raw_base_name)
-
-    safe_base_name = get_valid_filename(base_name).strip("._-") or "file"
-    safe_extension = (
-        get_valid_filename(extension.lower()).strip("._") if extension else ""
-    )
-
-    filename = f"{safe_base_name}_{uuid4().hex}"
-    if safe_extension:
-        filename = f"{filename}.{safe_extension}"
-
     return posixpath.join(
-        "articles",
-        "uploads",
+        ARTICLE_INLINE_MEDIA_UPLOAD_PREFIX,
         str(instance.article.author_id),
         str(instance.article_id),
-        filename,
+        _build_uuid_article_upload_filename(filename),
     )
 
 
@@ -270,3 +251,20 @@ class ArticleComment(models.Model):
         else:
             displayed_text = self.text
         return f"{self.article} - {self.author} - {displayed_text}"
+
+
+def _build_uuid_article_upload_filename(filename: str) -> str:
+    _, extension = os.path.splitext(os.path.basename(filename))
+    safe_extension = (
+        get_valid_filename(extension.lower()).strip("._")[
+            :ARTICLE_UPLOAD_EXTENSION_MAX_LENGTH
+        ]
+        if extension
+        else ""
+    )
+
+    generated_filename = uuid4().hex
+    if safe_extension:
+        return f"{generated_filename}.{safe_extension}"
+
+    return generated_filename

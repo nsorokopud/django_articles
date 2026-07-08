@@ -170,7 +170,10 @@ class TestProfileUpdateForm(TestCase):
         self.assertFalse(profile.notification_emails_allowed)
         self.assertEqual(profile.image.name, "users/profile_images/default_avatar.jpg")
 
-    def test_valid_with_uploaded_image(self):
+    @patch("users.models.uuid4")
+    def test_valid_with_uploaded_image(self, mock_uuid):
+        mock_uuid.return_value.hex = "abc123"
+
         image = Image.new("RGB", (1, 1), color="white")
         image_file = BytesIO()
         image.save(image_file, format="JPEG")
@@ -191,9 +194,7 @@ class TestProfileUpdateForm(TestCase):
         profile = form.save()
 
         self.assertTrue(
-            profile.image.name.startswith(
-                f"users/profile_images/{self.user.id}/test_image_"
-            )
+            profile.image.name.startswith(f"users/profile_images/{self.user.id}/abc123")
         )
         self.assertTrue(profile.image.name.endswith(".jpg"))
 

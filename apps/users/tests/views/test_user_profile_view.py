@@ -106,7 +106,9 @@ class TestUserProfileView(TestCase):
 
         self.assertEqual(self.user.profile.image.name, DEFAULT_PROFILE_IMAGE)
 
-    def test_post_valid_data_does_not_delete_default_profile_image(self):
+    @patch("users.models.uuid4")
+    def test_post_valid_data_does_not_delete_default_profile_image(self, mock_uuid):
+        mock_uuid.return_value.hex = "abc123"
         uploaded_image = self._make_uploaded_image("test_image.jpg")
 
         data = {
@@ -136,14 +138,16 @@ class TestUserProfileView(TestCase):
         self.assertFalse(self.user.profile.notification_emails_allowed)
         self.assertTrue(
             self.user.profile.image.name.startswith(
-                f"users/profile_images/{self.user.id}/test_image_"
+                f"users/profile_images/{self.user.id}/abc123"
             )
         )
         self.assertTrue(self.user.profile.image.name.endswith(".jpg"))
 
         mock_delete.assert_not_called()
 
-    def test_post_replaces_old_profile_image_after_commit(self):
+    @patch("users.models.uuid4")
+    def test_post_replaces_old_profile_image_after_commit(self, mock_uuid):
+        mock_uuid.return_value.hex = "abc123"
         self.client.force_login(self.user)
 
         profile = self.user.profile
@@ -175,7 +179,7 @@ class TestUserProfileView(TestCase):
         self.assertFalse(self.user.profile.notification_emails_allowed)
         self.assertTrue(
             self.user.profile.image.name.startswith(
-                f"users/profile_images/{self.user.id}/test_image_"
+                f"users/profile_images/{self.user.id}/abc123"
             )
         )
         self.assertTrue(self.user.profile.image.name.endswith(".jpg"))

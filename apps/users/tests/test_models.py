@@ -397,13 +397,11 @@ class TestProfileModel(TestCase):
 
         path = profile_image_upload_path(profile, "My Avatar.JPG")
 
-        self.assertTrue(
-            path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/My_Avatar_")
-        )
+        self.assertTrue(path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/"))
         self.assertTrue(path.endswith(".jpg"))
         self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
 
-    def test_profile_image_upload_path_sanitizes_filename(self):
+    def test_profile_image_upload_path_uses_uuid_only_filename(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", password="testpass123"
         )
@@ -411,24 +409,22 @@ class TestProfileModel(TestCase):
 
         path = profile_image_upload_path(profile, "../../...///bad file name.PNG")
 
-        self.assertTrue(
-            path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/bad_file_name_")
-        )
+        self.assertTrue(path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/"))
         self.assertTrue(path.endswith(".png"))
-        self.assertNotIn("..", path)
+        self.assertNotIn("bad_file_name", path)
         self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
 
-    def test_profile_image_upload_path_uses_avatar_when_base_name_is_empty(self):
+    def test_profile_image_upload_path_handles_empty_base_name(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", password="testpass123"
         )
         profile = Profile.objects.get(user=user)
 
         path = profile_image_upload_path(profile, "...")
+        filename = path.rsplit("/", 1)[1]
 
-        self.assertTrue(
-            path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/avatar_")
-        )
+        self.assertTrue(path.startswith(f"{PROFILE_IMAGE_UPLOAD_PREFIX}/{user.id}/"))
+        self.assertEqual(len(filename), PROFILE_IMAGE_UUID_LENGTH)
         self.assertLessEqual(len(path), PROFILE_IMAGE_MAX_LENGTH)
 
     def test_profile_image_upload_path_requires_user_id(self):
@@ -475,10 +471,9 @@ class TestProfileModel(TestCase):
         path = profile_image_upload_path(profile, "avatar.jpg")
         filename = path.rsplit("/", 1)[1]
         stem = filename.rsplit(".", 1)[0]
-        suffix = stem.rsplit("_", 1)[1]
 
-        self.assertEqual(len(suffix), PROFILE_IMAGE_UUID_LENGTH)
-        self.assertRegex(suffix, r"^[0-9a-f]+$")
+        self.assertEqual(len(stem), PROFILE_IMAGE_UUID_LENGTH)
+        self.assertRegex(stem, r"^[0-9a-f]+$")
 
     def test_profile_image_field_max_length_matches_upload_path_limit(self):
         field = Profile._meta.get_field("image")

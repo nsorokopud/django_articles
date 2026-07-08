@@ -114,33 +114,8 @@ def profile_image_upload_path(instance, filename) -> str:
     if not instance.user_id:
         raise ValueError("user_id is required to upload profile images")
 
-    raw_base_name = os.path.basename(filename)
-    base_name, extension = os.path.splitext(raw_base_name)
-
-    safe_base_name = get_valid_filename(base_name).strip("._-") or "avatar"
-    safe_extension = (
-        get_valid_filename(extension.lower()).strip("._") if extension else ""
-    )[:PROFILE_IMAGE_EXTENSION_MAX_LENGTH]
-
     directory = posixpath.join(PROFILE_IMAGE_UPLOAD_PREFIX, str(instance.user_id))
-    suffix = uuid4().hex
-
-    # directory + "/" + base + "_" + uuid + optional "." + extension
-    reserved_length = len(directory) + 1 + 1 + len(suffix)
-    if safe_extension:
-        reserved_length += 1 + len(safe_extension)
-
-    max_base_length = PROFILE_IMAGE_MAX_LENGTH - reserved_length
-
-    safe_base_name = (
-        safe_base_name[:max_base_length].rstrip("._-") if max_base_length > 0 else ""
-    ) or "avatar"
-
-    final_filename = f"{safe_base_name}_{suffix}"
-    if safe_extension:
-        final_filename = f"{final_filename}.{safe_extension}"
-
-    return posixpath.join(directory, final_filename)
+    return posixpath.join(directory, _build_uuid_profile_image_filename(filename))
 
 
 class Profile(models.Model):
@@ -179,3 +154,20 @@ class AuthorSubscription(models.Model):
 
     def __str__(self) -> str:
         return f"{self.subscriber_id} -> {self.author_id}"
+
+
+def _build_uuid_profile_image_filename(filename: str) -> str:
+    _, extension = os.path.splitext(os.path.basename(filename))
+    safe_extension = (
+        get_valid_filename(extension.lower()).strip("._")[
+            :PROFILE_IMAGE_EXTENSION_MAX_LENGTH
+        ]
+        if extension
+        else ""
+    )
+
+    generated_filename = uuid4().hex
+    if safe_extension:
+        return f"{generated_filename}.{safe_extension}"
+
+    return generated_filename

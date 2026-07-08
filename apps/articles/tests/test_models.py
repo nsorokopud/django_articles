@@ -299,12 +299,10 @@ class TestArticlePreviewImageUploadPath(TestCase):
 
         path = article_preview_image_upload_path(self.article, "Preview Image.PNG")
 
-        self.assertEqual(
-            path, f"articles/preview_images/{self.author.id}/Preview_Image_abc123.png"
-        )
+        self.assertEqual(path, f"articles/preview_images/{self.author.id}/abc123.png")
 
     @patch("articles.models.uuid4")
-    def test_sanitizes_filename(self, mock_uuid4):
+    def test_uses_uuid_only_filename_with_sanitized_extension(self, mock_uuid4):
         mock_uuid4.return_value.hex = "abc123"
 
         path = article_preview_image_upload_path(
@@ -313,11 +311,11 @@ class TestArticlePreviewImageUploadPath(TestCase):
 
         self.assertEqual(
             path,
-            f"articles/preview_images/{self.author.id}/bad_preview_image_abc123.jpg",
+            f"articles/preview_images/{self.author.id}/abc123.jpg",
         )
 
     @patch("articles.models.uuid4")
-    def test_falls_back_to_preview_name(
+    def test_uses_uuid_only_name_when_original_base_is_empty(
         self,
         mock_uuid4,
     ):
@@ -325,9 +323,7 @@ class TestArticlePreviewImageUploadPath(TestCase):
 
         path = article_preview_image_upload_path(self.article, "...---.webp")
 
-        self.assertEqual(
-            path, f"articles/preview_images/{self.author.id}/preview_abc123.webp"
-        )
+        self.assertEqual(path, f"articles/preview_images/{self.author.id}/abc123.webp")
 
     @patch("articles.models.uuid4")
     def test_handles_missing_extension(
@@ -338,9 +334,7 @@ class TestArticlePreviewImageUploadPath(TestCase):
 
         path = article_preview_image_upload_path(self.article, "preview")
 
-        self.assertEqual(
-            path, f"articles/preview_images/{self.author.id}/preview_abc123"
-        )
+        self.assertEqual(path, f"articles/preview_images/{self.author.id}/abc123")
 
     @patch("articles.models.uuid4")
     def test_uses_posix_separators(self, mock_uuid4):
@@ -348,7 +342,7 @@ class TestArticlePreviewImageUploadPath(TestCase):
 
         path = article_preview_image_upload_path(self.article, "preview.webp")
 
-        expected = f"articles/preview_images/{self.author.id}/preview_abc123.webp"
+        expected = f"articles/preview_images/{self.author.id}/abc123.webp"
 
         self.assertEqual(path, expected)
         self.assertNotIn("\\", path)
@@ -373,11 +367,11 @@ class TestArticleMediaModel(TestCase):
 
         self.assertEqual(
             path,
-            f"articles/uploads/{self.author.id}/{self.article.id}/My_Image_abc123.png",
+            f"articles/uploads/{self.author.id}/{self.article.id}/abc123.png",
         )
 
     @patch("articles.models.uuid4")
-    def test_article_inline_media_upload_path_sanitizes_filename(self, mock_uuid4):
+    def test_article_inline_media_upload_path_uses_uuid_only_filename(self, mock_uuid4):
         mock_uuid4.return_value.hex = "abc123"
 
         media = ArticleMedia(article=self.article)
@@ -386,8 +380,7 @@ class TestArticleMediaModel(TestCase):
 
         self.assertEqual(
             path,
-            f"articles/uploads/{self.author.id}/{self.article.id}/"
-            "bad_file_name_abc123.jpg",
+            f"articles/uploads/{self.author.id}/{self.article.id}/abc123.jpg",
         )
 
     @patch("articles.models.uuid4")
@@ -397,9 +390,7 @@ class TestArticleMediaModel(TestCase):
         media = ArticleMedia(article=self.article)
         path = article_inline_media_upload_path(media, "image.webp")
 
-        expected = (
-            f"articles/uploads/{self.author.id}/{self.article.id}/image_abc123.webp"
-        )
+        expected = f"articles/uploads/{self.author.id}/{self.article.id}/abc123.webp"
 
         self.assertEqual(path, expected)
         self.assertNotIn("\\", path)  # ensure no Windows separators
@@ -416,7 +407,7 @@ class TestArticleMediaModel(TestCase):
 
         self.assertEqual(
             path,
-            f"articles/uploads/{self.author.id}/{self.article.id}/image_abc123",
+            f"articles/uploads/{self.author.id}/{self.article.id}/abc123",
         )
 
     def test_article_media_defaults_to_referenced_state_unknown(self):
