@@ -98,8 +98,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         await self._send_payload_locked(
-            msg,
-            log_prefix=f"Notification send (id={msg.get('id', -1)})",
+            msg, log_prefix=f"Notification send (id={msg.get('id', -1)})"
         )
 
     async def send_notification_digest(self, _event: DigestHintEvent) -> None:
@@ -111,8 +110,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         await self._send_payload_locked(
-            {"kind": "digest"},
-            log_prefix="Notification digest send",
+            {"kind": "digest"}, log_prefix="Notification digest send"
         )
 
     def _validate_connection(self, user: Optional[User]) -> Optional[int]:
@@ -170,19 +168,13 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             logger.debug("WS close failed", exc_info=True)
 
     async def _send_payload_locked(
-        self,
-        payload: dict[str, Any],
-        *,
-        log_prefix: str,
+        self, payload: dict[str, Any], *, log_prefix: str
     ) -> bool:
         if self._is_closing:
             return False
 
         async with self._send_lock:
-            ok = await self._send_json_with_timeout(
-                payload,
-                log_prefix=log_prefix,
-            )
+            ok = await self._send_json_with_timeout(payload, log_prefix=log_prefix)
             if not ok or self._is_closing:
                 return False
 
@@ -196,8 +188,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             # emit one digest after the notification.
             if kind == "notification" and self._digest_pending:
                 ok2 = await self._send_json_with_timeout(
-                    {"kind": "digest"},
-                    log_prefix="Notification digest send",
+                    {"kind": "digest"}, log_prefix="Notification digest send"
                 )
                 if ok2:
                     self._digest_pending = False
@@ -205,10 +196,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return True
 
     async def _send_json_with_timeout(
-        self,
-        payload: dict[str, Any],
-        *,
-        log_prefix: str = "WS send",
+        self, payload: dict[str, Any], *, log_prefix: str = "WS send"
     ) -> bool:
         if self._is_closing:
             return False
@@ -224,19 +212,12 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             raise
 
         except (asyncio.TimeoutError, OSError, RuntimeError) as e:
-            logger.warning(
-                "%s failed: %s",
-                log_prefix,
-                e,
-            )
+            logger.warning("%s failed: %s", log_prefix, e)
             await self._safe_close(code=WS_CLOSE_INTERNAL_ERROR)
             return False
 
         except Exception:  # pylint: disable=W0718
-            logger.exception(
-                "%s failed unexpectedly",
-                log_prefix,
-            )
+            logger.exception("%s failed unexpectedly", log_prefix)
             await self._safe_close(code=WS_CLOSE_INTERNAL_ERROR)
             return False
 
