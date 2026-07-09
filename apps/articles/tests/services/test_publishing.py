@@ -467,7 +467,7 @@ class TestPublishArticle(TestCase):
             publish_article(article_id=self.article.id)
 
         mock_notify.assert_not_called()
-        self.assertEqual(len(callbacks), 2)
+        self.assertEqual(len(callbacks), 1)
 
     @patch("articles.services.publishing.notify_article_published")
     def test_raises_for_missing_article(self, mock_notify):
@@ -492,29 +492,6 @@ class TestPublishArticle(TestCase):
         self.assertIsNone(self.article.published_at)
 
         mock_notify.assert_not_called()
-
-    @patch("articles.services.publishing.cache_article_slug_id")
-    @patch("articles.services.publishing.notify_article_published")
-    def test_caches_article_slug_id(self, mock_notify, mock_cache):
-        with self.captureOnCommitCallbacks(execute=True):
-            published = publish_article(article_id=self.article.id)
-
-        mock_cache.assert_called_once_with(
-            article_slug=published.slug, article_id=published.id
-        )
-
-    @patch("articles.services.publishing.cache_article_slug_id")
-    @patch("articles.services.publishing.notify_article_published")
-    def test_does_not_cache_when_publish_fails(self, mock_notify, mock_cache):
-        self.article.status = ArticleStatus.REJECTED
-        self.article.save(update_fields=["status"])
-
-        with self.assertRaisesMessage(
-            ValueError, "only articles pending review can be published"
-        ):
-            publish_article(article_id=self.article.id)
-
-        mock_cache.assert_not_called()
 
 
 class TestUnpublishArticle(TestCase):

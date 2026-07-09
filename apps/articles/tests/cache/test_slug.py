@@ -4,7 +4,6 @@ from django.utils import timezone
 
 from articles.cache.slug import (
     ARTICLE_SLUG_ID_CACHE_KEY,
-    cache_article_slug_id,
     get_cached_article_id_by_slug,
     invalidate_article_slug_id,
 )
@@ -128,12 +127,6 @@ class TestArticleSlugCache(TestCase):
 
     def tearDown(self):
         cache.clear()
-
-    def test_cache_article_slug_id_sets_cache_value(self):
-        cache_article_slug_id(article_slug="a", article_id=123)
-
-        cache_key = ARTICLE_SLUG_ID_CACHE_KEY.format(slug="a")
-        self.assertEqual(cache.get(cache_key), 123)
 
     def test_invalidate_article_slug_id_deletes_cache_value(self):
         cache_key = ARTICLE_SLUG_ID_CACHE_KEY.format(slug="a")

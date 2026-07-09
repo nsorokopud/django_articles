@@ -30,13 +30,5 @@ def get_cached_article_id_by_slug(article_slug: str) -> int | None:
     return int(article_id)
 
 
-def cache_article_slug_id(*, article_slug: str, article_id: int) -> None:
-    cache.set(
-        ARTICLE_SLUG_ID_CACHE_KEY.format(slug=article_slug),
-        article_id,
-        settings.ARTICLES_SLUG_ID_CACHE_TIMEOUT_SECONDS,
-    )
-
-
 def invalidate_article_slug_id(*, article_slug: str) -> None:
     cache.delete(ARTICLE_SLUG_ID_CACHE_KEY.format(slug=article_slug))

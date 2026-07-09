@@ -12,7 +12,7 @@ from notifications.services.articles import (
 )
 from users.models import User
 
-from ..cache.slug import cache_article_slug_id, invalidate_article_slug_id
+from ..cache.slug import invalidate_article_slug_id
 from ..constants import DEFAULT_DRAFT_ARTICLE_TITLE
 from ..models import Article, ArticleStatus
 
@@ -76,7 +76,6 @@ def publish_article(*, article_id: int, reviewer: User | None = None) -> Article
         ]
     )
 
-    _cache_article_slug_id_on_commit(article)
     _notify_article_published_on_commit(
         article=article, actor=reviewer, published_at=article.published_at
     )
@@ -164,15 +163,6 @@ def _has_meaningful_html_content(html: str | None) -> bool:
     text = unescape(strip_tags(html or ""))
     normalized = text.replace("\xa0", " ").strip()
     return bool(normalized)
-
-
-def _cache_article_slug_id_on_commit(article: Article) -> None:
-    article_id = article.id
-    article_slug = article.slug
-
-    transaction.on_commit(
-        lambda: cache_article_slug_id(article_slug=article_slug, article_id=article_id)
-    )
 
 
 def _invalidate_article_slug_id_cache_on_commit(article: Article) -> None:
