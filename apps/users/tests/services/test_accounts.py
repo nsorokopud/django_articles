@@ -1,9 +1,5 @@
-from datetime import timedelta
-
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from django.utils import timezone
 
 from users.models import PendingEmailChange, User
 from users.services.accounts import activate_user, register_user
@@ -167,52 +163,6 @@ class TestRegisterUser(TestCase):
             {"username": ["A user with that username already exists."]},
         )
 
-    def test_deletes_expired_pending_email_change(self):
-        existing_user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="testpass123"
-        )
-        pending_email_change = PendingEmailChange.objects.create(
-            user=existing_user, email="pending@test.com"
-        )
-        PendingEmailChange.objects.filter(pk=pending_email_change.pk).update(
-            created_at=timezone.now()
-            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
-            - timedelta(seconds=1)
-        )
-
-        user = register_user(
-            username="newuser", email="PENDING@TEST.COM", password="testpass123"
-        )
-
-        self.assertEqual(user.email, "pending@test.com")
-        self.assertFalse(
-            PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
-        )
-
-    def test_does_not_delete_unrelated_expired_pending_email_change(self):
-        existing_user = User.objects.create_user(
-            username="existing", email="existing@test.com", password="testpass123"
-        )
-        unrelated_pending_email_change = PendingEmailChange.objects.create(
-            user=existing_user, email="unrelated@test.com"
-        )
-        PendingEmailChange.objects.filter(pk=unrelated_pending_email_change.pk).update(
-            created_at=timezone.now()
-            - settings.USERS_PENDING_EMAIL_CHANGE_TTL
-            - timedelta(seconds=1)
-        )
-
-        user = register_user(
-            username="newuser", email="new@test.com", password="testpass123"
-        )
-
-        self.assertEqual(user.email, "new@test.com")
-        self.assertTrue(
-            PendingEmailChange.objects.filter(
-                pk=unrelated_pending_email_change.pk
-            ).exists()
-        )
-
 
 class TestActivateUser(TestCase):
     def test_activates_user(self):
@@ -259,7 +209,7 @@ class TestActivateUser(TestCase):
         self.assertEqual(user.email, "user@test.com")
         self.assertTrue(user.is_active)
 
-    def test_deletes_conflicting_pending_email_change_when_user_activates(self):
+    def test_does_not_delete_matching_pending_email_change_when_user_activates(self):
         existing_user = User.objects.create_user(
             username="existing", email="existing@test.com", password="testpass123"
         )
@@ -276,7 +226,7 @@ class TestActivateUser(TestCase):
         user.refresh_from_db()
 
         self.assertTrue(user.is_active)
-        self.assertFalse(
+        self.assertTrue(
             PendingEmailChange.objects.filter(pk=pending_email_change.pk).exists()
         )
 

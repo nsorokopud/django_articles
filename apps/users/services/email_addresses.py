@@ -10,7 +10,6 @@ from django.utils import timezone
 
 from core.db import get_constraint_name
 from users.models import (
-    PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
     PendingEmailChange,
     User,
@@ -33,8 +32,6 @@ def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChan
 
     validate_email(email)
 
-    delete_expired_pending_email_changes_for_email(email=email)
-
     user = User.objects.select_for_update().get(pk=user_id)
 
     if PendingEmailChange.objects.filter(user=user).exists():
@@ -46,18 +43,7 @@ def create_pending_email_change(*, user_id: int, email: str) -> PendingEmailChan
     if User.objects.exclude(pk=user_id).filter(email__iexact=email).exists():
         raise ValidationError("A user with that email already exists.")
 
-    if PendingEmailChange.objects.filter(email__iexact=email).exists():
-        raise ValidationError("That email address is currently pending confirmation.")
-
-    try:
-        pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
-    except IntegrityError as e:
-        if get_constraint_name(e) == PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME:
-            raise ValidationError(
-                "That email address is currently pending confirmation."
-            ) from e
-
-        raise
+    pending_email_change = PendingEmailChange.objects.create(user=user, email=email)
 
     logger.info(
         "PendingEmailChange(id=%s, user_id=%s) was created.",
@@ -118,13 +104,6 @@ def change_email_address(
     if User.objects.exclude(pk=user_id).filter(email__iexact=new_email).exists():
         raise ValidationError("This email address is no longer available.")
 
-    if (
-        PendingEmailChange.objects.exclude(pk=pending_email_change.pk)
-        .filter(email__iexact=new_email)
-        .exists()
-    ):
-        raise ValidationError("This email address is currently pending confirmation.")
-
     try:
         user.email = new_email
         user.save(update_fields=["email"])
@@ -176,14 +155,6 @@ def delete_expired_pending_email_changes() -> int:
     return _delete_expired_pending_email_changes()
 
 
-def delete_expired_pending_email_changes_for_email(*, email: str) -> int:
-    email = normalize_email(email)
-    if not email:
-        return 0
-
-    return _delete_expired_pending_email_changes(email=email)
-
-
 def is_pending_email_change_expired(pending_email_change: PendingEmailChange) -> bool:
     return (
         pending_email_change.created_at
@@ -206,29 +177,18 @@ def _delete_allauth_email_addresses_for_user(user_id: int) -> None:
     )
 
 
-def _delete_expired_pending_email_changes(*, email: str | None = None) -> int:
+def _delete_expired_pending_email_changes() -> int:
     cutoff = timezone.now() - settings.USERS_PENDING_EMAIL_CHANGE_TTL
 
     queryset = PendingEmailChange.objects.filter(created_at__lte=cutoff)
 
-    if email:
-        queryset = queryset.filter(email__iexact=email)
-
     deleted_count, _ = queryset.delete()
 
     if deleted_count:
-        if email:
-            logger.info(
-                "Deleted %d expired pending email change%s for email %s.",
-                deleted_count,
-                "" if deleted_count == 1 else "s",
-                email,
-            )
-        else:
-            logger.info(
-                "Deleted %d expired pending email change%s.",
-                deleted_count,
-                "" if deleted_count == 1 else "s",
-            )
+        logger.info(
+            "Deleted %d expired pending email change%s.",
+            deleted_count,
+            "" if deleted_count == 1 else "s",
+        )
 
     return deleted_count

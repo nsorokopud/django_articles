@@ -294,7 +294,9 @@ class TestPendingEmailChangeModel(TestCase):
         self.assertEqual(pending_email_change2.user, user2)
         self.assertEqual(pending_email_change2.email, "new2@test.com")
 
-    def test_pending_email_change_email_is_case_insensitive_unique(self):
+    def test_different_users_can_have_same_pending_email_change_case_insensitively(
+        self,
+    ):
         user1 = User.objects.create_user(
             username="user1", email="user1@test.com", password="testpass123"
         )
@@ -302,13 +304,15 @@ class TestPendingEmailChangeModel(TestCase):
             username="user2", email="user2@test.com", password="testpass123"
         )
 
-        PendingEmailChange.objects.create(user=user1, email="same@test.com")
+        pending1 = PendingEmailChange.objects.create(user=user1, email="same@test.com")
+        pending2 = PendingEmailChange.objects.create(user=user2, email="SAME@test.com")
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                PendingEmailChange.objects.create(user=user2, email="SAME@test.com")
+        self.assertEqual(pending1.email, "same@test.com")
+        self.assertEqual(pending2.email, "same@test.com")
 
-    def test_pending_email_change_email_unique_constraint_trims_whitespace(self):
+    def test_different_users_can_have_same_pending_email_change_with_whitespace(
+        self,
+    ):
         user1 = User.objects.create_user(
             username="user1", email="user1@test.com", password="testpass123"
         )
@@ -316,11 +320,13 @@ class TestPendingEmailChangeModel(TestCase):
             username="user2", email="user2@test.com", password="testpass123"
         )
 
-        PendingEmailChange.objects.create(user=user1, email="same@test.com")
+        pending1 = PendingEmailChange.objects.create(user=user1, email="same@test.com")
+        pending2 = PendingEmailChange.objects.create(
+            user=user2, email=" same@test.com "
+        )
 
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                PendingEmailChange.objects.create(user=user2, email=" same@test.com ")
+        self.assertEqual(pending1.email, "same@test.com")
+        self.assertEqual(pending2.email, "same@test.com")
 
     def test_pending_email_change_email_cannot_be_blank(self):
         user = User.objects.create_user(

@@ -21,10 +21,6 @@ PROFILE_IMAGE_MAX_LENGTH = 512
 PROFILE_IMAGE_EXTENSION_MAX_LENGTH = 16
 PROFILE_IMAGE_UUID_LENGTH = 32
 
-PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME = (
-    "users_pending_email_change_email_ci_unique"
-)
-
 
 class User(AbstractUser):
     email = models.EmailField()
@@ -91,10 +87,6 @@ class PendingEmailChange(models.Model):
             models.CheckConstraint(
                 condition=~models.Q(email=""),
                 name="users_pending_email_change_email_not_blank",
-            ),
-            models.UniqueConstraint(
-                Lower(Trim("email")),
-                name=PENDING_EMAIL_CHANGE_UNIQUE_CONSTRAINT_NAME,
             ),
         ]
 

@@ -8,13 +8,11 @@ from core.db import get_constraint_name
 from users.models import (
     USER_EMAIL_UNIQUE_CONSTRAINT_NAME,
     USER_USERNAME_UNIQUE_CONSTRAINT_NAME,
-    PendingEmailChange,
     User,
 )
 
 from ..normalization import normalize_email, normalize_username
 from ..validators import validate_username_is_not_email
-from .email_addresses import delete_expired_pending_email_changes_for_email
 
 
 logger = logging.getLogger(__name__)
@@ -36,8 +34,6 @@ def register_user(*, username: str, email: str, password: str) -> User:
 
     try:
         with transaction.atomic():
-            delete_expired_pending_email_changes_for_email(email=email)
-
             _validate_registration_availability(username=username, email=email)
 
             return User.objects.create_user(
@@ -73,8 +69,6 @@ def activate_user(user: User) -> None:
         user.is_active = True
         user.save(update_fields=["is_active"])
 
-        _delete_conflicting_pending_email_changes_for_activated_user(user)
-
         logger.info("User %s was activated.", user.id)
     else:
         logger.info("User %s was already active.", user.id)
@@ -86,23 +80,3 @@ def _validate_registration_availability(*, username: str, email: str) -> None:
 
     if User.objects.filter(email__iexact=email).exists():
         raise ValidationError({"email": "A user with that email already exists."})
-
-
-def _delete_conflicting_pending_email_changes_for_activated_user(user: User) -> None:
-    email = normalize_email(user.email)
-    if not email:
-        return
-
-    deleted_count, _ = (
-        PendingEmailChange.objects.filter(email__iexact=email)
-        .exclude(user_id=user.id)
-        .delete()
-    )
-
-    if deleted_count:
-        logger.info(
-            "Deleted %d conflicting pending email change%s for activated User(id=%s).",
-            deleted_count,
-            "" if deleted_count == 1 else "s",
-            user.id,
-        )

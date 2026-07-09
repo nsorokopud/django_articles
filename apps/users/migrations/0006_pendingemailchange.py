@@ -46,12 +46,6 @@ class Migration(migrations.Migration):
                         condition=models.Q(("email", ""), _negated=True),
                         name="users_pending_email_change_email_not_blank",
                     ),
-                    models.UniqueConstraint(
-                        django.db.models.functions.text.Lower(
-                            django.db.models.functions.text.Trim("email")
-                        ),
-                        name="users_pending_email_change_email_ci_unique",
-                    ),
                 ],
             },
         ),
