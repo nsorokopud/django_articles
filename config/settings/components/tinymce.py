@@ -1,7 +1,10 @@
 TINYMCE_JS_URL = "https://cdn.jsdelivr.net/npm/tinymce@7.3.0/tinymce.min.js"
 
 TINYMCE_EXTRA_MEDIA = {
-    "js": ["js/tinymce-upload-handler.js", "js/tinymce-setup.js"],
+    "js": [
+        "js/articles/tinymce-upload-handler.js",
+        "js/articles/tinymce-setup.js",
+    ],
 }
 
 TINYMCE_DEFAULT_CONFIG = {

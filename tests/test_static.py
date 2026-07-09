@@ -8,5 +8,5 @@ class TestStatic(SimpleTestCase):
         self.assertIsNotNone(css_path)
 
     def test_js_is_loading(self):
-        js_path = finders.find("js/likes.js")
+        js_path = finders.find("js/articles/likes.js")
         self.assertIsNotNone(js_path)

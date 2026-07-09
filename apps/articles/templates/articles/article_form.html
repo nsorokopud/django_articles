@@ -135,6 +135,6 @@
   {% if article.status == "draft" or article.status == "rejected" %}
     {{ media_allowed_root_urls|json_script:"mediaAllowedRootUrls" }}
     {{ form.media }}
-    <script src="{% static 'js/article-form.js' %}"></script>
+    <script src="{% static 'js/articles/article-form.js' %}"></script>
   {% endif %}
 {% endblock extra_scripts %}
