@@ -19,7 +19,3 @@ def get_cached_subscribers_count(author: User) -> int:
 
 def get_subscribers_count_cache_key(user_id: int) -> str:
     return f"users:subscribers_count:{user_id}"
-
-
-def get_subscribed_to_authors_cache_key(user_id: int) -> str:
-    return f"users:{user_id}:subscribed_to_authors:v1"
