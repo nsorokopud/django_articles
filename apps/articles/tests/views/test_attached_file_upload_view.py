@@ -24,8 +24,8 @@ class TestAttachedFileUploadView(TestCase):
         self.client = Client()
         self.url = reverse("attached-file-upload")
 
-    @patch("articles.views.base.default_storage.url")
-    @patch("articles.views.base.save_article_inline_media_file")
+    @patch("articles.views.uploads.default_storage.url")
+    @patch("articles.views.uploads.save_article_inline_media_file")
     @patch("core.validators.magic.from_buffer", return_value="image/jpeg")
     def test_successful_upload(self, mock_magic, mock_save_media, mock_url):
         mock_save_media.return_value = "path/to/file"
@@ -191,10 +191,10 @@ class TestAttachedFileUploadView(TestCase):
         )
 
     @patch(
-        "articles.views.base.save_article_inline_media_file",
+        "articles.views.uploads.save_article_inline_media_file",
         side_effect=MediaSaveError("Media save error"),
     )
-    @patch("articles.views.base.logger")
+    @patch("articles.views.uploads.logger")
     @patch("core.validators.magic.from_buffer", return_value="image/jpeg")
     def test_file_save_error(self, mock_magic, mock_logger, mock_save):
         self.client.force_login(self.user)

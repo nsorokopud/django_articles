@@ -8,6 +8,7 @@ from articles.views.articles import (
     ArticleListFilterView,
     ArticleUpdateView,
     ArticleWithdrawFromReviewView,
+    HomePageView,
     MyArticlesListView,
     SubscriptionFeedView,
 )
@@ -15,8 +16,8 @@ from articles.views.autocomplete import (
     ArticleAuthorAutocompleteView,
     ArticleTagAutocompleteView,
 )
-from articles.views.base import AttachedFileUploadView, HomePageView
 from articles.views.comments import ArticleCommentsListView, CommentLikeView
+from articles.views.uploads import AttachedFileUploadView
 
 
 urlpatterns = [

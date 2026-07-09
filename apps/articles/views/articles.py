@@ -12,7 +12,13 @@ from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DeleteView, DetailView, ListView, UpdateView
+from django.views.generic import (
+    DeleteView,
+    DetailView,
+    ListView,
+    RedirectView,
+    UpdateView,
+)
 from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
@@ -42,6 +48,10 @@ from .http import parse_liked_payload
 
 
 logger = logging.getLogger(__name__)
+
+
+class HomePageView(RedirectView):
+    pattern_name = "articles"
 
 
 class BaseArticleListFilterView(FilterView):

@@ -6,7 +6,6 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic.base import RedirectView
 from django_ratelimit.decorators import ratelimit
 
 from core.exceptions import MediaSaveError
@@ -17,10 +16,6 @@ from ..services.media import save_article_inline_media_file
 
 
 logger = logging.getLogger(__name__)
-
-
-class HomePageView(RedirectView):
-    pattern_name = "articles"
 
 
 @method_decorator(
