@@ -68,7 +68,6 @@ class ArticleAdmin(admin.ModelAdmin):
         "comments_count",
     )
     exclude = ("users_that_liked",)
-    actions = ("publish", "unpublish")
     inlines = (CommentInline,)
     save_on_top = True
     save_as = False
@@ -161,15 +160,6 @@ class ArticleAdmin(admin.ModelAdmin):
         extra_context["show_save_and_add_another"] = not is_locked
 
         return super().change_view(request, object_id, form_url, extra_context)
-
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-
-        if not request.user.has_perm("articles.can_review_article"):
-            actions.pop("publish", None)
-            actions.pop("unpublish", None)
-
-        return actions
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -399,85 +389,6 @@ class ArticleAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(
             reverse("admin:articles_article_change", args=[article.id])
         )
-
-    @admin.action(description="Publish selected articles", permissions=("change",))
-    def publish(self, request, queryset):
-        self._require_review_permission(request)
-        updated_rows_count = 0
-        failures = []
-
-        for article in queryset:
-            try:
-                publish_article(article_id=article.id, reviewer=request.user)
-            except ValueError as e:
-                failures.append(f"#{article.id}: {e}")
-            else:
-                updated_rows_count += 1
-
-        if updated_rows_count:
-            self.message_user(
-                request,
-                f"{updated_rows_count} "
-                f"article{' was' if updated_rows_count == 1 else 's were'} published.",
-                level=messages.SUCCESS,
-            )
-
-        if failures:
-            preview = "; ".join(failures[:5])
-            suffix = "" if len(failures) <= 5 else f" (and {len(failures) - 5} more)"
-            self.message_user(
-                request,
-                f"Could not publish {len(failures)} selected "
-                f"article{'s' if len(failures) != 1 else ''}: {preview}{suffix}",
-                level=messages.ERROR,
-            )
-
-        if not updated_rows_count and not failures:
-            self.message_user(
-                request,
-                "No selected articles were published.",
-                level=messages.WARNING,
-            )
-
-    @admin.action(description="Unpublish selected articles", permissions=("change",))
-    def unpublish(self, request, queryset):
-        self._require_review_permission(request)
-        updated_rows_count = 0
-        failures = []
-
-        for article in queryset:
-            try:
-                unpublish_article(article_id=article.id, actor=request.user)
-            except ValueError as e:
-                failures.append(f"#{article.id}: {e}")
-            else:
-                updated_rows_count += 1
-
-        if updated_rows_count:
-            self.message_user(
-                request,
-                f"{updated_rows_count} "
-                f"article{' was' if updated_rows_count == 1 else 's were'} "
-                "unpublished.",
-                level=messages.SUCCESS,
-            )
-
-        if failures:
-            preview = "; ".join(failures[:5])
-            suffix = "" if len(failures) <= 5 else f" (and {len(failures) - 5} more)"
-            self.message_user(
-                request,
-                f"Could not unpublish {len(failures)} selected "
-                f"article{'s' if len(failures) != 1 else ''}: {preview}{suffix}",
-                level=messages.ERROR,
-            )
-
-        if not updated_rows_count and not failures:
-            self.message_user(
-                request,
-                "No selected articles were unpublished.",
-                level=messages.WARNING,
-            )
 
 
 @admin.register(ArticleCategory)

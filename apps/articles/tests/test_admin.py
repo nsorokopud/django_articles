@@ -337,22 +337,6 @@ class TestArticleAdmin(TestCase):
             response, reverse("admin:articles_article_unpublish", args=[article.pk])
         )
 
-    def test_get_actions_hides_workflow_actions_without_review_permission(self):
-        request = self._request(user=self.editor_user)
-
-        actions = self.article_admin.get_actions(request)
-
-        self.assertNotIn("publish", actions)
-        self.assertNotIn("unpublish", actions)
-
-    def test_get_actions_keeps_workflow_actions_with_review_permission(self):
-        request = self._request(user=self.reviewer_user)
-
-        actions = self.article_admin.get_actions(request)
-
-        self.assertIn("publish", actions)
-        self.assertIn("unpublish", actions)
-
     def test_require_review_permission_allows_reviewer(self):
         request = self._request(user=self.reviewer_user)
 
@@ -515,60 +499,6 @@ class TestArticleAdmin(TestCase):
         self.assertEqual(
             response.url, reverse("admin:articles_article_change", args=[article.pk])
         )
-
-    @patch("articles.admin.publish_article")
-    def test_publish_action_calls_service_for_each_article(self, mock_publish):
-        article_1 = self._article(slug="article-1")
-        article_2 = self._article(slug="article-2")
-        request = self._request("post")
-
-        self.article_admin.publish(
-            request, Article.objects.filter(pk__in=[article_1.pk, article_2.pk])
-        )
-
-        self.assertEqual(mock_publish.call_count, 2)
-
-    @patch("articles.admin.publish_article")
-    def test_publish_action_requires_review_permission(self, mock_publish):
-        article = self._article(slug="article-1")
-        request = self._request("post", user=self.editor_user)
-
-        with self.assertRaises(PermissionDenied):
-            self.article_admin.publish(request, Article.objects.filter(pk=article.pk))
-
-        mock_publish.assert_not_called()
-
-    @patch("articles.admin.unpublish_article")
-    def test_unpublish_action_calls_service_for_each_article(self, mock_unpublish):
-        article_1 = self._article(
-            slug="article-1",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-        )
-        article_2 = self._article(
-            slug="article-2",
-            status=ArticleStatus.PUBLISHED,
-            published_at=timezone.now(),
-        )
-        request = self._request("post")
-
-        self.article_admin.unpublish(
-            request, Article.objects.filter(pk__in=[article_1.pk, article_2.pk])
-        )
-
-        self.assertEqual(mock_unpublish.call_count, 2)
-
-    @patch("articles.admin.unpublish_article")
-    def test_unpublish_action_requires_review_permission(self, mock_unpublish):
-        article = self._article(
-            status=ArticleStatus.PUBLISHED, published_at=timezone.now()
-        )
-        request = self._request("post", user=self.editor_user)
-
-        with self.assertRaises(PermissionDenied):
-            self.article_admin.unpublish(request, Article.objects.filter(pk=article.pk))
-
-        mock_unpublish.assert_not_called()
 
     @patch("articles.admin.delete_article")
     def test_delete_model_calls_delete_service(self, mock_delete):
