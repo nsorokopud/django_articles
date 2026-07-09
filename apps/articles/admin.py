@@ -18,27 +18,6 @@ from .services.editing import delete_article, save_article
 from .services.publishing import publish_article, reject_article, unpublish_article
 
 
-class CommentInline(admin.TabularInline):
-    model = ArticleComment
-    extra = 0
-    can_delete = True
-    show_change_link = True
-    readonly_fields = ("author", "text", "created_at", "likes_count")
-    fields = ("author", "text", "created_at", "likes_count")
-    ordering = ("-created_at",)
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        if obj and obj.status in {
-            ArticleStatus.PUBLISHED,
-            ArticleStatus.PENDING_REVIEW,
-        }:
-            return False
-        return super().has_delete_permission(request, obj)
-
-
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm
@@ -68,7 +47,6 @@ class ArticleAdmin(admin.ModelAdmin):
         "comments_count",
     )
     exclude = ("users_that_liked",)
-    inlines = (CommentInline,)
     save_on_top = True
     save_as = False
 
@@ -418,11 +396,11 @@ class ArticleMediaAdmin(admin.ModelAdmin):
 
 @admin.register(ArticleComment)
 class ArticleCommentAdmin(admin.ModelAdmin):
-    list_display = ("article", "author", "text", "likes_count")
+    list_display = ("article", "author", "text", "created_at", "likes_count")
     list_display_links = ("article", "text")
     list_filter = ("created_at", "author", "article")
-    search_fields = ("article__title", "author__username")
-    readonly_fields = ("article", "author", "likes_count")
+    search_fields = ("article__title", "author__username", "text")
+    readonly_fields = ("article", "author", "text", "created_at", "likes_count")
     exclude = ("users_that_liked",)
     save_as = False
 

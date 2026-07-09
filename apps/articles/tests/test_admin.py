@@ -11,7 +11,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from articles.admin import ArticleAdmin, ArticleMediaAdmin, CommentInline
+from articles.admin import ArticleAdmin, ArticleCommentAdmin, ArticleMediaAdmin
 from articles.models import (
     Article,
     ArticleCategory,
@@ -654,57 +654,9 @@ class TestArticleMediaAdmin(TestCase):
         self.assertFalse(self.admin.has_delete_permission(self.request))
 
 
-class TestCommentInlineAdmin(TestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
-        self.site = AdminSite()
-        self.inline = CommentInline(Article, self.site)
-
-        self.admin_user = User.objects.create_superuser(
-            username="admin", email="admin@test.com"
-        )
-        self.author = User.objects.create_user(
-            username="author", email="author@test.com"
-        )
-        self.article = Article.objects.create(
-            title="Article",
-            slug="article",
-            author=self.author,
-            preview_text="Preview",
-            content="<p>Body</p>",
-            content_text="Body",
-            status=ArticleStatus.DRAFT,
-        )
-
-    def test_has_add_permission_is_false(self):
-        request = self.factory.get("/admin/")
-        request.user = self.admin_user
-
-        self.assertFalse(self.inline.has_add_permission(request, self.article))
-
-    def test_has_delete_permission_is_true_for_draft(self):
-        request = self.factory.get("/admin/")
-        request.user = self.admin_user
-
-        self.assertTrue(self.inline.has_delete_permission(request, self.article))
-
-    def test_has_delete_permission_is_false_for_published(self):
-        request = self.factory.get("/admin/")
-        request.user = self.admin_user
-        self.article.status = ArticleStatus.PUBLISHED
-
-        self.assertFalse(self.inline.has_delete_permission(request, self.article))
-
-    def test_has_delete_permission_is_false_for_pending_review(self):
-        request = self.factory.get("/admin/")
-        request.user = self.admin_user
-        self.article.status = ArticleStatus.PENDING_REVIEW
-
-        self.assertFalse(self.inline.has_delete_permission(request, self.article))
-
-
 class TestArticleCommentAdmin(TestCase):
     def setUp(self):
+        self.admin = ArticleCommentAdmin(ArticleComment, AdminSite())
         self.admin_user = User.objects.create_superuser(
             username="admin", email="admin@test.com"
         )
@@ -738,3 +690,8 @@ class TestArticleCommentAdmin(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'name="_saveasnew"')
+
+    def test_article_comment_admin_keeps_user_content_readonly(self):
+        self.assertIn("text", self.admin.readonly_fields)
+        self.assertIn("created_at", self.admin.readonly_fields)
+        self.assertIn("text", self.admin.search_fields)
