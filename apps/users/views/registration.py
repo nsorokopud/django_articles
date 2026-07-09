@@ -11,7 +11,7 @@ from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.views import View
-from django.views.generic import FormView
+from django.views.generic import FormView, TemplateView
 from django_ratelimit.decorators import ratelimit
 
 from users.forms import UserCreationForm
@@ -58,9 +58,8 @@ class UserRegistrationView(FormView):
             form.add_error(None, error)
 
 
-class PostUserRegistrationView(View):
-    def get(self, request) -> HttpResponse:
-        return render(request, "users/post_registration.html")
+class PostUserRegistrationView(TemplateView):
+    template_name = "users/post_registration.html"
 
 
 class AccountActivationView(View):
