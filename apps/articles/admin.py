@@ -23,14 +23,7 @@ class ArticleAdmin(admin.ModelAdmin):
     form = ArticleAdminForm
     change_form_template = "articles/admin/article_change_form.html"
 
-    list_display = (
-        "id",
-        "status",
-        "title",
-        "category",
-        "author",
-        "created_at",
-    )
+    list_display = ("id", "status", "title", "category", "author", "created_at")
     list_display_links = ("id", "title")
     list_filter = ("status", "published_at", "created_at", "category", "author")
     search_fields = ("title", "author__username", "category__title")
@@ -66,34 +59,10 @@ class ArticleAdmin(admin.ModelAdmin):
                 )
             },
         ),
-        (
-            "Publication",
-            {"fields": ("status", "published_at")},
-        ),
-        (
-            "Timestamps",
-            {"fields": ("created_at", "modified_at")},
-        ),
-        (
-            "Review",
-            {
-                "fields": (
-                    "review_note",
-                    "reviewed_at",
-                    "reviewed_by",
-                )
-            },
-        ),
-        (
-            "Popularity",
-            {
-                "fields": (
-                    "views_count",
-                    "likes_count",
-                    "comments_count",
-                )
-            },
-        ),
+        ("Publication", {"fields": ("status", "published_at")}),
+        ("Timestamps", {"fields": ("created_at", "modified_at")}),
+        ("Review", {"fields": ("review_note", "reviewed_at", "reviewed_by")}),
+        ("Popularity", {"fields": ("views_count", "likes_count", "comments_count")}),
     )
 
     def get_prepopulated_fields(self, request, obj=None):
@@ -261,9 +230,7 @@ class ArticleAdmin(admin.ModelAdmin):
             "form": form,
         }
         return TemplateResponse(
-            request,
-            "articles/admin/workflow_confirm.html",
-            context,
+            request, "articles/admin/workflow_confirm.html", context
         )
 
     def process_publish(self, request: HttpRequest, article_id: int):
@@ -315,9 +282,7 @@ class ArticleAdmin(admin.ModelAdmin):
             self.message_user(request, str(e), level=messages.ERROR)
         else:
             self.message_user(
-                request,
-                "Article was unpublished.",
-                level=messages.SUCCESS,
+                request, "Article was unpublished.", level=messages.SUCCESS
             )
 
         return HttpResponseRedirect(
