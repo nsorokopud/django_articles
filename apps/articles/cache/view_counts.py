@@ -41,10 +41,7 @@ def get_cached_article_views(article_id: int) -> int:
 
 
 def register_article_view(
-    *,
-    article_id: int,
-    viewer_id: str,
-    unique_view_timeout: int,
+    *, article_id: int, viewer_id: str, unique_view_timeout: int
 ) -> bool:
     """Registers one unique view for an article within the timeout window.
 
@@ -54,8 +51,7 @@ def register_article_view(
     """
     redis_conn = get_redis_connection("default")
     unique_view_key = ARTICLE_UNIQUE_VIEW_KEY.format(
-        article_id=article_id,
-        viewer_id=viewer_id,
+        article_id=article_id, viewer_id=viewer_id
     )
     article_delta_key = ARTICLE_UNSYNCED_VIEWS_KEY.format(id=article_id)
 
@@ -116,9 +112,7 @@ def _decode_article_ids(encoded_ids: Iterable[bytes]) -> list[int]:
 
 
 def _sync_article_batch(
-    article_ids: Iterable[int],
-    batch_index: int,
-    redis_conn,
+    article_ids: Iterable[int], batch_index: int, redis_conn
 ) -> None:
     view_deltas = _claim_view_deltas(redis_conn, article_ids)
 
@@ -133,9 +127,7 @@ def _sync_article_batch(
     try:
         bulk_increment_article_view_counts(view_deltas)
         logger.info(
-            "Synced views for %d articles in batch %d.",
-            len(view_deltas),
-            batch_index,
+            "Synced views for %d articles in batch %d.", len(view_deltas), batch_index
         )
     except DatabaseError as e:
         logger.error(
