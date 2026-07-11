@@ -66,9 +66,7 @@ def cleanup_old_read_notifications(
 
 
 def _delete_old_read_notifications_batch(
-    *,
-    cutoff: datetime,
-    batch_size: Optional[int] = None,
+    *, cutoff: datetime, batch_size: Optional[int] = None
 ) -> int:
     batch_size = (
         settings.NOTIFICATIONS_CLEANUP_BATCH_SIZE if batch_size is None else batch_size
@@ -77,10 +75,7 @@ def _delete_old_read_notifications_batch(
         raise ValueError("batch_size must be > 0")
 
     ids = list(
-        Notification.objects.filter(
-            read_at__isnull=False,
-            read_at__lt=cutoff,
-        )
+        Notification.objects.filter(read_at__isnull=False, read_at__lt=cutoff)
         .order_by("read_at", "id")
         .values_list("id", flat=True)[:batch_size]
     )
