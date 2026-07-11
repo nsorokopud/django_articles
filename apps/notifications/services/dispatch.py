@@ -20,10 +20,7 @@ def get_delivery_plan(*, notification_type: str) -> DeliveryPlan:
 
 
 def dispatch_notification_after_commit(
-    *,
-    notification_id: int,
-    notification_type: str,
-    is_new_unread: bool = True,
+    *, notification_id: int, notification_type: str, is_new_unread: bool = True
 ) -> None:
     plan = get_delivery_plan(notification_type=notification_type)
 
