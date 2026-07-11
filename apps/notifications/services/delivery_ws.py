@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def send_ws_notification(
-    notification_id: int,
-    *,
-    is_new_unread: bool = True,
+    notification_id: int, *, is_new_unread: bool = True
 ) -> None:
     layer = get_channel_layer()
     if layer is None:
