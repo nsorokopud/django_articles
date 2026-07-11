@@ -28,8 +28,7 @@ def create_or_update_unread_comment_aggregate_notification(
         return None
 
     aggregate_key = _build_comment_aggregate_key(
-        recipient_id=article_author_id,
-        article_id=article_id,
+        recipient_id=article_author_id, article_id=article_id
     )
     link = _build_article_link(article_slug)
     now = timezone.now()
@@ -139,8 +138,7 @@ def _update_comment_aggregate_notification(
     notification.sender = None
     notification.title = _build_comment_aggregate_title(count)
     notification.body = _build_comment_aggregate_body(
-        count=count,
-        article_title=article_title,
+        count=count, article_title=article_title
     )
     notification.payload = payload
     notification.last_event_at = now
