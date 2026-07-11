@@ -1,8 +1,6 @@
-from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from users.cache import get_subscribers_count_cache_key
 from users.models import User
 
 
@@ -41,9 +39,3 @@ class TestAuthorPageView(TestCase):
         )
         self.assertEqual(response.context["subscribers_count"], 0)
         self.assertFalse(response.context["is_viewer_subscribed"])
-
-    def test_subscriber_count_cached(self):
-        cache.clear()
-        self.client.get(self.url)
-        cache_key = get_subscribers_count_cache_key(self.author.id)
-        self.assertEqual(cache.get(cache_key), 0)

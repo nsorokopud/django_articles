@@ -1,9 +1,7 @@
 from django.contrib.auth.models import AnonymousUser
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from users.cache import get_subscribers_count_cache_key
 from users.models import AuthorSubscription, User
 from users.services.subscriptions import set_author_subscription
 
@@ -124,57 +122,3 @@ class TestSetAuthorSubscription(TestCase):
             "Cannot subscribe to inactive authors.",
             str(context.exception),
         )
-
-    def test_cache_invalidation_on_subscribe(self):
-        cache_key = get_subscribers_count_cache_key(self.author.id)
-        cache.set(cache_key, 42)
-
-        self.assertEqual(cache.get(cache_key), 42)
-
-        with self.captureOnCommitCallbacks(execute=True):
-            set_author_subscription(
-                subscriber=self.user, author=self.author, should_subscribe=True
-            )
-
-        self.assertIsNone(cache.get(cache_key))
-
-    def test_cache_invalidation_on_unsubscribe(self):
-        AuthorSubscription.objects.create(subscriber=self.user, author=self.author)
-
-        cache_key = get_subscribers_count_cache_key(self.author.id)
-        cache.set(cache_key, 42)
-
-        self.assertEqual(cache.get(cache_key), 42)
-
-        with self.captureOnCommitCallbacks(execute=True):
-            set_author_subscription(
-                subscriber=self.user, author=self.author, should_subscribe=False
-            )
-
-        self.assertIsNone(cache.get(cache_key))
-
-    def test_cache_not_invalidated_when_subscribe_does_not_change_state(self):
-        AuthorSubscription.objects.create(subscriber=self.user, author=self.author)
-
-        cache_key = get_subscribers_count_cache_key(self.author.id)
-        cache.set(cache_key, 42)
-
-        with self.captureOnCommitCallbacks(execute=True) as callbacks:
-            set_author_subscription(
-                subscriber=self.user, author=self.author, should_subscribe=True
-            )
-
-        self.assertEqual(callbacks, [])
-        self.assertEqual(cache.get(cache_key), 42)
-
-    def test_cache_not_invalidated_when_unsubscribe_does_not_change_state(self):
-        cache_key = get_subscribers_count_cache_key(self.author.id)
-        cache.set(cache_key, 42)
-
-        with self.captureOnCommitCallbacks(execute=True) as callbacks:
-            set_author_subscription(
-                subscriber=self.user, author=self.author, should_subscribe=False
-            )
-
-        self.assertEqual(callbacks, [])
-        self.assertEqual(cache.get(cache_key), 42)

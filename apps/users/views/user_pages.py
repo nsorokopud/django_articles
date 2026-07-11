@@ -14,7 +14,6 @@ from django_ratelimit.decorators import ratelimit
 
 from users.forms import ProfileUpdateForm, UserUpdateForm
 
-from ..cache import get_cached_subscribers_count
 from ..models import User
 from ..selectors import (
     find_authors_subscribed_by_user,
@@ -76,12 +75,11 @@ class AuthorPageView(TemplateView):
         author = get_author_with_viewer_subscription_status(
             self.kwargs.get("author_id"), self.request.user
         )
-        subscribers_count = get_cached_subscribers_count(author)
 
         user = self.request.user
         context["author"] = author
         context["author_image_url"] = author.profile.image.url
-        context["subscribers_count"] = subscribers_count
+        context["subscribers_count"] = author.subscribers.count()
         context["is_viewer_subscribed"] = (
             author.is_subscribed_by_viewer if user.is_authenticated else False
         )
