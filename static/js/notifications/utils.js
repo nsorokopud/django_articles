@@ -44,3 +44,11 @@ export function safeInternalPath(value) {
 
   return trimmed;
 }
+
+export function formatRelativeTime(value) {
+  try {
+    return luxon.DateTime.fromJSDate(new Date(value)).toRelative() || '';
+  } catch {
+    return '';
+  }
+}

@@ -1,4 +1,4 @@
-import { postJSON, safeInternalPath } from './utils.js';
+import { formatRelativeTime, postJSON, safeInternalPath } from './utils.js';
 
 const TOAST_DISPLAY_DURATION_MS = 10 * 60 * 1000; // 10 min
 
@@ -41,16 +41,9 @@ export function showToast({
   headerText.textContent = title || '';
 
   const headerTime = document.createElement('small');
-  try {
-    const effectiveTimestamp = lastEventAt || timestamp;
-
-    headerTime.dataset.relativeTimestamp = effectiveTimestamp;
-    headerTime.innerText =
-      luxon.DateTime.fromJSDate(new Date(effectiveTimestamp)).toRelative() ||
-      '';
-  } catch {
-    headerTime.innerText = '';
-  }
+  const effectiveTimestamp = lastEventAt || timestamp;
+  headerTime.dataset.relativeTimestamp = effectiveTimestamp;
+  headerTime.innerText = formatRelativeTime(effectiveTimestamp);
 
   const closeButton = document.createElement('button');
   closeButton.classList.add('btn-close');

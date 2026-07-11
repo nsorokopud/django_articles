@@ -1,4 +1,9 @@
-import { intVal, postJSON, safeInternalPath } from './utils.js';
+import {
+  formatRelativeTime,
+  intVal,
+  postJSON,
+  safeInternalPath,
+} from './utils.js';
 import { showToast } from './toasts.js';
 
 const INBOX_PAGE_SIZE = 50;
@@ -327,9 +332,7 @@ function createNotificationHeader(n) {
   title.textContent = n.title || '';
 
   time.dataset.relativeTimestamp = n.last_event_at || n.timestamp;
-  time.innerText = formatNotificationRelativeTime(
-    time.dataset.relativeTimestamp,
-  );
+  time.innerText = formatRelativeTime(time.dataset.relativeTimestamp);
 
   header.append(title, time);
   return header;
@@ -367,20 +370,12 @@ function createElement(tagName, ...classNames) {
   return el;
 }
 
-function formatNotificationRelativeTime(value) {
-  try {
-    return luxon.DateTime.fromJSDate(new Date(value)).toRelative() || '';
-  } catch {
-    return '';
-  }
-}
-
 function refreshRelativeTimeElements() {
   const elements = document.querySelectorAll('[data-relative-timestamp]');
   elements.forEach((el) => {
     const ts = el.dataset.relativeTimestamp;
     if (!ts) return;
-    el.innerText = formatNotificationRelativeTime(ts);
+    el.innerText = formatRelativeTime(ts);
   });
 }
 
