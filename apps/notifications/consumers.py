@@ -34,24 +34,14 @@ class DigestHintEvent(TypedDict):
 
 
 class NotificationConsumer(AsyncJsonWebsocketConsumer):
-    """Push-only WS consumer for real-time notifications.
-
-    Delivery is best-effort: individual notification messages may be dropped when
-    a previous send is still in progress (to avoid buffering/backpressure). When drops
-    occur, a single "digest" message is sent to hint the client to refetch the inbox
-    from the DB.
-    """
+    """Push-only WS consumer for real-time notifications."""
 
     personal_group: str
-    _send_lock: asyncio.Lock
     _is_closing: bool
-    _digest_pending: bool
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._send_lock = asyncio.Lock()
         self._is_closing = False
-        self._digest_pending = False
 
     async def connect(self) -> None:
         user = self.scope.get("user")
@@ -72,7 +62,6 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return
 
     async def disconnect(self, code: int) -> None:
-        self._digest_pending = False
         self._is_closing = True
 
         if getattr(self, "personal_group", None):
@@ -92,12 +81,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         if msg is None or self._is_closing:
             return
 
-        # If already sending, don't queue more; just ensure a digest hint is sent later.
-        if self._send_lock.locked():
-            self._digest_pending = True
-            return
-
-        await self._send_payload_locked(
+        await self._send_json_with_timeout(
             msg, log_prefix=f"Notification send (id={msg.get('id', -1)})"
         )
 
@@ -105,11 +89,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         if self._is_closing:
             return
 
-        if self._send_lock.locked():
-            self._digest_pending = True
-            return
-
-        await self._send_payload_locked(
+        await self._send_json_with_timeout(
             {"kind": "digest"}, log_prefix="Notification digest send"
         )
 
@@ -157,8 +137,6 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return False
 
     async def _safe_close(self, code: int) -> None:
-        self._digest_pending = False
-
         if self._is_closing:
             return
         self._is_closing = True
@@ -166,34 +144,6 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=code)
         except Exception:  # pylint: disable=W0718
             logger.debug("WS close failed", exc_info=True)
-
-    async def _send_payload_locked(
-        self, payload: dict[str, Any], *, log_prefix: str
-    ) -> bool:
-        if self._is_closing:
-            return False
-
-        async with self._send_lock:
-            ok = await self._send_json_with_timeout(payload, log_prefix=log_prefix)
-            if not ok or self._is_closing:
-                return False
-
-            kind = payload.get("kind")
-
-            if kind == "digest":
-                self._digest_pending = False
-                return True
-
-            # If notifications were dropped while a previous send was in progress,
-            # emit one digest after the notification.
-            if kind == "notification" and self._digest_pending:
-                ok2 = await self._send_json_with_timeout(
-                    {"kind": "digest"}, log_prefix="Notification digest send"
-                )
-                if ok2:
-                    self._digest_pending = False
-
-            return True
 
     async def _send_json_with_timeout(
         self, payload: dict[str, Any], *, log_prefix: str = "WS send"
