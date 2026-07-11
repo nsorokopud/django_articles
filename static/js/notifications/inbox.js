@@ -145,8 +145,6 @@ function updateLoadMoreButton(hasMore) {
 }
 
 function renderInboxItems(items, { mode } = { mode: 'replace' }) {
-  showInboxUI();
-
   const container = document.getElementById('notificationsContainer');
   if (!container) return;
 
@@ -173,7 +171,6 @@ function renderInboxItems(items, { mode } = { mode: 'replace' }) {
 }
 
 function prependInboxItem(n) {
-  showInboxUI();
   setInboxEmpty(false);
 
   const container = document.getElementById('notificationsContainer');
@@ -189,7 +186,6 @@ function prependInboxItem(n) {
 }
 
 function setInboxLoading(isLoading) {
-  showInboxUI();
   const loading = document.getElementById('notificationsLoading');
   if (!loading) return;
   loading.classList.toggle('d-none', !isLoading);
@@ -201,17 +197,6 @@ function setInboxEmpty(isEmpty) {
 
   if (empty) empty.classList.toggle('d-none', !isEmpty);
   if (container) container.classList.toggle('d-none', isEmpty);
-}
-
-function showInboxUI() {
-  const modalTitle = document.getElementById('modalTitle');
-  const modalBody = document.getElementsByClassName('modal-body')[0] || null;
-  const modalFooter =
-    document.getElementsByClassName('modal-footer')[0] || null;
-
-  if (modalTitle) modalTitle.innerText = 'Notifications';
-  if (modalBody) modalBody.classList.remove('d-none');
-  if (modalFooter) modalFooter.classList.remove('d-none');
 }
 
 function isInboxModalOpen() {
@@ -410,10 +395,6 @@ function startRelativeTimeRefresh() {
 function updateEmptyUIIfInboxEmpty() {
   const container = document.getElementById('notificationsContainer');
   if (!container || container.children.length > 0) return;
-
-  const modalFooter =
-    document.getElementsByClassName('modal-footer')[0] || null;
-  if (modalFooter) modalFooter.classList.add('d-none');
 
   setInboxEmpty(true);
 }
