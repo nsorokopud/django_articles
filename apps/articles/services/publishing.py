@@ -98,9 +98,7 @@ def unpublish_article(*, article_id: int, actor: User | None = None) -> Article:
 
     _invalidate_article_slug_id_cache_on_commit(article)
     _notify_article_unpublished_on_commit(
-        article=article,
-        actor=actor,
-        unpublished_at=unpublished_at,
+        article=article, actor=actor, unpublished_at=unpublished_at
     )
 
     return article
