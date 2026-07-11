@@ -108,7 +108,7 @@ async function loadInitialInboxPage() {
 
   renderInboxItems(data.items, { mode: 'replace' });
 
-  inboxOldestCursor = normalizeCursor(data.next_before_cursor);
+  inboxOldestCursor = data.next_before_cursor || null;
 
   updateLoadMoreButton(data.has_more);
 }
@@ -118,7 +118,7 @@ async function loadOlderNotifications() {
 
   const url = new URL(`${location.origin}${NOTIFICATIONS_LIST_PATH}`);
   url.searchParams.set('limit', String(INBOX_PAGE_SIZE));
-  url.searchParams.set('before_last_event_at', inboxOldestCursor.lastEventAt);
+  url.searchParams.set('before_last_event_at', inboxOldestCursor.last_event_at);
   url.searchParams.set('before_id', String(inboxOldestCursor.id));
 
   const res = await fetch(url, { credentials: 'same-origin' });
@@ -127,7 +127,7 @@ async function loadOlderNotifications() {
   const data = await res.json();
   renderInboxItems(data.items, { mode: 'append' });
 
-  inboxOldestCursor = normalizeCursor(data.next_before_cursor);
+  inboxOldestCursor = data.next_before_cursor || null;
 
   updateLoadMoreButton(data.has_more);
 }
@@ -392,16 +392,4 @@ function updateEmptyUIIfInboxEmpty() {
   if (!container || container.children.length > 0) return;
 
   setInboxEmpty(true);
-}
-
-function normalizeCursor(cursor) {
-  if (!cursor || !cursor.last_event_at || cursor.id == null) return null;
-
-  const id = Number(cursor.id);
-  const ts = Date.parse(cursor.last_event_at);
-
-  if (!Number.isFinite(id) || id <= 0) return null;
-  if (!Number.isFinite(ts)) return null;
-
-  return { lastEventAt: cursor.last_event_at, id };
 }
