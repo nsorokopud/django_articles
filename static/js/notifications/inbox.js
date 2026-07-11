@@ -1,23 +1,19 @@
-import {
-  formatRelativeTime,
-  intVal,
-  postJSON,
-  safeInternalPath,
-} from './utils.js';
+import { formatRelativeTime, postJSON, safeInternalPath } from './utils.js';
 import { showToast } from './toasts.js';
+import {
+  adjustUnreadBadgeCountBy,
+  applyUnreadBadgeCountFromResponse,
+  refreshUnreadCount,
+} from './unread-badge.js';
 
 const INBOX_PAGE_SIZE = 50;
 const NOTIFICATIONS_LIST_PATH = '/notifications/list/';
-const UNREAD_COUNT_PATH = '/notifications/unread_count/';
-const UNREAD_COUNT_SYNC_THROTTLE_MS = 2000;
 const RELATIVE_TIME_REFRESH_INTERVAL_MS = 30 * 1000;
 
 let inboxOldestCursor = null;
-let lastUnreadSyncMs = 0;
 let relativeTimeRefreshStarted = false;
 
 export function initInboxUI() {
-  initInboxUnreadBadge();
   setupInboxModalLoading();
   startRelativeTimeRefresh();
 }
@@ -39,11 +35,8 @@ export function onNotificationReceived(n) {
 
   if (isInboxModalOpen()) {
     prependInboxItem({
-      id: n.id,
-      title: n.title,
-      body: n.body,
+      ...n,
       payload: n.payload || {},
-      timestamp: n.timestamp,
       last_event_at: n.last_event_at || n.timestamp,
       is_read: false,
     });
@@ -75,22 +68,6 @@ function setupInboxModalLoading() {
     await refreshUnreadCount();
     await loadInitialInboxPage();
   });
-}
-
-async function refreshUnreadCount() {
-  const now = Date.now();
-  if (now - lastUnreadSyncMs < UNREAD_COUNT_SYNC_THROTTLE_MS) return;
-  lastUnreadSyncMs = now;
-
-  const res = await fetch(`${location.origin}${UNREAD_COUNT_PATH}`, {
-    credentials: 'same-origin',
-  });
-  if (!res.ok) return;
-
-  const data = await res.json();
-  if (data && typeof data.unread === 'number') {
-    setUnreadBadgeCount(data.unread);
-  }
 }
 
 async function loadInitialInboxPage() {
@@ -209,45 +186,6 @@ function isInboxModalOpen() {
   return modalEl && modalEl.classList.contains('show');
 }
 
-function initInboxUnreadBadge() {
-  const meta = document.getElementById('inboxUnreadCount');
-  if (!meta) return;
-  const n = intVal(meta.dataset.count, 0);
-  setUnreadBadgeCount(n);
-}
-
-function setUnreadBadgeCount(unreadCount) {
-  const badge = document.getElementById('notificationCounter');
-  if (!badge) return;
-
-  const n = intVal(unreadCount, 0);
-
-  if (n <= 0) {
-    badge.textContent = '0';
-    badge.classList.add('invisible');
-    return;
-  }
-
-  badge.classList.remove('invisible');
-  badge.textContent = n > 999 ? '999+' : String(n);
-}
-
-function adjustUnreadBadgeCountBy(delta) {
-  const badge = document.getElementById('notificationCounter');
-  if (!badge) return;
-
-  const currentText = (badge.textContent || '0').trim();
-  const current = currentText === '999+' ? 999 : intVal(currentText, 0);
-
-  setUnreadBadgeCount(current + delta);
-}
-
-function applyUnreadCountFromResponse(data) {
-  if (data && typeof data.unread_notifications_count !== 'undefined') {
-    setUnreadBadgeCount(data.unread_notifications_count);
-  }
-}
-
 function createInboxNotificationElement(n) {
   const link = safeInternalPath(n.payload?.link || n.payload?.url || null);
 
@@ -286,7 +224,7 @@ function attachNotificationClickHandler(notification, n, link) {
         const data = await postJSON(`/notification/${n.id}/read/`);
 
         if (data) {
-          applyUnreadCountFromResponse(data);
+          applyUnreadBadgeCountFromResponse(data);
           notification.classList.add('read');
           n.is_read = true;
         }
@@ -357,7 +295,7 @@ function createDeleteButton(notification, n) {
     if (!data) return;
 
     notification.remove();
-    applyUnreadCountFromResponse(data);
+    applyUnreadBadgeCountFromResponse(data);
     updateEmptyUIIfInboxEmpty();
   });
 
