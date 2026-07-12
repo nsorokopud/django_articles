@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     "users",
     "notifications",
     "core",
-    "django_cleanup.apps.CleanupConfig",
+    "django_cleanup.apps.CleanupSelectedConfig",
 ]
 
 

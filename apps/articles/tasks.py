@@ -129,36 +129,18 @@ def sync_article_comments_count_task(self, *, batch_size: int = 1000) -> None:
 
 
 @app.task(
-    soft_time_limit=300,
-    time_limit=310,
-    acks_late=True,
-    reject_on_worker_lost=True,
-    max_retries=3,
-    retry_backoff=60,
-    retry_jitter=True,
-    autoretry_for=(OSError, BotoCoreError, ClientError, SoftTimeLimitExceeded),
-)
-def delete_article_media_task(
-    article_id: int,
-    author_id: int,
-    preview_image_name: str = "",
-) -> None:
-    from .services.media import delete_article_media_files
-
-    delete_article_media_files(
-        article_id=article_id,
-        author_id=author_id,
-        preview_image_name=preview_image_name,
-    )
-
-
-@app.task(
     bind=True,
     soft_time_limit=300,  # 5 min
     time_limit=330,  # 5.5 min
     acks_late=True,
     reject_on_worker_lost=True,
-    autoretry_for=(OSError, BotoCoreError, ClientError, SoftTimeLimitExceeded),
+    autoretry_for=(
+        DatabaseError,
+        OSError,
+        BotoCoreError,
+        ClientError,
+        SoftTimeLimitExceeded,
+    ),
     max_retries=3,
     retry_backoff=60,
     retry_jitter=True,

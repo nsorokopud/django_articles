@@ -41,7 +41,9 @@ class Migration(migrations.Migration):
                 (
                     "article",
                     models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
                         related_name="media_files",
                         to="articles.article",
                     ),

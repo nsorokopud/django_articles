@@ -427,11 +427,12 @@ class TestArticleMediaModel(TestCase):
             str(media), f"Media for {self.article} - articles/uploads/1/1/example.png"
         )
 
-    def test_article_media_is_deleted_when_article_is_deleted(self):
+    def test_article_media_article_is_cleared_when_article_is_deleted(self):
         media = ArticleMedia.objects.create(
             article=self.article, file="articles/uploads/1/1/example.png"
         )
 
         self.article.delete()
 
-        self.assertFalse(ArticleMedia.objects.filter(id=media.id).exists())
+        media.refresh_from_db()
+        self.assertIsNone(media.article_id)

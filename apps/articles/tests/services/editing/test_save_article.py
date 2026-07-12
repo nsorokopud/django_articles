@@ -610,11 +610,7 @@ class TestSaveArticle(TransactionTestCase):
         mock_build_slug.assert_called_once_with("a1", use_suffix=False)
         self.assertEqual(Article.objects.count(), 0)
 
-    @patch("articles.services.editing.delete_article_preview_image_file")
-    def test_deletes_old_preview_image_when_preview_image_is_replaced(
-        self,
-        mock_delete_preview_image,
-    ):
+    def test_replaces_preview_image(self):
         article = Article.objects.create(
             title="a1",
             slug="a1",
@@ -637,15 +633,8 @@ class TestSaveArticle(TransactionTestCase):
         self.assertNotEqual(
             saved.preview_image.name, "articles/preview_images/author/old.jpg"
         )
-        mock_delete_preview_image.assert_called_once_with(
-            "articles/preview_images/author/old.jpg"
-        )
 
-    @patch("articles.services.editing.delete_article_preview_image_file")
-    def test_deletes_old_preview_image_when_preview_image_is_cleared(
-        self,
-        mock_delete_preview_image,
-    ):
+    def test_clears_preview_image(self):
         article = Article.objects.create(
             title="a1",
             slug="a1",
@@ -663,15 +652,8 @@ class TestSaveArticle(TransactionTestCase):
 
         self.assertEqual(saved.pk, article.pk)
         self.assertEqual(saved.preview_image.name, "")
-        mock_delete_preview_image.assert_called_once_with(
-            "articles/preview_images/author/old.jpg"
-        )
 
-    @patch("articles.services.editing.delete_article_preview_image_file")
-    def test_does_not_delete_preview_image_when_preview_image_is_unchanged(
-        self,
-        mock_delete_preview_image,
-    ):
+    def test_preserves_preview_image_when_preview_image_is_unchanged(self):
         article = Article.objects.create(
             title="a1",
             slug="a1",
@@ -691,13 +673,8 @@ class TestSaveArticle(TransactionTestCase):
         self.assertEqual(
             saved.preview_image.name, "articles/preview_images/author/same.jpg"
         )
-        mock_delete_preview_image.assert_not_called()
 
-    @patch("articles.services.editing.delete_article_preview_image_file")
-    def test_does_not_delete_preview_image_when_creating_article_with_preview_image(
-        self,
-        mock_delete_preview_image,
-    ):
+    def test_creates_article_with_preview_image(self):
         article = Article(
             title="a1",
             slug="a1",
@@ -716,7 +693,6 @@ class TestSaveArticle(TransactionTestCase):
 
         self.assertIsNotNone(saved.pk)
         self.assertTrue(saved.preview_image.name)
-        mock_delete_preview_image.assert_not_called()
 
     @patch("articles.services.editing.invalidate_article_slug_id")
     def test_invalidates_old_slug_when_slug_changes(self, mock_invalidate):

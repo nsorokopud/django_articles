@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils import timezone
 
-from articles.models import Article, ArticleCategory, ArticleStatus
+from articles.models import Article, ArticleCategory, ArticleMedia, ArticleStatus
 from articles.services.editing import delete_article
 from users.models import User
 
@@ -72,30 +72,35 @@ class TestDeleteArticle(TestCase):
 
         self.assertTrue(Article.objects.filter(pk=article.pk).exists())
 
-    @patch("articles.tasks.delete_article_media_task.delay")
     @patch("articles.services.editing.invalidate_article_slug_id")
-    def test_after_commit_invalidates_slug_cache_and_schedules_media_cleanup(
-        self, mock_invalidate, mock_delete_media_task
-    ):
+    def test_after_commit_invalidates_slug_cache(self, mock_invalidate):
         article = self._article(slug="cached-slug")
         article_id = article.id
-        author_id = article.author_id
-        preview_image_name = article.preview_image.name
 
         with self.captureOnCommitCallbacks(execute=True):
             delete_article(article_id=article_id)
 
         mock_invalidate.assert_called_once_with(article_slug="cached-slug")
-        mock_delete_media_task.assert_called_once_with(
-            article_id=article_id,
-            author_id=author_id,
-            preview_image_name=preview_image_name,
+
+    def test_marks_media_as_unreferenced_before_deleting_article(self):
+        article = self._article(slug="with-media")
+        media = ArticleMedia.objects.create(
+            article=article,
+            file=f"articles/uploads/{article.author_id}/{article.id}/image.png",
+            unreferenced_at=None,
         )
 
-    @patch("articles.tasks.delete_article_media_task.delay")
-    def test_does_not_schedule_media_cleanup_when_delete_rejected(
-        self, mock_delete_media_task
-    ):
+        before = timezone.now()
+        delete_article(article_id=article.id)
+        after = timezone.now()
+
+        media.refresh_from_db()
+        self.assertIsNone(media.article_id)
+        self.assertGreaterEqual(media.unreferenced_at, before)
+        self.assertLessEqual(media.unreferenced_at, after)
+
+    @patch("articles.services.editing.invalidate_article_slug_id")
+    def test_does_not_invalidate_slug_cache_when_delete_rejected(self, mock_invalidate):
         article = self._article(
             status=ArticleStatus.PUBLISHED, published_at=timezone.now()
         )
@@ -105,4 +110,4 @@ class TestDeleteArticle(TestCase):
         ):
             delete_article(article_id=article.id)
 
-        mock_delete_media_task.assert_not_called()
+        mock_invalidate.assert_not_called()

@@ -10,6 +10,7 @@ from django.db.models.functions import Length, Trim
 from django.db.models.lookups import GreaterThan
 from django.urls import reverse
 from django.utils.text import get_valid_filename
+from django_cleanup import cleanup
 from taggit.managers import TaggableManager
 from tinymce.models import HTMLField
 
@@ -46,6 +47,7 @@ def article_preview_image_upload_path(instance, filename) -> str:
     )
 
 
+@cleanup.select
 class Article(models.Model):
     title = models.CharField(max_length=ARTICLE_TITLE_MAX_LENGTH, blank=True)
     slug = models.SlugField(max_length=ARTICLE_SLUG_MAX_LENGTH)
@@ -191,6 +193,7 @@ class Article(models.Model):
         return self.views_count + views_delta
 
 
+@cleanup.select
 class ArticleCategory(models.Model):
     title = models.CharField(max_length=256)
     slug = models.SlugField(max_length=256, unique=True)
@@ -215,7 +218,11 @@ def article_inline_media_upload_path(instance, filename) -> str:
 
 class ArticleMedia(models.Model):
     article = models.ForeignKey(
-        Article, on_delete=models.CASCADE, related_name="media_files"
+        Article,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="media_files",
     )
     file = models.FileField(upload_to=article_inline_media_upload_path, max_length=512)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
