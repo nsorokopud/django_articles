@@ -1,8 +1,6 @@
 import logging
 
-from botocore.exceptions import BotoCoreError, ClientError
-from django.core.exceptions import SuspiciousFileOperation, ValidationError
-from django.core.files.storage import default_storage
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from core.db import get_constraint_name
@@ -42,8 +40,6 @@ def update_user_profile(
     user = User.objects.select_for_update().get(pk=user.pk)
     profile = Profile.objects.select_for_update().get(user=user)
 
-    old_image_name = profile.image.name if profile.image else ""
-
     username = normalize_username(username)
 
     if not username:
@@ -80,35 +76,4 @@ def update_user_profile(
     if update_fields:
         profile.save(update_fields=update_fields)
 
-    new_image_name = profile.image.name if profile.image else ""
-
-    if _should_delete_old_profile_image(
-        old_image_name=old_image_name, new_image_name=new_image_name
-    ):
-        transaction.on_commit(lambda: _delete_profile_image(old_image_name))
-
     return user, profile
-
-
-def _should_delete_old_profile_image(
-    *, old_image_name: str, new_image_name: str
-) -> bool:
-    return bool(
-        old_image_name
-        and old_image_name != DEFAULT_PROFILE_IMAGE
-        and old_image_name != new_image_name
-    )
-
-
-def _delete_profile_image(file_name: str) -> None:
-    if not file_name or file_name == DEFAULT_PROFILE_IMAGE:
-        return
-
-    if Profile.objects.filter(image=file_name).exists():
-        logger.info("Skipped deleting profile image still in use: %s", file_name)
-        return
-
-    try:
-        default_storage.delete(file_name)
-    except (OSError, BotoCoreError, ClientError, SuspiciousFileOperation):
-        logger.exception("Failed to delete old profile image: %s", file_name)

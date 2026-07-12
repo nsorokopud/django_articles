@@ -123,9 +123,7 @@ class TestUserProfileView(TestCase):
 
         self.client.force_login(self.user)
 
-        with patch("users.services.profiles._delete_profile_image") as mock_delete:
-            with self.captureOnCommitCallbacks(execute=True):
-                response = self.client.post(self.url, data)
+        response = self.client.post(self.url, data)
 
         self.assertRedirects(
             response, self.url, status_code=302, target_status_code=200
@@ -143,10 +141,8 @@ class TestUserProfileView(TestCase):
         )
         self.assertTrue(self.user.profile.image.name.endswith(".jpg"))
 
-        mock_delete.assert_not_called()
-
     @patch("users.models.uuid4")
-    def test_post_replaces_old_profile_image_after_commit(self, mock_uuid):
+    def test_post_replaces_old_profile_image(self, mock_uuid):
         mock_uuid.return_value.hex = "abc123"
         self.client.force_login(self.user)
 
@@ -154,7 +150,6 @@ class TestUserProfileView(TestCase):
         profile.image.save(
             "old_avatar.jpg", ContentFile(b"old fake image content"), save=True
         )
-        old_image_name = profile.image.name
 
         uploaded_image = self._make_uploaded_image("test_image.jpg")
 
@@ -164,9 +159,7 @@ class TestUserProfileView(TestCase):
             "image": uploaded_image,
         }
 
-        with patch("users.services.profiles._delete_profile_image") as mock_delete:
-            with self.captureOnCommitCallbacks(execute=True):
-                response = self.client.post(self.url, data)
+        response = self.client.post(self.url, data)
 
         self.assertRedirects(
             response, self.url, status_code=302, target_status_code=200
@@ -183,8 +176,6 @@ class TestUserProfileView(TestCase):
             )
         )
         self.assertTrue(self.user.profile.image.name.endswith(".jpg"))
-
-        mock_delete.assert_called_once_with(old_image_name)
 
     def test_post_invalid_profile_image(self):
         uploaded_file = SimpleUploadedFile(

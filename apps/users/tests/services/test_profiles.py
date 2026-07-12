@@ -6,11 +6,7 @@ from django.db.models import signals
 from django.test import TestCase, override_settings
 
 from users.models import DEFAULT_PROFILE_IMAGE, Profile, User
-from users.services.profiles import (
-    _delete_profile_image,
-    create_user_profile,
-    update_user_profile,
-)
+from users.services.profiles import create_user_profile, update_user_profile
 from users.signals import create_profile
 
 
@@ -177,7 +173,7 @@ class TestUpdateUserProfile(TestCase):
 
         self.assertEqual(profile.image.name, DEFAULT_PROFILE_IMAGE)
 
-    def test_deletes_old_profile_image_after_commit_when_replaced(self):
+    def test_replaces_profile_image_when_image_changed(self):
         user = User.objects.create_user(
             username="user", email="user@test.com", password="testpass123"
         )
@@ -189,60 +185,18 @@ class TestUpdateUserProfile(TestCase):
 
         new_image = ContentFile(b"new fake image content", name="new_avatar.jpg")
 
-        with patch("users.services.profiles._delete_profile_image") as mock_delete:
-            with self.captureOnCommitCallbacks(execute=True):
-                update_user_profile(
-                    user=user,
-                    username=user.username,
-                    image=new_image,
-                    image_changed=True,
-                    notification_emails_allowed=profile.notification_emails_allowed,
-                )
-
-        mock_delete.assert_called_once_with(old_image_name)
-
-    def test_deletes_old_profile_image_after_commit_when_cleared(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
+        update_user_profile(
+            user=user,
+            username=user.username,
+            image=new_image,
+            image_changed=True,
+            notification_emails_allowed=profile.notification_emails_allowed,
         )
-        profile = user.profile
-        profile.image.save(
-            "old_avatar.jpg", ContentFile(b"old fake image content"), save=True
-        )
-        old_image_name = profile.image.name
 
-        with patch("users.services.profiles._delete_profile_image") as mock_delete:
-            with self.captureOnCommitCallbacks(execute=True):
-                update_user_profile(
-                    user=user,
-                    username=user.username,
-                    image=None,
-                    image_changed=True,
-                    notification_emails_allowed=profile.notification_emails_allowed,
-                )
+        profile.refresh_from_db()
 
-        mock_delete.assert_called_once_with(old_image_name)
-
-    def test_does_not_delete_default_profile_image(self):
-        user = User.objects.create_user(
-            username="user", email="user@test.com", password="testpass123"
-        )
-        profile = user.profile
-
-        new_image = ContentFile(b"new fake image content", name="new_avatar.jpg")
-
-        with patch("users.services.profiles._delete_profile_image") as mock_delete:
-            with self.captureOnCommitCallbacks(execute=True) as callbacks:
-                update_user_profile(
-                    user=user,
-                    username=user.username,
-                    image=new_image,
-                    image_changed=True,
-                    notification_emails_allowed=profile.notification_emails_allowed,
-                )
-
-        self.assertEqual(callbacks, [])
-        mock_delete.assert_not_called()
+        self.assertNotEqual(profile.image.name, old_image_name)
+        self.assertTrue(profile.image.name.endswith(".jpg"))
 
     def test_does_not_delete_image_when_image_did_not_change(self):
         user = User.objects.create_user(
@@ -254,21 +208,17 @@ class TestUpdateUserProfile(TestCase):
         )
         old_image_name = profile.image.name
 
-        with patch("users.services.profiles._delete_profile_image") as mock_delete:
-            with self.captureOnCommitCallbacks(execute=True) as callbacks:
-                update_user_profile(
-                    user=user,
-                    username=user.username,
-                    image=None,
-                    image_changed=False,
-                    notification_emails_allowed=profile.notification_emails_allowed,
-                )
+        update_user_profile(
+            user=user,
+            username=user.username,
+            image=None,
+            image_changed=False,
+            notification_emails_allowed=profile.notification_emails_allowed,
+        )
 
         profile.refresh_from_db()
 
         self.assertEqual(profile.image.name, old_image_name)
-        self.assertEqual(callbacks, [])
-        mock_delete.assert_not_called()
 
     def test_does_not_save_when_nothing_changed(self):
         user = User.objects.create_user(
@@ -290,52 +240,3 @@ class TestUpdateUserProfile(TestCase):
 
         mock_user_save.assert_not_called()
         mock_profile_save.assert_not_called()
-
-
-@override_settings(MEDIA_ROOT="/tmp/test-media")
-class TestDeleteProfileImage(TestCase):
-    def test_does_not_delete_empty_file_name(self):
-        with patch("users.services.profiles.default_storage.delete") as mock_delete:
-            _delete_profile_image("")
-
-        mock_delete.assert_not_called()
-
-    def test_does_not_delete_default_profile_image(self):
-        with patch("users.services.profiles.default_storage.delete") as mock_delete:
-            _delete_profile_image(DEFAULT_PROFILE_IMAGE)
-
-        mock_delete.assert_not_called()
-
-    def test_does_not_delete_profile_image_still_in_use(self):
-        user = User.objects.create_user(username="user", email="user@test.com")
-        profile = user.profile
-        profile.image.save("avatar.jpg", ContentFile(b"fake image content"), save=True)
-        image_name = profile.image.name
-
-        with patch("users.services.profiles.default_storage.delete") as mock_delete:
-            _delete_profile_image(image_name)
-
-        mock_delete.assert_not_called()
-
-    def test_deletes_profile_image_when_not_used_by_any_profile(self):
-        file_name = "users/profile_images/1/old_avatar.jpg"
-
-        with patch("users.services.profiles.default_storage.delete") as mock_delete:
-            _delete_profile_image(file_name)
-
-        mock_delete.assert_called_once_with(file_name)
-
-    def test_logs_exception_when_delete_fails(self):
-        file_name = "users/profile_images/1/old_avatar.jpg"
-
-        with (
-            patch(
-                "users.services.profiles.default_storage.delete",
-                side_effect=OSError("error"),
-            ) as mock_delete,
-            patch("users.services.profiles.logger.exception") as mock_log_exception,
-        ):
-            _delete_profile_image(file_name)
-
-        mock_delete.assert_called_once_with(file_name)
-        mock_log_exception.assert_called_once()

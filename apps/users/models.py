@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.utils.crypto import salted_hmac
 from django.utils.text import get_valid_filename
+from django_cleanup import cleanup
 
 from .normalization import normalize_email, normalize_username
 from .validators import validate_username_is_not_email
@@ -110,6 +111,7 @@ def profile_image_upload_path(instance, filename) -> str:
     return posixpath.join(directory, _build_uuid_profile_image_filename(filename))
 
 
+@cleanup.select
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(
