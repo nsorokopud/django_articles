@@ -18,7 +18,8 @@ TINYMCE_DEFAULT_CONFIG = {
         "autolink link image advlist lists table codesample charmap fullscreen"
     ),
     "toolbar": [
-        "undo redo | fullscreen | hr uploadimage table codesample blockquote | charmap",
+        "undo redo | fullscreen | link unlink uploadimage",
+        "hr table codesample blockquote charmap",
         "blocks | bullist numlist indent outdent | alignleft aligncenter alignright"
         " alignjustify",
         "fontfamily fontsize | bold italic underline strikethrough | removeformat",
