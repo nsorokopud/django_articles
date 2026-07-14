@@ -1,3 +1,19 @@
+/* Keep editor content visually close to rendered article content */
+:root {
+  --primary-color: #198754;
+  --secondary-color: #00b74a;
+}
+
+a {
+  color: var(--secondary-color);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus {
+  color: var(--primary-color);
+}
+
 img {
   display: block;
   max-width: 100%;

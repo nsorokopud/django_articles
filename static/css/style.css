@@ -308,6 +308,16 @@ span.article-preview-icon-counter {
   margin-right: auto;
 }
 
+.article-content a {
+  color: var(--secondary-color);
+  text-decoration: none;
+}
+
+.article-content a:hover,
+.article-content a:focus {
+  color: var(--primary-color);
+}
+
 @media screen and (max-width: 767px) {
   main {
     padding-top: 50px;
