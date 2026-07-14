@@ -27,7 +27,6 @@ from core.decorators import cache_page_for_anonymous
 from ..exceptions import ArticleCommentError
 from ..filters import ArticleFilter, SubscriptionFeedFilter
 from ..forms import ArticleCommentForm, ArticleModelForm
-from ..media_paths import normalize_url_prefix
 from ..models import Article, ArticleStatus
 from ..selectors import (
     find_articles_by_author,
@@ -243,11 +242,12 @@ class ArticleUpdateView(LoginRequiredMixin, UpdateView):
         context["update"] = True
 
         media_allowed_root_urls = []
+        for raw_url in getattr(settings, "MEDIA_ALLOWED_ROOT_URLS", []):
+            url = raw_url.strip()
+            if not url:
+                continue
 
-        for url in getattr(settings, "MEDIA_ALLOWED_ROOT_URLS", []):
-            normalized_url = normalize_url_prefix(url)
-            if normalized_url:
-                media_allowed_root_urls.append(normalized_url)
+            media_allowed_root_urls.append(url if url.endswith("/") else f"{url}/")
 
         context["media_allowed_root_urls"] = media_allowed_root_urls
 

@@ -1,13 +1,6 @@
-from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, override_settings
 
-from articles.constants import ALLOWED_ARTICLE_INTERNAL_LINK_PREFIXES
-from articles.services.sanitization import (
-    _get_validated_internal_article_link_hosts,
-    _get_validated_internal_article_link_prefixes,
-    _is_valid_internal_link_prefix,
-    sanitize_article_html,
-)
+from articles.services.sanitization import sanitize_article_html
 
 
 ARTICLE_ID = 2
@@ -18,20 +11,7 @@ def clean(html, *, article_id=ARTICLE_ID, author_id=AUTHOR_ID):
     return sanitize_article_html(html, article_id=article_id, author_id=author_id)
 
 
-@override_settings(
-    ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=(),
-)
 class TestSanitizeArticleHtml(SimpleTestCase):
-    def setUp(self):
-        super().setUp()
-        _get_validated_internal_article_link_hosts.cache_clear()
-        _get_validated_internal_article_link_prefixes.cache_clear()
-
-    def tearDown(self):
-        _get_validated_internal_article_link_hosts.cache_clear()
-        _get_validated_internal_article_link_prefixes.cache_clear()
-        super().tearDown()
-
     def test_returns_empty_string_for_none(self):
         self.assertEqual(clean(None), "")
 
@@ -128,69 +108,25 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn('href="http://test.com"', cleaned)
         self.assertIn(">HTTP link</a>", cleaned)
 
-    def test_keeps_allowlisted_internal_article_anchor_href(self):
+    def test_removes_root_relative_anchor_href(self):
         cleaned = clean('<a href="/articles/abc/">Internal link</a>')
 
-        self.assertIn('href="/articles/abc/"', cleaned)
         self.assertIn(">Internal link</a>", cleaned)
+        self.assertNotIn("href=", cleaned)
 
-    def test_keeps_allowlisted_internal_author_anchor_href(self):
-        cleaned = clean('<a href="/author/123/">Author link</a>')
-
-        self.assertIn('href="/author/123/"', cleaned)
-        self.assertIn(">Author link</a>", cleaned)
-
-    def test_configured_internal_link_prefixes_are_valid(self):
-        for prefix in ALLOWED_ARTICLE_INTERNAL_LINK_PREFIXES:
-            with self.subTest(prefix=prefix):
-                self.assertTrue(_is_valid_internal_link_prefix(prefix))
-
-    def test_rejects_invalid_internal_link_prefixes(self):
-        invalid_prefixes = (
-            "/",
-            "articles/",
-            "/articles",
-            "/articles/../admin/",
-            "/articles/%2e%2e/admin/",
-            "/articles/\x00",
-            123,
-        )
-
-        for prefix in invalid_prefixes:
-            with self.subTest(prefix=prefix):
-                self.assertFalse(_is_valid_internal_link_prefix(prefix))
-
-    def test_keeps_allowlisted_internal_anchor_href_with_query_string(self):
+    def test_removes_root_relative_anchor_href_with_query_string(self):
         cleaned = clean('<a href="/articles/abc/?page=2">Page 2</a>')
 
-        self.assertIn('href="/articles/abc/?page=2"', cleaned)
         self.assertIn(">Page 2</a>", cleaned)
+        self.assertNotIn("href=", cleaned)
 
-    def test_keeps_allowlisted_internal_anchor_href_with_fragment(self):
+    def test_removes_root_relative_anchor_href_with_fragment(self):
         cleaned = clean('<a href="/articles/abc/#section-1">Section</a>')
 
-        self.assertIn('href="/articles/abc/#section-1"', cleaned)
         self.assertIn(">Section</a>", cleaned)
+        self.assertNotIn("href=", cleaned)
 
-    def test_removes_unallowlisted_internal_anchor_href(self):
-        cleaned = clean('<a href="/admin/">Admin link</a>')
-
-        self.assertIn(">Admin link</a>", cleaned)
-        self.assertNotIn('href="/admin/"', cleaned)
-
-    def test_removes_logout_internal_anchor_href(self):
-        cleaned = clean('<a href="/logout/">Logout link</a>')
-
-        self.assertIn(">Logout link</a>", cleaned)
-        self.assertNotIn('href="/logout/"', cleaned)
-
-    def test_removes_accounts_internal_anchor_href(self):
-        cleaned = clean('<a href="/accounts/password-change/">Password</a>')
-
-        self.assertIn(">Password</a>", cleaned)
-        self.assertNotIn('href="/accounts/password-change/"', cleaned)
-
-    def test_removes_root_internal_anchor_href(self):
+    def test_removes_root_relative_anchor_href_to_site_root(self):
         cleaned = clean('<a href="/">Home</a>')
 
         self.assertIn(">Home</a>", cleaned)
@@ -238,24 +174,6 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn(">Bad link</a>", cleaned)
         self.assertNotIn("href=", cleaned)
 
-    def test_removes_internal_anchor_href_with_path_traversal(self):
-        cleaned = clean('<a href="/articles/../admin/">Bad internal link</a>')
-
-        self.assertIn(">Bad internal link</a>", cleaned)
-        self.assertNotIn('href="/articles/../admin/"', cleaned)
-
-    def test_removes_internal_anchor_href_with_encoded_path_traversal(self):
-        cleaned = clean('<a href="/articles/%2e%2e/admin/">Bad internal link</a>')
-
-        self.assertIn(">Bad internal link</a>", cleaned)
-        self.assertNotIn('href="/articles/%2e%2e/admin/"', cleaned)
-
-    def test_removes_internal_anchor_href_with_encoded_null_byte(self):
-        cleaned = clean('<a href="/articles/%00abc/">Bad internal link</a>')
-
-        self.assertIn(">Bad internal link</a>", cleaned)
-        self.assertNotIn("href=", cleaned)
-
     def test_removes_protocol_relative_anchor_href(self):
         cleaned = clean('<a href="//evil.abc.com/path">Protocol-relative</a>')
 
@@ -282,19 +200,13 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn('href="mailto:test@test.com"', cleaned)
         self.assertIn(">Email</a>", cleaned)
 
-    @override_settings(
-        ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com",),
-    )
-    def test_keeps_allowed_absolute_internal_article_link(self):
+    def test_keeps_absolute_article_link(self):
         cleaned = clean('<a href="https://test.com/articles/abc/">Article</a>')
 
         self.assertIn('href="https://test.com/articles/abc/"', cleaned)
         self.assertIn(">Article</a>", cleaned)
 
-    @override_settings(
-        ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com",),
-    )
-    def test_keeps_allowed_absolute_internal_article_link_with_query_and_fragment(self):
+    def test_keeps_absolute_link_with_query_and_fragment(self):
         cleaned = clean(
             '<a href="https://test.com/articles/abc/?page=2#section">Article</a>'
         )
@@ -302,52 +214,17 @@ class TestSanitizeArticleHtml(SimpleTestCase):
         self.assertIn('href="https://test.com/articles/abc/?page=2#section"', cleaned)
         self.assertIn(">Article</a>", cleaned)
 
-    @override_settings(
-        ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com",),
-    )
-    def test_removes_absolute_internal_link_to_unallowed_path(self):
+    def test_keeps_absolute_link_to_any_path(self):
         cleaned = clean('<a href="https://test.com/admin/">Admin</a>')
 
+        self.assertIn('href="https://test.com/admin/"', cleaned)
         self.assertIn(">Admin</a>", cleaned)
-        self.assertNotIn("href=", cleaned)
 
-    @override_settings(
-        ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com",),
-    )
-    def test_removes_absolute_internal_link_with_path_traversal(self):
-        cleaned = clean('<a href="https://test.com/articles/%2e%2e/admin/">Bad</a>')
+    def test_removes_hostless_https_anchor_href(self):
+        cleaned = clean('<a href="https:///articles/abc/">Bad</a>')
 
         self.assertIn(">Bad</a>", cleaned)
         self.assertNotIn("href=", cleaned)
-
-    @override_settings(ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com",))
-    def test_treats_external_link_to_unconfigured_host_as_external_link(self):
-        cleaned = clean('<a href="https://other.test.com/admin/">External</a>')
-
-        self.assertIn('href="https://other.test.com/admin/"', cleaned)
-        self.assertIn(">External</a>", cleaned)
-
-    @override_settings(ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com:443",))
-    def test_rejects_internal_link_host_with_port(self):
-        with self.assertRaises(ImproperlyConfigured):
-            clean('<a href="https://test.com/articles/abc/">Article</a>')
-
-    @override_settings(
-        ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("https://test.com",)
-    )
-    def test_rejects_internal_link_host_with_scheme(self):
-        with self.assertRaises(ImproperlyConfigured):
-            clean('<a href="https://test.com/articles/abc/">Article</a>')
-
-    @override_settings(ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=("test.com/path",))
-    def test_rejects_internal_link_host_with_path(self):
-        with self.assertRaises(ImproperlyConfigured):
-            clean('<a href="https://test.com/articles/abc/">Article</a>')
-
-    @override_settings(ARTICLES_ALLOWED_ARTICLE_INTERNAL_LINK_HOSTS=(123,))
-    def test_rejects_non_string_internal_link_host(self):
-        with self.assertRaises(ImproperlyConfigured):
-            clean('<a href="https://test.com/articles/abc/">Article</a>')
 
     def test_removes_id_attributes(self):
         cleaned = clean('<h2 id="section-1">Heading</h2><p id="x">Paragraph</p>')
