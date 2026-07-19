@@ -101,13 +101,13 @@ def sanitize_article_html(
 
 
 def _filter_anchor_href(value: str) -> str | None:
-    candidate = (value or "").strip()
+    href = (value or "").strip()
 
-    if not candidate or _contains_control_char(candidate):
+    if not href or _contains_control_char(href):
         return None
 
     try:
-        parsed = urlparse(candidate)
+        parsed = urlparse(href)
 
         if (
             not parsed.scheme
@@ -119,7 +119,7 @@ def _filter_anchor_href(value: str) -> str | None:
     except ValueError:
         return None
 
-    return value
+    return href
 
 
 def _clean_alignment_style(style: str) -> str | None:
