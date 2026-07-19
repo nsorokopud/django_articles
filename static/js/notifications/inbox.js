@@ -7,40 +7,76 @@ import {
 } from './unread-badge.js';
 
 const INBOX_PAGE_SIZE = 50;
-const NOTIFICATIONS_LIST_PATH = '/notifications/list/';
-const RELATIVE_TIME_REFRESH_INTERVAL_MS = 30 * 1000;
+const INBOX_LIST_PATH = '/notifications/list/';
+const NOTIFICATION_RELATIVE_TIME_REFRESH_MS = 30_000; // every 30 seconds
 
-let inboxOldestCursor = null;
+let oldestNotificationCursor = null;
 let relativeTimeRefreshStarted = false;
 
 export function initInboxUI() {
-  setupInboxModalLoading();
+  const modal = document.getElementById('modal');
+  const loadMoreButton = document.getElementById('notificationsLoadMore');
+  const container = document.getElementById('notificationsContainer');
+
+  modal?.addEventListener('shown.bs.modal', async () => {
+    await refreshUnreadCount();
+    await loadInbox();
+  });
+
+  loadMoreButton?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+
+    try {
+      await loadInbox(true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  container?.addEventListener('click', handleInboxClick);
+  container?.addEventListener('touchstart', toggleTouchHover);
+  container?.addEventListener('touchend', toggleTouchHover);
+  container?.addEventListener('touchcancel', toggleTouchHover);
+
   startRelativeTimeRefresh();
 }
 
-export function onNotificationReceived(n) {
+export function onNotificationReceived(notification) {
+  const lastEventAt = notification.last_event_at || notification.timestamp;
+  const link = notification.payload?.link || notification.payload?.url || null;
+
   showToast({
-    id: n.id,
-    title: n.title,
-    body: n.body,
-    timestamp: n.timestamp,
-    lastEventAt: n.last_event_at || n.timestamp,
-    link: n.payload?.link || n.payload?.url || null,
+    id: notification.id,
+    title: notification.title,
+    body: notification.body,
+    timestamp: notification.timestamp,
+    lastEventAt,
+    link,
     markReadOnClick: true,
   });
 
-  if (n.is_new_unread) {
+  if (notification.is_new_unread) {
     adjustUnreadBadgeCountBy(1);
   }
 
-  if (isInboxModalOpen()) {
-    prependInboxItem({
-      ...n,
-      payload: n.payload || {},
-      last_event_at: n.last_event_at || n.timestamp,
+  if (!isInboxOpen()) return;
+
+  const container = document.getElementById('notificationsContainer');
+  if (!container) return;
+
+  document.getElementById(`notification-${notification.id}`)?.remove();
+
+  container.prepend(
+    createNotificationElement({
+      ...notification,
+      payload: notification.payload || {},
+      last_event_at: lastEventAt,
       is_read: false,
-    });
-  }
+    }),
+  );
+
+  setInboxEmpty(false);
 }
 
 export function onNotificationDigestReceived() {
@@ -55,279 +91,190 @@ export function onNotificationDigestReceived() {
 
   refreshUnreadCount();
 
-  if (isInboxModalOpen()) {
-    loadInitialInboxPage();
+  if (isInboxOpen()) {
+    loadInbox();
   }
 }
 
-function setupInboxModalLoading() {
-  const modalEl = document.getElementById('modal');
-  if (!modalEl) return;
+async function loadInbox(append = false) {
+  if (append && !oldestNotificationCursor) return;
 
-  modalEl.addEventListener('shown.bs.modal', async () => {
-    await refreshUnreadCount();
-    await loadInitialInboxPage();
-  });
-}
+  const loading = document.getElementById('notificationsLoading');
+  if (!append) loading?.classList.remove('d-none');
 
-async function loadInitialInboxPage() {
-  setInboxLoading(true);
+  try {
+    const url = new URL(INBOX_LIST_PATH, location.origin);
+    url.searchParams.set('limit', INBOX_PAGE_SIZE);
 
-  const res = await fetch(
-    `${location.origin}${NOTIFICATIONS_LIST_PATH}?limit=${INBOX_PAGE_SIZE}`,
-    { credentials: 'same-origin' },
-  );
-
-  setInboxLoading(false);
-  if (!res.ok) return;
-
-  const data = await res.json();
-
-  renderInboxItems(data.items, { mode: 'replace' });
-
-  inboxOldestCursor = data.next_before_cursor || null;
-
-  updateLoadMoreButton(data.has_more);
-}
-
-async function loadOlderNotifications() {
-  if (!inboxOldestCursor) return;
-
-  const url = new URL(`${location.origin}${NOTIFICATIONS_LIST_PATH}`);
-  url.searchParams.set('limit', String(INBOX_PAGE_SIZE));
-  url.searchParams.set('before_last_event_at', inboxOldestCursor.last_event_at);
-  url.searchParams.set('before_id', String(inboxOldestCursor.id));
-
-  const res = await fetch(url, { credentials: 'same-origin' });
-  if (!res.ok) return;
-
-  const data = await res.json();
-  renderInboxItems(data.items, { mode: 'append' });
-
-  inboxOldestCursor = data.next_before_cursor || null;
-
-  updateLoadMoreButton(data.has_more);
-}
-
-function updateLoadMoreButton(hasMore) {
-  const btn = document.getElementById('notificationsLoadMore');
-  if (!btn) return;
-
-  btn.classList.toggle('d-none', !hasMore);
-  if (!hasMore) return;
-
-  btn.onclick = async () => {
-    btn.disabled = true;
-    try {
-      await loadOlderNotifications();
-    } finally {
-      btn.disabled = false;
+    if (append) {
+      url.searchParams.set(
+        'before_last_event_at',
+        oldestNotificationCursor.last_event_at,
+      );
+      url.searchParams.set('before_id', oldestNotificationCursor.id);
     }
-  };
+
+    const response = await fetch(url, { credentials: 'same-origin' });
+    if (!response.ok) return;
+
+    const data = await response.json();
+
+    renderNotifications(data.items, append);
+    oldestNotificationCursor = data.next_before_cursor || null;
+
+    const loadMoreButton = document.getElementById('notificationsLoadMore');
+    loadMoreButton?.classList.toggle('d-none', !data.has_more);
+  } finally {
+    if (!append) loading?.classList.add('d-none');
+  }
 }
 
-function renderInboxItems(items, { mode } = { mode: 'replace' }) {
+function renderNotifications(items = [], append = false) {
   const container = document.getElementById('notificationsContainer');
   if (!container) return;
 
-  if (mode === 'replace') container.innerHTML = '';
-
-  if ((!items || items.length === 0) && container.children.length === 0) {
-    setInboxEmpty(true);
-    return;
+  if (!append) {
+    container.replaceChildren();
   }
-
-  setInboxEmpty(false);
 
   const fragment = document.createDocumentFragment();
 
-  for (const n of items) {
-    if (mode !== 'replace') {
-      const existing = document.getElementById(`notification-${n.id}`);
-      if (existing) existing.remove();
+  for (const notification of items) {
+    if (append) {
+      document.getElementById(`notification-${notification.id}`)?.remove();
     }
-    fragment.appendChild(createInboxNotificationElement(n));
+
+    fragment.append(createNotificationElement(notification));
   }
 
-  container.appendChild(fragment);
+  container.append(fragment);
+  setInboxEmpty(container.childElementCount === 0);
 }
 
-function prependInboxItem(n) {
-  setInboxEmpty(false);
-
-  const container = document.getElementById('notificationsContainer');
-  if (!container) return;
-
-  const existing = document.getElementById(`notification-${n.id}`);
-  const nextEl = createInboxNotificationElement(n);
-
-  if (existing) {
-    existing.remove();
-  }
-  container.prepend(nextEl);
-}
-
-function setInboxLoading(isLoading) {
-  const loading = document.getElementById('notificationsLoading');
-  if (!loading) return;
-  loading.classList.toggle('d-none', !isLoading);
-}
-
-function setInboxEmpty(isEmpty) {
-  const container = document.getElementById('notificationsContainer');
-  const empty = document.getElementById('notificationsEmpty');
-
-  if (empty) empty.classList.toggle('d-none', !isEmpty);
-  if (container) container.classList.toggle('d-none', isEmpty);
-}
-
-function isInboxModalOpen() {
-  const modalEl = document.getElementById('modal');
-  return modalEl && modalEl.classList.contains('show');
-}
-
-function createInboxNotificationElement(n) {
-  const link = safeInternalPath(n.payload?.link || n.payload?.url || null);
-
-  const notification = createElement('div', 'notification');
-  notification.id = `notification-${n.id}`;
-  if (n.is_read) notification.classList.add('read');
-
-  attachNotificationHoverHandlers(notification);
-  attachNotificationClickHandler(notification, n, link);
-
-  notification.append(
-    createNotificationMain(n),
-    createDeleteButton(notification, n),
-  );
-  return notification;
-}
-
-function attachNotificationHoverHandlers(notification) {
-  notification.addEventListener('touchstart', () =>
-    notification.classList.add('notification-hover'),
-  );
-  notification.addEventListener('touchend', () =>
-    notification.classList.remove('notification-hover'),
-  );
-}
-
-function attachNotificationClickHandler(notification, n, link) {
-  notification.addEventListener('click', async () => {
-    if (notification.dataset.busy === '1') return;
-    notification.dataset.busy = '1';
-
-    const hasLink = !!link;
-
-    try {
-      if (!n.is_read) {
-        const data = await postJSON(`/notification/${n.id}/read/`);
-
-        if (data) {
-          applyUnreadBadgeCountFromResponse(data);
-          notification.classList.add('read');
-          n.is_read = true;
-        }
-      }
-
-      if (hasLink) {
-        window.location.assign(link);
-        return;
-      }
-    } catch (err) {
-      console.warn('Failed to mark notification as read', err);
-
-      if (hasLink) {
-        window.location.assign(link);
-        return;
-      }
-    } finally {
-      if (!hasLink) {
-        notification.dataset.busy = '0';
-      }
-    }
-  });
-}
-
-function createNotificationMain(n) {
-  const notificationMain = createElement('div', 'notification-main');
+function createNotificationElement(notification) {
+  const element = createElement('div', 'notification');
+  const main = createElement('div', 'notification-main');
   const circle = createElement('div', 'rounded-circle');
   const content = createElement('div', 'notification-content');
-  const msg = createElement('div', 'notification-message');
-
-  msg.textContent = n.body || '';
-  content.append(createNotificationHeader(n), msg);
-
-  notificationMain.append(circle, content);
-  return notificationMain;
-}
-
-function createNotificationHeader(n) {
   const header = createElement('h6', 'notification-header');
   const title = createElement('span', 'notification-title', 'me-3');
   const time = createElement('span', 'notification-time');
-
-  title.textContent = n.title || '';
-
-  time.dataset.relativeTimestamp = n.last_event_at || n.timestamp;
-  time.innerText = formatRelativeTime(time.dataset.relativeTimestamp);
-
-  header.append(title, time);
-  return header;
-}
-
-function createDeleteButton(notification, n) {
-  const del = createElement(
+  const message = createElement('div', 'notification-message');
+  const deleteButton = createElement(
     'button',
     'notification-delete-button',
     'btn',
     'btn-danger',
     'p-1',
   );
-  del.innerText = 'Delete';
 
-  del.addEventListener('click', async (event) => {
+  const timestamp = notification.last_event_at || notification.timestamp;
+
+  element.id = `notification-${notification.id}`;
+  element.dataset.id = notification.id;
+  element.dataset.read = notification.is_read ? '1' : '0';
+  element.dataset.link =
+    safeInternalPath(
+      notification.payload?.link || notification.payload?.url || null,
+    ) || '';
+
+  element.classList.toggle('read', notification.is_read);
+
+  title.textContent = notification.title || '';
+  message.textContent = notification.body || '';
+  time.dataset.relativeTimestamp = timestamp;
+  time.textContent = formatRelativeTime(timestamp);
+  deleteButton.textContent = 'Delete';
+
+  header.append(title, time);
+  content.append(header, message);
+  main.append(circle, content);
+  element.append(main, deleteButton);
+
+  return element;
+}
+
+async function handleInboxClick(event) {
+  const notification = event.target.closest('.notification');
+  if (!notification) return;
+
+  if (event.target.closest('.notification-delete-button')) {
     event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
 
-    const data = await postJSON(`/notification/${n.id}/delete/`);
+    const data = await postJSON(
+      `/notification/${notification.dataset.id}/delete/`,
+    );
     if (!data) return;
 
     notification.remove();
     applyUnreadBadgeCountFromResponse(data);
-    updateEmptyUIIfInboxEmpty();
-  });
+    const container = document.getElementById('notificationsContainer');
+    setInboxEmpty(!container?.childElementCount);
+    return;
+  }
 
-  return del;
+  if (notification.dataset.busy === '1') return;
+
+  notification.dataset.busy = '1';
+  const link = notification.dataset.link;
+
+  try {
+    if (notification.dataset.read === '0') {
+      const data = await postJSON(
+        `/notification/${notification.dataset.id}/read/`,
+      );
+
+      if (data) {
+        applyUnreadBadgeCountFromResponse(data);
+        notification.classList.add('read');
+        notification.dataset.read = '1';
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to mark notification as read', error);
+  } finally {
+    if (link) {
+      window.location.assign(link);
+    } else {
+      delete notification.dataset.busy;
+    }
+  }
 }
 
-function createElement(tagName, ...classNames) {
-  const el = document.createElement(tagName);
-  if (classNames.length) el.classList.add(...classNames);
-  return el;
+function toggleTouchHover(event) {
+  event.target
+    .closest('.notification')
+    ?.classList.toggle('notification-hover', event.type === 'touchstart');
 }
 
-function refreshRelativeTimeElements() {
-  const elements = document.querySelectorAll('[data-relative-timestamp]');
-  elements.forEach((el) => {
-    const ts = el.dataset.relativeTimestamp;
-    if (!ts) return;
-    el.innerText = formatRelativeTime(ts);
-  });
+function createElement(tag, ...classes) {
+  const element = document.createElement(tag);
+  element.classList.add(...classes);
+  return element;
+}
+
+function setInboxEmpty(empty) {
+  const emptyMessage = document.getElementById('notificationsEmpty');
+  const container = document.getElementById('notificationsContainer');
+
+  emptyMessage?.classList.toggle('d-none', !empty);
+  container?.classList.toggle('d-none', empty);
+}
+
+function isInboxOpen() {
+  return document.getElementById('modal')?.classList.contains('show') ?? false;
 }
 
 function startRelativeTimeRefresh() {
   if (relativeTimeRefreshStarted) return;
-  relativeTimeRefreshStarted = true;
 
-  refreshRelativeTimeElements();
-  setInterval(refreshRelativeTimeElements, RELATIVE_TIME_REFRESH_INTERVAL_MS);
+  relativeTimeRefreshStarted = true;
+  refreshRelativeTimestamps();
+  setInterval(refreshRelativeTimestamps, NOTIFICATION_RELATIVE_TIME_REFRESH_MS);
 }
 
-function updateEmptyUIIfInboxEmpty() {
-  const container = document.getElementById('notificationsContainer');
-  if (!container || container.children.length > 0) return;
-
-  setInboxEmpty(true);
+function refreshRelativeTimestamps() {
+  document.querySelectorAll('[data-relative-timestamp]').forEach((element) => {
+    element.textContent = formatRelativeTime(element.dataset.relativeTimestamp);
+  });
 }
