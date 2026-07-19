@@ -22,6 +22,6 @@ function setTimezoneCookie() {
       expires: 1, // 1 day
     });
   } catch {
-    console.log('Intl library not found');
+    console.warn('Intl library not found');
   }
 }

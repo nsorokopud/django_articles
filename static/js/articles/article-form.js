@@ -95,7 +95,7 @@ function updateArticle(articleId, form, editor, button, submitter) {
     }
 
     alert(response?.message || 'Error while updating article!');
-    console.log(response);
+    console.error('Article update failed:', response);
   };
 
   xhr.onerror = () => {
