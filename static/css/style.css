@@ -281,6 +281,11 @@ img.article-preview-image {
   word-wrap: break-word;
 }
 
+.article-preview-bottom {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 .article-preview-icons__item i.far {
   color: var(--primary-color);
 }
@@ -339,15 +344,6 @@ span.article-preview-icon-counter {
 
   h3.article-title {
     font-size: 26px !important;
-  }
-
-  .article-preview-bottom {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .article-preview-icons {
-    margin-top: 20px;
   }
 }
 

@@ -1,4 +1,4 @@
-{% load tz %}
+{% load number_tags tz %}
 
 {% for article in articles %}
   <article class="article p-3">
@@ -106,24 +106,42 @@
 
           <span class="article-preview-icons">
             {% if show_views %}
-              <span class="mx-2 article-preview-icons__item">
-                <i class="far fa-eye m-1"></i>
-                <span class="article-preview-icon-counter">{{ article.views }}</span>
-              </span>
+              {% with count=article.views %}
+                <span class="mx-2 article-preview-icons__item">
+                  <i class="far fa-eye m-1" aria-hidden="true"></i>
+                  <span class="article-preview-icon-counter"
+                        title="{{ count }} view{{ count|pluralize }}"
+                        aria-label="{{ count }} view{{ count|pluralize }}">
+                    {{ count|compact_count }}
+                  </span>
+                </span>
+              {% endwith %}
             {% endif %}
 
             {% if show_likes %}
-              <span class="mx-2 article-preview-icons__item">
-                <i class="far fa-thumbs-up m-1"></i>
-                <span class="article-preview-icon-counter">{{ article.likes_count }}</span>
-              </span>
+              {% with count=article.likes_count %}
+                <span class="mx-2 article-preview-icons__item">
+                  <i class="far fa-thumbs-up m-1" aria-hidden="true"></i>
+                  <span class="article-preview-icon-counter"
+                        title="{{ count }} like{{ count|pluralize }}"
+                        aria-label="{{ count }} like{{ count|pluralize }}">
+                    {{ count|compact_count }}
+                  </span>
+                </span>
+              {% endwith %}
             {% endif %}
 
             {% if show_comments %}
-              <span class="mx-2 article-preview-icons__item">
-                <i class="far fa-regular fa-comment"></i>
-                <span class="article-preview-icon-counter">{{ article.comments_count }}</span>
-              </span>
+              {% with count=article.comments_count %}
+                <span class="mx-2 article-preview-icons__item">
+                  <i class="far fa-regular fa-comment" aria-hidden="true"></i>
+                  <span class="article-preview-icon-counter"
+                        title="{{ count }} comment{{ count|pluralize }}"
+                        aria-label="{{ count }} comment{{ count|pluralize }}">
+                    {{ count|compact_count }}
+                  </span>
+                </span>
+              {% endwith %}
             {% endif %}
           </span>
         </div>

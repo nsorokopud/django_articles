@@ -24,6 +24,8 @@ autobahn==24.4.2
     # via daphne
 automat==24.8.1
     # via twisted
+babel==2.18.0
+    # via -r requirements.in
 bandit==1.8.3
     # via -r requirements-dev.in
 beautifulsoup4==4.14.3
