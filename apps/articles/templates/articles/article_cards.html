@@ -95,7 +95,7 @@
         <div class="article-preview-bottom d-flex justify-content-between align-items-center">
           <div>
             {% if article.is_published %}
-              <a href="{{ article.get_absolute_url }}" class="btn btn-success">Read full</a>
+              <a href="{{ article.get_absolute_url }}" class="btn btn-success">Read article</a>
             {% else %}
               {% if draft_edit_url_name %}
                 <a href="{% url draft_edit_url_name pk=article.pk %}"
