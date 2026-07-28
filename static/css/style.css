@@ -166,7 +166,7 @@ aside.sidebar {
 }
 
 aside.sidebar + .main-content {
-  width: 65%;
+  width: 55%;
 }
 
 @media screen and (min-width: 768px) {
