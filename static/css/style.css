@@ -213,7 +213,7 @@ aside.sidebar + .main-content {
   background: white;
   border: 1px solid lightgrey;
   border-radius: 7px;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .article-preview-author-right {
@@ -278,7 +278,7 @@ img.article-preview-image {
 
 .article-preview-text {
   text-align: justify;
-  word-wrap: break-word;
+  hyphens: auto;
 }
 
 .article-preview-bottom {
@@ -466,14 +466,14 @@ img.profile-image {
 
 .subscription-link {
   font-size: 18px;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 /* Author Page */
 
 .author-section {
   margin: 100px auto;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .author-section-bottom {
