@@ -3,6 +3,7 @@
 
 services:
   web-app:
+    image: nsorokopud/django_articles:web-app-dev
     build:
       context: .
       args:
@@ -18,6 +19,7 @@ services:
       - .:/app # Mount project dir to avoid image rebuilding
 
   celery-worker:
+    image: nsorokopud/django_articles:web-app-dev
     build:
       context: .
       args:
@@ -30,6 +32,7 @@ services:
       - .:/app
 
   celery-beat:
+    image: nsorokopud/django_articles:web-app-dev
     build:
       context: .
       args:
@@ -42,6 +45,7 @@ services:
       - .:/app
 
   flower:
+    image: nsorokopud/django_articles:web-app-dev
     build:
       context: .
       args:
@@ -54,7 +58,7 @@ services:
       - .:/app
 
   nginx:
-    image: nsorokopud/django_articles:nginx-http-local
+    image: nsorokopud/django_articles:nginx-dev
     build:
       context: ./nginx
       args:
