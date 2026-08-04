@@ -72,7 +72,10 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: env DJANGO_SETTINGS_MODULE=config.settings.local ./venv/bin/pylint
+        entry: python -m pylint
+        args:
+          - '--init-hook=import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")'
+          - --django-settings-module=config.settings.local
         language: system
         types: [python]
 
