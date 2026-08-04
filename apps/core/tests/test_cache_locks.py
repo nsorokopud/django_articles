@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+import pytest
 from django.test import SimpleTestCase, TestCase
 from django_redis import get_redis_connection
 from django_redis.exceptions import ConnectionInterrupted
@@ -202,6 +203,7 @@ class TestReleaseRedisLock(SimpleTestCase):
         )
 
 
+@pytest.mark.xdist_group(name="redis")
 @override_settings_with_redis_cache()
 class TestCacheLockRedisIntegration(TestCase):
     def setUp(self):

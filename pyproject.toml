@@ -65,4 +65,4 @@ per-file-ignores = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = "test_*.py"
-addopts = "-v -n=auto --dist=loadfile --reuse-db --maxfail=5 --disable-warnings ."
+addopts = "-v -n=auto --dist=loadgroup --reuse-db --maxfail=5 --disable-warnings ."

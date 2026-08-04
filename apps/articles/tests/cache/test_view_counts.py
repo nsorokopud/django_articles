@@ -1,5 +1,6 @@
 from unittest.mock import ANY, MagicMock, Mock, call, patch
 
+import pytest
 from django.conf import settings
 from django.db import DatabaseError
 from django.test import SimpleTestCase, TestCase
@@ -244,6 +245,7 @@ class TestClaimAndRestoreViewDeltas(SimpleTestCase):
         mock_pipe.execute.assert_called_once()
 
 
+@pytest.mark.xdist_group(name="redis")
 class TestSyncArticleViews(TestCase):
     @patch("articles.cache.view_counts.logger.debug")
     @patch("articles.cache.view_counts.get_redis_connection")

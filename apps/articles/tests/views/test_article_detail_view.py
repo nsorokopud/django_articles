@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from django.conf import settings
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -19,6 +20,7 @@ from users.models import User
 from ...exceptions import ArticleNotPublishedCommentError
 
 
+@pytest.mark.xdist_group(name="redis")
 @override_settings_with_redis_cache()
 class TestArticleDetailView(TestCase):
     @classmethod

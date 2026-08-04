@@ -1,3 +1,4 @@
+import pytest
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -87,6 +88,7 @@ class TestArticleUpdateView(TestCase):
         self.assertTrue(form.fields["preview_image"].disabled)
         self.assertTrue(form.fields["content"].disabled)
 
+    @pytest.mark.xdist_group(name="redis")
     @override_settings_with_redis_cache()
     def test_get_for_published_article_redirects_to_detail_page(self):
         redirect_url = reverse(
